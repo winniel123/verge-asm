@@ -357,7 +357,7 @@ func readOpaque24(b []byte) ([]byte, error) {
 const CTTileWidth = 256
 
 func ParseCheckpoint(body []byte) (CTSignedTreeHead, error) {
-	// A C2SP signed note is origin, decimal tree size, base64 root hash, then signatures (§4.2).
+	// A C2SP signed note is origin, decimal tree size, base64 root hash, then signatures.
 	lines := strings.Split(string(body), "\n")
 	if len(lines) < 3 {
 		return CTSignedTreeHead{}, fmt.Errorf("scan: checkpoint has %d lines, want at least 3", len(lines))
@@ -373,7 +373,7 @@ func ParseCheckpoint(body []byte) (CTSignedTreeHead, error) {
 }
 
 func DataTilePath(index int64) string {
-	// The x-prefixed base-1000 segments are the spec's encoding, bounding directory fan-out (§4.3).
+	// The x-prefixed base-1000 segments are static-ct-api's encoding, bounding directory fan-out.
 	segs := []string{fmt.Sprintf("%03d", index%1000)}
 	for index /= 1000; index > 0; index /= 1000 {
 		segs = append([]string{fmt.Sprintf("%03d", index%1000)}, segs...)
@@ -400,7 +400,7 @@ func ParseDataTile(body []byte) ([][]byte, error) {
 
 func parseTileLeaf(b []byte) (der, rest []byte, err error) {
 	const timestampLen, entryTypeLen = 8, 2
-	// A tile leaf carries no version or leaf_type header, unlike a get-entries leaf (§4.3).
+	// A tile leaf carries no version or leaf_type header, unlike a get-entries one (static-ct-api).
 	if len(b) < timestampLen+entryTypeLen {
 		return nil, nil, fmt.Errorf("truncated leaf header")
 	}

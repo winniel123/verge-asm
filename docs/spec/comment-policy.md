@@ -534,7 +534,9 @@ it. Then either keep the naming, or rewrite each surviving sibling to name the d
 is a defect the sweep creates, not one it finds. `internal/scan/ctreliability.go` and
 `cttail_test.go:234` left four `§` references pointing at nothing, and #1190 repaired both.
 `transcript.go`, `cttail.go` and `ctverify.go` held 15 bare `§n` references with one naming block
-each, and every survivor now names the document in full.
+each. **"Every survivor now names the document in full" did not hold, and #1489 measured it.** On
+`bf49660` those three files carried **29** bare `§n` lines between them, and `transcript.go` named
+no document anywhere. The last subsection of §4.7 rules that population.
 
 **A file may carry a bare `§n` family with no naming block anywhere in it.** The fix above assumes
 one block names the document and its siblings free-ride. "Keep the naming block" is then
@@ -1342,7 +1344,7 @@ cross-reference.** `docs/spec/ct-source-replacement.md:180` says "(runtime failo
 inherits the source's error, and the result passes every check the agent then runs.
 
 **A wrong citation is worse than a dead one**, because it survives a file-existence check.
-Eighteen instances are measured. An earlier version of this line said nine and the table already
+Twenty-five instances are measured. An earlier version of this line said nine and the table already
 held ten.
 
 | Citation | What the named section states | What the rule needs |
@@ -1365,8 +1367,16 @@ held ten.
 | `(ADR-0053, spec §2.4)` in `cmd/worker/main.go` | "spec" names no file | `ct-source-replacement.md` §2.4, "Operator key location — worker-only" (#1455) |
 | `(ADR-0126, #1321 §3)` in `internal/queue/transcript.go` | A `§n` on an issue number | `ADR-0126`, whose scope clause states it and cites #1321 §3 itself (#1455) |
 | `(ADR-0129 §6)` at five sites, each stating a membership rule | §6 rules how the SAN bundle is collected, and rules no membership | The `#954` amendment (#1490) |
+| `(§3)` four times and `(§1.1)` in `internal/queue/crtsh.go` | The file names `passive-discovery-sources.md`, whose §3 is "DNS" and whose §1.1 is a source list | `ct-source-replacement.md` §3 and `raw-job-output.md` §1.1 (#1489) |
+| `(§3.2)`, `(§3.3)`, `(§2.1)` and `(§2.1.1)` in `internal/scan/ctverify.go` | The file names `ct-source-replacement.md`. It numbers no §3.2, §3.3 or §2.1.1, and its §2.1 is "Two sources, one Scan" | **RFC 6962**, which the same file writes in full at four other sites (#1489) |
+| `(§4.4)` twice in `internal/scan/ctverify.go` | "Cadence — a measured bar, and opt-in" | `ADR-0214` §2, "No log signature is checked" (#1489) |
+| `(§4.2)` once and `(§4.3)` twice in `internal/scan/cttail.go` | Scan shape and cursor, and the log-set | **C2SP** and **static-ct-api**. One was reduced to an uncited reason (#1489) |
+| `(§7)` on `internal/scan/ctreliability.go` | §7 is the schema summary | `ct-source-replacement.md` §3, whose own `(§7)` pointer the comment copied (#1489) |
+| `(§5)` on `internal/scan/edgefanout.go:3` | "v1 ships fan-out alone" | The `#954` amendment, whose own `(§5)` pointer the comment copied (#1489) |
+| `(§1.3)` on `internal/scan/zone.go` | The file names `v1 spec §3.4`, and `v1-spec.md` numbers no §1.3 | `raw-job-output.md` §1.3, "The Zone variant" (#1489) |
 
-**The last three share one shape, and the check below now catches two of them.** Each pairs a real
+**Three rows share one shape, and the check below now catches two of them.** They are
+`(ADR-0083, §3.5)`, `(ADR-0053, spec §2.4)` and `(ADR-0126, #1321 §3)`. Each pairs a real
 `ADR-nnnn` with a `§n` that belongs to some other document, or to no document. **The comma is the
 shape this defect actually takes.** The separator now accepts an optional comma or semicolon, plus
 at most one space (#1437). `(ADR-0083, §3.5)` lands as `unnumbered-adr`, and `(ADR-0126, #1321 §3)`
@@ -1543,6 +1553,79 @@ stays checked, including the checker itself.
 **The semantic half stays a reader's job.** The check proves that `§n` exists. It cannot ask whether
 `§n` states the rule the comment claims. #1437 records why: entailment needs a reader who understands
 both texts. So the check narrows the failure and never closes it.
+
+#### A bare `§n` names no document, and 59 lines cannot be repaired at the site
+
+**A bare `§n` is a citation defect, and a naming block in the same file does not always clear it.**
+#1489 measured **91 bare `(§n)` occurrences across 83 comment lines** in `cmd/` and `internal/`, on
+`bf49660`. It read them as three tiers, and took *"a named sibling sits in the same file"* as the
+strong case. **The sibling is the trap.** A file may name one document and carry a `§n` that belongs
+to a second. The reader then resolves the citation **falsely** rather than not at all. That is
+test 1's failure shape, sitting inside the file rather than inside the target.
+
+**Three files carry that shape, and #1489 repaired 15 sites in them.**
+
+- `internal/queue/crtsh.go` names `passive-discovery-sources.md` in its own comments. Four of its
+  bare `§3` sites are `ct-source-replacement.md` §3, the reliability bar. The named document's §3 is
+  "DNS". Its bare `§1.1` is `raw-job-output.md` §1.1, and the named document numbers no §1.1.
+- `internal/scan/ctverify.go` names `ct-source-replacement.md` §5 in its package doc. Four of its
+  bare sites are **RFC 6962** sections, and the same file already wrote `RFC 6962` in full
+  elsewhere. Two more cite `§4.4` for the no-log-signature rule, which `ADR-0214` §2 states.
+- `internal/scan/cttail.go` names the same document. Three of its bare sites are **C2SP** and
+  **static-ct-api** facts. The named document states none of them, and §4.2 and §4.3 rule other
+  things.
+
+**§4.5's "keep the naming" is therefore not a general repair, and this narrows it.** That rule
+offers two outcomes when a delete would orphan a document reference. Keeping the naming block is
+sound only where every bare `§n` in the file belongs to the named document. **Read them all before
+you take that option.** Two of the five files this SPEC names for that treatment fail the condition.
+They are `cttail.go` and `ctverify.go`. A third, `transcript.go`, had no naming block to keep.
+
+**A repair at the site does not fit, and #1489 measured the figure.** 65 lines remain after the
+repairs above. **Six of them take the shortest legal document name inside §4.4's 100-column cap.
+Fifty-nine do not.** The median line measures 95 columns, and 55 of the 65 reach 84 or more. #1466's
+column campaign trimmed this population **to** the cap. A document name now costs a reason-clause
+rewrite at nearly every site. #1489 refused 59 rewrites, on this section's own ground: a citation
+format may not destroy a reason.
+
+**One naming line per file or per package fits, and #1489 wrote five.**
+`internal/wire/transcript.go` held five bare `§n` and named nothing. Its `§1.2` site now names
+`raw-job-output.md`, so the file carries a naming line. `cmd/commentlint` and
+`internal/commentlint/{rule,screen,surface}` gained a package doc each.
+
+**Tier 3 is ruled: the rule binds `internal/commentlint` too.** Its 19 bare `§n` occurrences, in
+18 lines, all resolve against `docs/spec/comment-policy.md`. The package implements this SPEC and
+cites no second document by `§n`. That is not enough, because a package name is an identifier.
+§4.4 rule 2 already refuses an identifier as a citation. The discharge is a naming line. Four
+package docs reach all 19 sites. The column cap binds 15 of the 18 lines, so a site-level repair was
+never available.
+
+**The abbreviated forms stand, and normalising them would not answer the reader's grep.** The tree
+writes `v1 spec §n` 46 times and `v1-spec §n` 10 times. It writes `raw-job-output §n` 10 times,
+`measurement-offers §n` 6 times and `passive-discovery §n` twice. A full `<basename>.md §n` stands
+at 67 sites. **The short form is the majority for three of those four documents.** Each token names
+one file. Read a space as a hyphen, and it matches exactly one basename under `docs/spec/` and
+`docs/research/`. A filename glob resolves it. A content `grep -r` does not: `measurement-offers`
+hits 33 files under `docs/`, and `v1 spec` hits 135. `passive-discovery`
+is the one worth naming, and the full basename does **not** repair it. The file sits at
+`docs/research/passive-discovery-sources.md`. A reader who greps `docs/spec/` first finds nothing
+under either form. Normalising three sites out of 74 would deepen the split rather than close it.
+
+**72 bare occurrences remain, in 65 lines.** Each has a naming line in its own file or package to
+resolve against, except the site below. That is a resolvable pointer and not a verified one. §4.7's
+four tests still run per site. A site-level repair of the 72 is a reason-clause campaign, and it
+needs a ticket that owns those reason clauses.
+
+**One site resolves nowhere.** `internal/seed/seed.go:17` cites `§5.3` for `DefaultAddressCap`, and
+its package names `v1 spec §3.2`. `v1-spec.md` §5.3 is "Messages and notification". A grep for
+`1024` across `docs/spec/`, `docs/research/passive-discovery-sources.md` and `CONTEXT.md` returns no
+address cap. The reason stands uncited under route 3, and this paragraph records the gap.
+
+**A second site reaches no section that states its rule.** `internal/seed/exclusion.go:15` cites
+`§3.2, §6.4` for *not mine is a different claim from not there*. Its package names `v1 spec §3.2`.
+`passive-discovery-sources.md` numbers no §6.4, so only `v1-spec.md` numbers both. `v1-spec.md` §3.2
+is "Seeds & aperture". Its §6.4 lists *managing exclusions* as a Seeds-view job. Neither states the
+name-shape rule. #1489 left the citation untouched and records the reading here.
 
 ### 4.8 The `package-doc` cap
 
