@@ -75,16 +75,19 @@ Ten entries ship. What each is, what it discovers, and its consent tier:
 | Entry | Region / path | Tier | Ships |
 | --- | --- | --- | --- |
 | **ARIN** (`entities?fn=`) | North America, keyless org→prefix | `unencumbered` | **on** |
-| **AFRINIC** (CAIDA ⋈ delegated-stats) | Africa, keyless org→prefix | `unencumbered` | **on** |
-| **APNIC** (CAIDA ⋈ delegated-stats) | Asia-Pacific, keyless org→prefix | `unencumbered` | **on** |
+| **AFRINIC** (CAIDA ⋈ delegated-stats) | Africa, keyless org→prefix | `unencumbered` | **off** — its CAIDA host does not resolve ([#1519](https://github.com/winniel123/verge-asm/issues/1519)) |
+| **APNIC** (CAIDA ⋈ delegated-stats) | Asia-Pacific, keyless org→prefix | `unencumbered` | **off** — its CAIDA host does not resolve (#1519) |
 | **RIPEstat** | RIPE region | `operator-accepted` | **catalogued — no runner** ([#241](https://github.com/winniel123/verge-asm/issues/241)) |
 | **RIPE Database** | RIPE region | `operator-accepted` | **catalogued — no runner** (#241) |
 | **APNIC registry** | APNIC region | `operator-accepted` | **catalogued — no runner** (#241) |
 | **LACNIC registry** | Latin America | `operator-accepted` | **catalogued — no runner** (#241) |
 
-The three keyless proposer paths ship on because they are `unencumbered`. The four registry
-paths are `operator-accepted` **by tier**, but **no `proposer.Source` runner ships for them
-yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not
+**ARIN** ships on because it is `unencumbered`. The two CAIDA paths are `unencumbered`
+too, but they ship **off**: their CAIDA half names `https://api.caida.org`, a host
+that does not resolve, so every query against them fails at the request and proposes
+nothing (#1519). They stay toggleable, and the failure is loud — never a proposal of
+absence. The four registry paths are `operator-accepted` **by tier**, but **no
+`proposer.Source` runner ships for them yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not
 yet executing** (the #241 mechanism): non-toggleable, offering **no consent dialog**, and
 off for everyone until a runner lands. At that point they return to *ship off — accept the
 terms*.
@@ -196,9 +199,11 @@ proposers** — RIPEstat, RIPE Database, APNIC registry, LACNIC registry. Each i
 `operator-accepted` by tier but ships with **no `proposer.Source` runner**. So it is
 catalogued-yet-inert: rendered in the third *not run for anyone* bucket, **non-toggleable**,
 with **no consent dialog offered**. It stays that way until a real runner lands and returns
-it to *ship off — accept the terms* (the same reversal crt.sh made). The three keyless
-proposer paths (ARIN, AFRINIC, APNIC via CAIDA) execute today. The four registry paths do
-not.
+it to *ship off — accept the terms* (the same reversal crt.sh made). This is not the state
+the two CAIDA paths are in: they **have** a runner and stay toggleable, so they keep their
+consent tier and their toggle. Their runner reaches a host that does not resolve, which is
+why they ship off (#1519). Of the three keyless proposer paths, only **ARIN** executes
+today. The four registry paths have no runner at all.
 
 ### RIR proposers propose address scopes, not subdomains
 

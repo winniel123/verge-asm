@@ -19,6 +19,15 @@ function currentSlugFromPath() {
   return segs.length >= 2 ? decodeURIComponent(segs[1]) : null;
 }
 
+/**
+ * @param {{
+ *   versions?: Array<{ value: string, tag: string }>,
+ *   version?: string,
+ *   onVersionChange?: (version: string) => void,
+ *   searchPlaceholder?: string,
+ *   githubHref?: string,
+ * }} props
+ */
 export default function TopNav({
   versions = FALLBACK_VERSIONS,
   version,

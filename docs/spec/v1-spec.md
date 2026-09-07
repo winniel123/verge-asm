@@ -122,9 +122,11 @@ CZDS**, **Wayback CDX** and **bgp.tools** are excluded on availability, needing 
 observation of absence (the map's standing rule). **RIPEstat**, the **RIPE Database**, **APNIC**'s
 registry path and **LACNIC**'s registry path ship off under `operator-accepted` (asked, no reply —
 [ADR-0003](../adr/0003-third-party-source-consent-bar.md)'s amendments). **AFRINIC** and **APNIC**
-clear a keyless org→prefix path via CAIDA ⋈ delegated-stats and ship on. **ARIN**'s `entities?fn=`
-org-name path ships on keyless. A **BGP** leg (route-collector-derived address scopes) is out of
-v1 entirely — a routing announcement names the path, not the estate
+clear a keyless org→prefix path via CAIDA ⋈ delegated-stats on terms, and ship **off on
+availability**: the CAIDA half names a host that does not resolve
+([#1519](https://github.com/winniel123/verge-asm/issues/1519)), so the path answers nothing until a
+reachable CAIDA artefact replaces it. **ARIN**'s `entities?fn=` org-name path ships on keyless. A
+**BGP** leg (route-collector-derived address scopes) is out of v1 entirely — a routing announcement names the path, not the estate
 ([ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)) — even where the
 source (RouteViews) clears the consent bar cleanly. Clearing the bar is not an argument for
 shipping. The **operator's own zone file** is Tier-0 ground truth, uploaded (never mounted — a
