@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -778,7 +779,7 @@ func TestSourceRoutesRequireLogin(t *testing.T) {
 	}
 }
 
-func TestCAIDAProposersShipOffWhileTheirHostIsDead(t *testing.T) {
+func TestCAIDAProposersAreBarredBecauseNoEndpointServesThePath(t *testing.T) {
 	for _, slug := range []string{"afrinic", "apnic-caida"} {
 		c, ok := catalogBySlug(slug)
 		if !ok {
@@ -787,11 +788,77 @@ func TestCAIDAProposersShipOffWhileTheirHostIsDead(t *testing.T) {
 		if c.DefaultOn {
 			t.Errorf("%s ships on, but its CAIDA half cannot answer (#1519)", slug)
 		}
-		for _, want := range []string{"Ships OFF", "api.caida.org", "does not resolve"} {
+		if !c.Barred {
+			t.Errorf("%s stays toggleable, so an admin can enable a path that cannot answer (#1604)", slug)
+		}
+		if c.BarredReason != barredNoEndpoint {
+			t.Errorf("%s bar reason = %q, want %q", slug, c.BarredReason, barredNoEndpoint)
+		}
+		if c.Consent != consentUnencumbered {
+			t.Errorf("%s consent = %q; a reachability bar must not restate a consent verdict", slug, c.Consent)
+		}
+		for _, want := range []string{"org2ids", "api.caida.org", "opaqueId", "ADR-0222"} {
 			if !strings.Contains(c.ShipNote, want) {
 				t.Errorf("%s ShipNote omits %q: %s", slug, want, c.ShipNote)
 			}
 		}
+	}
+}
+
+func TestEveryBarredEntryStatesItsOwnReason(t *testing.T) {
+	for _, c := range sourceCatalog {
+		if !c.Barred && !c.NoRunner {
+			if c.BarredReason != "" {
+				t.Errorf("%s: a runnable entry carries the bar reason %q", c.Slug, c.BarredReason)
+			}
+			continue
+		}
+		switch c.BarredReason {
+		case barredOnTerms, barredNoRunner, barredNoEndpoint:
+		case "":
+			t.Errorf("%s: barred with no reason, so the badge would state another entry's", c.Slug)
+		default:
+			t.Errorf("%s: unknown bar reason %q", c.Slug, c.BarredReason)
+		}
+	}
+}
+
+func TestBarredBadgeStatesTheReasonTheEntryWasBarredFor(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+
+	for _, want := range []string{barredOnTerms, barredNoRunner, barredNoEndpoint} {
+		if !strings.Contains(page, "barred — "+want) {
+			t.Errorf("no entry rendered %q; body: %s", "barred — "+want, page)
+		}
+	}
+	if n := strings.Count(page, "barred — "+barredOnTerms); n != 1 {
+		t.Errorf("%q rendered %d times; only hackertarget fails the consent bar (ADR-0003)", barredOnTerms, n)
+	}
+}
+
+func TestABarOutranksAStaleEnablementOverride(t *testing.T) {
+	f := newFakeStore()
+	for _, slug := range []string{"afrinic", "apnic-caida"} {
+		f.sourceStates[slug] = db.SourceState{Slug: slug, Enabled: true}
+	}
+	srv := newServer(f, testKey, "", fixedClock())
+
+	enabled, err := srv.enabledProposers(httptest.NewRequest(http.MethodGet, "/settings?tab=sources", nil))
+	if err != nil {
+		t.Fatalf("enabledProposers: %v", err)
+	}
+	for _, slug := range []string{"afrinic", "apnic-caida"} {
+		if enabled[slug] {
+			t.Errorf("%s: a stale override still runs a barred proposer", slug)
+		}
+	}
+	if !enabled["arin"] {
+		t.Error("arin: the unbarred proposer stopped running")
 	}
 }
 
