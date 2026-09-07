@@ -181,15 +181,13 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 	}
 
-	s.render(w, r, "coverage", map[string]any{
-		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":   "coverage",
+	s.render(w, r, "coverage", pageData(acct, "Coverage", "coverage", map[string]any{
 		"Meters":      meters,
 		"Messages":    messages,
 		"Gaps":        gaps,
 		"Unevaluable": unevaluable,
 		"StaleZones":  staleZonesView,
-	})
+	}))
 }
 
 func withheldMeter(label, detail string) coverageMeterView {

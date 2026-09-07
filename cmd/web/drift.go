@@ -175,9 +175,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// A batch exists at dispatch, long before two fold a transition, so it can precede a feed.
 	batchID, batchLabel := s.latestBatch(r)
 
-	s.render(w, r, "drift", map[string]any{
-		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":       "drift",
+	s.render(w, r, "drift", pageData(acct, "Drift", "drift", map[string]any{
 		"Kinds":           driftKinds(),
 		"Groups":          groups,
 		"Movement":        movement,
@@ -191,7 +189,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		"BatchLabel":      batchLabel,
 		"TransitionCount": transitionCount,
 		"TransitionDelta": s.transitionDelta(r.Context(), since, until, transitionCount),
-	})
+	}))
 }
 
 func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timestamptz, currentCount int) string {

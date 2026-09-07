@@ -627,10 +627,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	mttwSpark, hasMTTWSpark := buildSparkline(meanDaysSeries(withdrawalPoints), 300, 46, "var(--chart-2)")
 
-	s.render(w, r, "reports", map[string]any{
-		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports",
-
+	s.render(w, r, "reports", pageData(acct, "Reports", "reports", map[string]any{
 		"OpenSignals":    openSignals,
 		"HasOpenSignals": hasOpenSignals,
 		"OpenDelta":      openDelta,
@@ -666,7 +663,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"PeriodLabel": window.Label,
 
 		"Schedules": s.reportScheduleRows(ctx),
-	})
+	}))
 }
 
 func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int) (counts []int, window, active int) {
@@ -744,14 +741,12 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 		scheduleHole = scheduleID
 	}
 
-	s.render(w, r, "reportartifact", map[string]any{
-		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "reports",
+	s.render(w, r, "reportartifact", pageData(acct, "Report delivery", "reports", map[string]any{
 		"Heading":    heading,
 		"Period":     message.ArtifactPeriod(art),
 		"ScheduleID": scheduleHole,
 		"Doc":        message.BuildArtifactDoc(art),
-	})
+	}))
 }
 
 func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct db.Account) {

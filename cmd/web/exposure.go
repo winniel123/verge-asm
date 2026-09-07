@@ -54,11 +54,9 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 	}
 	if !internetVantage {
-		s.render(w, r, "exposure", map[string]any{
-			"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"NavActive": "exposure",
-			"Withheld":  true,
-		})
+		s.render(w, r, "exposure", pageData(acct, "Exposure", "exposure", map[string]any{
+			"Withheld": true,
+		}))
 		return
 	}
 
@@ -69,15 +67,13 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 
-	data := map[string]any{
-		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "exposure",
+	data := pageData(acct, "Exposure", "exposure", map[string]any{
 		"Withheld":   false,
 		"Rows":       rows,
 		"Exposed":    stats.exposed,
 		"Firewalled": stats.firewalled,
 		"NotReached": stats.notReached,
-	}
+	})
 	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
 		log.Printf("web: exposure: previous batch instant: %v", err)
 	} else if ok {
