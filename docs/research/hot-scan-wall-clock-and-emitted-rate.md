@@ -259,7 +259,8 @@ same run.
 The rise is 25% from the first block to the last, and it is monotonic. The leaf cost is fixed at
 2.76 s, so the whole rise sits in the worker's overhead. That overhead runs 0.17 s at the start of
 the tick and 0.91 s at the end. The `observation` table grew to 134,144 rows during the run, and
-the growing table is the obvious candidate. **This note did not confirm the cause.** §9 records it.
+the growing table was the obvious candidate. **§4.2.1 confirms the cause, and it is not that
+table.**
 
 A smaller control run at 8 addresses (`192.88.100.0/29`) took 23.02 s, a mean of 2.878 s per job.
 That run held a listener on 4 ports, so each address also ran 4 certificate handshakes. Its mean
@@ -267,6 +268,127 @@ matches the first block of the full run.
 
 Three probes of the dropping range ran in a separate container between job 100 and job 220 of this
 run. They cost about 15 s of the 3392 s total, which is 0.4%.
+
+#### 4.2.1 What carries the rise
+
+[#1588](https://github.com/winniel123/verge-asm/issues/1588) ran the confirmation.
+**`flagshipMessages` carries the rise.** It sits in `internal/queue/produce.go`. It runs two
+unindexed full scans of the `span` table on every completed job. Both run inside `complete`'s one
+transaction. `observation` row growth carries none of the rise. `readMembershipInputs` carries
+none of it either.
+
+**The rig.** §3, with two changes. The three network containers are gone. The Postgres container
+starts with `shared_preload_libraries=pg_stat_statements` and `pg_stat_statements.track=all`. A
+stub replaces the prober binary. The stub calls `connectoutcome.RunWithConnector` with a connector
+that answers `refused` and never dials. The stub removes the pacer and nothing else. Both runs
+recorded the same 134,144 `reachability` observations and no other facet. Every line of worker,
+fold and message code below the prober therefore ran on the same input. Stripping the fixed 2.76 s
+leaf cost leaves the worker's overhead naked. It also puts a 1024-address run inside 10 minutes
+rather than 57, which is what fits three arms in one session. The scale is the full 1024
+addresses, unchanged from §4.2.
+
+**The stub rig reproduces the §4.2 curve.** Same scope, same block size.
+
+| Jobs | §4.2 overhead, measured minus 2.76 s | Stub-leaf rig, measured |
+| --- | --- | --- |
+| 1 to 128 | 0.170 | 0.194 |
+| 129 to 256 | 0.283 | 0.307 |
+| 257 to 384 | 0.400 | 0.449 |
+| 385 to 512 | 0.530 | 0.575 |
+| 513 to 640 | 0.591 | 0.645 |
+| 641 to 768 | 0.706 | 0.726 |
+| 769 to 896 | 0.819 | 0.848 |
+| 897 to 1024 | 0.914 | 0.951 |
+
+Monotonic in both columns, and within 15% at every block. The rise is 0.757 s in the rig against
+0.744 s in §4.2. The slope belongs to the worker. It does not belong to the leaf or the network.
+
+**Attribution.** `pg_stat_statements` was sampled every 10 s through the baseline run. Each cell
+is the SQL time one job spent inside that statement, in milliseconds, averaged over the block.
+The block edges are the sample boundaries, so they do not land on 128.
+
+| Jobs | wall | `…SpansByClass` | `…SpansByClassAt` | `InsertObservation` | `OpenSpan` | `ListSeeds` + `ListExclusions` | all SQL |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 to 123 | 245.4 | 13.97 | 17.89 | 7.70 | 9.14 | 0.04 | 53.0 |
+| 124 to 255 | 304.9 | 44.32 | 62.53 | 8.66 | 10.17 | 0.04 | 129.5 |
+| 256 to 388 | 453.9 | 110.50 | 110.08 | 8.57 | 10.09 | 0.04 | 243.0 |
+| 389 to 510 | 577.4 | 158.69 | 158.54 | 8.65 | 10.21 | 0.04 | 340.1 |
+| 511 to 635 | 644.5 | 182.73 | 176.39 | 8.30 | 9.80 | 0.04 | 381.2 |
+| 636 to 761 | 718.6 | 231.89 | 182.63 | 8.52 | 9.98 | 0.04 | 440.7 |
+| 762 to 892 | 845.1 | 298.87 | 222.15 | 8.45 | 10.02 | 0.04 | 543.7 |
+| 893 to 1019 | 950.8 | 343.84 | 253.16 | 8.53 | 10.03 | 0.04 | 619.9 |
+
+The two `span` scans rise from 31.9 ms to 597.0 ms per job. That is 80% of the 705 ms wall-clock
+rise and 99.7% of the 567 ms SQL rise. Over the run they cost 330.4 s of a 602 s drain.
+`InsertObservation` rises 0.8 ms across the same eight blocks. That is 0.1% of the rise.
+
+`EXPLAIN (ANALYZE)` names the shape at 92,879 open service spans. It is a `Seq Scan` on `span`,
+then a sort that spills 11 MB to disk under the default 4 MB `work_mem`, for 226 ms.
+`db/queries/signals.sql` holds `ListServiceReachabilitySpansByClass`. `db/queries/span.sql` holds
+`ListServiceReachabilitySpansByClassAt`. No index serves either one. Their cost grows with the
+table, and the sort grows faster than the table does.
+
+**Two hold-constant arms.** A separate connection truncates one candidate's table every 20 s.
+That holds one candidate at a fixed size. Every other candidate stays free to grow.
+
+| Arm | Held constant | Free to grow | Drain |
+| --- | --- | --- | --- |
+| Baseline | nothing | everything | 602 s |
+| Arm A | `observation` | `span`, `batch`, `queue_job` | 599 s |
+| Arm C | `span` | `observation`, `batch`, `queue_job` | 200 s |
+
+Seconds per job, by block of 128, for all three runs.
+
+| Jobs | Baseline | Arm A | Arm C |
+| --- | --- | --- | --- |
+| 1 to 128 | 0.194 | 0.205 | 0.193 |
+| 129 to 256 | 0.307 | 0.321 | 0.183 |
+| 257 to 384 | 0.449 | 0.443 | 0.198 |
+| 385 to 512 | 0.575 | 0.559 | 0.203 |
+| 513 to 640 | 0.645 | 0.639 | 0.193 |
+| 641 to 768 | 0.726 | 0.708 | 0.194 |
+| 769 to 896 | 0.848 | 0.840 | 0.198 |
+| 897 to 1024 | 0.951 | 0.959 | 0.203 |
+
+Arm C is flat. No block mean departs from the first by more than 11 ms. The `observation` table
+still reached its full 134,144 rows with both its indexes. Its inserts still cost 8,619 ms against
+the baseline's 8,623 ms, for the same 134,144 rows. The whole slope is gone, and the drain falls
+to a third.
+
+Arm A is the mirror. The `observation` table never held more than one job's rows, and the slope
+came back at full size. Its two `span` scans still cost 330.6 s, and its drain still ran 599 s
+against the baseline's 602 s.
+
+**The three candidates the ticket named.**
+
+1. **`observation` row growth, with its two indexes. Refuted.** Its inserts cost 8.6 s of a 602 s
+   drain. Their per-job cost is flat at about 8.5 ms from the first block to the last. Arm C grew
+   the table to its full size with the curve flat. Arm A held the table near empty and the curve
+   rose anyway.
+2. **`readMembershipInputs` running `ListSeeds` and `ListExclusions` on every job. Refuted.** The
+   two together cost 0.04 ms per job, or about 40 ms of a 602 s drain, and neither figure moves
+   across the run. Neither table can grow during a drain: the scope declares one Seed and no Exclusion,
+   and no statement in the drain writes either table.
+3. **`complete` folding spans inside one transaction. Confirmed as the site.** The fold itself is
+   refuted. Its own statements are index-served and flat. Together, `GetOpenSpan` and `OpenSpan`
+   cost 10.3 ms per job in the first block and 11.4 ms in the last. A first scan closes nothing,
+   so `CloseSpan` never reaches the 25 costliest statements. The slope belongs to the `produce` call, which runs in the
+   same transaction and reaches `flagshipMessages`. That reads every open service reachability
+   span twice per job. It reads once as of now and once as of the previous batch's instant. The
+   pair decides whether one Service's leg moved.
+
+**What this confirmation did not measure.**
+
+- **The residue.** 138 ms of the 705 ms wall-clock rise sits outside SQL execution time. Decoding
+  and folding the same two growing result sets in Go is the obvious candidate, and nothing here
+  measured it. Arm C removes the whole rise, so whatever the residue is, it scales with `span`
+  too.
+- **The pacer's absence.** The stub leaf drains denser in wall-clock than §4.2's run, so
+  autovacuum and the checkpointer get less time between jobs. The reproduced curve matches §4.2's
+  within 15%, so this did not change the answer, but it is a difference.
+- **Anything past 1024 jobs.** §5.2's warning still rests on continuing a measured slope.
+- **A truncation-free arm.** Both arms truncate a table under a running drain. The shipped worker
+  never reaches that state.
 
 ### 4.3 The same scan against a silently dropping estate
 
@@ -470,11 +592,17 @@ by this ticket.**
 5. **`EgressGuard` makes the leaf untestable against a normal local target.** Every loopback,
    RFC 1918, and documentation prefix is refused at the socket. §2.2 shows the workaround. A
    supported test affordance would remove the need to capture a public prefix.
-6. **The drain slows as the tick proceeds, by 25% inside one tick.** §4.2 has the segment table.
-   The leaf cost is fixed, so the rise sits in the worker's own overhead. The `observation` table
-   reached 134,144 rows during the run. Row growth is the obvious candidate and this note did not
-   confirm it. The consequence is in §5.2. A flat-rate extrapolation over-states the scope size
-   that fits the cadence, and by a factor of about two at 26,000 addresses.
+6. **The drain slows as the tick proceeds, by 25% inside one tick, and `flagshipMessages` carries
+   it.** §4.2 has the segment table and §4.2.1 has the confirmation. `flagshipMessages` in
+   `internal/queue/produce.go` runs `ListServiceReachabilitySpansByClass` and
+   `ListServiceReachabilitySpansByClassAt` on every completed job, inside `complete`'s
+   transaction. Both are unindexed full scans of `span` that sort every open service reachability
+   span. They cost 330 s of a 602 s drain and carry 80% of the measured rise. Holding `span`
+   constant flattens the curve and cuts the drain to a third. `observation` row growth is refuted.
+   The table reached its full 134,144 rows with the curve flat. Held near empty, the curve rose
+   anyway. `readMembershipInputs` is refuted at about 40 ms of the whole drain. The consequence is
+   in §5.2. A flat-rate extrapolation over-states the scope size that fits the cadence, and by a
+   factor of about two at 26,000 addresses. **File the two scans.**
 7. **The budget names packets and the pacer counts connects.** `per_vantage_packets_per_sec` is
    200. The pacer spaces connect attempts, not packets. Against a refusing target the two agree,
    because one connect is one SYN. Against a dropping target the kernel retransmits. The capture
