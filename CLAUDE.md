@@ -70,6 +70,20 @@ At the end of a wayfinder or implementation session, open a PR and make sure the
 
 New goose migrations race on their number. The `compose` CI job boots the real `web` binary, which runs `goose.Up`; a duplicate goose version panics the binary and `compose` fails at "wait for a healthy stack" (look for `panic: goose: duplicate version NNNNN`). CI tests your branch merged with `main`. Before pushing, `git fetch origin main` and number your migration above `origin/main`'s current max in `db/migrations/` (they increment by ~100).
 
+New ADRs race on their number in the same way, and no check catches it. `docs/adr/` numbers sequentially, and every branch cuts from `origin/main`. Two concurrent branches read the same max and claim the same next number. A fetch of `origin/main` cannot reveal the clash, because neither ADR has merged. The first merge wins and the second conflicts on the file.
+
+Before you write an ADR, read the number every open PR already claims:
+
+```sh
+gh pr list --state open --json number --jq '.[].number' \
+  | xargs -I{} gh pr diff {} --name-only \
+  | grep '^docs/adr/'
+```
+
+Number above `origin/main`'s current max AND above every number that command prints. State the number in your PR title or body, so a sibling session sees it without reading a diff.
+
+On 2026-09-07 four concurrent sessions each authored ADR-0222 (#1614, #1617, #1618, #1622). Three branches then rewrote every citation of their own number. One of the three also needed a `sqlc` regeneration, because the citation sat in a SQL comment that `sqlc` lifts into `internal/db`.
+
 ## Local dev environment
 
 The dev machine is Ubuntu Server 24.04 LTS (x86_64). It replaced a Windows machine on 2026-09-03. Every Windows-specific rule in an earlier version of this file is retired.
