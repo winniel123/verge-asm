@@ -234,16 +234,14 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		allHref, unreadHref = "/inbox?"+idq, "/inbox?filter=unread&"+idq
 	}
 
-	s.render(w, r, "inbox", map[string]any{
-		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "inbox",
+	s.render(w, r, "inbox", pageData(acct, "Inbox", "inbox", map[string]any{
 		"Messages":   shown,
 		"Selected":   selected,
 		"Unread":     unread,
 		"Filter":     filter,
 		"AllHref":    allHref,
 		"UnreadHref": unreadHref,
-	})
+	}))
 }
 
 func jumpLabel(cause message.Cause, subjectKind string) string {

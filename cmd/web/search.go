@@ -146,16 +146,14 @@ func searchMatch(text, q string) bool {
 }
 
 func searchRenderMap(acct db.Account, q string, total int, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
-	return map[string]any{
-		"Title": "Search results", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "",
-		"Query":     q,
-		"Total":     total,
-		"Assets":    assets,
-		"Signals":   signals,
-		"Batches":   batches,
-		"Docs":      docs,
-	}
+	return pageData(acct, "Search results", "", map[string]any{
+		"Query":   q,
+		"Total":   total,
+		"Assets":  assets,
+		"Signals": signals,
+		"Batches": batches,
+		"Docs":    docs,
+	})
 }
 
 func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Account) {

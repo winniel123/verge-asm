@@ -1513,6 +1513,9 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 			if !since.Time.IsZero() && s.OpenedAt.Before(since.Time) {
 				continue
 			}
+			if arg.Until.Valid && !s.OpenedAt.Before(arg.Until.Time) {
+				continue
+			}
 			bID := obsBatch[k][s.OpenedAt.UnixNano()]
 			b := f.fakeBatchByID(bID)
 			row := db.ListRecentDriftEventsRow{

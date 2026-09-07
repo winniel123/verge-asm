@@ -573,9 +573,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 			g = joinSignals(g, signal.EvaluateCorpus(corpus))
 		}
 	}
-	s.render(w, r, "graph", map[string]any{
-		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "graph",
-		"Graph":     g,
-	})
+	s.render(w, r, "graph", pageData(acct, "Graph", "graph", map[string]any{
+		"Graph": g,
+	}))
 }

@@ -353,9 +353,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 	exportVals := filterVals()
 	exportHref := "/signals/export?" + exportVals.Encode()
 
-	s.render(w, r, "signals", map[string]any{
-		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":       "signals",
+	s.render(w, r, "signals", pageData(acct, "Signals", "signals", map[string]any{
 		"SignalCount":     len(open),
 		"Tab":             tab,
 		"OpenCount":       len(open),
@@ -386,7 +384,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		"Descope":         descope,
 		"AnnoError":       forms.annoError,
 		"AnnoReasonDraft": annoReasonDraft,
-	})
+	}))
 }
 
 func (s *server) enrichSignalDrawer(r *http.Request, row *signalRow) {

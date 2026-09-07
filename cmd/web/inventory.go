@@ -511,12 +511,10 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 	if s.devMode {
 		applyInventoryFixtureCounts(groups, r.URL.Query().Get("all"))
 	}
-	s.render(w, r, "inventory", map[string]any{
-		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Groups":    groups,
-		"HasData":   len(groups) > 0,
-	})
+	s.render(w, r, "inventory", pageData(acct, "Inventory", "inventory", map[string]any{
+		"Groups":  groups,
+		"HasData": len(groups) > 0,
+	}))
 }
 
 func (s *server) inventoryExport(w http.ResponseWriter, r *http.Request, acct db.Account) {

@@ -1,3 +1,4 @@
+// Package surface is the extractor seam of comment-policy.md §6.2.
 package surface
 
 import (

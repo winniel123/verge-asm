@@ -462,9 +462,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	// An additive card degrades alone so the screen it sits on still serves (ADR-0168 §1, #1339).
 	census, censusErr := s.custodyCensus(r.Context())
-	data := map[string]any{
-		"Title": "Scope", "NavActive": "scope",
-		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
+	data := pageData(acct, "Scope", "scope", map[string]any{
 		"Seeds": seeds, "AddressCap": s.addressCap(r.Context()),
 		"NameTree":     nameTree,
 		"CoverageMsgs": coverageMessages(probers),
@@ -484,7 +482,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ProposalError": f.proposalError,
 		"ExclPreview":   f.exclPreview,
 		"SeedConfirm":   f.seedConfirm,
-	}
+	})
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
 	}

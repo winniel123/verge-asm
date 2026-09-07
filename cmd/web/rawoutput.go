@@ -124,13 +124,9 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 }
 
 func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]any {
-	return map[string]any{
-		"Title":     "Raw output · job #" + strconv.FormatInt(view.JobID, 10),
-		"Account":   acct,
-		"IsAdmin":   acct.Role == roleAdmin,
-		"NavActive": "drift",
-		"Raw":       view,
-	}
+	return pageData(acct, "Raw output · job #"+strconv.FormatInt(view.JobID, 10), "drift", map[string]any{
+		"Raw": view,
+	})
 }
 
 func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error {

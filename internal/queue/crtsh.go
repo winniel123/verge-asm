@@ -160,13 +160,13 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 		}
 
 		url := src.QueryURL(cs.Domain, cursor)
-		// Latency must measure the source, not our own spacing, so the wait sits outside it (§3).
+		// Latency must measure the source, not our own spacing (ct-source-replacement.md §3).
 		fetchStart := w.now()
 		status, body, ferr := w.ctFetcher.Fetch(ctx, url)
 		fetchElapsed += w.now().Sub(fetchStart)
 		lastURL, lastBody = url, body
 		if ferr != nil || status != http.StatusOK {
-			// crt.sh returns spurious 404s and 5xxs for domains that do have certificates (§2.2).
+			// A crt.sh 404 or 5xx can be spurious (passive-discovery-sources.md §2.2).
 			w.recordCTSample(ctx, src.Slug(), false, fetchElapsed, false)
 			cause := ferr
 			if cause == nil {
@@ -222,7 +222,7 @@ func ctFetchOutcome(ferr error, status int) wire.CTOutcome {
 }
 
 func countingSeq(names iter.Seq[string], saw *bool) iter.Seq[string] {
-	// The count is the source's raw output, so source-empty is told from scope-filtered (§3).
+	// The raw count tells source-empty from scope-filtered (ct-source-replacement.md §3).
 	return func(yield func(string) bool) {
 		for n := range names {
 			*saw = true
@@ -234,11 +234,11 @@ func countingSeq(names iter.Seq[string], saw *bool) iter.Seq[string] {
 }
 
 func (w *Worker) recordCTSample(ctx context.Context, source string, ok bool, latency time.Duration, empty bool) {
-	// The sample rides the pool, not the job transaction, so a retry records its attempt (§3).
+	// The sample rides the pool, so a retry records its own attempt (ct-source-replacement.md §3).
 	if w.q == nil {
 		return
 	}
-	// A measurement must not change the outcome it measures, so a failed write only logs (§3).
+	// A measurement must not change the outcome it measures (ct-source-replacement.md §3).
 	if err := w.q.InsertCTReliabilitySample(ctx, db.InsertCTReliabilitySampleParams{
 		Source:    source,
 		Ok:        ok,
@@ -260,7 +260,7 @@ func (w *Worker) retryOrDeadLetterCT(ctx context.Context, job db.ClaimJobRow, t 
 	if exhaustedRetries(job.Attempt, job.MaxAttempts) {
 		return w.deadLetterCT(ctx, job, t, cause)
 	}
-	// A Transcript keys to the attempt that made it, so the failed exchange rides this row (§1.1).
+	// A Transcript keys to the attempt that made it (raw-job-output.md §1.1).
 	return w.retry(ctx, job, t, cause)
 }
 

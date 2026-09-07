@@ -120,6 +120,31 @@ func preflightArchive(r io.Reader) (restorePreflight, error) {
 	}, nil
 }
 
+func checkArchiveRowTables(archive []byte) error {
+	sc := bufio.NewScanner(bytes.NewReader(archive))
+	sc.Buffer(make([]byte, 0, 1<<20), restoreMaxUpload)
+	for sc.Scan() {
+		line := sc.Bytes()
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var row backupRowLine
+		if err := json.Unmarshal(line, &row); err != nil {
+			return fmt.Errorf("restore: malformed archive line: %w", err)
+		}
+		if row.Type != "row" {
+			continue
+		}
+		if !backupAllowed(row.Table) {
+			return errRestoreUnknownTbl
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return fmt.Errorf("restore: read archive: %w", err)
+	}
+	return nil
+}
+
 func backupAllowed(table string) bool {
 	for _, t := range backupTables {
 		if t == table {
@@ -253,6 +278,11 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		if !backupAllowed(t) {
 			return errRestoreUnknownTbl
 		}
+	}
+
+	// A pre-scan refuses a forged row before TRUNCATE, and the loop gate stays (ADR-0174 §6).
+	if err := checkArchiveRowTables(archive); err != nil {
+		return err
 	}
 
 	identity, err := s.identityTables(ctx)

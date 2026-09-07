@@ -425,31 +425,70 @@ func TestDriftPageFailsLoudlyWhenItsFeedReadFails(t *testing.T) {
 	}
 }
 
-func TestDriftTruncationFlagCountsRowsBeforeTheRangeTrim(t *testing.T) {
+func TestDriftCustomHistoricalRangeIsServedUnderTheCap(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
 
-	at := time.Now().UTC().Add(-24 * time.Hour)
-	for i := 0; i < int(driftFeedLimit); i++ {
+	inRange := time.Now().UTC().AddDate(0, 0, -404)
+	f.addResolution(t, admin.ID, "archive.example.com", "hot", inRange, `{"outcome":"Resolved"}`)
+
+	recent := time.Now().UTC().Add(-24 * time.Hour)
+	for i := 0; i <= int(driftFeedLimit); i++ {
+		f.addResolution(t, admin.ID, fmt.Sprintf("h%03d.example.com", i), "hot", recent, `{"outcome":"Resolved"}`)
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	from := time.Now().UTC().AddDate(0, 0, -407)
+	to := time.Now().UTC().AddDate(0, 0, -400)
+	page := getBody(t, ac, fmt.Sprintf("%s/drift?start=%s&end=%s",
+		base, from.Format("2006-01-02"), to.Format("2006-01-02")), http.StatusOK)
+
+	if strings.Contains(page, "No change to show yet") {
+		t.Errorf("a historical range with change in it rendered the empty state; body: %s", page)
+	}
+	if !strings.Contains(page, "archive.example.com") {
+		t.Errorf("the feed dropped the transition inside the requested range; body: %s", page)
+	}
+	if strings.Contains(page, "h001.example.com") {
+		t.Errorf("the feed rendered a transition after the requested end date; body: %s", page)
+	}
+
+	resp, err := ac.Get(fmt.Sprintf("%s/drift/export?start=%s&end=%s",
+		base, from.Format("2006-01-02"), to.Format("2006-01-02")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	csv := body(t, resp)
+	if !strings.Contains(csv, "archive.example.com") {
+		t.Errorf("the CSV export dropped the transition inside the requested range; body:\n%s", csv)
+	}
+	if strings.Contains(csv, "h001.example.com") {
+		t.Errorf("the CSV export carried a transition after the requested end date; body:\n%s", csv)
+	}
+}
+
+func TestDriftTruncationIsStatedWhenTheCapBoundsARange(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+
+	at := time.Now().UTC().AddDate(0, 0, -404)
+	for i := 0; i <= int(driftFeedLimit); i++ {
 		f.addResolution(t, admin.ID, fmt.Sprintf("h%03d.example.com", i), "hot", at, `{"outcome":"Resolved"}`)
 	}
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	to := time.Now().UTC().AddDate(-1, 0, 0)
-	from := to.AddDate(0, 0, -7)
+	from := time.Now().UTC().AddDate(0, 0, -407)
+	to := time.Now().UTC().AddDate(0, 0, -400)
 	page := getBody(t, ac, fmt.Sprintf("%s/drift?start=%s&end=%s",
 		base, from.Format("2006-01-02"), to.Format("2006-01-02")), http.StatusOK)
 
-	if !strings.Contains(page, "dr-callout") {
-		t.Errorf("a historical range whose read was consumed by the cap must state the truncation; body: %s", page)
-	}
-	if !strings.Contains(page, "Showing the most recent 0 transitions for this period.") {
-		t.Errorf("the callout must name the rendered transition count, not the feed limit; body: %s", page)
-	}
-	if strings.Contains(page, "Showing the most recent 500 transitions") {
-		t.Errorf("the callout still names FeedLimit, which overstates what rendered; body: %s", page)
+	if !strings.Contains(page, fmt.Sprintf("Showing the most recent %d transitions for this period.", driftFeedLimit)) {
+		t.Errorf("a range whose read the cap bound must state the truncation; body: %s", page)
 	}
 }

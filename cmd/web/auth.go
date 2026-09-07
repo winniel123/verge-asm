@@ -428,7 +428,7 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 
 const lockoutMessage = "Too many attempts. Try again in a few minutes."
 
-func loginAccountKey(username string) string { return "acct:" + strings.ToLower(username) }
+func loginAccountKey(username string) string { return acctKeyPrefix + strings.ToLower(username) }
 
 func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented string) bool {
 	presented = normalizeRecoveryCode(presented)
@@ -817,10 +817,8 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	probeDismissed := r.URL.Query().Get("probe") == "dismissed"
 
-	data := map[string]any{
-		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "dashboard",
-		"Scanning":  len(active) > 0,
+	data := pageData(acct, "Dashboard", "dashboard", map[string]any{
+		"Scanning": len(active) > 0,
 
 		"EmptyEstate":   emptyEstate,
 		"FirstRunSteps": steps,
@@ -843,7 +841,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 		"Deltas":    deltas,
 		"HasDeltas": deltas.Known,
-	}
+	})
 	if hasOpenSignals && openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}
@@ -1454,10 +1452,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
-	data := map[string]any{
-		"Title": "Profile", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "",
-
+	data := pageData(acct, "Profile", "", map[string]any{
 		"Initials":    initials(acct.Username),
 		"Username":    acct.Username,
 		"Role":        acct.Role,
@@ -1486,7 +1481,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"RevokeErr":     st.revokeErr,
 		"EndSession":    st.endSession,
 		"SignOutOthers": st.signOutOthers,
-	}
+	})
 	s.render(w, r, "profile", data)
 }
 
@@ -1903,7 +1898,8 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	if !ok {
 		return
 	}
-	if _, isChrome := m["IsAdmin"]; !isChrome {
+	// IsAdmin is an authorization datum, so it never routes the shell (#1358).
+	if inShell, _ := m[shellKey].(bool); !inShell {
 		return
 	}
 	navActive, _ := m["NavActive"].(string)

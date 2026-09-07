@@ -414,14 +414,12 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	}
 
 	view := s.buildRunView(r, dv, jobRows)
-	s.render(w, r, "run", map[string]any{
-		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "drift",
-		"Refresh":   runRefresh(view.Status),
+	s.render(w, r, "run", pageData(acct, "batch "+view.Title, "drift", map[string]any{
+		"Refresh": runRefresh(view.Status),
 		// rundetail.tmpl reads StreamHref at root scope, so attribute and script emit together.
 		"StreamHref": view.StreamHref,
 		"Run":        view,
-	})
+	}))
 }
 
 func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.ListJobsForDispatchRow) runView {

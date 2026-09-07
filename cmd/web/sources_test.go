@@ -776,3 +776,20 @@ func TestSourceRoutesRequireLogin(t *testing.T) {
 		t.Fatalf("anon GET /sources: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 }
+
+func TestCAIDAProposersShipOffWhileTheirHostIsDead(t *testing.T) {
+	for _, slug := range []string{"afrinic", "apnic-caida"} {
+		c, ok := catalogBySlug(slug)
+		if !ok {
+			t.Fatalf("%s is not in the catalogue", slug)
+		}
+		if c.DefaultOn {
+			t.Errorf("%s ships on, but its CAIDA half cannot answer (#1519)", slug)
+		}
+		for _, want := range []string{"Ships OFF", "api.caida.org", "does not resolve"} {
+			if !strings.Contains(c.ShipNote, want) {
+				t.Errorf("%s ShipNote omits %q: %s", slug, want, c.ShipNote)
+			}
+		}
+	}
+}

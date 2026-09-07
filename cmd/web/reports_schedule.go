@@ -524,12 +524,7 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		title = "Edit report schedule"
 	}
 
-	s.render(w, r, "schedulewizard", map[string]any{
-		"Title":     title,
-		"Account":   acct,
-		"IsAdmin":   acct.Role == roleAdmin,
-		"NavActive": "reports",
-
+	s.render(w, r, "schedulewizard", pageData(acct, title, "reports", map[string]any{
 		// Chrome injection stamps BackURL only when unset, so setting it here, even empty, matters.
 		"BackURL": v.Back,
 
@@ -557,5 +552,5 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		"ChannelLabel": channelLabel,
 
 		"Review": review,
-	})
+	}))
 }
