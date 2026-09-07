@@ -202,3 +202,23 @@ func TestRegistryRunsOnlyEnabledSources(t *testing.T) {
 		t.Fatalf("expected two candidates with both enabled, got %+v", cands)
 	}
 }
+
+func TestDefaultRegistryCAIDABaseIsStillTheUnreachableHost(t *testing.T) {
+	const dead = "https://api.caida.org/as2org/v1"
+	var seen int
+	for _, s := range DefaultRegistry(&fakeDoer{}).sources {
+		c, ok := s.(*CAIDA)
+		if !ok {
+			continue
+		}
+		seen++
+		if c.caidaBase != dead {
+			t.Errorf("%s caidaBase = %q, want %q — if this host now answers, retire the "+
+				"\"Ships OFF\" ShipNote and the DefaultOn:false in cmd/web/sources.go",
+				c.Slug(), c.caidaBase, dead)
+		}
+	}
+	if seen != 2 {
+		t.Fatalf("default registry holds %d CAIDA sources, want 2", seen)
+	}
+}
