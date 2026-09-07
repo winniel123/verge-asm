@@ -90,8 +90,7 @@ func Identity(r ExchangeResult, bodyCap int) HTTPIdentity {
 func extractTitle(body []byte) string {
 	// A deterministic scan, never an HTML parse: the golden corpus pins this output exactly.
 	s := string(body)
-	lower := strings.ToLower(s)
-	open := strings.Index(lower, "<title")
+	open := indexASCIIFold(s, "<title")
 	if open < 0 {
 		return ""
 	}
@@ -100,7 +99,7 @@ func extractTitle(body []byte) string {
 		return ""
 	}
 	start := open + gt + 1
-	end := strings.Index(lower[start:], "</title>")
+	end := indexASCIIFold(s[start:], "</title>")
 	if end < 0 {
 		return ""
 	}
@@ -109,6 +108,16 @@ func extractTitle(body []byte) string {
 		title = title[:titleCap]
 	}
 	return title
+}
+
+func indexASCIIFold(s, sub string) int {
+	// strings.ToLower widens a non-UTF-8 byte, so its offsets do not index the raw body (#1648).
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if strings.EqualFold(s[i:i+len(sub)], sub) {
+			return i
+		}
+	}
+	return -1
 }
 
 type Exchanger interface {

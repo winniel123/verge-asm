@@ -100,8 +100,8 @@ func TestCorpusCoverage(t *testing.T) {
 			t.Errorf("cell %q holds no corpus row", c)
 		}
 	}
-	if len(AllCells) != 6 {
-		t.Errorf("http-exchange block is 6 cells; AllCells has %d", len(AllCells))
+	if len(AllCells) != 7 {
+		t.Errorf("http-exchange block is 7 cells; AllCells has %d", len(AllCells))
 	}
 }
 

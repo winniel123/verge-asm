@@ -135,7 +135,7 @@ func TestPlaintextHTTPNoHTTPS(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v3|tls-handshake/v4"
+	const wantVer = "rule@v1|http-exchange/v4|tls-handshake/v4"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}
@@ -187,7 +187,7 @@ func TestRedirectToHostOutsideEstate(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v3|resolution-walk/v1|wildcard-discrimination/v1"
+	const wantVer = "rule@v1|http-exchange/v4|resolution-walk/v1|wildcard-discrimination/v1"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}
