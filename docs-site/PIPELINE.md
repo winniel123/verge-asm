@@ -23,7 +23,9 @@ docs/guides/*.md
 ```
 
 The one place all three are wired together is the route page
-`src/pages/[version]/[slug].astro`. Nothing else imports across stages.
+`src/pages/[version]/[slug].astro`. Only `src/pages/index.astro` also imports
+across stages, pulling `resolveSources` (stage 1) and `buildNav` (stage 3)
+for its redirect target.
 
 ---
 
