@@ -55,6 +55,7 @@ type totpEnrollStore interface {
 type passwordStore interface {
 	ConsumePasswordReset(ctx context.Context, arg db.ConsumePasswordResetParams) error
 	CreatePasswordReset(ctx context.Context, arg db.CreatePasswordResetParams) (db.PasswordReset, error)
+	DeleteSpentPasswordResets(ctx context.Context, before pgtype.Timestamptz) error
 	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
 	GetPasswordResetByHash(ctx context.Context, tokenHash string) (db.PasswordReset, error)
@@ -1069,6 +1070,17 @@ func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
+	// The reset request is the third pre-auth credential path, so it takes the login bound (#1651).
+	acctKey, ipKey := loginAccountKey(username), s.loginIPKey(r)
+	if s.loginLimiter.locked(acctKey, ipKey) {
+		s.render(w, r, "forgot-sent", s.signinData(map[string]any{"Title": "Reset password"}))
+		return
+	}
+	// Every request counts, known account or not, so the count itself enumerates nothing.
+	s.loginLimiter.fail(acctKey, ipKey)
+	if err := s.passwordStore.DeleteSpentPasswordResets(r.Context(), pgtype.Timestamptz{Time: s.now(), Valid: true}); err != nil {
+		log.Printf("web: forgot: purge spent resets: %v", err)
+	}
 	if acct, err := s.passwordStore.GetAccountByUsername(r.Context(), username); err == nil {
 		if plaintext, hash, terr := newOpaqueToken(); terr != nil {
 			log.Printf("web: forgot: mint reset token: %v", terr)

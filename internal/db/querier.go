@@ -64,6 +64,8 @@ type Querier interface {
 	DeleteSSOIdentity(ctx context.Context, id int64) error
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
+	// Nothing else purges the table, so the request path bounds it to the live grants (#1651).
+	DeleteSpentPasswordResets(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)

@@ -28,6 +28,18 @@ func (f *fakeStore) CreatePasswordReset(_ context.Context, arg db.CreatePassword
 	return pr, nil
 }
 
+func (f *fakeStore) DeleteSpentPasswordResets(_ context.Context, before pgtype.Timestamptz) error {
+	kept := f.passwordResets[:0]
+	for _, pr := range f.passwordResets {
+		spent := pr.ConsumedAt.Valid || (pr.ExpiresAt.Valid && !pr.ExpiresAt.Time.After(before.Time))
+		if !spent {
+			kept = append(kept, pr)
+		}
+	}
+	f.passwordResets = kept
+	return nil
+}
+
 func (f *fakeStore) GetPasswordResetByHash(_ context.Context, tokenHash string) (db.PasswordReset, error) {
 	for _, pr := range f.passwordResets {
 		if pr.TokenHash == tokenHash {
@@ -183,6 +195,30 @@ func TestForgotIsNonEnumerating(t *testing.T) {
 	}
 	if f.passwordResets[0].TokenHash == "" {
 		t.Fatal("reset grant stored no hash")
+	}
+}
+
+func TestForgotIsRateLimitedAndPurgesSpentGrants(t *testing.T) {
+	f := newFakeStore()
+	acct := seedAccount(t, f, "ola", roleViewer, "hunter2hunter2")
+	addReset(t, f, acct.ID, "stale-token", serverClock.Add(-time.Minute))
+	base := start(t, f, "")
+	c := newClient(t)
+
+	var last string
+	for i := 0; i < 8; i++ {
+		last = body(t, postForm(t, c, base+"/forgot", url.Values{"username": {"ola"}}))
+	}
+	if !strings.Contains(last, "Check for your link") {
+		t.Fatalf("a throttled forgot must read the same as an accepted one; body: %s", last)
+	}
+	if len(f.passwordResets) != 5 {
+		t.Fatalf("reset grants after 8 requests from one source = %d, want 5 (the login bound)", len(f.passwordResets))
+	}
+	for _, pr := range f.passwordResets {
+		if pr.TokenHash == hashToken("stale-token") {
+			t.Fatal("the expired grant survived the purge")
+		}
 	}
 }
 
