@@ -2,7 +2,7 @@
 title: Backup & restore
 section: Operating
 order: 2
-description: Take a data-only backup from the UI or a full pgdata dump on the host and restore either, protect the two state volumes, and tune the retention dials that decide what the estate keeps.
+description: Take a data-only backup from the UI or a full pgdata dump on the host and restore either, protect the two state volumes and the transcript key, and tune the retention dials that decide what the estate keeps.
 ---
 
 # Backup & restore
@@ -26,21 +26,27 @@ There are **two** ways to take a backup, and they answer different needs:
   for disaster recovery into a clean volume and the pre-upgrade drill. Documented
   under [Host-level dumps with `pg_dump`](#host-level-dumps-with-pg_dump).
 
-Three named volumes hold everything worth saving, and they are not equal. One is
-the estate itself. Losing it is total data loss. The other two hold a single
-generated secret each, and losing either is a recoverable inconvenience — the
-service mints a new one on next boot. Know which is which before you plan a
-backup.
+`docker-compose.yml` declares **four** named volumes, and they are not equal. One
+is the estate itself. Losing it is total data loss. Two hold a single generated
+secret each, and losing either is a recoverable inconvenience — the service mints
+a new one on next boot. The fourth holds the transcript key, and it follows a
+different rule. Know which is which before you plan a backup.
 
 | Volume | Service | Mount | Holds | Cost of losing it |
 | --- | --- | --- | --- | --- |
 | `pgdata` | `postgres` | `/var/lib/postgresql/data` | the entire estate — subjects, observations, spans, every declared row | total data loss |
 | `web-state` | `web` | `/app/state` | session signing key | all sessions invalidated; `web` regenerates a new key on boot |
 | `worker-state` | `worker` | `/app/state` | prober SSH private key | provisioned vantages must re-install the new public key |
+| `transcript-key` | `web` and `worker` | `/app/transcript-key` | the instance key that seals the Transcript corpus — verbatim raw job output — at rest | every Transcript row in `pgdata` stays unreadable ciphertext; no estate data is lost |
 
 The service names and volumes above are the real ones from
 [`docker-compose.yml`](../../docker-compose.yml). The commands below use them
 verbatim.
+
+**Protect `transcript-key`, and never store it with a backup of the data.** Lose it
+and every Transcript row in `pgdata` stays undecryptable ciphertext, even from a
+good `pgdata` dump. You lose raw job output, and no estate data.
+[The transcript key](#the-transcript-key) gives the ground and the procedure.
 
 ---
 
@@ -75,9 +81,9 @@ a live foothold:
   would be meaningless — or actively harmful phantoms — after a restore, so the
   archive omits them.
 - **The `transcript` table is excluded too**, for a different reason. Raw job output is
-  stored as ciphertext under a key the archive does not carry, so a fresh restore could
-  not read it back. Transcripts expire on their own retention dial, and they do not
-  travel with a backup.
+  stored as ciphertext under the `transcript-key` instance key. The archive does not
+  carry that key, so a fresh restore could not read the rows back. Transcripts expire
+  on their own retention dial, and they do not travel with a backup.
 - The exclusion is an **export invariant**, not an accident: the dump reads only an
   explicit table allowlist, so a future table is never swept in by a "dump everything"
   default.
@@ -188,6 +194,10 @@ archive redacts, which a `pg_dump` carries in full. Take a logical dump with `pg
 inside the running `postgres` container. It is transactionally consistent without stopping
 the stack, so `web` and `worker` keep serving while it runs.
 
+The dump also carries the sealed `transcript` rows, as ciphertext. Only
+`transcript-key` opens those, and that volume is not in the dump. Store the dump
+and the key in different places.
+
 ```sh
 docker compose exec -T postgres \
   pg_dump -U verge -d verge --clean --if-exists \
@@ -243,15 +253,17 @@ compose recreate an empty `pgdata`, then load the dump before anything writes to
 it:
 
 ```sh
-docker compose down -v          # discards the old pgdata (and both state volumes)
+docker compose down -v          # discards the old pgdata (and the three other volumes)
 docker compose up -d postgres   # fresh, empty database, health-gated
 docker compose exec -T postgres psql -U verge -d verge < verge-2026-08-23.sql
 docker compose up -d            # bring web and worker up onto the restored data
 ```
 
-`docker compose down -v` deletes **all three** volumes, so this path also discards
-`web-state` and `worker-state`. That is usually fine — see below — but if you
-backed them up, restore them before the first `web`/`worker` start.
+`docker compose down -v` deletes **all four** volumes, so this path also discards
+`web-state`, `worker-state` and `transcript-key`. That is usually fine — see below
+— but if you backed any of them up, restore them before the first `web`/`worker`
+start. A discarded `transcript-key` costs you every Transcript row the dump still
+carries.
 
 ---
 
@@ -294,6 +306,36 @@ service starts.
 
 ---
 
+## The transcript key
+
+`transcript-key` holds one 32-byte instance key. `web` and `worker` both mount it
+at `/app/transcript-key`, and either service creates it on first boot. The key
+seals the Transcript corpus — verbatim raw job output — with AEAD before those rows
+land in Postgres. It never enters Postgres itself
+([raw-job-output.md §5.3](../spec/raw-job-output.md)).
+
+The separation rule has a ground. A `pg_dump` carries the sealed `transcript`
+rows. Putting the key beside that dump reunites the ciphertext with the key that
+opens it. `docker-compose.yml` states the same rule on the volume itself.
+
+Lose the volume and `web` mints a fresh key on the next boot. New job output seals
+and reads normally. The admin raw-output view fails for every job captured under
+the old key. No subject, observation, span or setting rides on this key.
+
+Snapshot it only when raw job output must survive a host move. Tar it the way you
+tar a state volume, and store the archive where the `pgdata` dump does not live:
+
+```sh
+docker volume ls | grep transcript-key
+docker run --rm -v verge-asm_transcript-key:/key -v "$PWD:/backup" \
+  alpine tar czf /backup/transcript-key.tgz -C /key .
+```
+
+Transcripts expire on their own dial, which ships bounded at 14 days. So the window
+this key protects is short by default.
+
+---
+
 ## The pre-upgrade backup drill
 
 [running.md → Upgrades](running.md#upgrades) flags this, and it is the one time a
@@ -331,14 +373,14 @@ recoverable without one.
 ## Retention — how long the estate keeps its own data
 
 Backups protect against loss you did not choose. **Retention** is loss you *do*
-choose: two sweeps inside `worker` that retire aged rows on a dial you set at
-**Settings** (the delivery tab — the form posts to `POST /settings/retention`, and
-the delivery tab is admin-only). Both dials ship at **0 — unbounded** — v1
-grows the corpus without limit until you raise a dial. This matters to backups
-because it decides how much there is to back up, and because it is the only
-supported way to delete estate data.
+choose. Three sweeps inside `worker` retire aged rows on dials you set at
+**Settings**. The dials sit on the delivery tab, which is admin-only, and the form
+posts to `POST /settings/retention`. Two dials ship at **0 — unbounded**, so v1
+grows those corpora without limit until you raise them. The transcript dial ships
+**bounded at 14 days**. Retention matters to backups because it decides how much
+there is to back up. It is also the only supported way to delete estate data.
 
-The two dials are independent and floored differently:
+The three dials are independent. Each carries its own floor:
 
 - **Dispatch retention** (`dispatch_cadence_multiple`) — retires expired
   operational **dispatch** rows and nothing else. The sweep's data layer exposes
@@ -354,6 +396,12 @@ The two dials are independent and floored differently:
   once past that bound, read by no derivation. Only evidential rows are eligible,
   and only past your dial. `0` is unbounded. A positive value below the tightest
   bound in force is rejected as a no-op (the whole corpus already outlives it).
+- **Transcript retention** (`transcript_currency_days`) — retires expired
+  **Transcript** rows, in whole **days**. A Transcript is the verbatim raw output of
+  one job. No derivation reads one, so no cadence pins a floor here. This dial alone
+  ships **bounded**, at 14 days, because verbatim bytes are the volume problem
+  ([ADR-0126](../adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md)).
+  `0` leaves it unbounded, and the sweep then keeps every Transcript.
 
 A live observation is never retired no matter how low the dial goes: the delete
 query evaluates each row's own per-timeline bound. The dial only governs how long
@@ -369,6 +417,7 @@ query evaluates each row's own per-timeline bound. The dial only governs how lon
 | `pgdata` (the whole database) | `pg_dump` as above, stored off-host | on a schedule matching your tolerance for lost days, and **always** before an upgrade |
 | `web-state` | volume tar, optional | rarely — regeneration only forces a re-login |
 | `worker-state` | volume tar, optional | before any host move if you run several probers, to avoid re-provisioning them |
+| `transcript-key` | volume tar, optional — stored apart from the `pgdata` dump, never with it | only when raw job output must survive a host move |
 
 **Test the restore, not just the backup.** A dump you have never restored is a
 guess. Periodically:

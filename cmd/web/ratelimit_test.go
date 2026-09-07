@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -81,5 +82,18 @@ func TestLimiterUnlocksAfterLockout(t *testing.T) {
 	c.add(l.baseLockout + time.Second)
 	if l.locked(key) {
 		t.Fatal("key still locked after the lockout span elapsed")
+	}
+}
+
+func TestAccountKeyCarriesTheLimiterPrefix(t *testing.T) {
+	c := &steppableClock{t: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)}
+	l := newTestLimiter(c)
+
+	if l.acctPrefix == "" {
+		t.Fatal("the limiter has no account prefix, so the victim-scoped ceiling reaches no key")
+	}
+	key := loginAccountKey("x")
+	if !strings.HasPrefix(key, l.acctPrefix) {
+		t.Fatalf("loginAccountKey = %q, which does not carry the limiter prefix %q", key, l.acctPrefix)
 	}
 }
