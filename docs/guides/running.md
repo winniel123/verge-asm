@@ -278,15 +278,36 @@ reservation at claim time and carries it to the prober in the `JobSpec` on stdin
 one round trip **per job**, never on the connect path, and it expires with the probe
 timeout (`VERGE_PROBE_TIMEOUT`), so a departed worker never holds a share.
 
-**The grant is not built.** It is blocked on a wall-clock measurement of a `hot` scan at
-the default address-scope cap
-([#1115](https://github.com/winniel123/verge-asm/issues/1115)), and it is deliberately
-falsifiable. If that scan finishes comfortably inside its cadence at one worker, nobody
-scales, no second prober runs on a vantage, and the grant guards a case that does not
-occur. The honest outcome then is to keep the per-vantage scope in prose and close the
-grant unbuilt ([#1116](https://github.com/winniel123/verge-asm/issues/1116)).
+**This project does not build the grant.** It was deliberately falsifiable, and
+[#1115](https://github.com/winniel123/verge-asm/issues/1115) falsified it. One worker
+drains 1024 addresses against a refusing estate in 56 minutes. That is 3.9% of the daily
+cadence. The same scan against a silently dropping estate needs 86% of the cadence. One
+worker fits at the default address-scope cap in both cases. Nobody has to scale, so the
+grant guards a case that does not occur.
+[#1116](https://github.com/winniel123/verge-asm/issues/1116) closed it unbuilt on that
+ground. The measurement is `docs/research/hot-scan-wall-clock-and-emitted-rate.md`, which
+PR #1562 lands from branch `docs/1115-hot-scan-wallclock-measurement`. The ruling is the
+#1116 amendment to
+[ADR-0137](../adr/0137-the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages.md).
 
-Until the grant lands or is closed unbuilt, **`--scale worker=N` stays forbidden**.
+**`--scale worker=N` stays forbidden, permanently.** Nothing bounds two probers on one
+vantage, and this project plans nothing. #1115 measured what happens without a bound.
+Four probers put 200 conn/s on a target whose `Batch` declared 50 conn/s for the whole
+scan. Eight probers put 400 SYN/s on a vantage that declared a 200 pkt/s ceiling.
+
+Three changes would reopen the grant, and the ADR-0137 amendment lists a fourth.
+
+- **Declare a second vantage.** The job count is addresses times vantages. Two vantages
+  at the default cap over a dropping estate need 172% of the cadence.
+- **Raise the address cap over an estate that drops.** The measured cliff sits near 1,190
+  addresses, just above the default 1024.
+- **Fix `per_host_concurrency` and watch a real estate still miss its cadence.** Every
+  `Batch` records a concurrency of 20 and no code reads it, so the leaf probes one target
+  at a time. That defect carries the whole 86% figure above.
+  [#1572](https://github.com/winniel123/verge-asm/issues/1572) tracks it.
+
+Recorded `hot` skips are the signal for all three. Watch them before you reach for a
+second worker.
 
 ### The rule also covers the worker-read kinds
 
