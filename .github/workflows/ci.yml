@@ -44,6 +44,57 @@ jobs:
         # the 7 required checks, and an 8th would need a human (ADR-0001, #1247).
         run: scripts/check-go-pins.sh --mode ci
 
+  # An unused-code and static-analysis pass (#1568). Go compiles an unreachable
+  # unexported declaration without complaint and `go vet` reports none, so a
+  # thirteen-declaration dead cluster in internal/message/render.go outlived the
+  # whole artifactdoc migration. A human sweep found it, not a tool (PR #1548).
+  #
+  # ADVISORY three times over: the job is not one of the 7 required checks, it
+  # sits outside `test` rather than inside it, and it exits 0 on any finding. A
+  # step inside `test` has two shapes and both are worse. It gates the merge,
+  # which no pull request may decide, or it buries a finding under a green
+  # required check.
+  #
+  # It exits 0 because the tree carries a measured backlog
+  # (docs/research/staticcheck-backlog-2026-09.md). A job that went red today
+  # stays red until that backlog clears, and a permanently red check teaches a
+  # reader to ignore red. The findings reach the run's job summary, so nobody
+  # opens a log to see them.
+  #
+  # Promotion is the maintainer's, and the research note carries the
+  # recommendation. It takes two acts: delete the `exit 0` below, and register
+  # `staticcheck` on main's ruleset.
+  staticcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: .go-version
+      - name: staticcheck ./... (advisory)
+        run: |
+          # Pinned exactly, as govulncheck below is. 2026.2.1 is the first
+          # release whose own go.mod names go 1.26, so it is the first that
+          # reads this tree's language version.
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
+          # No staticcheck.conf accompanies this, so the default check set runs
+          # and a local `staticcheck ./...` reports what CI reports.
+          staticcheck ./... >findings.txt 2>&1 || true
+          total=$(grep -cE '\([A-Z]+[0-9]+\)$' findings.txt || true)
+          unused=$(grep -cE '\(U1000\)$' findings.txt || true)
+          {
+            echo "## staticcheck 2026.2.1 — advisory (#1568)"
+            echo
+            echo "- findings: $total"
+            echo "- U1000, an unused declaration: $unused"
+            echo
+            echo '```'
+            cat findings.txt
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+          echo "staticcheck reported $total finding(s), $unused of them U1000"
+          exit 0
+
   # An architecture is in this matrix exactly where the golden corpus (a
   # later ticket) runs on it in CI (ADR-0001, packaging-and-configuration.md
   # §1.2) — amd64 and arm64 only.
