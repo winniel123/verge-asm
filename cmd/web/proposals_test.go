@@ -310,21 +310,23 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 		t.Errorf("arin was passed as enabled after being toggled off: %v", fp.lastEnabled)
 	}
 	if fp.lastEnabled[proposer.SlugAFRINIC] || fp.lastEnabled[proposer.SlugAPNIC] {
-		t.Errorf("the CAIDA proposers ship off (#1519) but were enabled: %v", fp.lastEnabled)
+		t.Errorf("the CAIDA proposers are barred (#1519) but were enabled: %v", fp.lastEnabled)
 	}
 
-	if _, err := f.UpsertSourceState(context.Background(), db.UpsertSourceStateParams{
-		Slug: proposer.SlugAFRINIC, Enabled: true,
-	}); err != nil {
-		t.Fatal(err)
+	for _, slug := range []string{"arin", proposer.SlugAFRINIC, proposer.SlugAPNIC} {
+		if _, err := f.UpsertSourceState(context.Background(), db.UpsertSourceStateParams{
+			Slug: slug, Enabled: true,
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	lookup(t, ac, base, "Example").Body.Close()
 
-	if !fp.lastEnabled[proposer.SlugAFRINIC] {
-		t.Errorf("afrinic was not passed as enabled after being toggled on: %v", fp.lastEnabled)
+	if !fp.lastEnabled["arin"] {
+		t.Errorf("arin was not passed as enabled after being toggled on: %v", fp.lastEnabled)
 	}
-	if fp.lastEnabled[proposer.SlugAPNIC] {
-		t.Errorf("apnic-caida leaked in on afrinic's toggle: %v", fp.lastEnabled)
+	if fp.lastEnabled[proposer.SlugAFRINIC] || fp.lastEnabled[proposer.SlugAPNIC] {
+		t.Errorf("an override ran a barred proposer (ADR-0223 §2): %v", fp.lastEnabled)
 	}
 }
 
