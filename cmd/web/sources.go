@@ -58,13 +58,13 @@ var sourceCatalog = []catalogSource{
 	},
 	{
 		Slug: "afrinic", Name: "AFRINIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
-		DefaultOn: true,
-		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats.",
+		DefaultOn: false,
+		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Ships OFF: the CAIDA half is wired to https://api.caida.org, a host that does not resolve (NXDOMAIN, #1519), so every query against this source fails at the request and proposes nothing. The failure is loud, never a proposal of absence. The join itself still holds — CAIDA publishes the delegated-stats opaque-id as a bulk file — so this returns on once the runner reads that file instead.",
 	},
 	{
 		Slug: "apnic-caida", Name: "APNIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
-		DefaultOn: true,
-		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats.",
+		DefaultOn: false,
+		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Ships OFF: the CAIDA half is wired to https://api.caida.org, a host that does not resolve (NXDOMAIN, #1519), so every query against this source fails at the request and proposes nothing. The failure is loud, never a proposal of absence. The join itself still holds — CAIDA publishes the delegated-stats opaque-id as a bulk file — so this returns on once the runner reads that file instead.",
 	},
 	{
 		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true,
