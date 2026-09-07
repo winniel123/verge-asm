@@ -152,3 +152,44 @@ func TestReportDeliveryEmptyStateWithoutDelivery(t *testing.T) {
 		t.Errorf("no delivery must not render a recomputed document; body: %s", page)
 	}
 }
+
+func TestReportDeliveryReceiptNamesTheBoundChannelHost(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	ctx := context.Background()
+	f.channels = append(f.channels, fakeChannel{id: 41, url: "https://hooks.example.test/x?token=s3cr3t", enabled: true})
+
+	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf",
+		ChannelID: pgtype.Int8{Int64: 41, Valid: true}, CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("insert schedule: %v", err)
+	}
+	periodStart := time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC)
+	periodEnd := time.Date(2026, 8, 22, 0, 0, 0, 0, time.UTC)
+	if _, err := f.InsertReportDelivery(ctx, db.InsertReportDeliveryParams{
+		ScheduleID:  sched.ID,
+		PeriodStart: pgtype.Timestamptz{Time: periodStart, Valid: true},
+		PeriodEnd:   pgtype.Timestamptz{Time: periodEnd, Valid: true},
+		DeliveryNo:  1,
+		State:       "delivered",
+		DeliveredAt: pgtype.Timestamptz{Time: periodEnd.Add(9 * time.Hour), Valid: true},
+	}); err != nil {
+		t.Fatalf("insert delivery: %v", err)
+	}
+	f.signalInstances = append(f.signalInstances,
+		db.SignalInstance{ID: 1, SignalName: "certificate-expired", SubjectKey: "idp.example.test",
+			FirstSeen: pgtype.Timestamptz{Time: periodStart.Add(12 * time.Hour), Valid: true}},
+	)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/reports/delivery", http.StatusOK)
+	if !strings.Contains(page, "hooks.example.test") {
+		t.Errorf("a wizard schedule bound to a channel must name the channel host on its receipt; body: %s", page)
+	}
+	if strings.Contains(page, "s3cr3t") {
+		t.Errorf("receipt leaked the channel URL's token; body: %s", page)
+	}
+}
