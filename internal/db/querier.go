@@ -184,6 +184,10 @@ type Querier interface {
 	// The span corpus is already derived, so an as_of bound would hide settled state (ADR-0105).
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
 	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error)
+	// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0222 §1, #1609).
+	ListServiceReachabilitySpansByClassAtForServices(ctx context.Context, arg ListServiceReachabilitySpansByClassAtForServicesParams) ([]ListServiceReachabilitySpansByClassAtForServicesRow, error)
+	// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0222 §1, #1609).
+	ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]ListServiceReachabilitySpansByClassForServicesRow, error)
 	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
 	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)

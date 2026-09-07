@@ -93,6 +93,26 @@ WHERE sp.subject_kind = 'service'
   AND sp.closed_at IS NULL
 ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC;
 
+-- name: ListServiceReachabilitySpansByClassForServices :many
+-- The bound limits the per-job read to the batch's Services, not the corpus (ADR-0222 §1, #1609).
+SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
+    sp.subject_key AS subject_key,
+    sp.vantage_id  AS vantage_id,
+    sp.value       AS value,
+    sp.is_gap      AS is_gap,
+    sp.opened_at   AS opened_at,
+    sp.id          AS id,
+    v.host         AS host,
+    v.egress       AS egress,
+    v.dialled_addr AS dialled_addr
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.subject_key = ANY(sqlc.arg(service_keys)::text[])
+  AND sp.closed_at IS NULL
+ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC;
+
 -- name: ListServiceTLSAcceptance :many
 WITH cover AS (
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,

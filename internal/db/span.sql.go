@@ -450,6 +450,75 @@ func (q *Queries) ListServiceReachabilitySpansByClassAt(ctx context.Context, at 
 	return items, nil
 }
 
+const listServiceReachabilitySpansByClassAtForServices = `-- name: ListServiceReachabilitySpansByClassAtForServices :many
+SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
+    sp.subject_key AS subject_key,
+    sp.vantage_id  AS vantage_id,
+    sp.value       AS value,
+    sp.is_gap      AS is_gap,
+    sp.opened_at   AS opened_at,
+    sp.id          AS id,
+    v.host         AS host,
+    v.egress       AS egress,
+    v.dialled_addr AS dialled_addr
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.subject_key = ANY($1::text[])
+  AND sp.opened_at <= $2
+  AND (sp.closed_at IS NULL OR sp.closed_at > $2)
+ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC
+`
+
+type ListServiceReachabilitySpansByClassAtForServicesParams struct {
+	ServiceKeys []string           `json:"service_keys"`
+	At          pgtype.Timestamptz `json:"at"`
+}
+
+type ListServiceReachabilitySpansByClassAtForServicesRow struct {
+	SubjectKey  string             `json:"subject_key"`
+	VantageID   pgtype.Int8        `json:"vantage_id"`
+	Value       []byte             `json:"value"`
+	IsGap       bool               `json:"is_gap"`
+	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
+	ID          int64              `json:"id"`
+	Host        pgtype.Text        `json:"host"`
+	Egress      pgtype.Text        `json:"egress"`
+	DialledAddr pgtype.Text        `json:"dialled_addr"`
+}
+
+// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0222 §1, #1609).
+func (q *Queries) ListServiceReachabilitySpansByClassAtForServices(ctx context.Context, arg ListServiceReachabilitySpansByClassAtForServicesParams) ([]ListServiceReachabilitySpansByClassAtForServicesRow, error) {
+	rows, err := q.db.Query(ctx, listServiceReachabilitySpansByClassAtForServices, arg.ServiceKeys, arg.At)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceReachabilitySpansByClassAtForServicesRow{}
+	for rows.Next() {
+		var i ListServiceReachabilitySpansByClassAtForServicesRow
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.VantageID,
+			&i.Value,
+			&i.IsGap,
+			&i.OpenedAt,
+			&i.ID,
+			&i.Host,
+			&i.Egress,
+			&i.DialledAddr,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpansForSubject = `-- name: ListSpansForSubject :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason
