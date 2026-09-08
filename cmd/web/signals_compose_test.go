@@ -136,3 +136,43 @@ func TestSplitHorizonNameRulesReadNotEvaluable(t *testing.T) {
 		t.Errorf("a split-horizon name is not withdrawn: %+v", facts[absent])
 	}
 }
+
+func TestNameBeneathDelegatedSubzoneIsNotEvaluable(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedZone(t, f, admin, "example.com", "$ORIGIN example.com.\n@ IN SOA ns1 admin 1 2 3 4 5\n IN NS ns1.example.com.\nwww IN A 203.0.113.20\nsub IN NS ns1.other.\n IN NS ns2.other.\n")
+
+	const (
+		beneath   = "app.sub.example.com"
+		cut       = "sub.example.com"
+		undeleg   = "app.www.example.com"
+		outsideNS = "ns1.example.com"
+	)
+	for _, n := range []string{beneath, cut, undeleg, outsideNS} {
+		f.addClassResolution(t, n, "internet", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.9"]}`)
+	}
+
+	srv := &server{signalsStore: f, vantageClassStore: f, now: fixedClock()}
+	req := httptest.NewRequest(http.MethodGet, "/signals", nil)
+	facts := nameFactsByKey(mustNameFacts(t, srv, req))
+	rule := nameRule(t, "resolved-name-absent-from-zone")
+
+	if !facts[beneath].BeneathDelegation || !facts[beneath].InDeclaredZone {
+		t.Fatalf("%s must read beneath the delegation and inside the zone: %+v", beneath, facts[beneath])
+	}
+	if got := rule.Eval(facts[beneath]); got != signal.NotEvaluable {
+		t.Errorf("%s beneath a delegated subzone = %v, want not-evaluable (%+v)", rule.Name(), got, facts[beneath])
+	}
+	if facts[cut].BeneathDelegation {
+		t.Errorf("the NS owner is the subzone apex, not beneath it: %+v", facts[cut])
+	}
+	if got := rule.Eval(facts[cut]); got != signal.NotFired {
+		t.Errorf("%s on the delegated apex = %v, want not-fired (%+v)", rule.Name(), got, facts[cut])
+	}
+	if got := rule.Eval(facts[undeleg]); got != signal.Fired {
+		t.Errorf("%s under a non-delegated label = %v, want fired (%+v)", rule.Name(), got, facts[undeleg])
+	}
+	if got := rule.Eval(facts[outsideNS]); got != signal.Fired {
+		t.Errorf("%s (undeclared, beneath the apex NS only) = %v, want fired (%+v)", rule.Name(), got, facts[outsideNS])
+	}
+}

@@ -784,7 +784,7 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	}
 
 	declared := map[string]bool{}
-	var zoneDomains []string
+	var zoneDomains, delegated []string
 	for _, row := range zoneRows {
 		if !row.NameDomain.Valid {
 			continue
@@ -793,6 +793,9 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		zoneDomains = append(zoneDomains, domain)
 		for name := range signal.DeclaredNames(row.Content, domain) {
 			declared[name] = true
+		}
+		for cut := range signal.DelegatedSubzones(row.Content, domain) {
+			delegated = append(delegated, cut)
 		}
 	}
 
@@ -814,12 +817,13 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	for name := range names {
 		c := composed[name]
 		f := signal.NameFacts{
-			Name:           name,
-			InEstate:       c.inEstate,
-			Resolution:     c.outcome,
-			Addresses:      c.addresses,
-			ZoneDeclared:   declared[name],
-			InDeclaredZone: custody.WithinAnyZone(name, zoneDomains),
+			Name:              name,
+			InEstate:          c.inEstate,
+			Resolution:        c.outcome,
+			Addresses:         c.addresses,
+			ZoneDeclared:      declared[name],
+			InDeclaredZone:    custody.WithinAnyZone(name, zoneDomains),
+			BeneathDelegation: strictlyBeneathAny(name, delegated),
 		}
 		if target, ok := cnameTarget[name]; ok {
 			f.CNAMETarget = target
@@ -834,6 +838,15 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	}
 	sort.Slice(facts, func(i, j int) bool { return facts[i].Name < facts[j].Name })
 	return facts, nil
+}
+
+func strictlyBeneathAny(name string, cuts []string) bool {
+	for _, cut := range cuts {
+		if name != cut && custody.LabelSuffix(name, cut) {
+			return true
+		}
+	}
+	return false
 }
 
 type composedResolution struct {

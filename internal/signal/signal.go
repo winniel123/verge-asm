@@ -51,8 +51,9 @@ type NameFacts struct {
 	CNAMETarget      string
 	TargetResolution string
 
-	ZoneDeclared   bool
-	InDeclaredZone bool
+	ZoneDeclared      bool
+	InDeclaredZone    bool
+	BeneathDelegation bool
 
 	HasInternetVantage bool
 	InternetResolution string

@@ -75,3 +75,51 @@ func TestDeclaredNamesSkipsHighBitOwners(t *testing.T) {
 		t.Fatalf("ordinary owner missing: %v", got)
 	}
 }
+
+func TestDelegatedSubzones(t *testing.T) {
+	zone := `$ORIGIN example.com.
+@       IN SOA ns1.example.com. admin.example.com. ( 1 2 3 4 5 )
+        IN NS  ns1.example.com.
+        IN NS  ns2.example.com.
+www     IN A   93.184.216.34
+sub     IN NS  ns1.other.
+        IN ns  ns2.other.
+ns1.sub IN A   198.51.100.1
+ttl     3600 IN NS ns1.other.
+bare    NS ns1.other.
+abs.example.com. IN NS ns1.other.
+$ORIGIN corp.example.com.
+@       IN NS  ns1.corp.
+dev     IN NS  ns1.corp.
+`
+	got := DelegatedSubzones(zone, "example.com")
+
+	for _, want := range []string{
+		"sub.example.com", "ttl.example.com", "bare.example.com", "abs.example.com",
+		"corp.example.com", "dev.corp.example.com",
+	} {
+		if !got[want] {
+			t.Fatalf("expected %q delegated; got set %v", want, got)
+		}
+	}
+	for _, reject := range []string{"example.com", "www.example.com", "ns1.sub.example.com"} {
+		if got[reject] {
+			t.Fatalf("%q is not a delegation point: %v", reject, got)
+		}
+	}
+}
+
+func TestDelegatedSubzonesInheritedOwnerAfterOrigin(t *testing.T) {
+	zone := "$ORIGIN example.com.\nsub IN A 1.2.3.4\n$ORIGIN other.example.com.\n IN NS ns1.other.\n"
+	got := DelegatedSubzones(zone, "example.com")
+	if !got["sub.example.com"] || len(got) != 1 {
+		t.Fatalf("an inherited owner is the last explicit owner, not the new origin: %v", got)
+	}
+}
+
+func TestDelegatedSubzonesFoldsCase(t *testing.T) {
+	got := DelegatedSubzones("SUB IN NS ns1.other.\n", "Example.COM")
+	if !got["sub.example.com"] {
+		t.Fatalf("delegation owners must fold ASCII case like every Name key: %v", got)
+	}
+}

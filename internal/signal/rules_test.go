@@ -107,6 +107,26 @@ func TestResolvedNameAbsentFromZone(t *testing.T) {
 	}
 }
 
+func TestResolvedNameAbsentFromZoneBeneathDelegation(t *testing.T) {
+	r := ruleByName(t, "resolved-name-absent-from-zone")
+
+	if got := r.Eval(NameFacts{Name: "n", InDeclaredZone: true, BeneathDelegation: true, Resolution: Resolved}); got != NotEvaluable {
+		t.Fatalf("resolved beneath a delegation: got %s want NotEvaluable (ADR-0020)", got)
+	}
+	if got := r.Eval(NameFacts{Name: "n", InDeclaredZone: false, BeneathDelegation: true, Resolution: Resolved}); got != OutsideDomain {
+		t.Fatalf("outside every zone stays OutsideDomain whatever the delegation: got %s", got)
+	}
+	if got := r.Eval(NameFacts{Name: "n", InDeclaredZone: true, BeneathDelegation: true, Resolution: NameError}); got != OutsideDomain {
+		t.Fatalf("an unresolved name beneath a delegation is outside the domain: got %s", got)
+	}
+	if got := r.Eval(NameFacts{Name: "n", InDeclaredZone: true, BeneathDelegation: false, Resolution: Resolved}); got != Fired {
+		t.Fatalf("resolved under a non-delegated label still fires: got %s", got)
+	}
+	if r.Version().Rule == "v1" {
+		t.Fatalf("moving a population from Fired to NotEvaluable must bump the rule version past v1 (ADR-0004)")
+	}
+}
+
 func TestNonGloballyReachableFromInternet(t *testing.T) {
 	r := ruleByName(t, "non-globally-reachable-address-resolved-from-internet")
 
