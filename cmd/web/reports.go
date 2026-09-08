@@ -23,6 +23,7 @@ import (
 )
 
 type reportsStore interface {
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
 	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (db.ReportDelivery, error)
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
 	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
@@ -831,7 +832,7 @@ func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSc
 	}
 	if del.DeliveredAt.Valid {
 		art.Delivered = del.DeliveredAt.Time.UTC().Format(time.RFC3339)
-		art.ChannelHost = deliveryTargetHost(sc.DeliveryTarget)
+		art.ChannelHost = s.deliveryHost(ctx, sc)
 	}
 	// The receipt snapshots no content, so the artifact recomputes from its bounds (ADR-0118).
 	if del.PeriodStart.Valid && del.PeriodEnd.Valid {
@@ -901,6 +902,16 @@ func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.
 		})
 	}
 	return out
+}
+
+func (s *server) deliveryHost(ctx context.Context, sc db.ReportSchedule) string {
+	if sc.ChannelID.Valid {
+		// ADR-0119 retired delivery_target, so the bound channel carries the destination (#1691).
+		if ch, err := s.reportsStore.GetChannelForDelivery(ctx, sc.ChannelID.Int64); err == nil {
+			return deliveryTargetHost(ch.Url)
+		}
+	}
+	return deliveryTargetHost(sc.DeliveryTarget)
 }
 
 func deliveryTargetHost(target string) string {
