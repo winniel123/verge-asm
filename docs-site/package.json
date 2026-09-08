@@ -27,6 +27,8 @@
     "check:adr-markers": "node scripts/check-adr-markers.mjs --check",
     "write:adr-markers": "node scripts/check-adr-markers.mjs --write",
     "test:adr-markers": "node --test scripts/check-adr-markers.test.mjs",
+    "check:adr-review": "node scripts/check-adr-review.mjs",
+    "test:adr-review": "node --test scripts/check-adr-review.test.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
