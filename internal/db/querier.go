@@ -245,6 +245,8 @@ type Querier interface {
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	RecordSourceAttempt(ctx context.Context, arg RecordSourceAttemptParams) (SourceHealth, error)
+	// A ct-tail job sleeps past the stale threshold, so the owner renews its lease off any transaction (#1709).
+	RenewJobLease(ctx context.Context, id int64) (int64, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
 	ResetAccountTOTP(ctx context.Context, id int64) error
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error

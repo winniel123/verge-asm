@@ -57,9 +57,17 @@ func (w *Worker) completeCTTail(ctx context.Context, job db.ClaimJobRow, spec wi
 		return fmt.Errorf("decode ct-tail scope: %w", err)
 	}
 	if lg.Tiled {
-		return w.completeCTTailTiled(ctx, job, lg)
+		return w.discardCanceled(job.ID, w.completeCTTailTiled(ctx, job, lg))
 	}
-	return w.completeCTTailRFC(ctx, job, lg)
+	return w.discardCanceled(job.ID, w.completeCTTailRFC(ctx, job, lg))
+}
+
+func (w *Worker) reserveCTTailSlot(ctx context.Context, jobID int64) error {
+	// A full window sleeps past DefaultStaleJobThreshold, so every reservation renews the lease first (#1709).
+	if err := w.renewJobLease(ctx, jobID); err != nil {
+		return err
+	}
+	return w.reserveCTSlot(ctx, w.ctTailThrottle)
 }
 
 func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg scan.CTLog) error {
@@ -75,7 +83,7 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
-	if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+	if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 		return rerr
 	}
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"ct/v1/get-sth")
@@ -100,7 +108,7 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		if reqEnd > end-1 {
 			reqEnd = end - 1
 		}
-		if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+		if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 			return rerr
 		}
 		st, eb, fe := w.ctTailFetcher.Fetch(ctx, getEntriesURL(base, reached, reqEnd))
@@ -146,7 +154,7 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
-	if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+	if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 		return rerr
 	}
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"checkpoint")
@@ -174,7 +182,7 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		if tileBase+scan.CTTileWidth > sth.TreeSize {
 			width = sth.TreeSize - tileBase
 		}
-		if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+		if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 			return rerr
 		}
 		st, tb, fe := w.ctTailFetcher.Fetch(ctx, dataTileURL(base, tileIdx, width))

@@ -401,8 +401,23 @@ func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 	return nil
 }
 
+func (w *Worker) renewJobLease(ctx context.Context, jobID int64) error {
+	// The reaper reads a committed claimed_at, so the renewal rides the pool handle, never a job transaction (#1709).
+	n, err := w.q.RenewJobLease(ctx, jobID)
+	if err != nil {
+		return fmt.Errorf("renew job lease: %w", err)
+	}
+	if n == 0 {
+		return errJobCanceled
+	}
+	return nil
+}
+
 func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries) error) error {
-	err := w.inTx(ctx, fn)
+	return w.discardCanceled(jobID, w.inTx(ctx, fn))
+}
+
+func (w *Worker) discardCanceled(jobID int64, err error) error {
 	// The cancellation recorded the job's terminal state, so nothing more is owed (ADR-0164 §3).
 	if errors.Is(err, errJobCanceled) {
 		w.log.Printf("worker: job %d canceled mid-flight; uncommitted work discarded", jobID)

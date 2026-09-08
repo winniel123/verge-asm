@@ -46,7 +46,7 @@ func (f *countingFetcher) Fetch(ctx context.Context, url string) (int, []byte, e
 type noRowsDBTX struct{}
 
 func (noRowsDBTX) Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error) {
-	return pgconn.CommandTag{}, pgx.ErrNoRows
+	return pgconn.NewCommandTag("UPDATE 1"), nil
 }
 
 func (noRowsDBTX) Query(context.Context, string, ...interface{}) (pgx.Rows, error) {

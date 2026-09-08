@@ -110,6 +110,10 @@ INSERT INTO observation (
     source, value, observed_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
+-- name: RenewJobLease :execrows
+-- A ct-tail job sleeps past the stale threshold, so the owner renews its lease off any transaction (#1709).
+UPDATE queue_job SET claimed_at = now() WHERE id = $1 AND state = 'running';
+
 -- name: MarkJobDone :execrows
 UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1 AND state = 'running';
 

@@ -632,6 +632,19 @@ func (q *Queries) ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timest
 	return result.RowsAffected(), nil
 }
 
+const renewJobLease = `-- name: RenewJobLease :execrows
+UPDATE queue_job SET claimed_at = now() WHERE id = $1 AND state = 'running'
+`
+
+// A ct-tail job sleeps past the stale threshold, so the owner renews its lease off any transaction (#1709).
+func (q *Queries) RenewJobLease(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, renewJobLease, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const scanHasCompletedBatch = `-- name: ScanHasCompletedBatch :one
 SELECT EXISTS (
     SELECT 1 FROM batch WHERE kind = $1 AND outcome = 'completed'
