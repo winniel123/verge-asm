@@ -51,6 +51,16 @@ func (q *Queries) CreatePasswordReset(ctx context.Context, arg CreatePasswordRes
 	return i, err
 }
 
+const deleteSpentPasswordResets = `-- name: DeleteSpentPasswordResets :exec
+DELETE FROM password_reset WHERE expires_at <= $1 OR consumed_at IS NOT NULL
+`
+
+// Nothing else purges the table, so the request path bounds it to the live grants (#1651).
+func (q *Queries) DeleteSpentPasswordResets(ctx context.Context, expiresAt pgtype.Timestamptz) error {
+	_, err := q.db.Exec(ctx, deleteSpentPasswordResets, expiresAt)
+	return err
+}
+
 const getPasswordResetByHash = `-- name: GetPasswordResetByHash :one
 SELECT id, account_id, token_hash, created_at, expires_at, consumed_at
 FROM password_reset
