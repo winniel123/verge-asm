@@ -534,7 +534,7 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 			SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
 			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
 		}
-		for _, s := range drift.Fold(key, byKey[k]) {
+		for _, s := range f.foldWithClosure(key, byKey[k]) {
 			id++
 			row := db.ListSpansForSubjectRow{
 				ID: id, SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,

@@ -885,6 +885,10 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
+		if s.withdrawnName(r.Context(), key) {
+			s.renderWithdrawnAsset(w, r, acct, key)
+			return
+		}
 		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
@@ -913,6 +917,43 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
 	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Asset": data,
+	}))
+}
+
+func (s *server) withdrawnName(ctx context.Context, key string) bool {
+	rows, err := s.subjectsStore.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{
+		SubjectKind: "name", SubjectKey: key,
+	})
+	if err != nil {
+		return false
+	}
+	return allSpansClosed(rows)
+}
+
+func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
+	if len(rows) == 0 {
+		return false
+	}
+	for _, row := range rows {
+		if !row.ClosedAt.Valid {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, acct db.Account, key string) {
+	// A withdrawn Name has no current value, so only its closed timelines and provenance render (ADR-0072 §3).
+	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
+	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
+	data.Signals = s.assetSignals(r, key)
+	data.Severity = assetHeaderSeverity(data.Signals)
+	data.SevLabel = sevLabel(data.Severity)
+	data.Exposure = assetHeaderExposure(nil)
+	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
+
+	s.render(w, r, "asset", pageData(acct, key, "inventory", map[string]any{
 		"Asset": data,
 	}))
 }

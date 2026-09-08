@@ -20,6 +20,7 @@ import (
 type searchStore interface {
 	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
 }
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/search.tmpl"))
@@ -193,12 +194,14 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	}
 
 	var assets []searchAsset
+	exactHit := false
 	if rows, err := s.searchStore.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
 		Search: q, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err != nil {
 		log.Printf("web: search: list name subjects: %v", err)
 	} else {
 		for _, row := range rows {
+			exactHit = exactHit || row.SubjectKey == q
 			sev := assetSev[row.SubjectKey]
 			assets = append(assets, searchAsset{
 				NameSegs: searchSegs(row.SubjectKey, q),
@@ -206,6 +209,23 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 				Severity: sev,
 				SevLabel: sevLabel(sev),
 				Href:     "/asset/" + url.PathEscape(row.SubjectKey),
+			})
+		}
+	}
+	if q != "" && !exactHit {
+		// A withdrawn Name is reached by its exact key alone, never by a substring (ADR-0072 §3).
+		if rows, err := s.searchStore.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{
+			SubjectKind: "name", SubjectKey: q,
+		}); err != nil {
+			log.Printf("web: search: list spans for %q: %v", q, err)
+		} else if allSpansClosed(rows) {
+			sev := assetSev[q]
+			assets = append(assets, searchAsset{
+				NameSegs: searchSegs(q, q),
+				Type:     "withdrawn name",
+				Severity: sev,
+				SevLabel: sevLabel(sev),
+				Href:     "/asset/" + url.PathEscape(q),
 			})
 		}
 	}
