@@ -539,12 +539,13 @@ such a row unchanged.
 
 ### 9.4 The register
 
-One uncovered move is recorded. The table grows only by an appended row, never by an edit to one
+Two uncovered moves are recorded. The table grows only by an appended row, never by an edit to one
 already here.
 
 | Leaf | Bumped to | Input class | Ticket | Date |
 | --- | --- | --- | --- | --- |
 | `tls-handshake` | `tls-handshake/v4` | Certificates as `crypto/x509` parses them out of a real handshake — above all a self-signed root whose signature digest is SHA-1, which `CheckSignatureFrom` refuses outright | [#1426](https://github.com/winniel123/verge-asm/issues/1426) · [#1439](https://github.com/winniel123/verge-asm/issues/1439) | 2026-09-06 |
+| `http-exchange` | `http-exchange/v3` | HTTPS listeners as the live client verifies them against an IP-literal URL — above all a real certificate with no IP SAN, which default verification refuses and which the leaf then folds to `no-http-response` | [#1647](https://github.com/winniel123/verge-asm/issues/1647) | 2026-09-07 |
 
 The row is [ADR-0152](../adr/0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md)'s
 first: `ParseChainCert` — a live adapter no row could reach — stopped reading the self-signature
