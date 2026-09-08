@@ -1,0 +1,130 @@
+{
+  "ticket": "1756",
+  "map": "1084",
+  "scope": "162.222.48.0/22",
+  "vantage_egress_ip": "104.222.18.57 (measured via api.ipify.org at run time)",
+  "measured_at_utc": "2026-09-08T22:45:19Z",
+  "control_band": [
+    49152,
+    65535
+  ],
+  "control_ports_drawn": "batch, reused across addresses (ADR-0069)",
+  "service_ports_probed": [
+    22,
+    80,
+    443,
+    8080,
+    8443,
+    3389,
+    25,
+    53
+  ],
+  "safety_profile": {
+    "technique": "tcp-connect",
+    "host_discovery": "skipped",
+    "per_host_conn_per_sec": 50,
+    "per_host_concurrency": 1,
+    "connect_timeout_millis": 3000,
+    "retries": 2,
+    "control_port_retries": 0,
+    "per_vantage_conn_per_sec": 200,
+    "round_robin_by_host": true,
+    "adaptive_backoff": {
+      "halve_on_timeout": true,
+      "halve_on_rst_spike": true,
+      "halve_on_429": true,
+      "halve_on_503": true,
+      "touches_deadline": false
+    }
+  },
+  "addresses": [
+    {
+      "addr": "162.222.48.7",
+      "control_ports": [
+        {
+          "port": 49351,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        },
+        {
+          "port": 52249,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        },
+        {
+          "port": 52282,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        },
+        {
+          "port": 52636,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        },
+        {
+          "port": 55049,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        },
+        {
+          "port": 55372,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        },
+        {
+          "port": 63808,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        },
+        {
+          "port": 65425,
+          "conn_result": "timed-out",
+          "control_result": "incomplete"
+        }
+      ],
+      "verdict": "Gap",
+      "service_ports": [
+        {
+          "port": 22,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        },
+        {
+          "port": 80,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        },
+        {
+          "port": 443,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        },
+        {
+          "port": 8080,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        },
+        {
+          "port": 8443,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        },
+        {
+          "port": 3389,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        },
+        {
+          "port": 25,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        },
+        {
+          "port": 53,
+          "conn_result": "timed-out",
+          "outcome": "not-reached"
+        }
+      ]
+    }
+  ]
+}

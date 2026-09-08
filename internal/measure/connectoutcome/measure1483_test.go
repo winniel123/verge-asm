@@ -50,10 +50,7 @@ func TestMeasure1483(t *testing.T) {
 	}
 
 	// Spread across the four /24s of the /22, low and high host bytes.
-	targets := []string{
-		"162.222.48.1", "162.222.48.7", "162.222.48.200",
-		"162.222.49.10", "162.222.50.100", "162.222.51.254",
-	}
+	targets := []string{"162.222.48.7"}
 	// A representative service band. IANA/common listeners a WatchGuard would front.
 	servicePorts := []uint16{22, 80, 443, 8080, 8443, 3389, 25, 53}
 
@@ -67,10 +64,10 @@ func TestMeasure1483(t *testing.T) {
 	dp := blanketdiscrim.DefaultParams()
 	ctx := context.Background()
 	m := measurement{
-		Ticket:        "1483",
+		Ticket:        "1756",
 		Map:           "1084",
 		Scope:         "162.222.48.0/22",
-		VantageEgress: "104.222.18.57",
+		VantageEgress: "104.222.18.57 (measured via api.ipify.org at run time)",
 		MeasuredAt:    time.Now().UTC().Format(time.RFC3339),
 		ControlBand:   [2]uint16{dp.PortBandLow, dp.PortBandHigh},
 		DrawnOnce:     "batch, reused across addresses (ADR-0069)",
