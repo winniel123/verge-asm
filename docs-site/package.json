@@ -21,6 +21,9 @@
     "test:citations": "node --test scripts/check-citations.test.mjs",
     "check:adr-sections": "node scripts/check-adr-sections.mjs",
     "test:adr-sections": "node --test scripts/check-adr-sections.test.mjs",
+    "check:adr-index": "node scripts/check-adr-index.mjs --check",
+    "write:adr-index": "node scripts/check-adr-index.mjs --write",
+    "test:adr-index": "node --test scripts/check-adr-index.test.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
@@ -37,6 +40,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@types/node": "^22.20.0",
+    "js-yaml": "^4.3.1",
     "parse-english": "7.0.0",
     "pixelmatch": "7.2.0",
     "playwright": "1.62.1",

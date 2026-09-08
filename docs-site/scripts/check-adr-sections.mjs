@@ -11,7 +11,9 @@ export const ADR_DIR = "docs/adr";
 // A new ADR takes its issue number, so the prefix outgrows four digits (adr-governance §3)
 export const ADR_FILE = /^(\d{4,})-.+\.md$/;
 export const FENCE = /^\s{0,3}(?:```|~~~)/;
-const NUMBERED_HEADING = /^(#{2,6})\s+(\d+(?:\.\d+)*)[.)]?\s+\S/;
+const ATX_HEADING = /^(#{1,6})\s+(\S.*?)\s*$/;
+// An H1 is the title, so "# 3 things" numbers nothing, and a number needs a title after it
+const NUMBERED_TITLE = /^(\d+(?:\.\d+)*)[.)]?\s+(\S.*)$/;
 
 // ADR-0001 to ADR-0227 amended themselves in file, and a later ADR never does (adr-governance §3)
 export const LEGACY_MAX = 227;
@@ -67,8 +69,8 @@ const TEXT_BASENAMES = new Set(["Dockerfile", "Containerfile", "Makefile"]);
 // This one file's citations are all fixtures, and .mjs has no code span to quote them with (#1437).
 const SELF_TEST = "docs-site/scripts/check-adr-sections.test.mjs";
 
-export function numberedHeadings(markdown) {
-  const headings = [];
+export function headings(markdown) {
+  const found = [];
   let fenced = false;
   markdown.split(/\r?\n/).forEach((line, i) => {
     if (FENCE.test(line)) {
@@ -76,10 +78,24 @@ export function numberedHeadings(markdown) {
       return;
     }
     if (fenced) return;
-    const m = NUMBERED_HEADING.exec(line);
-    if (m) headings.push({ number: m[2], line: i + 1, level: m[1].length });
+    const m = ATX_HEADING.exec(line);
+    if (!m) return;
+    const level = m[1].length;
+    const numbered = level > 1 ? NUMBERED_TITLE.exec(m[2]) : null;
+    found.push({
+      level,
+      number: numbered ? numbered[1] : null,
+      title: numbered ? numbered[2] : m[2],
+      line: i + 1,
+    });
   });
-  return headings;
+  return found;
+}
+
+export function numberedHeadings(markdown) {
+  return headings(markdown)
+    .filter((h) => h.number !== null)
+    .map(({ number, line, level }) => ({ number, line, level }));
 }
 
 function sectionSet(headings) {

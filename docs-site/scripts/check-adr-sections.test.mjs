@@ -10,6 +10,7 @@ import {
   buildAdrIndex,
   checkFile,
   findCitations,
+  headings,
   isTextFile,
   numberedHeadings,
   numberedSections,
@@ -468,3 +469,29 @@ for (const [file, text, adr] of REPAIRED_BY_1735) {
     });
   });
 }
+
+test("every ATX heading is listed with its level, title, and line", () => {
+  assert.deepEqual(headings(ADR_WITH_SECTIONS).slice(0, 3), [
+    { level: 1, number: null, title: "ADR-0129: A title", line: 1 },
+    { level: 2, number: null, title: "Context", line: 3 },
+    { level: 2, number: null, title: "Decision", line: 5 },
+  ]);
+  assert.deepEqual(headings(ADR_WITH_SECTIONS)[5], { level: 4, number: "2.1", title: "A subsection", line: 11 });
+});
+
+test("a heading inside a fence is not listed, and an H1 never carries a number", () => {
+  const md = ["# 3 things", "", "```", "## 1. fenced", "```", "## 4.", ""].join("\n");
+  assert.deepEqual(headings(md), [
+    { level: 1, number: null, title: "3 things", line: 1 },
+    { level: 2, number: null, title: "4.", line: 6 },
+  ]);
+});
+
+test("the numbered list is the heading list filtered to numbered ones", () => {
+  assert.deepEqual(
+    numberedHeadings(ADR_WITH_SECTIONS),
+    headings(ADR_WITH_SECTIONS)
+      .filter((h) => h.number !== null)
+      .map(({ number, line, level }) => ({ number, line, level })),
+  );
+});
