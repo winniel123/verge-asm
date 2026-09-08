@@ -1032,10 +1032,7 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 
 // The worker's census producers evaluate on the same derivation, so it lives there (ADR-0033 §3).
 
-type (
-	certificateValue = signalfacts.CertificateValue
-	chainCert        = signalfacts.ChainCert
-)
+type certificateValue = signalfacts.CertificateValue
 
 func decodeCertificate(raw []byte) certificateValue { return signalfacts.DecodeCertificate(raw) }
 
