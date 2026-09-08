@@ -775,6 +775,10 @@ func TestResolveReportsWindow(t *testing.T) {
 		{"start=2026-08-01&end=2026-08-14", "custom_2026-08-01_2026-08-14", "2026-08-01 – 2026-08-14", 2},
 		{"period=custom_2026-08-01_2026-08-07", "custom_2026-08-01_2026-08-07", "2026-08-01 – 2026-08-07", 1},
 		{"start=bogus&end=2026-08-14", "7d", "Last 7d", reportsHeatWeeks},
+		{"start=2025-09-08&end=2026-09-06", "custom_2025-09-08_2026-09-06", "2025-09-08 – 2026-09-06", reportsMaxWeeks},
+		{"start=2025-09-01&end=2026-09-06", "7d", "Last 7d", reportsHeatWeeks},
+		{"start=0001-01-01&end=9999-12-31", "7d", "Last 7d", reportsHeatWeeks},
+		{"period=custom_0001-01-01_9999-12-31", "7d", "Last 7d", reportsHeatWeeks},
 	}
 	for _, c := range cases {
 		r := httptest.NewRequest(http.MethodGet, "/reports?"+c.query, nil)
