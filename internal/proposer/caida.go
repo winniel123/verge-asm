@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -30,10 +31,15 @@ func NewCAIDA(doer Doer, slug, rir, caidaBase, delegatedBase string) *CAIDA {
 func (c *CAIDA) Slug() string { return c.slug }
 
 const (
-	caidaSearchPageSize = 5000 // the search path caps first at 5000 (ADR-0227 §2)
-	caidaSearchMaxPages = 8
-	caidaSearchMaxBytes = 64 << 20
+	caidaSearchPageSize   = 5000 // the search path caps first at 5000 (ADR-0227 §2)
+	caidaSearchMaxPages   = 8
+	caidaSearchMaxBytes   = 64 << 20
+	caidaASNLegMaxLookups = 32 // one ASN per asns/ call; measured need is 0 to 2 (ADR-0227, #1634)
 )
+
+// CAIDA holds the org but no opaqueId reaches it, even via asns/: a gap, not a failure (#1634).
+
+var ErrNoJoinKey = errors.New("caida publishes no opaqueId for the organisation")
 
 type caidaSearchPage struct {
 	TotalCount *int              `json:"totalCount"`
@@ -47,9 +53,11 @@ type caidaPageInfo struct {
 }
 
 type caidaSearchRow struct {
-	OpaqueID string `json:"opaqueId"`
-	OrgName  string `json:"orgName"`
-	Source   string `json:"source"`
+	OpaqueID string   `json:"opaqueId"`
+	OrgName  string   `json:"orgName"`
+	Source   string   `json:"source"`
+	ASN      string   `json:"asn"`
+	Members  []string `json:"members"` // org records name ASNs here and carry no opaqueId (#1634)
 }
 
 func (c *CAIDA) Propose(ctx context.Context, orgName string) ([]Candidate, error) {
@@ -70,42 +78,93 @@ func (c *CAIDA) Propose(ctx context.Context, orgName string) ([]Candidate, error
 func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
 	rir := strings.ToUpper(c.rir)
 	want := strings.ToLower(orgName)
+	// The search is scored, so it answers with other RIRs and near names (ADR-0227 §2).
+	matches := func(row caidaSearchRow) bool {
+		return strings.EqualFold(row.Source, rir) && strings.Contains(strings.ToLower(row.OrgName), want)
+	}
 	seen := make(map[string]bool)
 	var ids []string
-	var named, read int
-
-	for page := 0; page < caidaSearchMaxPages; page++ {
-		p, err := c.searchPage(ctx, orgName, read)
-		if err != nil {
-			return nil, err
+	add := func(row caidaSearchRow) bool {
+		id := strings.TrimSuffix(row.OpaqueID, "_"+rir)
+		if id == "" {
+			return false
 		}
-		rows := *p.Data
-		read += len(rows)
-		for _, row := range rows {
-			// The search is scored, so it answers with other RIRs and near names (ADR-0227 §2).
-			if !strings.EqualFold(row.Source, rir) || !strings.Contains(strings.ToLower(row.OrgName), want) {
-				continue
-			}
-			named++
-			id := strings.TrimSuffix(row.OpaqueID, "_"+rir)
-			if id == "" || seen[id] {
-				continue
-			}
+		if !seen[id] {
 			seen[id] = true
 			ids = append(ids, id)
 		}
-		if read >= *p.TotalCount {
-			if len(ids) == 0 && named > 0 {
-				// CAIDA holds the org under no join key, which is a gap and not an absence (#50)
-				return nil, fmt.Errorf("caida search matched %d %s records for %q and none carries an opaqueId", named, rir, orgName)
+		return true
+	}
+
+	rows, err := c.searchRows(ctx, orgName)
+	if err != nil {
+		return nil, err
+	}
+	var named int
+	keyed := make(map[string]bool)
+	memberSeen := make(map[string]bool)
+	var members []string
+	for _, row := range rows {
+		if !matches(row) {
+			continue
+		}
+		named++
+		if add(row) {
+			keyed[row.ASN] = true
+			continue
+		}
+		for _, asn := range row.Members {
+			if !memberSeen[asn] {
+				memberSeen[asn] = true
+				members = append(members, asn)
 			}
-			return ids, nil
+		}
+	}
+
+	var pending []string
+	for _, asn := range members {
+		if !keyed[asn] {
+			pending = append(pending, asn)
+		}
+	}
+	if len(pending) > caidaASNLegMaxLookups {
+		return nil, fmt.Errorf("caida search named %d unkeyed member ASNs for %q, over the asns cap of %d", len(pending), orgName, caidaASNLegMaxLookups)
+	}
+	for _, asn := range pending {
+		asnRows, err := c.asnRecords(ctx, asn)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range asnRows {
+			if matches(row) {
+				add(row)
+			}
+		}
+	}
+	if len(ids) == 0 && named > 0 {
+		// CAIDA holds the org under no join key, which is a gap and not an absence (#50)
+		return nil, fmt.Errorf("caida search matched %d %s records for %q and none carries an opaqueId, after %d asns lookups: %w", named, rir, orgName, len(pending), ErrNoJoinKey)
+	}
+	return ids, nil
+}
+
+func (c *CAIDA) searchRows(ctx context.Context, orgName string) ([]caidaSearchRow, error) {
+	var rows []caidaSearchRow
+	for page := 0; page < caidaSearchMaxPages; page++ {
+		p, err := c.searchPage(ctx, orgName, len(rows))
+		if err != nil {
+			return nil, err
+		}
+		got := *p.Data
+		rows = append(rows, got...)
+		if len(rows) >= *p.TotalCount {
+			return rows, nil
 		}
 		if !p.PageInfo.HasNextPage {
-			return nil, fmt.Errorf("caida search sent %d of %d rows for %q and reports no next page", read, *p.TotalCount, orgName)
+			return nil, fmt.Errorf("caida search sent %d of %d rows for %q and reports no next page", len(rows), *p.TotalCount, orgName)
 		}
-		if len(rows) == 0 {
-			return nil, fmt.Errorf("caida search sent an empty page at offset %d for %q", read, orgName)
+		if len(got) == 0 {
+			return nil, fmt.Errorf("caida search sent an empty page at offset %d for %q", len(rows), orgName)
 		}
 	}
 	return nil, fmt.Errorf("caida search did not send every row for %q within %d pages", orgName, caidaSearchMaxPages)
@@ -116,7 +175,24 @@ func (c *CAIDA) searchPage(ctx context.Context, orgName string, offset int) (*ca
 	if offset > 0 {
 		q.Set("offset", strconv.Itoa(offset))
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.caidaBase+"/search/?"+q.Encode(), nil)
+	return c.fetchPage(ctx, "caida search", c.caidaBase+"/search/?"+q.Encode())
+}
+
+func (c *CAIDA) asnRecords(ctx context.Context, asn string) ([]caidaSearchRow, error) {
+	what := "caida asns/" + asn
+	p, err := c.fetchPage(ctx, what, c.caidaBase+"/asns/"+url.PathEscape(asn))
+	if err != nil {
+		return nil, err
+	}
+	rows := *p.Data
+	if len(rows) < *p.TotalCount {
+		return nil, fmt.Errorf("%s sent %d of %d rows", what, len(rows), *p.TotalCount)
+	}
+	return rows, nil
+}
+
+func (c *CAIDA) fetchPage(ctx context.Context, what, u string) (*caidaSearchPage, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -127,18 +203,18 @@ func (c *CAIDA) searchPage(ctx context.Context, orgName string, offset int) (*ca
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("caida search returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("%s returned %d", what, resp.StatusCode)
 	}
 	var page caidaSearchPage
 	if err := json.NewDecoder(io.LimitReader(resp.Body, caidaSearchMaxBytes)).Decode(&page); err != nil {
-		return nil, fmt.Errorf("decode caida search: %w", err)
+		return nil, fmt.Errorf("decode %s: %w", what, err)
 	}
 	if page.TotalCount == nil || page.PageInfo == nil || page.Data == nil {
 		// encoding/json drops an unknown key, so a strange envelope reads as absence (ADR-0227 §3)
-		return nil, fmt.Errorf("caida search returned no totalCount, pageInfo or data")
+		return nil, fmt.Errorf("%s returned no totalCount, pageInfo or data", what)
 	}
 	if e := bytes.TrimSpace(page.Errors); len(e) > 0 && !bytes.Equal(e, []byte("null")) {
-		return nil, fmt.Errorf("caida search reported errors: %s", truncate(e))
+		return nil, fmt.Errorf("%s reported errors: %s", what, truncate(e))
 	}
 	return &page, nil
 }

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -58,6 +59,20 @@ func (d *pagingDoer) Do(req *http.Request) (*http.Response, error) {
 		d.searches = append(d.searches, req.URL.String())
 	}
 	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+}
+
+type splitDoer struct {
+	search string
+	rest   Doer
+	calls  []string
+}
+
+func (d *splitDoer) Do(req *http.Request) (*http.Response, error) {
+	d.calls = append(d.calls, req.URL.String())
+	if strings.Contains(req.URL.String(), "/search/") {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(d.search)), Header: make(http.Header)}, nil
+	}
+	return d.rest.Do(req)
 }
 
 func loadFixture(t *testing.T, name string) string {
@@ -178,7 +193,8 @@ func TestCAIDAJoinsOrgIDsToDelegatedStats(t *testing.T) {
 func TestCAIDAProposesFromLiveAS2orgSearchCapture(t *testing.T) {
 	// A live api.data.caida.org/as2org/v1/search/?name=Seacom capture, 2026-09-07 (#1616).
 	doer := &fakeDoer{routes: map[string]string{
-		"/search/": loadFixture(t, "caida_search_seacom.json"),
+		"/search/":    loadFixture(t, "caida_search_seacom.json"),
+		"/asns/37476": loadFixture(t, "caida_asns_unknown.json"),
 		"delegated-afrinic-extended-latest": strings.Join([]string{
 			"afrinic|MU|ipv4|41.87.96.0|8192|20100816|allocated|F365C741",
 			"afrinic|ZA|ipv4|41.78.4.0|1024|20090904|allocated|F3670C40",
@@ -224,8 +240,11 @@ func TestCAIDATransportFailureIsNotAnEmptyResult(t *testing.T) {
 		"html body":        &fakeDoer{routes: map[string]string{"/search/": "<html>An Error Occurred</html>"}},
 		"reported errors":  &fakeDoer{routes: map[string]string{"/search/": `{"totalCount":0,"pageInfo":{"hasNextPage":false},"errors":["backend down"],"data":[]}`}},
 		"short page":       &fakeDoer{routes: map[string]string{"/search/": `{"totalCount":9,"pageInfo":{"hasNextPage":false},"errors":null,"data":[]}`}},
-		"no join key": &fakeDoer{routes: map[string]string{"/search/": `{"totalCount":1,"pageInfo":{"hasNextPage":false},"errors":null,` +
-			`"data":[{"orgName":"Seacom Ltd","source":"AFRINIC","members":["37100"]}]}`}},
+		"no join key": &fakeDoer{routes: map[string]string{
+			"/search/": `{"totalCount":1,"pageInfo":{"hasNextPage":false},"errors":null,` +
+				`"data":[{"orgName":"Seacom Ltd","source":"AFRINIC","members":["37100"]}]}`,
+			"/asns/37100": loadFixture(t, "caida_asns_unknown.json"),
+		}},
 	}
 	for name, doer := range loud {
 		t.Run(name, func(t *testing.T) {
@@ -251,6 +270,134 @@ func TestCAIDATransportFailureIsNotAnEmptyResult(t *testing.T) {
 	for _, call := range empty.calls {
 		if strings.Contains(call, "delegated-") {
 			t.Errorf("the delegated-stats file was fetched with no join key: %s", call)
+		}
+	}
+}
+
+func TestCAIDARecoversTheJoinKeyThroughTheASNsLeg(t *testing.T) {
+	// Live captures, 2026-09-08: search/?name=Telkom Kenya answers 71 organisation records and no
+	// opaqueId, and asns/30994 and asns/12455 each carry F367736D_AFRINIC (#1634).
+	doer := &fakeDoer{routes: map[string]string{
+		"/search/":    loadFixture(t, "caida_search_telkom_kenya.json"),
+		"/asns/30994": loadFixture(t, "caida_asns_30994.json"),
+		"/asns/12455": loadFixture(t, "caida_asns_12455.json"),
+		"delegated-afrinic-extended-latest": strings.Join([]string{
+			"afrinic|KE|ipv4|41.215.128.0|4096|20080512|allocated|F367736D",
+			"afrinic|KE|ipv6|2c0f:fe38::|32|20100301|allocated|F367736D",
+			"afrinic|KE|ipv4|41.203.208.0|1024|20080101|allocated|F3682104",
+		}, "\n"),
+	}}
+	c := NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.data.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic")
+
+	cands, err := c.Propose(context.Background(), "Telkom Kenya")
+	if err != nil {
+		t.Fatalf("an org CAIDA holds under a member ASN's key still errored: %v", err)
+	}
+	got := map[string]bool{}
+	for _, cd := range cands {
+		got[cd.Scope.String()] = true
+	}
+	for _, want := range []string{"41.215.128.0/20", "2c0f:fe38::/32"} {
+		if !got[want] {
+			t.Errorf("the key the asns leg recovered did not reach %s: %v", want, got)
+		}
+	}
+	if got["41.203.208.0/22"] {
+		t.Errorf("a stranger's opaqueId joined the file: %v", got)
+	}
+	asns := map[string]int{}
+	for _, call := range doer.calls {
+		if i := strings.Index(call, "/asns/"); i >= 0 {
+			asns[call[i+len("/asns/"):]]++
+		}
+	}
+	if asns["30994"] != 1 || asns["12455"] != 1 || len(asns) != 2 {
+		t.Errorf("the asns leg should look each distinct member up once, got %v", asns)
+	}
+}
+
+func TestCAIDASkipsTheASNsLegForAnASNAKeyedRecordAlreadyCarries(t *testing.T) {
+	// name=Safaricom names 3 member ASNs on 115 unkeyed org records, and all 3 sit on keyed ASN
+	// records in the same response, so the measured second leg costs nothing there (#1634).
+	doer := &fakeDoer{routes: map[string]string{
+		"/search/": `{"totalCount":2,"pageInfo":{"hasNextPage":false},"errors":null,"data":[` +
+			`{"asn":"37061","asnName":"Safaricom","orgName":"Safaricom Limited","source":"AFRINIC","opaqueId":"F3682104_AFRINIC"},` +
+			`{"orgId":"33771","orgName":"Safaricom Limited","source":"AFRINIC","members":["37061"]}]}`,
+		"/asns/":                            `{"totalCount":1,"pageInfo":{"hasNextPage":false},"errors":null,"data":[{"asn":"37061","orgName":"Safaricom Limited","source":"AFRINIC","opaqueId":"F3682104_AFRINIC"}]}`,
+		"delegated-afrinic-extended-latest": "afrinic|KE|ipv4|41.203.208.0|1024|20080101|allocated|F3682104",
+	}}
+	c := NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.data.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic")
+	cands, err := c.Propose(context.Background(), "Safaricom")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cands) != 1 {
+		t.Fatalf("want one candidate, got %+v", cands)
+	}
+	for _, call := range doer.calls {
+		if strings.Contains(call, "/asns/") {
+			t.Errorf("an ASN a keyed record already carries was looked up again: %s", call)
+		}
+	}
+}
+
+func TestCAIDAASNsLegFailureIsNotAnEmptyResult(t *testing.T) {
+	// The recovery leg must not turn a transport failure into no holder matched (#1634, #50).
+	base := "https://api.data.caida.org/as2org/v1"
+	del := "https://ftp.afrinic.net/stats/afrinic"
+	search := loadFixture(t, "caida_search_telkom_kenya.json")
+	keyless := `{"totalCount":1,"pageInfo":{"hasNextPage":false},"errors":null,` +
+		`"data":[{"asn":"30994","asnName":"Galileo-Kenya","orgName":"Kenyan Post & Telecommunications Company / Telkom Kenya Ltd","source":"AFRINIC"}]}`
+
+	loud := map[string]Doer{
+		"transport error":  &errDoer{err: errors.New("dial tcp: connection reset")},
+		"non-200":          &statusDoer{code: http.StatusBadGateway},
+		"org2ids envelope": &fakeDoer{routes: map[string]string{"/asns/": `{"opaque_ids":["F367736D"]}`}},
+		"html body":        &fakeDoer{routes: map[string]string{"/asns/": "<html>An Error Occurred</html>"}},
+		"reported errors":  &fakeDoer{routes: map[string]string{"/asns/": `{"totalCount":0,"pageInfo":{"hasNextPage":false},"errors":["backend down"],"data":[]}`}},
+		"short page":       &fakeDoer{routes: map[string]string{"/asns/": `{"totalCount":1,"pageInfo":{"hasNextPage":false},"errors":null,"data":[]}`}},
+		"still no key":     &fakeDoer{routes: map[string]string{"/asns/": keyless}},
+		"unknown asn":      &fakeDoer{routes: map[string]string{"/asns/": loadFixture(t, "caida_asns_unknown.json")}},
+	}
+	for name, rest := range loud {
+		t.Run(name, func(t *testing.T) {
+			doer := &splitDoer{search: search, rest: rest}
+			cands, err := NewCAIDA(doer, SlugAFRINIC, "afrinic", base, del).Propose(context.Background(), "Telkom Kenya")
+			if err == nil {
+				t.Fatalf("a failed asns leg read as %d candidates, so it is indistinguishable from no holder (#50)", len(cands))
+			}
+			if cands != nil {
+				t.Errorf("candidates alongside an error: %+v", cands)
+			}
+			gap := name == "still no key" || name == "unknown asn"
+			if errors.Is(err, ErrNoJoinKey) != gap {
+				t.Errorf("ErrNoJoinKey = %v for %s, want %v: %v", !gap, name, gap, err)
+			}
+			for _, call := range doer.calls {
+				if strings.Contains(call, "delegated-") {
+					t.Errorf("the delegated-stats file was fetched after a failed asns leg: %s", call)
+				}
+			}
+		})
+	}
+
+	var members []string
+	// A search that names more member ASNs than the leg may look up fails before the first lookup.
+	for i := range caidaASNLegMaxLookups + 1 {
+		members = append(members, strconv.Itoa(60000+i))
+	}
+	wide := &fakeDoer{routes: map[string]string{
+		"/search/": `{"totalCount":1,"pageInfo":{"hasNextPage":false},"errors":null,` +
+			`"data":[{"orgName":"Wide Org","source":"AFRINIC","members":["` + strings.Join(members, `","`) + `"]}]}`,
+		"/asns/": `{"totalCount":1,"pageInfo":{"hasNextPage":false},"errors":null,"data":[{"asn":"60000","orgName":"Wide Org","source":"AFRINIC","opaqueId":"WIDE_AFRINIC"}]}`,
+	}}
+	cands, err := NewCAIDA(wide, SlugAFRINIC, "afrinic", base, del).Propose(context.Background(), "Wide Org")
+	if err == nil {
+		t.Fatalf("a search over the asns cap read as %d candidates", len(cands))
+	}
+	for _, call := range wide.calls {
+		if strings.Contains(call, "/asns/") {
+			t.Errorf("the cap did not stop the first lookup: %s", call)
 		}
 	}
 }

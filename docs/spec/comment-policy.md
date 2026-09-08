@@ -1008,7 +1008,7 @@ placement 2 will not fit, not the default for a field. #1190 found placement 2 b
 notably `CTSource.DisplayName`, where placement 3 would have put two blank lines inside a four-line
 interface.
 
-**A wide interface inverts that preference.** `cmd/web/handlers.go`'s `store` declares 178 methods,
+**A wide interface inverts that preference.** `cmd/web/handlers.go`'s `store` names 177 queries,
 and only a handful leave trailing room inside §4.4's 100-column cap, so placement 3 is the
 default there and placement 2 the exception (#1203). The narrow-interface reading above is right for
 its case and the wide-interface reading for its own. Measure the trailing room before you choose.
