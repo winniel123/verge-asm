@@ -2,6 +2,7 @@ package httpexchange
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -155,6 +156,8 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// The rebinding-proof line: the kernel's own address is refused even when entry passed.
 	transport.DialContext = (&net.Dialer{Control: control}).DialContext
+	// The URL names an IP, so verification fails every real certificate and reads no-HTTP (#1647).
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402 (accepted: HTTP identity probe — reads the response of an untrusted listener; verifying the chain against an IP literal would drop the measurement. Not a trusted-service client call.)
 	client := &http.Client{
 		Transport: transport,
 		// Not followed: the 3xx is returned as-is so its Location is identity (ADR-0025).
