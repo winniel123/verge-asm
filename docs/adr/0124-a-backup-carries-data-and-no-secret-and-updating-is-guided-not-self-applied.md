@@ -1,11 +1,21 @@
+---
+number: 124
+title: "a backup carries the estate and no secret, and updating from the UI is checked, surfaced and guided — never self-applied"
+slug: a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied
+date: 2026-08-26
+status: accepted
+source: grilling
+ticket: 664
+map: 658
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 53}
+  - {kind: rests-on, adr: 1}
+---
+
 # ADR-0124: a backup carries the estate and no secret, and updating from the UI is checked, surfaced and guided — never self-applied
 
-- **Status:** Accepted
-- **Date:** 2026-08-26
-- **Ticket:** [#664 B1 — ADR-0124: data-only backup; update = check/surface/guide, not self-replace](https://github.com/winniel123/verge-asm/issues/664)
-- **Map:** [#658 Consume v3.18.0 — API token surfaces (#390) + Backup & updates (#391)](https://github.com/winniel123/verge-asm/issues/658)
 - **Keeps and extends, withdraws nothing:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)'s rule that *a secret is held only where its act is performed and the shared store holds none* — and its already-decided consequence that *"a database backup carries the whole estate and no credential."* This ADR builds the shipped backup **on** that property; it does not reopen or narrow it.
-- **Inherits the runtime constraint of:** [ADR-0001](./0001-stack-and-runtime.md) — one image, two non-root compose services, distroless. That runtime is why the export is Go-native (no `pg_dump` in the image) and why the container cannot rewrite its own image.
 - **Bound at the seam by:** [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md) (2026-09-05). §2 below says *"this is the only outbound reach the feature has"* and rules **whether** the call is made. It does not rule **how the HTTP client arrives**. A session reading §2 alone will build what is on disk today. `internal/release/fetcher.go:18` declares `Doer`. `NewHTTPFetcher` (`fetcher.go:27`) then hardcodes its own `*http.Client` (`fetcher.go:30`), so no caller can supply one. **That is a violation of ADR-0140**, and `HTTPFetcher.Latest` has no test as a result. Nothing in §2 is withdrawn.
 - **Re-files, design-first:** the substance of the old, closed [#410](https://github.com/winniel123/verge-asm/issues/410). Its map pre-assigned **ADR-0118**, since reused for report-scheduling ([ADR-0122](./0122-a-report-schedules-cadence-is-a-dispatch-time-so-it-honours-the-clock.md)); this decision takes the **fresh** number 0124 and does not resurrect the clobbered one.
 
@@ -20,6 +30,8 @@ Both boundaries are consequences of choices already made, not new ones. They are
 > **A UI backup carries the estate and its config and carries no secret — it is a Go-native logical dump over the pool `web` already holds, and the session key and the prober key are neither in it nor recoverable from it; on restore they regenerate. "Update from the UI" is check, surface and guide, never self-replace — the container reports its version, checks upstream best-effort, shows migration status and renders the release-authored host steps, and the image swap stays a host action. The UI never composes a shell command beyond the literals a release ships in `.Steps[]`.**
 
 ### 1. Backup is data-only and carries no secret — this *keeps* ADR-0053, it does not break it
+
+> **Amended** by [ADR-0160: a backup redacts a reversible cleartext credential and carries a hash or an externally-keyed ciphertext, and restore re-applies the same redaction](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md), 2026-09-05. <!-- adr-marker amends 160 -->
 
 [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) already decided the fact this card is built on: *"a database backup carries the whole estate and no credential, which is a better property to have decided than to discover, and it is the reason a backup does not need to be treated as a keyring."* That property is **kept in full**. This ADR turns the inherited fact into the shipped backup's contract and names the mechanism.
 

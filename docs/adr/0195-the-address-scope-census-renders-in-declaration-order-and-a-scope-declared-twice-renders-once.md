@@ -1,12 +1,21 @@
+---
+number: 195
+title: "The address-scope census renders in the operator's declaration order, and a scope declared twice renders once"
+slug: the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1310
+pr: 1309
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 129}
+  - {kind: sibling, adr: 136}
+---
+
 # ADR-0195: The address-scope census renders in the operator's declaration order, and a scope declared twice renders once
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1310 ADR gaps: internal/custody (2/3)](https://github.com/winniel123/verge-asm/issues/1310), gap 4
-- **PR that deleted the comment:** [#1309](https://github.com/winniel123/verge-asm/pull/1309)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Rests on:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md). Its [#956](https://github.com/winniel123/verge-asm/issues/956) amendment created this census and fixed the row's own sentence. It ruled what a row says and it ruled nothing about the sequence the rows arrive in
-- **Bounded by:** [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md), which makes a declared address a subject from the declaration. The declaration is therefore a durable operator act with a recorded position, and this ADR reads that position
 - **Sibling of, and not ruled by:** [ADR-0136](./0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md). Its §4 rules a deterministic **sorted** order for the topology graph's per-column cap. A graph node population carries no operator-authored sequence, so a sort is the only determinism available there. This census does carry one, so §4 does not reach it and is not withdrawn
 - **Sibling of, and not ruled by:** **ADR-0188**, filed from [#1305](https://github.com/winniel123/verge-asm/issues/1305) in the same batch. It rules that the extension-candidate **probe** population is distinct and in first-seen order, so one tick's measurement matches the next. This ADR rules a **render** sequence, so an operator reads their own declaration back. Neither population contains the other
 

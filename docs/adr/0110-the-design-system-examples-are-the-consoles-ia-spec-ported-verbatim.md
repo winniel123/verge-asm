@@ -1,9 +1,23 @@
+---
+number: 110
+title: "the design-system examples are the console's IA spec, ported verbatim"
+slug: the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim
+date: 2026-08-22
+status: accepted
+source: grilling
+ticket: 276
+map: 275
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0110: the design-system examples are the console's IA spec, ported verbatim
 
-- **Status:** Accepted
-- **Date:** 2026-08-22
-- **Ticket:** [#276 T0 Foundation](https://github.com/winniel123/verge-asm/issues/276)
-- **Map:** [#275 Migrate the product console to the V2 design-system contract (AFK)](https://github.com/winniel123/verge-asm/issues/275)
+> **Amended** by [ADR-0145: `design-system/` is the shared home and source of truth for UI assets, and a session edits it in the repo](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md), 2026-09-05. <!-- adr-marker amends 145 -->
+
+> **Amended** by [ADR-0147: "assets watched" is the distinct-subject count over the open-span corpus](./0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md), 2026-09-05. <!-- adr-marker amends 147 -->
+
+> **Amended** by [ADR-0181: the deployment is single-tenant, so no `Organisation` is modelled and the shell ships a static chip](./0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md), 2026-09-05. <!-- adr-marker amends 181 -->
+
 - **Supersedes:** the "`examples/` is a reference look, not an IA ruling" clause of `docs/agents/design-system.md` — and only that clause.
 
 ## Context

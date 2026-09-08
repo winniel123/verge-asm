@@ -1,9 +1,17 @@
-# ADR-0113: SSO binds a verified `(issuer, sub)`, established by authenticated self-link, never a mutable username
+---
+number: 113
+title: "SSO binds a verified `(issuer, sub)`, established by authenticated self-link, never a mutable username"
+slug: sso-binds-a-verified-issuer-sub-not-a-mutable-username
+date: 2026-08-23
+status: accepted
+source: fix
+ticket: 319
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 112}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-23
-- **Ticket:** [#319 SSO: identity mapped by mutable preferred_username claim enables account takeover](https://github.com/winniel123/verge-asm/issues/319)
-- **Supersedes in part:** [ADR-0112](./0112-single-sign-on-is-admitted-as-verified-oidc-never-header-trust.md) — only its identity-mapping clause ("a verified identity's configured username claim is matched to an existing `account` by username"). Everything else in ADR-0112 stands: OIDC-not-header-trust, write-only client secret, existing-accounts-only, role read from the local row every request.
+# ADR-0113: SSO binds a verified `(issuer, sub)`, established by authenticated self-link, never a mutable username
 
 ## Context
 

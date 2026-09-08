@@ -1,10 +1,20 @@
+---
+number: 69
+title: "A control label is one label, and the set must be able to falsify label-independence"
+slug: a-control-label-is-one-label-and-the-set-must-falsify-label-independence
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 113
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 21}
+  - {kind: amends, adr: 68}
+---
+
 # A control label is one label, and the set must be able to falsify label-independence
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#113 Is a random control label the right construction, given that a synthesis can be a function of the label?](https://github.com/winniel123/verge-asm/issues/113)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s *control-label count and construction*, the last declared parameter of `wildcard-discrimination` with no value. It also discharges [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md)'s **two** stated residues — the label-function synthesis and the third door
 - **Amended in place by:** [#115 Is a wildcard authority's answer instability per-label, per-query or per-time?](https://github.com/winniel123/verge-asm/issues/115) — **the random count moves from `5` to `9`**, so the set is **9 random + 1 structured**, ten labels per site. The **construction** is untouched: one label, hyphenated quad, RFC 5737 space, the declared qtype set. #115 amends here rather than minting an ADR beside this one, because this is the site that specifies the parameter and a rule stated in two places is what [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) exists to prevent. Its measured basis is [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) **§13**
 
 ## Context

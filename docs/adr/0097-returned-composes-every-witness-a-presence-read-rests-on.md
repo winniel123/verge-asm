@@ -1,9 +1,16 @@
-# ADR-0097: `returned`'s predicate composes every witness a presence read rests on — one Break among them voids it for the whole subject
+---
+number: 97
+title: "`returned`'s predicate composes every witness a presence read rests on — one Break among them voids it for the whole subject"
+slug: returned-composes-every-witness-a-presence-read-rests-on
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 148
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#148 What is returned's predicate when a subject's timelines closed under different vectors?](https://github.com/winniel123/verge-asm/issues/148)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0097: `returned`'s predicate composes every witness a presence read rests on — one Break among them voids it for the whole subject
 
 ## Context
 

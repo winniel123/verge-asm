@@ -1,9 +1,18 @@
-# ADR-0082: A withdrawn subject's timelines close — an open span must be fed, and the withdrawn period is on no timeline at all
+---
+number: 82
+title: "A withdrawn subject's timelines close — an open span must be fed, and the withdrawn period is on no timeline at all"
+slug: a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 140
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 147}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#140 Does a withdrawn subject's timeline close, or hold an open withdrawn span?](https://github.com/winniel123/verge-asm/issues/140)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0082: A withdrawn subject's timelines close — an open span must be fed, and the withdrawn period is on no timeline at all
 
 ## Context
 

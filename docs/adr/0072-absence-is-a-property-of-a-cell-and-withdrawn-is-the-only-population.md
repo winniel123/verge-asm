@@ -1,9 +1,19 @@
-# ADR-0072: Absence is a property of a cell, not of a row — and `withdrawn` is the only population
+---
+number: 72
+title: "Absence is a property of a cell, not of a row — and `withdrawn` is the only population"
+slug: absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 122
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 136}
+  - {kind: bounds, adr: 147}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#122 The Subjects screen: which populations render alongside the living?](https://github.com/winniel123/verge-asm/issues/122)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0072: Absence is a property of a cell, not of a row — and `withdrawn` is the only population
 
 ## Context
 

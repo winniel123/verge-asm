@@ -1,13 +1,23 @@
+---
+number: 199
+title: "delivery imports queue, never the reverse, so the worker takes the message enqueuer as an injected function that joins the batch transaction"
+slug: delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1316
+pr: 1317
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 64}
+  - {kind: rests-on, adr: 39}
+  - {kind: sibling, adr: 140}
+  - {kind: sibling, adr: 149}
+  - {kind: sibling, adr: 197}
+---
+
 # ADR-0199: delivery imports queue, never the reverse, so the worker takes the message enqueuer as an injected function that joins the batch transaction
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1316 ADR gaps: internal/queue (edgefanout.go, worker.go)](https://github.com/winniel123/verge-asm/issues/1316), gap 3
-- **PR that deleted the comment:** [#1317](https://github.com/winniel123/verge-asm/pull/1317)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md), which rules what a `Message` is and that it is computed once, at the cause. It never says which package writes the row, and it never says how the row reaches a `Channel`
-- **Rests on:** [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md), which rules that a `Delivery` is an Operational record and carries no estate. It rules what the row records. It does not rule when the row is written
-- **Bounded by:** [ADR-0164](./0164-an-operator-ends-a-dispatch-by-recording-a-disposition-once-and-stop-keeps-the-running-jobs-while-terminate-rolls-their-staged-work-back.md), which rules that a terminate rolls a running job's staged work back. §3 below is what puts a message and its `Delivery` rows inside that staged work
 - **Sibling of, and not ruled by:** [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md), which rules the **network** seam. Both rules inject a value at run time. ADR-0140 injects so that a test reaches no network. This ADR injects so that a layer edge stays one-way, and the two reasons decide different code
 - **Sibling of, and not ruled by:** [ADR-0149](./0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md), which rules how **wide** a consumer's data-layer interface is. Its §5 names `internal/queue.Worker` and `internal/delivery.Runner` as pool owners and exempts them. This ADR rules the **direction** of the edge between those two packages
 - **Sibling of, and not ruled by:** [ADR-0197](./0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md), which rules the **second** condition on the same seam: a `devMode` worker produces no message even when the option is wired. That is a fixture-install rule. This ADR rules the wiring itself, and neither contains the other

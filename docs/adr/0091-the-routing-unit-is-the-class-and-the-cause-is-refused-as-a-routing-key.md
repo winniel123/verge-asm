@@ -1,9 +1,16 @@
-# ADR-0091: The routing unit is the class — and the cause is refused as a routing key, on grounds that do not expire
+---
+number: 91
+title: "The routing unit is the class — and the cause is refused as a routing key, on grounds that do not expire"
+slug: the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 158
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#158 Is the routing unit the class or the cause?](https://github.com/winniel123/verge-asm/issues/158)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0091: The routing unit is the class — and the cause is refused as a routing key, on grounds that do not expire
 
 ## Context
 

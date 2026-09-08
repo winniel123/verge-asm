@@ -1,9 +1,16 @@
-# ADR-0061: A comment is a position only where it outlives the value it annotates
+---
+number: 61
+title: "A comment is a position only where it outlives the value it annotates"
+slug: a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 100
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#100 Is a config-API doc comment a label or a position — and does it attest?](https://github.com/winniel123/verge-asm/issues/100)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0061: A comment is a position only where it outlives the value it annotates
 
 ## Context
 

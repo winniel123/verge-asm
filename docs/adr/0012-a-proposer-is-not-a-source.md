@@ -1,9 +1,18 @@
+---
+number: 12
+title: "A proposer is not a `Source`"
+slug: a-proposer-is-not-a-source
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 39
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # A proposer is not a `Source`
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#39 Is the ARIN SWIP customer path a Source in its own right, and may it gate probing?](https://github.com/winniel123/verge-asm/issues/39)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0133: An address exclusion is a limb of the `Custody` derivation and cuts the `Seed` limb alone](./0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md), 2026-09-01. <!-- adr-marker amends 133 -->
 
 ## Context
 

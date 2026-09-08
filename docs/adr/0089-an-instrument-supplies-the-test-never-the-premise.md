@@ -1,9 +1,16 @@
-# ADR-0089: An instrument supplies the test, never the premise — a claim-set failure still takes an owner for the fact it turns on
+---
+number: 89
+title: "An instrument supplies the test, never the premise — a claim-set failure still takes an owner for the fact it turns on"
+slug: an-instrument-supplies-the-test-never-the-premise
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 153
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#153 `22/tcp`'s exclusion ground is an assertion of ours](https://github.com/winniel123/verge-asm/issues/153)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0089: An instrument supplies the test, never the premise — a claim-set failure still takes an owner for the fact it turns on
 
 ## Context
 

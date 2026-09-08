@@ -1,12 +1,22 @@
+---
+number: 226
+title: "the flagship read is bounded by the batch's candidate Services, so a per-job message costs what the batch touched"
+slug: the-flagship-read-is-bounded-by-the-batchs-candidate-services-so-a-per-job-message-costs-what-the-batch-touched
+date: 2026-09-07
+status: accepted
+source: fix
+ticket: 1609
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 64}
+  - {kind: rests-on, adr: 199}
+  - {kind: rests-on, adr: 41}
+  - {kind: sibling, adr: 105}
+---
+
 # ADR-0226: the flagship read is bounded by the batch's candidate Services, so a per-job message costs what the batch touched
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Ticket:** [#1609 flagshipMessages runs two unindexed span scans inside complete's transaction, and they carry the whole 25% drain slowdown](https://github.com/winniel123/verge-asm/issues/1609)
 - **Measured by:** [#1588](https://github.com/winniel123/verge-asm/issues/1588) / [PR #1608](https://github.com/winniel123/verge-asm/pull/1608), which named `flagshipMessages` as the site and ruled out `observation` growth
-- **Rests on:** [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md), which computes a message once, at the cause. The cause is one job's completion, so the read is per job
-- **Rests on:** [ADR-0199](./0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md), which joins the message write and its `Delivery` rows to the batch transaction. That is why the read stays inside `complete`
-- **Rests on:** [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md), which never compacts the `span` corpus. A read proportional to that corpus therefore has no ceiling
 - **Sibling of, and not ruled by:** [ADR-0105](./0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md). It rules the operator-facing reads over the open-span corpus. Those reads want every Service and keep their unbounded statements
 
 ## Context

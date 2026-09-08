@@ -1,10 +1,20 @@
+---
+number: 196
+title: "No outbound HTTP client this product builds follows a redirect, and an unfollowed 3xx admits nothing"
+slug: no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1315
+pr: 1314
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 148}
+  - {kind: sibling, adr: 119}
+---
+
 # ADR-0196: No outbound HTTP client this product builds follows a redirect, and an unfollowed 3xx admits nothing
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1315 ADR gaps: internal/queue (2/7)](https://github.com/winniel123/verge-asm/issues/1315), gap 1
-- **PR that deleted the comment:** [#1314](https://github.com/winniel123/verge-asm/pull/1314)
-- **Bounded by:** [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md). That ADR rules **how a client arrives** — a runtime parameter the caller supplies, never a build tag. Its §6 sets the transport's configuration outside its own scope and says redirect policy is "ruled elsewhere". This ADR is that elsewhere. The two are complementary and neither contains the other
 - **Sibling of, and not ruled by:** [ADR-0148](./0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md). That ADR rules that a measurement leaf sends one authored request and follows no link. Its ground is **measurement fidelity**: following a 3xx moves the `status` and the `title` the leaf decides, so it stops measuring the asset being tracked. It reaches `internal/measure` alone
 - **Sibling of, and not ruled by:** [ADR-0119](./0119-report-delivery-to-a-channel-is-a-link-only-ready-message-in-its-own-corpus.md). That ADR rules that report delivery rides the shared signed-POST transport, and its Consequences state that the SSRF guard, the no-bearer rule and the redirect refusal are enforced once, in `delivery.SendSigned`. Its ground is **the operator's declared attack surface**. It reaches the two delivery callers alone
 - **Does not rest on** [ADR-0027](./0027-a-source-may-admit-without-observing.md). The deleted comment cited `ADR-0027 §7`. That ADR has no §7 and rules nothing about redirects. §Context measures the citation

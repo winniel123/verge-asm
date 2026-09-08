@@ -1,9 +1,16 @@
-# ADR-0042: A squat is contested where the other convention is live
+---
+number: 42
+title: "A squat is contested where the other convention is live"
+slug: a-squat-is-contested-where-the-other-convention-is-live
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 75
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#75 Cassandra's shipped config prohibits internet exposure of 7000 and 7001 too — are they rows?](https://github.com/winniel123/verge-asm/issues/75)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0042: A squat is contested where the other convention is live
 
 ## Context
 

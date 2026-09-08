@@ -1,11 +1,19 @@
-# ADR-0147: "assets watched" is the distinct-subject count over the open-span corpus
+---
+number: 147
+title: "\"assets watched\" is the distinct-subject count over the open-span corpus"
+slug: assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus
+date: 2026-09-05
+status: accepted
+source: fix
+ticket: 1288
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 105}
+  - {kind: rests-on, adr: 41}
+  - {kind: amends, adr: 110}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1288 ADR gaps: internal/drift](https://github.com/winniel123/verge-asm/issues/1288)
-- **Rests on:** [ADR-0105](./0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md) (one corpus carries more than one projection, and the open-span read is not routed through the live-tier observation gate) and [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (the span corpus is never compacted, so a past population is rebuilt rather than stored)
-- **Constrained by:** [ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md) (a listing states no denominator), [ADR-0082](./0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md) (a withdrawal closes the timelines), [ADR-0102](./0102-a-subjects-row-is-the-base-a-census-member-row-is-its-explicit-modifier.md) (a denominator beside a subject count is a claim of estate completeness)
-- **Amends:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md), whose Decision carries the withdrawn-never-resolved vocabulary rule, with the KPI consequence that rule forces
+# ADR-0147: "assets watched" is the distinct-subject count over the open-span corpus
 
 ## Context
 

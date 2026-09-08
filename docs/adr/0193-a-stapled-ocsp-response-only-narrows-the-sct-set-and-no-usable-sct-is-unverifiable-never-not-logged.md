@@ -1,14 +1,21 @@
+---
+number: 193
+title: "a malformed or SCT-free OCSP staple only narrows the SCTs available, and a verification with no usable SCT is unverifiable, never not-logged"
+slug: a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1308
+pr: 1307
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 27}
+  - {kind: rests-on, adr: 106}
+---
+
 # ADR-0193: a malformed or SCT-free OCSP staple only narrows the SCTs available, and a verification with no usable SCT is unverifiable, never not-logged
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gap 6
-- **PR that deleted the comment:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Amends:** [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.4, whose result clause names two outcomes — *"logged / NOT logged in CT"* — where the shipped code holds three. The clause is amended at its own site under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). §5.4's trigger clause and its *"NOT logged is the notable signal"* reading are untouched and confirmed
-- **Rests on:** [ADR-0027](./0027-a-source-may-admit-without-observing.md), which rules CT a `corroborative` source that admits without observing. A corroborative source's silence is not an absence, and that is the ground for §2
-- **Rests on:** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), whose Decision table rules a failed CT fetch *"no admission, and never an absence"*. This ADR is that move on the verification path, where the absence would be about a specific certificate rather than about a name
-- **Bounded by:** [ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md), which rules that only an enumerable source's silence can contradict. It is why *the SCT set we could read is empty* cannot be read as *the certificate is not in CT*
 
 ## Context
 

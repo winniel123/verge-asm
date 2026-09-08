@@ -1,11 +1,22 @@
+---
+number: 153
+title: "A narrowing mover carries no precedence, so the first covering row is the whole attribution rule"
+slug: a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1326
+pr: 1325
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 74}
+  - {kind: rests-on, adr: 134, clause: "3"}
+  - {kind: rests-on, adr: 135, clause: "1"}
+  - {kind: sibling, adr: 154}
+---
+
 # ADR-0153: A narrowing mover carries no precedence, so the first covering row is the whole attribution rule
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1326 ADR gaps: internal/queue (seed withdrawal limbs)](https://github.com/winniel123/verge-asm/issues/1326), gap 1
-- **PR that deleted the comment:** [#1325](https://github.com/winniel123/verge-asm/pull/1325)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md) (a narrowing fires at the scope and carries a count), [ADR-0134](./0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md) §3 (an address `Seed`'s scope **is** its CIDR), [ADR-0135](./0135-a-name-seed-withdrawal-states-one-act-and-its-tombstone-carries-the-domain-alone.md) §1 (a name `Seed`'s scope **is** its domain)
 - **Sibling of, and not ruled by:** [ADR-0154](./0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md). That ADR rules what the fold does when **no** mover covers the candidate. This ADR rules which mover it takes when **several** do
 
 ## Context
@@ -107,6 +118,8 @@ an IPv4 address is never read as inside an IPv6 scope. The name limbs test with 
 it as a match.
 
 ### 5. Two adjacent questions are named and excluded
+
+> **Amended** by [ADR-0192: a `ct-tail` admission resolves its name-scope Seed per name, and a SAN under no declared scope is discarded rather than attributed to the polling job](./0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md), 2026-09-05. <!-- adr-marker amends 192 -->
 
 Both are real and neither is ruled here, so that a later session does not read the silence as a
 ruling.

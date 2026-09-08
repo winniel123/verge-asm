@@ -1,13 +1,22 @@
+---
+number: 201
+title: "a dispatched scope, the leaf that reads it, and the recording gate agree on one key name and one address rendering"
+slug: a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1319
+pr: 1318
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 150}
+  - {kind: rests-on, adr: 51}
+  - {kind: rests-on, adr: 217}
+---
+
 # ADR-0201: a dispatched scope, the leaf that reads it, and the recording gate agree on one key name and one address rendering
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1319 ADR gaps: internal/scan (2/3)](https://github.com/winniel123/verge-asm/issues/1319), gap 2
-- **PR that deleted the comment:** [#1318](https://github.com/winniel123/verge-asm/pull/1318)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Sibling of, and not ruled by:** [ADR-0150](./0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md). That ADR rules the **cardinality** of a scope field — the dimension is named in the plural, and one address ships as a one-element list. This ADR rules the **name** of that field and the **spelling** of its members. The two are neighbours over one struct and neither contains the other
-- **Rests on:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md), which rules that a subject key is the thing denoted and that its normalisation may never move. It rules the key. It does not rule the scope record that authorises a row about that key
-- **Rests on:** [ADR-0217](./0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md) and its re-gate, which exists because a compromised prober can name any subject. This ADR states the condition under which that gate admits an honest row
 
 ## Context
 

@@ -1,13 +1,23 @@
+---
+number: 139
+title: "the prober's origin is the image that carries it, and a host bounds the binary rather than verifies it"
+slug: the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it
+date: 2026-09-03
+status: accepted
+source: grilling
+ticket: 1239
+map: 1064
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 1}
+  - {kind: rests-on, adr: 53}
+---
+
 # ADR-0139: the prober's origin is the image that carries it, and a host bounds the binary rather than verifies it
 
-- **Status:** Accepted
-- **Date:** 2026-09-03
-- **Ticket:** [#1239 How a prober binary proves its origin when the worker pushes it to a vantage host](https://github.com/winniel123/verge-asm/issues/1239)
-- **Map:** [#1064 Release pipeline: a tag becomes a signed, attested, multi-arch release](https://github.com/winniel123/verge-asm/issues/1064)
 - **Spec:** [`docs/spec/release-pipeline.md`](../spec/release-pipeline.md) §16
 - **Why not a section on [ADR-0138](./0138-a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow.md):** that ADR is closed to any subject outside the tag-to-release pipeline. The prober push is a **run-time** boundary.
 - **Bounded by, and not an amendment to:** [ADR-0103](./0103-a-vantage-is-one-position-and-the-prober-is-optional-provisioning-detail.md), whose Decision is a `vantage` table merge. A supply-chain amendment there would be off-subject.
-- **Rests on:** [ADR-0001](./0001-stack-and-runtime.md) (one image, three binaries, one Go module) and [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) (the instance generates the prober keypair and only the public half leaves)
 
 ## Context
 

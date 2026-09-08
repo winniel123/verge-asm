@@ -1,9 +1,20 @@
-# ADR-0087: A closure records the ground it rests on — and there are three grounds, not four and not one
+---
+number: 87
+title: "A closure records the ground it rests on — and there are three grounds, not four and not one"
+slug: a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 147
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 134}
+  - {kind: bounds, adr: 135}
+  - {kind: bounds, adr: 146}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#147 What does a timeline closure record, and how many closure reasons are there?](https://github.com/winniel123/verge-asm/issues/147)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0087: A closure records the ground it rests on — and there are three grounds, not four and not one
 
 ## Context
 

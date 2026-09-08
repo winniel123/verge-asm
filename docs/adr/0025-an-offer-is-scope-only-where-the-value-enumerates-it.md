@@ -1,9 +1,16 @@
-# An offer is scope only where the value enumerates it — and a default is not a declaration
+---
+number: 25
+title: "An offer is scope only where the value enumerates it — and a default is not a declaration"
+slug: an-offer-is-scope-only-where-the-value-enumerates-it
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 54
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#54 Is everything our client offers an aperture input, or only the TLS candidate set?](https://github.com/winniel123/verge-asm/issues/54)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# An offer is scope only where the value enumerates it — and a default is not a declaration
 
 ## Context
 

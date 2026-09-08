@@ -1,9 +1,16 @@
-# ADR-0094: A retention control collapses and a retention query never does — and a bound is keyed on the timeline it bounds
+---
+number: 94
+title: "A retention control collapses and a retention query never does — and a bound is keyed on the timeline it bounds"
+slug: a-retention-control-collapses-and-a-retention-query-never-does
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 171
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#171 Is one floor over a corpus with per-timeline currency bounds the right collapse?](https://github.com/winniel123/verge-asm/issues/171)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0094: A retention control collapses and a retention query never does — and a bound is keyed on the timeline it bounds
 
 ## Context
 

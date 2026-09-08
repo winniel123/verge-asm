@@ -1,9 +1,16 @@
-# ADR-0050: An owner's category statement reaches the members its own artefacts place inside it
+---
+number: 50
+title: "An owner's category statement reaches the members its own artefacts place inside it"
+slug: an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 88
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#88 Does an owner's category statement reach a port the owner has not numbered?](https://github.com/winniel123/verge-asm/issues/88)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0050: An owner's category statement reaches the members its own artefacts place inside it
 
 ## Context
 

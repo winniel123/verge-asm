@@ -1,9 +1,26 @@
+---
+number: 47
+title: "An address scope is its own enumeration, a name scope is not — and the range cap is what makes that affordable"
+slug: an-address-scope-is-its-own-enumeration
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 81
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 2}
+  - {kind: bounds, adr: 195}
+---
+
 # ADR-0047: An address scope is its own enumeration, a name scope is not — and the range cap is what makes that affordable
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#81 Does an address-scope `Seed` enumerate, or does it only bound?](https://github.com/winniel123/verge-asm/issues/81)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0049: An address scope is family-agnostic, and the range cap counts addresses rather than prefix lengths](./0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md), 2026-08-14. <!-- adr-marker amends 49 -->
+
+> **Amended** by [ADR-0074: A narrowing is carried by the subject it leaves behind — and where it takes the carrier with it, it fires at the scope](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md), 2026-08-15. <!-- adr-marker amends 74 -->
+
+> **Amended** by [ADR-0127: The address-scope range cap has no ceiling — a large scope is priced at policy time, not gated](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md), 2026-08-30. <!-- adr-marker amends 127 -->
+
 - **Amends:** [ADR-0002](./0002-ownership-gates-probing.md), [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md)
 
 ## Context

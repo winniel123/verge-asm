@@ -1,11 +1,22 @@
+---
+number: 142
+title: "a corpus input is generated deterministically, and the random draw is production's alone"
+slug: a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone
+date: 2026-09-05
+status: accepted
+source: fix
+ticket: 1283
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 21}
+  - {kind: rests-on, adr: 8}
+  - {kind: sibling, adr: 104}
+  - {kind: sibling, adr: 69}
+---
+
 # ADR-0142: a corpus input is generated deterministically, and the random draw is production's alone
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1283 ADR gaps: internal/auth, internal/measure/blanketdiscrim, internal/proposer, internal/seed](https://github.com/winniel123/verge-asm/issues/1283) — gap 1, the deleted `FixedPorts` comment
 - **Why not an amendment to [`golden-corpus.md`](../spec/golden-corpus.md):** that file binds three subjects — `resolution-walk` (§2), `wildcard-discrimination` (§8) and the `Custody` derivation (§10) — and §1 states it "discharges no other leaf". The rule below already binds `blanketdiscrim`'s corpus, which that file names nowhere. The amendment would have to grow past its own subject to carry it
-- **Rests on:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) (the corpus is authored, hermetic, and is the version gate's evidence) and [ADR-0008](./0008-derivation-versions-move-on-content.md) (a version leaf moves on content, so a moved row must mean something moved)
-- **Adjacent:** [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md) (the `blanket-discrimination` leaf and its control-port band) and [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md) (the control-label set)
 
 ## Context
 

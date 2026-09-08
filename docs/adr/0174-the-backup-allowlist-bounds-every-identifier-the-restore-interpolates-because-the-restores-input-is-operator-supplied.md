@@ -1,11 +1,20 @@
+---
+number: 174
+title: "the backup allowlist bounds every identifier the restore interpolates, because the restore's input is operator-supplied"
+slug: the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1363
+pr: 1365
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 161}
+  - {kind: rests-on, adr: 124, clause: "1"}
+---
+
 # ADR-0174: the backup allowlist bounds every identifier the restore interpolates, because the restore's input is operator-supplied
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1363 ADR gaps: cmd/web messages.go, restore.go and drift.go](https://github.com/winniel123/verge-asm/issues/1363), gap 2
-- **Sweep PR that deleted the comment:** [#1365](https://github.com/winniel123/verge-asm/pull/1365)
-- **Rests on:** [ADR-0161](./0161-the-backup-allowlist-and-the-exclusion-list-partition-the-business-schema-so-a-new-table-is-classified-by-a-human-or-the-test-fails.md), which rules who is on `backupTables` and in what order. This ADR adds no name and moves none
-- **Rests on:** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) §1, which makes reading business tables only *a rule of the export*. That is why a list exists at all
 - **Not bound by:** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md):79, whose injection row rules *"Any command the **UI** assembles… is a command-injection surface over the **host**"* — a different interpreter and a different input
 - **Not bound by:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md), which rules secret custody. The hazard here is a statement, not a leak
 

@@ -1,8 +1,19 @@
+---
+number: 111
+title: "a Span cites the Batch that folded it, opening the estate-wide drift feed"
+slug: a-span-cites-the-batch-that-folded-it
+date: 2026-08-23
+status: accepted
+source: fix
+ticket: 288
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 134}
+  - {kind: bounds, adr: 135}
+---
+
 # ADR-0111: a Span cites the Batch that folded it, opening the estate-wide drift feed
 
-- **Status:** Accepted
-- **Date:** 2026-08-23
-- **Ticket:** [#288 Drift: estate-wide classified transition feed + batch grouping](https://github.com/winniel123/verge-asm/issues/288)
 - **Origin:** [#283 T7 Drift](https://github.com/winniel123/verge-asm/issues/283) (V2 console migration, map #275)
 
 ## Context

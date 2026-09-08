@@ -1,9 +1,16 @@
-# ADR-0071: A vantage-scoped claim is read only at the vantage that scopes it — and transcribing an owner's table is not authoring one
+---
+number: 71
+title: "A vantage-scoped claim is read only at the vantage that scopes it — and transcribing an owner's table is not authoring one"
+slug: a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 128
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#128 Does a name resolving to a private-range address join the v1 signal set?](https://github.com/winniel123/verge-asm/issues/128)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0071: A vantage-scoped claim is read only at the vantage that scopes it — and transcribing an owner's table is not authoring one
 
 ## Context
 

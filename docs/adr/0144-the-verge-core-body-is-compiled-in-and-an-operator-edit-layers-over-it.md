@@ -1,11 +1,20 @@
+---
+number: 144
+title: "The `verge-core` body is compiled in, and an operator edit layers over it rather than replacing it"
+slug: the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it
+date: 2026-09-05
+status: accepted
+source: fix
+ticket: 1267
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 58}
+---
+
 # ADR-0144: The `verge-core` body is compiled in, and an operator edit layers over it rather than replacing it
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1267 ADR gaps: internal/vergecore, internal/vantage, db/migrations, the golden corpora](https://github.com/winniel123/verge-asm/issues/1267) §1
 - **Spec:** [`docs/spec/v1-spec.md`](../spec/v1-spec.md) §3.5
 - **Bounded by, and not an amendment to:** [ADR-0009](./0009-verge-core-is-a-union.md), which rules the union `frequency-set ∪ sensitive-list` and which half an operator may move. It does not rule where the body comes from
-- **Withdrawal convention:** [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 
 ## Context
 

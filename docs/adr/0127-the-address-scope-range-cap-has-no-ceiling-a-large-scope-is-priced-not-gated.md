@@ -1,9 +1,22 @@
+---
+number: 127
+title: "The address-scope range cap has no ceiling — a large scope is priced at policy time, not gated"
+slug: the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated
+date: 2026-08-30
+status: accepted
+source: grilling
+map: 845
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 47}
+  - {kind: amends, adr: 49}
+  - {kind: bounds, adr: 137}
+---
+
 # ADR-0127: The address-scope range cap has no ceiling — a large scope is priced at policy time, not gated
 
-- **Status:** Accepted
-- **Date:** 2026-08-30
-- **Map:** [#845 Map: raise the fixed 1024 address-scope cap (spec)](https://github.com/winniel123/verge-asm/issues/845)
-- **Amends:** [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md), [ADR-0049](./0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md)
+> **Amended** by [ADR-0216: the dedup set holds the resolved addresses alone, so two overlapping declared scopes probe their overlap twice](./0216-the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice.md), 2026-09-05. <!-- adr-marker amends 216 -->
+
 - **Decisions:** [#846](https://github.com/winniel123/verge-asm/issues/846), [#847](https://github.com/winniel123/verge-asm/issues/847), [#848](https://github.com/winniel123/verge-asm/issues/848), [#849](https://github.com/winniel123/verge-asm/issues/849), [#850](https://github.com/winniel123/verge-asm/issues/850), [#851](https://github.com/winniel123/verge-asm/issues/851), [#882](https://github.com/winniel123/verge-asm/issues/882), [#883](https://github.com/winniel123/verge-asm/issues/883), [#884](https://github.com/winniel123/verge-asm/issues/884), [#885](https://github.com/winniel123/verge-asm/issues/885)
 
 ## Context

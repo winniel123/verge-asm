@@ -1,10 +1,19 @@
+---
+number: 170
+title: "a victim-scoped account lock is released at a ceiling anchored to its first lock, while the attacker-scoped key keeps its full lock"
+slug: a-victim-scoped-account-lock-is-released-at-a-ceiling-anchored-to-its-first-lock-while-the-attacker-scoped-key-keeps-its-full-lock
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1374
+pr: 1375
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 159}
+---
+
 # ADR-0170: a victim-scoped account lock is released at a ceiling anchored to its first lock, while the attacker-scoped key keeps its full lock
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1374 ADR gaps: cmd/web production 16/17 (#1217)](https://github.com/winniel123/verge-asm/issues/1374), gap 1
-- **Sweep PR that deleted the comment:** [#1375](https://github.com/winniel123/verge-asm/pull/1375)
-- **Rests on:** [ADR-0159](./0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md), which supplies the `ip:` key this ADR calls attacker-scoped: how the client IP is derived, and that it reaches nothing else. **This ADR restates none of that** and rules only the ceiling and the asymmetry
 - **Narrows:** the same ADR's Context, which reports *"The 15-minute release ceiling applies only to keys with the `acct:` prefix. An `ip:` key has no release ceiling"* as a measured cost of a misnamed proxy set. Its Decision rules neither sentence — [`comment-policy.md`](../spec/comment-policy.md) §8.3 shape 3 — so the gap stands and this ADR rules them
 - **Not bound by:** [ADR-0160](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md), whose "lockout" is the post-restore second-factor lockout ([#1419](https://github.com/winniel123/verge-asm/issues/1419)) — a key-rotation fact, not a rate-limiter fact
 - **Bounds:** [`authentication.md`](../guides/authentication.md):64-68, at its own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)

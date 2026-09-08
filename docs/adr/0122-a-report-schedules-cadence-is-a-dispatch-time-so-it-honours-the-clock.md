@@ -1,11 +1,21 @@
-# ADR-0122: a report schedule's cadence is an operator-authored dispatch time, so it honours the clock — presets to the minute, Custom as real cron
+---
+number: 122
+title: "a report schedule's cadence is an operator-authored dispatch time, so it honours the clock — presets to the minute, Custom as real cron"
+slug: a-report-schedules-cadence-is-a-dispatch-time-so-it-honours-the-clock
+date: 2026-08-26
+status: accepted
+source: grilling
+ticket: 639
+map: 630
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 118, clause: "1"}
+  - {kind: rests-on, adr: 91}
+  - {kind: rests-on, adr: 39, clause: "4"}
+  - {kind: rests-on, adr: 39, clause: "6"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-26
-- **Ticket:** [#639 Report-schedule cron/cadence engine](https://github.com/winniel123/verge-asm/issues/639)
-- **Map:** [#630 v3.16.2 consumption map](https://github.com/winniel123/verge-asm/issues/630)
-- **Supersedes in part:** [ADR-0118](./0118-report-scheduling-dispatches-on-a-computable-window-and-the-receipt-is-its-own-dispatch-record.md) — only its **cron-refusal clauses**: §1's *"the dispatcher dispatches on that window and never interprets a cron predicate … a custom / unrecognised cadence falls to the weekly window"*, the Consequences bullet *"Custom cadences are coarse — a cron string dispatches weekly"*, and the two Alternatives-rejected rows that reject evaluating cron. Everything else in ADR-0118 stands: `CadenceWindow` as the artifact **period** (§1's window vocabulary), the receipt-is-the-dispatch-record idempotency design (§2), and in-instance-only dispatch (§3).
-- **Preserves:** [ADR-0091](./0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md) in full, and [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md) §4/§6.
+# ADR-0122: a report schedule's cadence is an operator-authored dispatch time, so it honours the clock — presets to the minute, Custom as real cron
 
 ## Context
 

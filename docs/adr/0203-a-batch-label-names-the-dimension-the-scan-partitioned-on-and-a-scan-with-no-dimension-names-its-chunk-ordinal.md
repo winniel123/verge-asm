@@ -1,12 +1,21 @@
+---
+number: 203
+title: "a Batch label names the dimension the Scan partitioned on, and a Scan with no dimension names its chunk ordinal"
+slug: a-batch-label-names-the-dimension-the-scan-partitioned-on-and-a-scan-with-no-dimension-names-its-chunk-ordinal
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1319
+pr: 1318
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 5}
+  - {kind: rests-on, adr: 129, clause: "5"}
+  - {kind: sibling, adr: 127}
+---
+
 # ADR-0203: a Batch label names the dimension the Scan partitioned on, and a Scan with no dimension names its chunk ordinal
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1319 ADR gaps: internal/scan (2/3)](https://github.com/winniel123/verge-asm/issues/1319), gap 4
-- **PR that deleted the comment:** [#1318](https://github.com/winniel123/verge-asm/pull/1318)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0005](./0005-scan-execution-model.md), which makes **one queue job one `Batch`** and partitions along a dimension the source keeps enumerability over. It fixes the unit and the boundary. It never says what the resulting `Batch` is called
-- **Rests on:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) §5, which rules that `edge-fanout` has **no vantage dimension**, because the default certificate is not a function of vantage. That is the ADR which removed the dimension every other fan-out names
 - **Sibling of, and not ruled by:** [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md), which makes the address fan-out stream rather than materialise. It removed the slice a builder could otherwise index for a label. It rules memory, never naming
 
 ## Context

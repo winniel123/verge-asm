@@ -1,9 +1,18 @@
-# ADR-0103: A Vantage is one position; the prober connection is optional provisioning detail on that same row
+---
+number: 103
+title: "A Vantage is one position; the prober connection is optional provisioning detail on that same row"
+slug: a-vantage-is-one-position-and-the-prober-is-optional-provisioning-detail
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: [187, 188]
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 139}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#187 Prober provisioning](https://github.com/winniel123/verge-asm/issues/187) and [#188 Measurement binary](https://github.com/winniel123/verge-asm/issues/188)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0103: A Vantage is one position; the prober connection is optional provisioning detail on that same row
 
 ## Context
 

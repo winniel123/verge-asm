@@ -1,10 +1,18 @@
-# ADR-0134: A `Seed` withdrawal is recorded by a tombstone, because the mover does not survive the act
+---
+number: 134
+title: "A `Seed` withdrawal is recorded by a tombstone, because the mover does not survive the act"
+slug: a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act
+date: 2026-09-01
+status: accepted
+source: fix
+ticket: 1040
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 133}
+  - {kind: rests-on, adr: 198}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-01
-- **Ticket:** [#1040 Deleting a `Seed` writes no withdrawal](https://github.com/winniel123/verge-asm/issues/1040)
-- **Follows:** [ADR-0133](./0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md) §8.1, which discharged the other narrowing act
-- **Constrained by:** [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) (a closure records no actor), [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md) (a narrowing fires at the scope), [ADR-0111](./0111-a-span-cites-the-batch-that-folded-it.md) (a closure cites its batch), [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (retention is by readership)
+# ADR-0134: A `Seed` withdrawal is recorded by a tombstone, because the mover does not survive the act
 
 ## Context
 

@@ -1,13 +1,22 @@
+---
+number: 167
+title: "a design corpus a live read cannot produce is served as a pinned fixture, and the live path renders the honest projection"
+slug: a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: [1333, 1339]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 110}
+  - {kind: rests-on, adr: 166}
+  - {kind: rests-on, adr: 145}
+  - {kind: amends, adr: 120}
+---
+
 # ADR-0167: a design corpus a live read cannot produce is served as a pinned fixture, and the live path renders the honest projection
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1333 ADR gaps: cmd/web/devfixtures.go](https://github.com/winniel123/verge-asm/issues/1333), gap 2; and [#1339 ADR gaps: cmd/web/seeds.go](https://github.com/winniel123/verge-asm/issues/1339), gap 1 — one rule, filed twice
 - **Sweep PRs that deleted the comments:** [#1335](https://github.com/winniel123/verge-asm/pull/1335), [#1340](https://github.com/winniel123/verge-asm/pull/1340)
-- **Rests on:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md), which already rules the never-fabricate half — a screen with no backing data ships a design-system empty state, *"never fabricated data"* (Decision, line 40; Consequences, line 103). **This ADR does not restate that rule and does not re-rule it.** It rules only what ADR-0110 leaves open: what a dev build may serve *instead*
-- **Rests on:** [ADR-0166](./0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md), which rules `VERGE_DEV` affordances generally. A pinned fixture is one such affordance, and ADR-0166's bounds are not repeated here
-- **Rests on:** [ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md), which makes `design-system/` an in-repo source of truth, so `fixtures.json` is a file this repo owns
-- **Narrows:** [ADR-0120](./0120-an-address-scope-meter-counts-what-the-batch-walked-over-its-declared-range-not-the-estate.md), whose Consequences and Alternatives table state the never-fabricate sentence while attributing it to `design-system/SPEC-CHANGE.md`, a file that is not on disk
 - **Not bound by:** [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md), which rules where a *rendered* row set may be filtered. This ADR rules where the row set comes from, one step earlier
 
 ## Context

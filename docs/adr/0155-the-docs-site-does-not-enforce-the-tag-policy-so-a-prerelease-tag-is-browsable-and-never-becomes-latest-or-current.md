@@ -1,10 +1,19 @@
+---
+number: 155
+title: "the docs site does not enforce the tag policy, so a prerelease tag is browsable and never becomes latest or current"
+slug: the-docs-site-does-not-enforce-the-tag-policy-so-a-prerelease-tag-is-browsable-and-never-becomes-latest-or-current
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1398
+pr: 1397
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 115, clause: "2"}
+---
+
 # ADR-0155: the docs site does not enforce the tag policy, so a prerelease tag is browsable and never becomes latest or current
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1398 ADR gaps: docs-site web assets (source-resolution, doclint scope)](https://github.com/winniel123/verge-asm/issues/1398), gap 1
-- **PR that deleted the comment:** [#1397](https://github.com/winniel123/verge-asm/pull/1397)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Bounds:** [ADR-0115](./0115-the-docs-site-renders-the-guides-in-place-and-a-version-is-a-git-ref-not-a-copy.md) §2's `latest` clause, at that clause's own site, and [`release-pipeline.md`](../spec/release-pipeline.md) §1.3, at its own site. Both per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 - **Rests on:** [`release-pipeline.md`](../spec/release-pipeline.md) §1.3, which rules that the project cuts no prerelease tag. This ADR takes that rule as given and changes none of it
 

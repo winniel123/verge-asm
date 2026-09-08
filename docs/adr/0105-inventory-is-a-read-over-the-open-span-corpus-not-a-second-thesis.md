@@ -1,9 +1,16 @@
-# ADR-0105: Inventory is a read over the open-span corpus, not a second corpus and not a second thesis
+---
+number: 105
+title: "Inventory is a read over the open-span corpus, not a second corpus and not a second thesis"
+slug: inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis
+date: 2026-08-16
+status: accepted
+source: grilling
+ticket: 243
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-16
-- **Ticket:** [#243 UI surfaces change but not inventory — operators can't see what they actually have](https://github.com/winniel123/verge-asm/issues/243)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0105: Inventory is a read over the open-span corpus, not a second corpus and not a second thesis
 
 ## Context
 

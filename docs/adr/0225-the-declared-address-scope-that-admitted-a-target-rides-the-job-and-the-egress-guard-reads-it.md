@@ -1,11 +1,22 @@
+---
+number: 225
+title: "The declared address scope that admitted a target rides the job, the egress guard reads that scope at the socket, and a discovered address stays refused"
+slug: the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it
+date: 2026-09-07
+status: accepted
+source: fix
+ticket: 1610
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 121}
+  - {kind: rests-on, adr: 79}
+  - {kind: amends, adr: 79}
+  - {kind: amends, adr: 222, clause: "3"}
+  - {kind: amends, adr: 222, clause: "4"}
+---
+
 # ADR-0225: The declared address scope that admitted a target rides the job, the egress guard reads that scope at the socket, and a discovered address stays refused
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Ticket:** [#1610 EgressGuard refuses a declared private address scope that ADR-0079 permits and MayProbe admits](https://github.com/winniel123/verge-asm/issues/1610)
-- **Rests on:** [ADR-0121](./0121-the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard.md), which rules that the egress guard depends on trust origin and not on the address
-- **Implements:** [ADR-0079](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md), whose worked table states this outcome and whose cost section names the declared address scope as the repair
-- **Amends:** ADR-0079's Consequences, in two sentences. Amendment below
 - **Amends:** ADR-0222 §3 and §4. ~~That file is not on this branch.~~ **Applied at ADR-0222's own site by [#1626](https://github.com/winniel123/verge-asm/issues/1626).** See "The amendment this branch cannot make"
 
 ## Context

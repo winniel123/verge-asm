@@ -1,11 +1,22 @@
-# ADR-0052: A declaration refusal names a route and never takes it
+---
+number: 52
+title: "A declaration refusal names a route and never takes it"
+slug: a-declaration-refusal-names-a-route-and-never-takes-it
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 123
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 49}
+  - {kind: amends, adr: 55}
+  - {kind: amends, adr: 60}
+  - {kind: bounds, adr: 2}
+  - {kind: bounds, adr: 47}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#123 The `Seeds` screen: six jobs beyond listing, and three refusals with three different right answers](https://github.com/winniel123/verge-asm/issues/123)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0049](./0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md), [ADR-0055](./0055-a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds.md), [ADR-0060](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md)
-- **Constrains:** [ADR-0002](./0002-ownership-gates-probing.md), [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md)
+# ADR-0052: A declaration refusal names a route and never takes it
 
 ## Context
 

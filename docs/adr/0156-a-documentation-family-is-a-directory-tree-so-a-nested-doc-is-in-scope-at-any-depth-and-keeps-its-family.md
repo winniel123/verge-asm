@@ -1,10 +1,17 @@
+---
+number: 156
+title: "a documentation family is a directory tree, so a nested doc is in scope at any depth and keeps its family"
+slug: a-documentation-family-is-a-directory-tree-so-a-nested-doc-is-in-scope-at-any-depth-and-keeps-its-family
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1398
+pr: 1397
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0156: a documentation family is a directory tree, so a nested doc is in scope at any depth and keeps its family
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1398 ADR gaps: docs-site web assets (source-resolution, doclint scope)](https://github.com/winniel123/verge-asm/issues/1398), gap 2
-- **PR that deleted the comment:** [#1397](https://github.com/winniel123/verge-asm/pull/1397)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Bounds:** [`doc-lint-tool.md`](../spec/doc-lint-tool.md) §1.3 and [`documentation-style-standard.md`](../spec/documentation-style-standard.md) §1.1, at each table's own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 
 ## Context

@@ -1,9 +1,16 @@
-# ADR-0084: A `Scan` is a cadence over an exchange — and an uncovered facet's currency bound is undefined, not loose
+---
+number: 84
+title: "A `Scan` is a cadence over an exchange — and an uncovered facet's currency bound is undefined, not loose"
+slug: a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 142
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#142 `resolution` and `dns-record` have no covering `Scan`, so no currency bound](https://github.com/winniel123/verge-asm/issues/142)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0084: A `Scan` is a cadence over an exchange — and an uncovered facet's currency bound is undefined, not loose
 
 ## Context
 

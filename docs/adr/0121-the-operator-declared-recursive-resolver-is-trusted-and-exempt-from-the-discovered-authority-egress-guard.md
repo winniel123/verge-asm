@@ -1,9 +1,16 @@
-# ADR-0121: The operator-declared recursive resolver is trusted, and exempt from the discovered-authority egress guard
+---
+number: 121
+title: "The operator-declared recursive resolver is trusted, and exempt from the discovered-authority egress guard"
+slug: the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard
+date: 2026-08-26
+status: accepted
+source: grilling
+ticket: 612
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-26
-- **Ticket:** [#612 DNS scans still dead-letter out of the box: default vantage resolver 127.0.0.11:53 is refused by the #335 loopback egress guard](https://github.com/winniel123/verge-asm/issues/612)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0121: The operator-declared recursive resolver is trusted, and exempt from the discovered-authority egress guard
 
 ## Context
 

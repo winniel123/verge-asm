@@ -1,11 +1,20 @@
+---
+number: 210
+title: "a variant's own scalar rides its typed-outcome object and earns no column on the shared table"
+slug: a-variants-own-scalar-rides-its-typed-outcome-object-and-earns-no-column-on-the-shared-table
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1321
+pr: 1327
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 126}
+  - {kind: sibling, adr: 209}
+---
+
 # ADR-0210: a variant's own scalar rides its typed-outcome object and earns no column on the shared table
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1321 ADR gaps: internal/queue (#1199)](https://github.com/winniel123/verge-asm/issues/1321), gap 2
-- **PR that deleted the comment:** [#1327](https://github.com/winniel123/verge-asm/pull/1327)
-- **Rests on:** [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md), which rules that each variant carries **its own typed outcome** and that the verbatim streams are `bytea` columns. It rules the value shape. It does not rule where a scalar that only one variant carries lands
-- **Bounded by:** [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md)'s at-rest sealing clause, as scoped by this issue's manifest. The outcome object is **not** sealed, so §4 makes that clause the gate a new scalar passes
 - **Sibling of, and not ruled by:** [ADR-0209](./0209-a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row.md). That ADR rules the default branch of a reader of this same union. This ADR rules where a member's own field is stored. Neither implies the other
 - **Rests on:** [`raw-job-output.md`](../spec/raw-job-output.md) §1.2 and §1.4, which show the variant table and the column groups. §1.2's table names the three typed outcomes and rules nothing about why a column was refused
 

@@ -1,12 +1,21 @@
+---
+number: 161
+title: "the backup allowlist and the exclusion list partition the business schema, so a new table is classified by a human or the test fails"
+slug: the-backup-allowlist-and-the-exclusion-list-partition-the-business-schema-so-a-new-table-is-classified-by-a-human-or-the-test-fails
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1367
+pr: 1366
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 124, clause: "1"}
+  - {kind: sibling, adr: 160}
+---
+
 # ADR-0161: the backup allowlist and the exclusion list partition the business schema, so a new table is classified by a human or the test fails
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1367 ADR gaps: cmd/web backup.go](https://github.com/winniel123/verge-asm/issues/1367), gap 2
-- **PR that deleted the comment:** [#1366](https://github.com/winniel123/verge-asm/pull/1366)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Extends, and withdraws nothing in:** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) §1, which rules that the backup path reads business tables only and calls that a rule of the export. It rules the allowlist half and says nothing about a denylist
-- **Sibling of:** [ADR-0160](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md), which rules the columns of a table this rule admits
 
 ## Context
 

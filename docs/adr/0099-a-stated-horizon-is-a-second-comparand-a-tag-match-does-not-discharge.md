@@ -1,9 +1,16 @@
-# ADR-0099: A stated horizon is a second comparand, and a tag match does not discharge it
+---
+number: 99
+title: "A stated horizon is a second comparand, and a tag match does not discharge it"
+slug: a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 152
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#152 G11 against a stated horizon, not only a tag](https://github.com/winniel123/verge-asm/issues/152)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0099: A stated horizon is a second comparand, and a tag match does not discharge it
 
 ## Context
 

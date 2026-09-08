@@ -1,11 +1,23 @@
+---
+number: 116
+title: "the design package is normative for look AND functionality, so a missing datum is built, not re-skinned"
+slug: the-design-package-is-normative-for-look-and-functionality
+date: 2026-08-24
+status: accepted
+source: grilling
+ticket: 441
+map: 440
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 185}
+---
+
 # ADR-0116: the design package is normative for look AND functionality, so a missing datum is built, not re-skinned
 
-- **Status:** Superseded (2026-08-28) — Design-system handoff workflow retired; the repo's served templates are the source of truth and may be edited in-repo. The parity gates (G1/G2) and the SPEC-CHANGE collision protocol this ADR established are withdrawn.
+> **Superseded** by [ADR-0145: `design-system/` is the shared home and source of truth for UI assets, and a session edits it in the repo](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md), 2026-09-05. <!-- adr-marker supersedes 145 -->
+
 - **What survives the supersession** (added 2026-09-05, [#1410](https://github.com/winniel123/verge-asm/issues/1410), [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)): **the severity ruling in Consequences bullet 1 is live, and this ADR is still its only source.** A signal carries a five-level severity — critical / high / medium / low / info — assigned per rule, and that ruling withdraws `CONTEXT.md`'s older "a signal carries no severity" clause. `CONTEXT.md`'s `Signal` entry cites this ADR for exactly that rule. A reader who arrives from that citation must not read `Superseded` as retiring it. A `Message` still carries no severity ([ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)).
 - **What is unsettled:** whether Decision clauses 1–3 — build the datum, empty states for genuinely-empty data, no dropped or added affordances — survive the retirement of the workflow that carried them. This ADR does not say, and no later ADR rules it. `adr-gap` records [#1288](https://github.com/winniel123/verge-asm/issues/1288) and [#1300](https://github.com/winniel123/verge-asm/issues/1300) track the question. Do not read those clauses as settled in either direction.
-- **Date:** 2026-08-24
-- **Ticket:** [#441 P0.0 — Parity doctrine: ADR + SPEC-CHANGE protocol + CLAUDE.md stop-and-escalate](https://github.com/winniel123/verge-asm/issues/441)
-- **Map:** [#440 Wayfinder: design-parity — make the console match the design package exactly](https://github.com/winniel123/verge-asm/issues/440)
 
 ## Context
 

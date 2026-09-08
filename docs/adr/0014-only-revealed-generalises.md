@@ -1,9 +1,20 @@
+---
+number: 14
+title: "Only `revealed` generalises, and a `Gap` costs the model nothing"
+slug: only-revealed-generalises
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 42
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # Only `revealed` generalises, and a `Gap` costs the model nothing
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#42 Does revealed cover a value appearing where a Gap was?](https://github.com/winniel123/verge-asm/issues/42)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0019: The probing gate is total over an `Address` — authority is the objection, so no port opens it](./0019-the-probing-gate-is-total-over-an-address.md), 2026-08-15. <!-- adr-marker amends 19 -->
+
+> **Amended** by [ADR-0074: A narrowing is carried by the subject it leaves behind — and where it takes the carrier with it, it fires at the scope](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md), 2026-08-15. <!-- adr-marker amends 74 -->
 
 ## Context
 

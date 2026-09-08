@@ -1,9 +1,18 @@
+---
+number: 108
+title: "A batch whose instrument could not reach its position covers nothing, and the failure is the vantage's, not the subject's"
+slug: a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages
+date: 2026-08-16
+status: accepted
+source: grilling
+ticket: [249, 244]
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0108: A batch whose instrument could not reach its position covers nothing, and the failure is the vantage's, not the subject's
 
-- **Status:** Accepted
-- **Date:** 2026-08-16
-- **Ticket:** [#249 Make an unreachable vantage resolver loud instead of a silent all-Gap batch](https://github.com/winniel123/verge-asm/issues/249) · [#244 Backend failures are not surfaced in the UI](https://github.com/winniel123/verge-asm/issues/244)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0180: a message detail is a census plus its delivery receipts, and carries no prose body](./0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md), 2026-09-05. <!-- adr-marker amends 180 -->
 
 ## Context
 

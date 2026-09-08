@@ -1,14 +1,23 @@
+---
+number: 191
+title: "an unrecognised CT entry type costs one entry on the framed RFC 6962 path and fails the whole tile on the unframed static-ct-api path"
+slug: an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1308
+pr: 1307
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 27}
+  - {kind: sibling, adr: 143}
+  - {kind: bounds, adr: 213}
+---
+
 # ADR-0191: an unrecognised CT entry type costs one entry on the framed RFC 6962 path and fails the whole tile on the unframed static-ct-api path
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gap 4
-- **PR that deleted the comments:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Rests on:** [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §4.3, which rules that **two** client implementations are mandatory — RFC 6962 and static-ct-api. It creates the two paths this ADR rules apart. It does not say how either handles a value it does not know
-- **Rests on:** [ADR-0027](./0027-a-source-may-admit-without-observing.md), which rules CT `corroborative` and admitting-without-observing. A source that never asserts an absence is what makes a skipped entry a legible loss rather than a false negative
 - **Sibling of, and not ruled by:** [ADR-0143](./0143-an-rcode-is-a-closed-union-and-every-code-the-leaf-does-not-discriminate-on-folds-to-other.md), which rules that an unknown DNS response code folds to a named `OTHER`. It is the same question — *what does a leaf do with a wire value it does not discriminate on* — and it reaches the opposite answer for a reason §3 states. Neither contains the other
-- **Bounded by:** [ADR-0213](./0213-a-ct-tail-skips-one-entry-it-cannot-decode-and-the-poll-continues-and-advances-past-it.md). That ADR rules the tail's poll-versus-skip boundary and states that this ADR's *“the tiled path refuses”* binds the framing layer alone. It must not be read as *the tiled path never skips a leaf*
 
 ## Context
 

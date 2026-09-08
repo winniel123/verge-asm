@@ -1,12 +1,21 @@
-# ADR-0158: A read-only console screen may scope its rendered rows in the client, and a screen that submits a form carries its scope in the query string
+---
+number: 158
+title: "A read-only console screen may scope its rendered rows in the client, and a screen that submits a form carries its scope in the query string"
+slug: a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1348
+pr: 1347
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 105}
+  - {kind: rests-on, adr: 131}
+  - {kind: rests-on, adr: 72}
+  - {kind: rests-on, adr: 130, clause: "3"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1348 ADR gaps: cmd/web graph.go and inventory.go (#1211)](https://github.com/winniel123/verge-asm/issues/1348), gap 1
-- **PR that deleted the comment:** [#1347](https://github.com/winniel123/verge-asm/pull/1347)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Bounds:** [ADR-0105](./0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md)'s *"no server-side search or pagination on `/inventory` in v1 … It is unbuilt, not designed against"* clause, at that clause's own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
-- **Rests on:** [ADR-0131](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md), which ratifies server-rendered PRG plus inline vanilla JavaScript and refuses only a fetch/swap layer; [ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md) decision 4, which rules a filter legal exactly where its predicate is a value the row already renders; [ADR-0130](./0130-scroll-restore-is-hardened-by-a-same-url-prg-plus-full-url-key-contract.md) §3, which preserves the query across a mutating action
+# ADR-0158: A read-only console screen may scope its rendered rows in the client, and a screen that submits a form carries its scope in the query string
 
 ## Context
 

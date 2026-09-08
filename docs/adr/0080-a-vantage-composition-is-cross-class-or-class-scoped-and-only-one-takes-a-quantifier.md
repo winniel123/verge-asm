@@ -1,9 +1,18 @@
-# ADR-0080: A vantage composition is cross-class or class-scoped, and only the class-scoped kind takes a quantifier
+---
+number: 80
+title: "A vantage composition is cross-class or class-scoped, and only the class-scoped kind takes a quantifier"
+slug: a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 138
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 146}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#138 `resolution` now has two compositions and neither is named](https://github.com/winniel123/verge-asm/issues/138)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0080: A vantage composition is cross-class or class-scoped, and only the class-scoped kind takes a quantifier
 
 ## Context
 

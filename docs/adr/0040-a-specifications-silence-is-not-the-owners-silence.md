@@ -1,9 +1,16 @@
-# ADR-0040: A specification's silence is not the owner's silence — and a scope weakness is disclosed as a searched corpus, never as a caveat
+---
+number: 40
+title: "A specification's silence is not the owner's silence — and a scope weakness is disclosed as a searched corpus, never as a caveat"
+slug: a-specifications-silence-is-not-the-owners-silence
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 73
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#73 Is there an unscoped owner statement of a certificate key-size floor, or is 112 bits permanently NIST's?](https://github.com/winniel123/verge-asm/issues/73)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0040: A specification's silence is not the owner's silence — and a scope weakness is disclosed as a searched corpus, never as a caveat
 
 ## Context
 

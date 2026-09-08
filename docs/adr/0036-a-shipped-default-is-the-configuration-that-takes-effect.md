@@ -1,9 +1,16 @@
-# ADR-0036: A shipped default is the configuration that takes effect — and installing one transfers operativeness, not ownership
+---
+number: 36
+title: "A shipped default is the configuration that takes effect — and installing one transfers operativeness, not ownership"
+slug: a-shipped-default-is-the-configuration-that-takes-effect
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 69
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#69 An upstream example config a distributor ships as the default: documentation, or a shipped default?](https://github.com/winniel123/verge-asm/issues/69)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0036: A shipped default is the configuration that takes effect — and installing one transfers operativeness, not ownership
 
 ## Context
 

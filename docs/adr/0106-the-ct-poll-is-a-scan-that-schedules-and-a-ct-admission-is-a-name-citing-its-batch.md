@@ -1,9 +1,18 @@
-# ADR-0106: The CT poll is a `Scan` that schedules and bounds nothing, and a CT admission is a `Name` citing its `Batch`
+---
+number: 106
+title: "The CT poll is a `Scan` that schedules and bounds nothing, and a CT admission is a `Name` citing its `Batch`"
+slug: the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch
+date: 2026-08-16
+status: accepted
+source: grilling
+ticket: 250
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 192}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-16
-- **Ticket:** [#250 Build the crt.sh CT runner (#241 framing 1)](https://github.com/winniel123/verge-asm/issues/250)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0106: The CT poll is a `Scan` that schedules and bounds nothing, and a CT admission is a `Name` citing its `Batch`
 
 ## Context
 

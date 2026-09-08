@@ -1,14 +1,22 @@
+---
+number: 207
+title: "An enumeration that assembles a probing target set drops a row it cannot fully name, and never fabricates a target"
+slug: an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1320
+pr: 1324
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 51}
+  - {kind: rests-on, adr: 19}
+  - {kind: sibling, adr: 154}
+---
+
 # ADR-0207: An enumeration that assembles a probing target set drops a row it cannot fully name, and never fabricates a target
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1320 ADR gaps: internal/queue (#1200, sweep 6/7)](https://github.com/winniel123/verge-asm/issues/1320), gap 2
-- **PR that deleted the comment:** [#1324](https://github.com/winniel123/verge-asm/pull/1324)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md), which rules that an address that cannot be keyed is not a subject, is absent from the `Batch`'s recorded scope, and writes no value and no `Gap`. That is this rule's ground one layer down, at the point a key is formed. This ADR rules the enumeration that reads keys back out
-- **Rests on:** [ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md), which makes the probing gate a total function of an address's `Custody`. A gate refusal and a cannot-name drop are different acts and §4 keeps them apart
 - **Sibling of, and not ruled by:** [ADR-0154](./0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md). That ADR rules a **narrowing** act: a fold drops a span it cannot attribute to a declared mover, and the drop leaves a timeline open. This ADR rules a **widening** act: an enumeration drops a row it cannot name, and the drop withholds a probe. Same direction, opposite acts, and neither contains the other
-- **Bounded by:** [ADR-0208](./0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md). One of the drop sites this ADR names fires on a subject key that does not parse. ADR-0208 rules that the queue must not parse a rendered key at all, which removes that drop's input rather than its rule
 
 ## Context
 

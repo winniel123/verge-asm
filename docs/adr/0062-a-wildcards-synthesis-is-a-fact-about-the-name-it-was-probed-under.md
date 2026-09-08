@@ -1,10 +1,22 @@
+---
+number: 62
+title: "A wildcard's synthesis is a fact about the `Name` it was probed under, and it is a facet of its own"
+slug: a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 103
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 60}
+---
+
 # ADR-0062: A wildcard's synthesis is a fact about the `Name` it was probed under, and it is a facet of its own
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#103 Is a zone's measured wildcard poison signature a value the model holds, and on what subject?](https://github.com/winniel123/verge-asm/issues/103)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0060](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md)'s ticketed residue
+> **Amended** by [ADR-0066: A control probe is generated under a `Name`'s parent, and that population is aperture rather than a parameter](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md), 2026-08-14. <!-- adr-marker amends 66 -->
+
+> **Amended** by [ADR-0068: A wildcard is discriminated only where its synthesis is determinate, and determinacy is measured per component](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md), 2026-08-14. <!-- adr-marker amends 68 -->
 
 ## Context
 

@@ -1,14 +1,21 @@
+---
+number: 151
+title: "a field no emitter renders is cross-leaf plumbing, and plumbing moves no leaf version"
+slug: a-field-no-emitter-renders-is-cross-leaf-plumbing-and-plumbing-moves-no-leaf-version
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1298
+pr: 1297
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 11}
+  - {kind: rests-on, adr: 8}
+  - {kind: sibling, adr: 129}
+---
+
 # ADR-0151: a field no emitter renders is cross-leaf plumbing, and plumbing moves no leaf version
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1298 ADR gaps: internal/measure/connectoutcome (1/2)](https://github.com/winniel123/verge-asm/issues/1298), gap 1
-- **PR that deleted the comment:** [#1297](https://github.com/winniel123/verge-asm/pull/1297)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0011](./0011-a-facet-is-six-parts.md), which makes every facet's canonical form a
-  closed tagged union and never a record with optional fields, and
-  [ADR-0008](./0008-derivation-versions-move-on-content.md), which moves a leaf version on the
-  derivation's output
 - **Adjacent:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md)'s
   **#954 amendment**, *The measurement is membership-deciding, not a facet*, under which `edge-fanout`
   is not a facet and opens no timeline. Not §6, which rules the opposite way and which that amendment

@@ -1,21 +1,21 @@
+---
+number: 186
+title: "a certificate rule's severity is rated by the client failure it can show today, never by certificate quality"
+slug: a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1301
+pr: 1302
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 116}
+  - {kind: rests-on, adr: 185}
+  - {kind: sibling, adr: 64}
+---
+
 # ADR-0186: a certificate rule's severity is rated by the client failure it can show today, never by certificate quality
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1301 ADR gaps: internal/signal](https://github.com/winniel123/verge-asm/issues/1301), gap 2
-- **PR that deleted the comment:** [#1302](https://github.com/winniel123/verge-asm/pull/1302)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md),
-  whose live remnant rules that a signal carries a five-level severity assigned per rule — that ADR
-  built the ramp and rated nothing on it — and
-  [ADR-0185](./0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md),
-  which keeps a grade out of the rule's version vector, so a re-rating costs no `Break`. That is why
-  a rating principle has to be written: the grade is cheap to move, and the only thing that holds it
-  is an argument
-- **Bounded by:** [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md). Its v1 rule
-  table fixes each certificate rule's `Predicate domain` and its `not-evaluable` case, and it has no
-  severity column. Every grade in this ADR sits beside a domain that ADR already ruled, and none
-  moves one
 - **Sibling of, and not ruled by:**
   [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md), which refuses
   a severity field on a `Message`. It rules the notification layer. This ADR rules how a rule's own

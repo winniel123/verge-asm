@@ -1,13 +1,22 @@
+---
+number: 211
+title: "the value fold decides no withdrawal, so the membership path both closes a departing subject's timelines and names the ground"
+slug: the-value-fold-decides-no-withdrawal-so-the-membership-path-closes-the-timelines-and-names-the-ground
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1321
+pr: 1327
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 82}
+  - {kind: rests-on, adr: 87}
+  - {kind: rests-on, adr: 80}
+  - {kind: rests-on, adr: 7}
+---
+
 # ADR-0211: the value fold decides no withdrawal, so the membership path both closes a departing subject's timelines and names the ground
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1321 ADR gaps: internal/queue (#1199)](https://github.com/winniel123/verge-asm/issues/1321), gap 4
-- **PR that deleted the comment:** [#1327](https://github.com/winniel123/verge-asm/pull/1327)
-- **Rests on:** [ADR-0082](./0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md), which rules that a withdrawn subject's timelines close, at every key the subject held. It rules **that** they close. It does not rule which fold closes them
-- **Rests on:** [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md), which closes the reason vocabulary at three and rules that **a withdrawal's closure carries a reason, and no other** — an ordinary value move needs none, because the next span is the fact. It rules the reason. It does not rule which fold records it
-- **Rests on:** [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md), which rules what a cross-class composition is. `resolutionWitnesses` (`internal/queue/membership.go:141`) cites it for the collapse this ADR relies on
-- **Rests on:** [ADR-0007](./0007-drift-is-a-timeline-of-spans.md), whose incremental fold is what runs first in §4's ordering
 - **Sibling of, and not ruled by:** [#1315](https://github.com/winniel123/verge-asm/issues/1315) gap 4, an open record about **when** membership is re-decided. This ADR rules **which fold** decides it. The two touch the same two functions and state different rules
 
 ## Context

@@ -1,15 +1,26 @@
+---
+number: 219
+title: "a withdrawal is a fact about the estate, so the closure is unconditional and only the receipt is gated on the collector"
+slug: a-withdrawal-is-a-fact-about-the-estate-so-the-closure-is-unconditional-and-only-the-receipt-is-gated-on-the-collector
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1323
+pr: 1322
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 7}
+  - {kind: rests-on, adr: 111}
+  - {kind: rests-on, adr: 74}
+  - {kind: sibling, adr: 218}
+  - {kind: rests-on, adr: 199}
+  - {kind: sibling, adr: 197}
+  - {kind: sibling, adr: 211}
+---
+
 # ADR-0219: a withdrawal is a fact about the estate, so the closure is unconditional and only the receipt is gated on the collector
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1323 ADR gaps: internal/queue (queue, cttail, withdrawal, hot, ctverify, scopegate)](https://github.com/winniel123/verge-asm/issues/1323), gap 10
-- **PR that deleted the comment:** [#1322](https://github.com/winniel123/verge-asm/pull/1322)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0007](./0007-drift-is-a-timeline-of-spans.md), which makes the span timeline the estate's own record. A closure is a change to that record and not a notification about one
-- **Rests on:** [ADR-0111](./0111-a-span-cites-the-batch-that-folded-it.md), which makes every closure cite the folding `Batch`. That citation is written by the closure, so it is written on the ungated side
-- **Rests on:** [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md), which fixes the receipt as one count-carrying statement at the scope. The receipt is the gated half
 - **Sibling of, and not ruled by:** [ADR-0218](./0218-the-address-exclusion-withdrawal-is-idempotent-by-construction-and-its-receipt-twins-the-previews-site-and-counts.md). That ADR rules how the receipt is built and how a second fold is safe. This one rules whether the receipt is built at all, and what happens when it is not
-- **Rests on:** [ADR-0199](./0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md), whose Decision already states the whole-worker half — *"a worker nobody wires with that option writes no message, refuses nothing, and still measures and still commits."* It rules the **import edge** and the injected seam. This ADR rules where inside each fold the boundary falls, which is the half that decides whether an unwired worker's **estate** is the same
 - **Sibling of, and not ruled by:** [ADR-0197](./0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md). It rules a second suppression, `devMode`, and fixes its guard as the producer's first statement. That guard sits inside `produce`, downstream of every fold. This ADR rules the folds, so a dev-mode worker withdraws for the same reason an unwired one does
 - **Sibling of, and not ruled by:** [ADR-0211](./0211-the-value-fold-decides-no-withdrawal-so-the-membership-path-closes-the-timelines-and-names-the-ground.md). It rules **which** fold may close a span with a reason. This rules that the closure, wherever it is ruled to belong, is written whether or not anything states it
 

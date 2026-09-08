@@ -1,9 +1,16 @@
-# ADR-0075: A prototype is a dated record of a reading, never of a rule
+---
+number: 75
+title: "A prototype is a dated record of a reading, never of a rule"
+slug: a-prototype-is-a-dated-record-of-a-reading-never-of-a-rule
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 131
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#131 What does a session owe a closed ticket's prototype when a later ruling invalidates a figure in it?](https://github.com/winniel123/verge-asm/issues/131)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0075: A prototype is a dated record of a reading, never of a rule
 
 ## Context
 

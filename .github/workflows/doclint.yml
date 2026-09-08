@@ -2,8 +2,9 @@ name: doclint
 
 # Three documentation jobs with different postures. `doclint` is the advisory style lint
 # (SPEC docs/spec/doc-lint-tool.md §5.2, ticket #822). `citations` is the cited-path
-# gate (#1436), and `adr-sections` is the `ADR-nnnn §n` gate (#1437, #1465); both fail on
-# a violation, and both are required checks since 2026-09-07. `doclint` is not.
+# gate (#1436), and `adr-sections` is the `ADR-nnnn §n` gate (#1437, #1465) plus the ADR
+# index and marker gates (#1738); both jobs fail on a violation, and both are required
+# checks since 2026-09-07. `doclint` is not.
 #
 # THE `doclint` JOB. A dedicated, non-blocking job that runs the doclint tool on a pull
 # request. It is SEPARATE from the docs-site build job (docs-site.yml), whose gates are
@@ -131,10 +132,12 @@ jobs:
   # merge (#1263, #1438, promoted 2026-09-07).
   #
   # WHOLE TREE, not the diff. The index is built from docs/adr/, so deleting a numbered
-  # heading breaks a citation in a file the PR never touched.
+  # heading breaks a citation in a file the PR never touched. The index and marker gates
+  # below read the whole tree for the same reason: a relation on one ADR writes a marker
+  # into another, and the committed index.json is a function of every file.
   #
-  # fetch-depth is the default: the gate reads the working tree and `git ls-files`, and
-  # needs no history.
+  # fetch-depth is the default: the gates read the working tree and `git ls-files`, and
+  # need no history.
   adr-sections:
     runs-on: ubuntu-latest
     steps:
@@ -160,3 +163,20 @@ jobs:
       - name: ADR section gate
         working-directory: docs-site
         run: npm run check:adr-sections -- --github
+
+      # The two regenerate-and-diff gates of SPEC docs/spec/adr-governance.md §9, added by
+      # the legacy backfill (#1738). Each validates every ADR's front matter, then compares
+      # the committed docs/adr/index.json, or every tool-written marker, against a fresh
+      # regeneration. A hand-edited marker or a stale index goes red here. Each step runs
+      # its own test suite first, because no other job runs them.
+      - name: ADR index gate
+        working-directory: docs-site
+        run: |
+          npm run test:adr-index
+          npm run check:adr-index
+
+      - name: ADR marker gate
+        working-directory: docs-site
+        run: |
+          npm run test:adr-markers
+          npm run check:adr-markers

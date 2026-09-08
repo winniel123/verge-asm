@@ -1,10 +1,19 @@
+---
+number: 173
+title: "the API-access tab is the one Settings surface a `viewer` reads, and it carries state without a control"
+slug: the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1334
+pr: 1337
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 123}
+---
+
 # ADR-0173: the API-access tab is the one Settings surface a `viewer` reads, and it carries state without a control
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1334 ADR gaps: cmd/web/auth.go](https://github.com/winniel123/verge-asm/issues/1334), gap 1
-- **Sweep PR that deleted the comment:** [#1337](https://github.com/winniel123/verge-asm/pull/1337) — which compressed the block to one uncited line rather than deleting it (`cmd/web/auth.go:104`, blamed to `267c196`)
-- **Rests on:** [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md), which supplies what the tab is about — a read-only `/api/v1`, off by default, behind one instance-wide `api_enabled` flag carrying who and when, with the account's role read live per request
 - **Not bound by:** [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md), which rules how a read-only screen holds filter and sort state over rows the server already rendered. It says nothing about who may reach a screen, and `?tab=` is a destination, not a view scope
 - **Withdraws the over-broad statement at its specifying site** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) discipline): `docs/guides/accounts.md:52-54`, which reads *"The whole **Settings** screen is itself admin-only (`GET /settings` is behind `requireAdmin`)"*
 

@@ -1,9 +1,16 @@
-# ADR-0078: A residue is disclosed by the act that leaves it — and a residue over our own list is enumerated rather than described
+---
+number: 78
+title: "A residue is disclosed by the act that leaves it — and a residue over our own list is enumerated rather than described"
+slug: a-residue-is-disclosed-by-the-act-that-leaves-it
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 136
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#136 Where does the curated-table queue's bounded-residue disclosure live?](https://github.com/winniel123/verge-asm/issues/136)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0078: A residue is disclosed by the act that leaves it — and a residue over our own list is enumerated rather than described
 
 ## Context
 

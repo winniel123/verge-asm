@@ -1,13 +1,23 @@
+---
+number: 222
+title: "no test-only `EgressGuard` relaxation is built, and the dial-control seam stays unexported. ~~The captured-public-prefix rig stays the supported one.~~ **ADR-0225 supersedes that last clause.**"
+slug: no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one
+date: 2026-09-07
+status: accepted
+source: fix
+ticket: 1598
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 121}
+  - {kind: sibling, adr: 79}
+  - {kind: sibling, adr: 225}
+  - {kind: sibling, adr: 166}
+---
+
 # ADR-0222: no test-only `EgressGuard` relaxation is built, and the dial-control seam stays unexported. ~~The captured-public-prefix rig stays the supported one.~~ **ADR-0225 supersedes that last clause.**
 
-- **Status:** Accepted (§3 superseded and §4 discharged by [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md))
-- **Date:** 2026-09-07
-- **Ticket:** [#1598 EgressGuard refuses every local prefix, so a leaf measurement needs a captured public prefix to test against](https://github.com/winniel123/verge-asm/issues/1598)
 - **Upstream:** [#1115](https://github.com/winniel123/verge-asm/issues/1115) and PR [#1562](https://github.com/winniel123/verge-asm/pull/1562), which built the rig. [#1572](https://github.com/winniel123/verge-asm/issues/1572) carried finding 5 and left it unfiled
 - **Superseded in part by:** [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md) — [#1610](https://github.com/winniel123/verge-asm/issues/1610) rules that the egress guard reads the declared address scope that admitted the target. ADR-0225 supersedes §3 below and discharges §4 below. This ADR's own reopening condition names that event. §1 and §2 stand unchanged, and ADR-0225 §4 obeys this ADR's §1 rather than amending it
-- **Rests on:** [ADR-0121](./0121-the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard.md), which rules that the egress guard depends on trust origin and not on the address. This ADR applies that same test to a test rig and refuses the exemption, because a test harness declares no realm
-- **Read with:** [ADR-0079](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md), whose declared-address-scope route ~~the guard closes at the socket. §4 states that contradiction and refuses to settle it here~~ **the guard now reads at the socket ([ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md)). §4 below stated that contradiction and refused to settle it here. ADR-0225 settles it, and §4 is discharged**
-- **Read with:** [ADR-0166](./0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md), whose residual-risk paragraph records what a review-held containment costs. §2 chooses a compiler-held one instead
 
 ## Context
 
@@ -134,6 +144,8 @@ covers.
 
 ### 3. ~~§2.2 is the supported rig, and it is named as such~~ **§2.2 is one supported rig — SUPERSEDED by [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md)**
 
+> **Amended** by [ADR-0225: The declared address scope that admitted a target rides the job, the egress guard reads that scope at the socket, and a discovered address stays refused](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md), 2026-09-07. <!-- adr-marker amends 225 -->
+
 > **Superseded here, at the site that specifies it** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) by
 > [#1610](https://github.com/winniel123/verge-asm/issues/1610) · [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md).
 > This ADR's Reopening condition names that exact event and rules this section *"superseded rather
@@ -160,6 +172,8 @@ holding `192.88.100.0/22` on a local bridge is contained. §2.2 states both. **A
 an address scope over the target pays neither.**
 
 ### 4. ~~The gate-versus-guard mismatch is a production question, and it is filed~~ **The mismatch was filed — DISCHARGED**
+
+> **Amended** by [ADR-0225: The declared address scope that admitted a target rides the job, the egress guard reads that scope at the socket, and a discovered address stays refused](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md), 2026-09-07. <!-- adr-marker amends 225 -->
 
 > **DISCHARGED by [#1610](https://github.com/winniel123/verge-asm/issues/1610) · [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md),
 > and recorded here at the site that files it** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).

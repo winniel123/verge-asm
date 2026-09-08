@@ -1,13 +1,21 @@
+---
+number: 192
+title: "a `ct-tail` admission resolves its name-scope Seed per name, and a SAN under no declared scope is discarded rather than attributed to the polling job"
+slug: a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1308
+pr: 1307
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 27}
+  - {kind: rests-on, adr: 47}
+  - {kind: amends, adr: 153, clause: "5"}
+---
+
 # ADR-0192: a `ct-tail` admission resolves its name-scope Seed per name, and a SAN under no declared scope is discarded rather than attributed to the polling job
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gap 5
-- **PR that deleted the comment:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0027](./0027-a-source-may-admit-without-observing.md), which rules that a CT admission's `Citation` is the `Batch` that returned it and that *"the chain still terminates at the `Seed`"*. It makes the Seed on an admission load-bearing rather than decorative. It does not say how a Seed is found where the Batch queried none
-- **Rests on:** [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md), which rules that the `Seed` decides what is inside a scope, and that a name scope does not enumerate. It is the ground for the discard. It rules the declaration, not the per-name lookup
-- **Bounded by:** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), whose Decision table fixes the **bulk** `ct` Scan at *"one `Batch` per name-scope `Seed`"* and rules names outside the queried scope **filtered**. It rules the path this ADR contrasts against. It predates `ct-tail` and does not reach it
 - **Adds a site to, and does not close:** [ADR-0153](./0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md) §5, which names the declaration side's disagreement over which covering `Seed` wins and explicitly excludes it from its own ruling
 
 ## Context

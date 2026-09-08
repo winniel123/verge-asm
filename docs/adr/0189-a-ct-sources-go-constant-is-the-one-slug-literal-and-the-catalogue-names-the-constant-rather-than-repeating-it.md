@@ -1,13 +1,20 @@
-# ADR-0189: a CT source's Go constant is the one slug literal, and the source catalogue names that constant rather than repeating the string
+---
+number: 189
+title: "a CT source's Go constant is the one slug literal, and the source catalogue names that constant rather than repeating the string"
+slug: a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1308
+pr: 1307
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 3}
+  - {kind: rests-on, adr: 106}
+  - {kind: rests-on, adr: 58}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gap 1
-- **PR that deleted the comment:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0003](./0003-third-party-source-consent-bar.md), which makes the source toggle an act of operator consent and puts the catalogue itself in the release. It rules what the toggle means. It does not rule how the catalogue's key reaches the code that reads it
-- **Rests on:** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), whose Decision table states *"`fanOutCT` gates on the **`crtsh` source** being enabled"* and *"`source = crtsh`"* on the `admitted_name` row. It names the gate and the column value. It does not state that the two literals must be equal, or what happens when they are not
-- **Withdrawal convention:** [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+# ADR-0189: a CT source's Go constant is the one slug literal, and the source catalogue names that constant rather than repeating the string
 
 ## Context
 

@@ -1,11 +1,18 @@
-# ADR-0165: A recorded Dispatch disposition overrides the live status derivation, and the run page's status word is one token that styles and labels the badge
+---
+number: 165
+title: "A recorded Dispatch disposition overrides the live status derivation, and the run page's status word is one token that styles and labels the badge"
+slug: a-recorded-dispatch-disposition-overrides-the-live-status-derivation-and-the-run-pages-status-word-is-one-token-that-styles-and-labels-the-badge
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1353
+pr: 1352
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 164}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1353 ADR gaps: cmd/web/scans.go](https://github.com/winniel123/verge-asm/issues/1353)
-- **PR that deleted the comments:** [#1352](https://github.com/winniel123/verge-asm/pull/1352)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0164](./0164-an-operator-ends-a-dispatch-by-recording-a-disposition-once-and-stop-keeps-the-running-jobs-while-terminate-rolls-their-staged-work-back.md), which rules the write side. This ADR rules what the run page does with what that write recorded
+# ADR-0165: A recorded Dispatch disposition overrides the live status derivation, and the run page's status word is one token that styles and labels the badge
 
 ## Context
 

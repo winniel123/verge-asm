@@ -1,10 +1,19 @@
+---
+number: 179
+title: "an absent age sorts as a sentinel beyond every real age, never as zero"
+slug: an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1363
+pr: 1365
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 158}
+---
+
 # ADR-0179: an absent age sorts as a sentinel beyond every real age, never as zero
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1363 ADR gaps: cmd/web messages.go, restore.go and drift.go](https://github.com/winniel123/verge-asm/issues/1363), gap 3
-- **Sweep PR that rewrote the comment:** [#1365](https://github.com/winniel123/verge-asm/pull/1365)
-- **Rests on:** [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md), which settles **where** a console sort may run. This ADR rules the **value** the server hands that sort, and it binds identically whether the comparator is JavaScript or Go
 - **Not bound by:** [ADR-0081](./0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md), whose refusal of a sentinel — *"a sentinel is what a program writes when it has no answer, and the operator correctly infers that nobody decided"* (`0081:82-83`) — is about a number the operator **authors and reads** in a retention dial. A sort key is authored by nobody and rendered to nobody
 - **Not bound by:** [ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md) decision 4 and [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md) §3, which forbid a hidden per-row datum from becoming a **filter's** carrier. A sort hides no row, so a hidden datum is a legal sort key
 

@@ -1,12 +1,21 @@
+---
+number: 168
+title: "a console page degrades a failed region to an honest absence, and never fails the page or refuses the act"
+slug: a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: [1360, 1339]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 110}
+  - {kind: rests-on, adr: 72}
+  - {kind: rests-on, adr: 134, clause: "5"}
+---
+
 # ADR-0168: a console page degrades a failed region to an honest absence, and never fails the page or refuses the act
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1360 ADR gaps: cmd/web sources.go and cold.go](https://github.com/winniel123/verge-asm/issues/1360), gap 1
-- **Ticket:** [#1339 ADR gaps: cmd/web/seeds.go](https://github.com/winniel123/verge-asm/issues/1339), gaps 2 and 3
 - **Sweep PR that deleted the comment:** [#1361](https://github.com/winniel123/verge-asm/pull/1361) (cold.go), [#1340](https://github.com/winniel123/verge-asm/pull/1340) (seeds.go)
-- **Rests on:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md), which supplies *never fabricated data* — the rule about a datum that does not exist; and [ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md), which supplies the shape an absence takes on a screen
-- **Rests on:** [ADR-0134](./0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md) §5, which makes the withdrawal land on the next membership fold and so leaves the preview binding nothing
 - **Not bound by:** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) §2, whose best-effort is one declinable outbound call to a third party
 - **Narrows:** [`docs/guides/api.md`](../guides/api.md) line 103, whose *"Store read failure → `500`"* row is true of a subject read and false of a region read
 

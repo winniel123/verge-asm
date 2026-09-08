@@ -1,14 +1,23 @@
+---
+number: 216
+title: "the dedup set holds the resolved addresses alone, so two overlapping declared scopes probe their overlap twice"
+slug: the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1323
+pr: 1322
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 127}
+  - {kind: rests-on, adr: 127}
+  - {kind: rests-on, adr: 47}
+  - {kind: sibling, adr: 195}
+  - {kind: sibling, adr: 188}
+---
+
 # ADR-0216: the dedup set holds the resolved addresses alone, so two overlapping declared scopes probe their overlap twice
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1323 ADR gaps: internal/queue (queue, cttail, withdrawal, hot, ctverify, scopegate)](https://github.com/winniel123/verge-asm/issues/1323), gap 6
-- **PR that deleted the comment:** [#1322](https://github.com/winniel123/verge-asm/pull/1322)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Amends:** [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md). Its *"Does the enumeration stream?"* row says *"Single-probing is required (dedup against the small resolved set)."* Read alone, the first clause forbids what the code does. The amendment states the clause's true reach at its own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), and its wording is in this issue's manifest
-- **Rests on:** [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md) again, for the ground. Its guarantee that *"memory is never a ceiling bound … so no record holds the whole scope"* is what forces the double probe, and its no-upper-bound ruling is what makes the alternative impossible rather than expensive
-- **Rests on:** [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md), which rules that a declared CIDR produces *"every address in it, walked every cadence"*. A scope's walk is a property of that scope's own declaration
-- **Bounded by:** [ADR-0133](./0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md) §3, which puts the exclusion skip on every tier that enumerates. A duplicate walk never re-walks an excluded address, on either pass
 - **Sibling of, and not ruled by:** [ADR-0195](./0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md). It rules that the address-scope **census** renders a scope declared twice once. This rules that the **enumeration** walks it twice. The two are not in conflict and the pair is worth holding together: the census answers *what did the operator declare*, and the enumeration answers *what is probed this tick*. §4 below is why the second must not adopt the first's dedup
 - **Sibling of, and not ruled by:** [ADR-0188](./0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md). It rules `ExtensionCandidates` distinct and in first-seen order, which is the set `EdgeFanoutPopulation` seeds its dedup map from. It rules that half of the population. This rules the declared-scope half, which is deduped against that set and never against itself
 

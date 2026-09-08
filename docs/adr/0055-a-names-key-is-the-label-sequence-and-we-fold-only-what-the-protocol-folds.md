@@ -1,11 +1,24 @@
+---
+number: 55
+title: "A `Name`'s key is the label sequence on the wire, and we fold only what the protocol folds"
+slug: a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 94
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 11}
+  - {kind: amends, adr: 51}
+  - {kind: bounds, adr: 205}
+---
+
 # A `Name`'s key is the label sequence on the wire, and we fold only what the protocol folds
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#94 What is a `Name`'s natural key — case, the trailing dot, and A-label vs U-label](https://github.com/winniel123/verge-asm/issues/94)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Amends:** [ADR-0011](./0011-a-facet-is-six-parts.md) in one further detail
-- **Discharges:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md)'s named residue
+> **Amended** by [ADR-0052: A declaration refusal names a route and never takes it](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md), 2026-08-15. <!-- adr-marker amends 52 -->
+
+> **Amended** by [ADR-0060: A wildcard SAN is a pattern over names and admits none of them](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md), 2026-08-14. <!-- adr-marker amends 60 -->
 
 ## Context
 

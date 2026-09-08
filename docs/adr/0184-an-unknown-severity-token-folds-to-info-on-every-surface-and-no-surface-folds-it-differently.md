@@ -1,27 +1,21 @@
+---
+number: 184
+title: "an unknown severity token folds to info on every surface, and no surface folds it differently"
+slug: an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1300
+pr: 1299
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 116}
+  - {kind: rests-on, adr: 110}
+  - {kind: sibling, adr: 185}
+---
+
 # ADR-0184: an unknown severity token folds to info on every surface, and no surface folds it differently
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1300 ADR gaps: internal/message](https://github.com/winniel123/verge-asm/issues/1300), gap 3
-- **PR that deleted the comment:** [#1299](https://github.com/winniel123/verge-asm/pull/1299)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md). It rules
-  that the design package is normative for look and functionality, and that where the domain lacks a
-  datum the design renders, the fix is to build the datum. It built the five-level grade and withdrew
-  `CONTEXT.md`'s older "a signal carries no severity" clause. A closed set is what makes an
-  out-of-set token possible at all
-- **Rests on:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md). It rules
-  that the design-system examples are the console's IA spec, ported verbatim, and states that severity
-  is exactly `Critical / High / Medium / Low / Info` via `SeverityBadge`. That fixes the set this ADR
-  folds onto
-- **Bounded by:** [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md). It rules
-  that a message names what moved, and that the message vocabulary carries no valence word and no
-  severity. Its subject is the `Message`, which has no grade to fold. This ADR binds the `Signal` grade
-  and never reaches the message store
-- **Bounded by:** [ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md). It rules
-  that the report PDF is a second **layout** of one `Artifact`, authored separately from the HTML. This
-  ADR is why that separation is safe for the grade: both layouts call one normaliser, so a second
-  layout cannot invent a second fold
 - **Sibling of, and not ruled by:** [ADR-0183](./0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md). It rules
   what a grade may be called once it is normalised. This ADR rules what an out-of-set token normalises
   to. One is a vocabulary rule and one is a normalisation rule. Neither contains the other

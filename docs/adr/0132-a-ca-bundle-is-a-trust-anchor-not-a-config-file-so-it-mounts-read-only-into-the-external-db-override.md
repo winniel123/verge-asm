@@ -1,11 +1,21 @@
+---
+number: 132
+title: "a CA bundle is a trust anchor, not the config file §5.1 forbids, so it mounts read-only into the external-db override — never the base"
+slug: a-ca-bundle-is-a-trust-anchor-not-a-config-file-so-it-mounts-read-only-into-the-external-db-override
+date: 2026-08-31
+status: accepted
+source: grilling
+ticket: 950
+map: 947
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 53}
+  - {kind: rests-on, adr: 1}
+---
+
 # ADR-0132: a CA bundle is a trust anchor, not the config file §5.1 forbids, so it mounts read-only into the external-db override — never the base
 
-- **Status:** Accepted
-- **Date:** 2026-08-31
-- **Ticket:** [#950 CA trust-anchor mount convention + the ADR](https://github.com/winniel123/verge-asm/issues/950)
-- **Map:** [#947 TLS-verified and external Postgres in Docker Compose](https://github.com/winniel123/verge-asm/issues/947)
 - **Keeps, withdraws nothing:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) — *a secret is held only where its act is performed.* A CA root is **public** trust material, not a secret, so it never raises the question ADR-0053 answers. This ADR mounts a public file; it holds no credential and adds no keyring.
-- **Inherits the runtime constraint of:** [ADR-0001](./0001-stack-and-runtime.md) — one image, two non-root compose services, distroless. That runtime is why the image ships **no** CA bundle and why the operator supplies the trust anchor from the host.
 
 ## Context
 

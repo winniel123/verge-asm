@@ -1,9 +1,16 @@
-# ADR-0044: A one-off measurement has no currency, so there is no one-off aperture — and the widest tier is the one that is asked for
+---
+number: 44
+title: "A one-off measurement has no currency, so there is no one-off aperture — and the widest tier is the one that is asked for"
+slug: a-one-off-measurement-has-no-currency
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 80
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#80 Is the onboarding full-range sweep opt-in, or does it run unconditionally?](https://github.com/winniel123/verge-asm/issues/80)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0044: A one-off measurement has no currency, so there is no one-off aperture — and the widest tier is the one that is asked for
 
 ## Context
 

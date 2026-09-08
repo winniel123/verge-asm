@@ -1,14 +1,23 @@
+---
+number: 218
+title: "the address exclusion withdrawal is idempotent by construction, and its receipt twins the preview's firing site and its counts"
+slug: the-address-exclusion-withdrawal-is-idempotent-by-construction-and-its-receipt-twins-the-previews-site-and-counts
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1323
+pr: 1322
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 133, clause: "8.1"}
+  - {kind: rests-on, adr: 154}
+  - {kind: rests-on, adr: 74}
+  - {kind: sibling, adr: 153}
+---
+
 # ADR-0218: the address exclusion withdrawal is idempotent by construction, and its receipt twins the preview's firing site and its counts
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1323 ADR gaps: internal/queue (queue, cttail, withdrawal, hot, ctverify, scopegate)](https://github.com/winniel123/verge-asm/issues/1323), gap 9
-- **PR that deleted the comment:** [#1322](https://github.com/winniel123/verge-asm/pull/1322)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Rules what [ADR-0134](./0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md) §5 assumed.** That section rules the tombstone's idempotency and reaches for this fold as its comparison: *"the three survivors give the same by-construction idempotency the exclusion act has"*. It states the property of this fold as a premise and rules it for the tombstone alone. §1 below rules it here
-- **Rests on:** [ADR-0133](./0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md) §8.1, which rules **when** the withdrawal runs and that the fold reads the live `exclusion` corpus. §2 below is why that corpus makes a marker unnecessary
-- **Rests on:** [ADR-0154](./0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md), which rules that the fold closes only an attributable candidate and drops the rest. Those drops are what keep the candidate set stable across folds
-- **Rests on:** [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md), which fixes a narrowing as one receipt at the scope, carrying a count
 - **Sibling of, and not ruled by:** [ADR-0153](./0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md). It rules which **mover** the fold names when several cover a candidate, and its §5 names the declaration side as an open question it does not rule: *"`coveringSeedKey` takes the newest covering `Seed` and `FindCoveringAddressSeed` takes the most specific one … This ADR rules the narrowing side alone."* §3 below rules one half of that pair
 
 ## Context

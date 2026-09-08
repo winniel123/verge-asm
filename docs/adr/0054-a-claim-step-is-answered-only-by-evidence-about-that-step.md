@@ -1,9 +1,16 @@
-# ADR-0054: A claim step is answered only by evidence about that step, and reachability is read at the internet-reached frame
+---
+number: 54
+title: "A claim step is answered only by evidence about that step, and reachability is read at the internet-reached frame"
+slug: a-claim-step-is-answered-only-by-evidence-about-that-step
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 92
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#92 Claim 1's Class A walk cites a non-owner in two Step 1 cells, and the Step 2 operations were never walked against the bytes](https://github.com/winniel123/verge-asm/issues/92)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0054: A claim step is answered only by evidence about that step, and reachability is read at the internet-reached frame
 
 ## Context
 

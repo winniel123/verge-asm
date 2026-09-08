@@ -1,9 +1,16 @@
-# ADR-0076: A conjunctively-carried cell is one queue item, entered at the rung of its most volatile carrier
+---
+number: 76
+title: "A conjunctively-carried cell is one queue item, entered at the rung of its most volatile carrier"
+slug: a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 134
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#134 Walk the queue's sole-ground filter per cell over all 38 pairs plus the frequency half](https://github.com/winniel123/verge-asm/issues/134)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0076: A conjunctively-carried cell is one queue item, entered at the rung of its most volatile carrier
 
 ## Context
 

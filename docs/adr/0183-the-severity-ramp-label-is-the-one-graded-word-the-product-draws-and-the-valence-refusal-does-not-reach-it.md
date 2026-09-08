@@ -1,25 +1,22 @@
+---
+number: 183
+title: "the severity ramp label is the one graded word the product draws, and the valence refusal does not reach it"
+slug: the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1300
+pr: 1299
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 110}
+  - {kind: rests-on, adr: 116}
+  - {kind: amends, adr: 114}
+  - {kind: sibling, adr: 184}
+---
+
 # ADR-0183: the severity ramp label is the one graded word the product draws, and the valence refusal does not reach it
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1300 ADR gaps: internal/message](https://github.com/winniel123/verge-asm/issues/1300), gap 5
-- **PR that deleted the comment:** [#1299](https://github.com/winniel123/verge-asm/pull/1299)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Bounded by:** [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md). It rules that a
-  message names what moved, and that the vocabulary carries no valence word and no severity. This ADR
-  does not reopen that refusal. It fixes the refusal's reach at authored prose and exempts one closed
-  enum's member name at the ramp element
-- **Rests on:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md). It rules
-  that the design-system examples are the console's IA spec, ported verbatim, and states that severity
-  is exactly `Critical / High / Medium / Low / Info` via `SeverityBadge`. The product must draw the grade
-- **Rests on:** [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md). It rules
-  that the design package is normative for look and functionality, and that where the domain lacks a
-  datum the design renders, the fix is to build the datum. It built the five-level grade
-- **Withdraws a clause of:** [ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md). It rules
-  that the report PDF is rendered in-process in pure Go from the `Artifact`, and its §2 states that no
-  severity ramp appears in the print form and that tone selects a colour only, never text. That sentence
-  is withdrawn here, at its own site, per
-  [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 - **Sibling of, and not ruled by:** [ADR-0184](./0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md). It rules
   how an unknown grade token normalises. This ADR rules what the normalised token may be called. One is
   a normalisation rule and one is a vocabulary rule. Neither contains the other
