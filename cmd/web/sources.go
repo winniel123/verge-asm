@@ -57,13 +57,13 @@ type catalogSource struct {
 
 var sourceCatalog = []catalogSource{
 	{
-		Slug: "crtsh", Name: "crt.sh",
+		Slug: scan.CrtshSource, Name: "crt.sh",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentUnencumbered,
 		DefaultOn: true,
 		ShipNote:  "Certificate transparency logs. Admits the Names a certificate's SAN list carries — authority: inferred — never a wildcard, and observes nothing (ADR-0027). Queried on the ct Scan's daily cadence, throttled to 5 req/min; a failed fetch admits nothing and never an absence.",
 	},
 	{
-		Slug: "ct-tail", Name: "CT drift tail (logs-direct)",
+		Slug: scan.CTTailSource, Name: "CT drift tail (logs-direct)",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentUnencumbered,
 		DefaultOn: false,
 		ShipNote:  "Certificate transparency, read directly and forward-only (spec §4). Watches new issuance for names you already know, admitting the same way crt.sh does (authority: inferred, ADR-0027). Ships OFF: the tail downloads every new certificate across the CT logs to keep the few that match your estate, so it is heavier than the crt.sh poll — enable it when you want same-shard drift detection. A failed poll admits nothing and never an absence.",
@@ -113,7 +113,7 @@ var sourceCatalog = []catalogSource{
 		ShipNote: "Excluded on terms. Its terms bar the software's inherent behaviour, which fails regardless of who the operator is — so no operator reading consents past it.",
 	},
 	{
-		Slug: "certspotter", Name: "Cert Spotter (operator key)",
+		Slug: scan.CertSpotterSource, Name: "Cert Spotter (operator key)",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentCredentialed,
 		DefaultOn: false,
 		ShipNote:  "Certificate transparency, bulk-by-name — the operator-keyed primary (spec §2). Set VERGE_CERTSPOTTER_TOKEN on the worker to select it as the active ct source in place of crt.sh; absent the key, crt.sh runs. Admits the Names a certificate's SAN list carries — authority: inferred — never a wildcard, and observes nothing (ADR-0027), the same way crt.sh does. Its authenticated tier clears the consent bar (ADR-0003); the key is worker-only and web never reads it.",

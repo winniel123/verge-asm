@@ -20,9 +20,26 @@ import (
 
 const ctTailBatch = 256
 
-// A newly followed log is far behind, so it catches up over polls (ct-source-replacement §4.4).
+// A busy log outruns one poll, so the delta is read in windows (ct-source-replacement §4.4).
 
 const maxEntriesPerPoll = 16384
+
+func ctTailShrunk(hasCursor bool, cursor, treeSize int64) bool {
+	// An append-only tree cannot shrink, so a head below the cursor is a fork or rollback (#1656).
+	return hasCursor && treeSize < cursor
+}
+
+func ctTailWindow(hasCursor bool, cursor, treeSize int64) (start, end int64) {
+	// A log with no cursor is seeded at its head, so the tail never backfills history (#1654).
+	if !hasCursor {
+		return treeSize, treeSize
+	}
+	end = treeSize
+	if end > cursor+maxEntriesPerPoll {
+		end = cursor + maxEntriesPerPoll
+	}
+	return cursor, end
+}
 
 func (w *Worker) WithCTTail(fetcher CTFetcher, throttle CTThrottle) *Worker {
 	w.ctTailFetcher = fetcher
@@ -49,10 +66,12 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 	base := ensureTrailingSlash(lg.URL)
 
 	// The tail reads only forward deltas and never backfills (ct-source-replacement §4).
-	start := int64(0)
+	cursor, hasCursor := int64(0), true
 	if cur, gerr := w.q.GetCTLogCursor(ctx, lg.LogID); gerr == nil {
-		start = cur.TreeSize
-	} else if !errors.Is(gerr, pgx.ErrNoRows) {
+		cursor = cur.TreeSize
+	} else if errors.Is(gerr, pgx.ErrNoRows) {
+		hasCursor = false
+	} else {
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
@@ -69,10 +88,11 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
 	}
 
-	end := sth.TreeSize
-	if end > start+maxEntriesPerPoll {
-		end = start + maxEntriesPerPoll
+	if ctTailShrunk(hasCursor, cursor, sth.TreeSize) {
+		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log STH tree size %d below cursor %d", sth.TreeSize, cursor)))
 	}
+
+	start, end := ctTailWindow(hasCursor, cursor, sth.TreeSize)
 	var sans []string
 	reached := start
 	for reached < end {
@@ -117,10 +137,12 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg scan.CTLog) error {
 	base := ensureTrailingSlash(lg.URL)
 
-	start := int64(0)
+	cursor, hasCursor := int64(0), true
 	if cur, gerr := w.q.GetCTLogCursor(ctx, lg.LogID); gerr == nil {
-		start = cur.TreeSize
-	} else if !errors.Is(gerr, pgx.ErrNoRows) {
+		cursor = cur.TreeSize
+	} else if errors.Is(gerr, pgx.ErrNoRows) {
+		hasCursor = false
+	} else {
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
@@ -136,16 +158,12 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
 	}
 
-	// An append-only tree cannot shrink, so a tree below the cursor is a fork or a rollback.
 	// This shrink check is not the consistency proof, and no signature is verified here.
-	if sth.TreeSize < start {
-		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, start)))
+	if ctTailShrunk(hasCursor, cursor, sth.TreeSize) {
+		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, cursor)))
 	}
 
-	end := sth.TreeSize
-	if end > start+maxEntriesPerPoll {
-		end = start + maxEntriesPerPoll
-	}
+	start, end := ctTailWindow(hasCursor, cursor, sth.TreeSize)
 	var sans []string
 	reached := start
 	for reached < end {

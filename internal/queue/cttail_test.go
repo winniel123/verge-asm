@@ -53,3 +53,42 @@ func TestCTHTTPCause(t *testing.T) {
 		t.Fatalf("transport error not redacted: %q", got)
 	}
 }
+
+func TestCTTailWindowSeedsAFreshLogAtItsHead(t *testing.T) {
+	cases := []struct {
+		name               string
+		hasCursor          bool
+		cursor, treeSize   int64
+		wantStart, wantEnd int64
+	}{
+		{"no cursor reads nothing and lands at the head", false, 0, 1_000_000_000, 1_000_000_000, 1_000_000_000},
+		{"a cursor reads the forward delta", true, 100, 300, 100, 300},
+		{"a far-behind cursor reads one bounded window", true, 100, 1_000_000_000, 100, 100 + maxEntriesPerPoll},
+		{"a cursor at the head reads nothing", true, 300, 300, 300, 300},
+	}
+	for _, c := range cases {
+		start, end := ctTailWindow(c.hasCursor, c.cursor, c.treeSize)
+		if start != c.wantStart || end != c.wantEnd {
+			t.Errorf("%s: ctTailWindow(%v, %d, %d) = [%d, %d), want [%d, %d)", c.name, c.hasCursor, c.cursor, c.treeSize, start, end, c.wantStart, c.wantEnd)
+		}
+	}
+}
+
+func TestCTTailShrunkReadsAHeadBelowTheCursor(t *testing.T) {
+	cases := []struct {
+		name             string
+		hasCursor        bool
+		cursor, treeSize int64
+		want             bool
+	}{
+		{"no cursor can never shrink", false, 0, 5, false},
+		{"head below the cursor is a shrink", true, 500, 2, true},
+		{"head at the cursor is not", true, 500, 500, false},
+		{"head past the cursor is not", true, 500, 900, false},
+	}
+	for _, c := range cases {
+		if got := ctTailShrunk(c.hasCursor, c.cursor, c.treeSize); got != c.want {
+			t.Errorf("%s: ctTailShrunk(%v, %d, %d) = %v, want %v", c.name, c.hasCursor, c.cursor, c.treeSize, got, c.want)
+		}
+	}
+}

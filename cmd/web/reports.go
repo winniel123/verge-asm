@@ -39,12 +39,13 @@ type reportsStore interface {
 const reportsDispatchPerWeek = 250
 
 func reportsDispatchLimit(weeks int) int32 {
-	return int32(weeks * reportsDispatchPerWeek) // #nosec G115 (weeks bounded by 4-digit-year date parse; weeks*250 well under int32)
+	return int32(weeks * reportsDispatchPerWeek) // #nosec G115 (weeks bounded by reportsMaxWeeks; weeks*250 well under int32)
 }
 
 const (
 	reportsHeatWeeks = 12
 	reportsHeatDays  = reportsHeatWeeks * 7
+	reportsMaxWeeks  = 52
 )
 
 type reportsPeriod struct {
@@ -59,7 +60,7 @@ func reportsPeriods() []reportsPeriod {
 		{Token: "24h", Label: "Last 24h", Weeks: 4},
 		{Token: "7d", Label: "Last 7d", Weeks: reportsHeatWeeks},
 		{Token: "30d", Label: "Last 30d", Weeks: 26},
-		{Token: "90d", Label: "Last 90d", Weeks: 52},
+		{Token: "90d", Label: "Last 90d", Weeks: reportsMaxWeeks},
 	}
 }
 
@@ -116,7 +117,10 @@ func resolveReportsWindow(r *http.Request) reportsWindow {
 			if weeks < 1 {
 				weeks = 1
 			}
-			return reportsWindow{Token: reportsCustomPrefix + start + "_" + end, Label: start + " – " + end, Weeks: weeks}
+			// A range past the widest preset falls to the default rather than a clamped label.
+			if weeks <= reportsMaxWeeks {
+				return reportsWindow{Token: reportsCustomPrefix + start + "_" + end, Label: start + " – " + end, Weeks: weeks}
+			}
 		}
 	}
 	p := resolveReportsPeriod(q.Get("period"))

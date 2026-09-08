@@ -20,7 +20,7 @@ type Row struct {
 }
 
 var AllCells = []string{
-	"H1/named-200", "H1/nameless-204",
+	"H1/named-200", "H1/nameless-204", "H1/latin1-title",
 	"H2/redirect-not-followed",
 	"H3/admitted-set",
 	"H4/no-http-response",
@@ -52,6 +52,21 @@ var Rows = []Row{
 			}),
 		},
 		Golden: "http_named_200.ndjson",
+	},
+
+	{
+		Cells:        []string{"H1/latin1-title"},
+		Claim:        "a body that is not UTF-8 (a Latin-1 page with high bytes before the <title>) still yields the <title> text byte for byte — never an empty title, and never a failed exchange",
+		SpecVerified: true,
+		Params:       params(),
+		Step: Step{
+			Batch: "b1",
+			Scope: scope([]he.Target{{Name: "fr.example.com", Address: "198.51.100.11", Port: 80, Scheme: "http"}}),
+			Exchange: newScript(map[string]he.ExchangeResult{
+				"fr.example.com@198.51.100.11:80/tcp": {Status: 200, Server: "Apache", Body: []byte("<!-- caf\xe9 cr\xe8me br\xfbl\xe9e -->\n<html><head><title>Accueil</title></head><body>ok</body></html>")},
+			}),
+		},
+		Golden: "http_latin1_title.ndjson",
 	},
 
 	{

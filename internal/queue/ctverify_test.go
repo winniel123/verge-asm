@@ -216,6 +216,25 @@ func TestVerifyMaterialTiledLogged(t *testing.T) {
 	}
 }
 
+func TestVerifyMaterialTiledIndexPastHeadIsUnverifiable(t *testing.T) {
+	_, logID := firstLog(t, true)
+	der, _ := selfSignedLeaf(t)
+	ts := uint64(1700000000000)
+	ext := leafIndexExtension(5)
+	sct := serializeSCT(logID, ts, ext)
+
+	checkpoint := []byte("example.log\n1\n" + base64.StdEncoding.EncodeToString(make([]byte, 32)) + "\n\n— example sig\n")
+	fetch := routeFetcher{routes: []route{
+		{sub: "checkpoint", status: 200, body: checkpoint},
+	}}
+	blob := wire.EncodeSCTCapture(wire.SCTCapture{TLSExt: [][]byte{sct}})
+	logs, _ := scan.AllLogs()
+	res := testWorker(fetch).verifyMaterial(context.Background(), logs, der, blob, nil)
+	if res.Outcome != VerifyUnverifiable {
+		t.Fatalf("outcome = %v (%s), want unverifiable: a checkpoint short of the SCT index is not yet inclusion, never a denial", res.Outcome, res.Reason)
+	}
+}
+
 func TestVerifyMaterialEmbeddedPrecertLogged(t *testing.T) {
 	_, logID := firstLog(t, false)
 	ts := uint64(1700000000000)
