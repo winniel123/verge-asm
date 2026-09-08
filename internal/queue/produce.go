@@ -116,6 +116,14 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
 	msgs = append(msgs, rebaselineMessages(observedAt, changes)...)
+
+	// Composed after every census producer, so the residue clause can consult them (ADR-0033 §3).
+	moves, err := facetMoveMessages(ctx, store, observedAt, changes, msgs)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, moves...)
+
 	msgs = append(msgs, declaredInputMessages(observedAt, departures)...)
 	msgs = append(msgs, narrowingMessages(observedAt, narrowings)...)
 	return msgs, nil
