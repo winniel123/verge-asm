@@ -127,12 +127,12 @@ function checkProof(a, f, repoRoot, fail) {
     return;
   }
   const at = typeof value === "string" ? value.indexOf("::") : -1;
-  if (at < 1 || at === value.length - 2) {
+  const path = at > 0 ? value.slice(0, at) : "";
+  const name = at > 0 ? value.slice(at + 2) : "";
+  if (path === "" || name === "") {
     fail(a, "proof", `proof test must be <path>::<name>, got ${JSON.stringify(value)}`);
     return;
   }
-  const path = value.slice(0, at);
-  const name = value.slice(at + 2);
   if (!path.endsWith(".go") && !path.endsWith(".mjs")) {
     fail(a, "proof", `proof test ${path} must be a .go or .mjs path`);
     return;
