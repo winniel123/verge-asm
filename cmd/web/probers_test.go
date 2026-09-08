@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -271,6 +270,73 @@ func TestSetVantageResolver(t *testing.T) {
 	}
 }
 
+func TestSetVantageResolverRefusedOnceObserved(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	provision(t, ac, base, "probe.example.net", "22", "scanner").Body.Close()
+	vid := f.vantages[0].ID
+	id := strconv.FormatInt(vid, 10)
+	f.observeFromVantage(t, vid, "198.51.100.1:443/tcp", obsClock, `{"outcome":"reached","result":"open"}`)
+
+	if loc := submitLoc(t, setResolver(t, ac, base, id, "1.1.1.1:53")); loc != vantagesTab {
+		t.Fatalf("refused resolver landed at %q, want %q", loc, vantagesTab)
+	}
+	if got := f.vantages[0].Resolver; got != "9.9.9.9:53" {
+		t.Fatalf("a resolver switch after an observation changed the row to %q", got)
+	}
+	page := vantagesBody(t, ac, base)
+	if !strings.Contains(page, "Provision a new vantage with the new resolver") {
+		t.Errorf("the refusal does not name the route; body: %s", page)
+	}
+	if strings.Contains(page, `<input type="hidden" name="id" value="`+id+`">`) {
+		t.Errorf("the resolver form is still offered for an observed vantage; body: %s", page)
+	}
+	if !strings.Contains(page, "resolver is fixed") {
+		t.Errorf("the card does not say the resolver is fixed; body: %s", page)
+	}
+}
+
+func TestSetVantageResolverUnknownIDIsNotReadAsFixed(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	if loc := submitLoc(t, setResolver(t, ac, base, "424242", "1.1.1.1:53")); loc != vantagesTab {
+		t.Fatalf("unknown vantage landed at %q, want %q", loc, vantagesTab)
+	}
+	page := vantagesBody(t, ac, base)
+	if !strings.Contains(page, "Unknown vantage.") {
+		t.Errorf("an unknown id does not read as unknown; body: %s", page)
+	}
+	if strings.Contains(page, "resolver is fixed") {
+		t.Errorf("an unknown id reads as an observed vantage; body: %s", page)
+	}
+}
+
+func TestLocalVantageWithoutObservationAcceptsResolver(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	local := f.addVantageClass("unverified")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	if loc := submitLoc(t, setResolver(t, ac, base, strconv.FormatInt(local, 10), "203.0.113.53:53")); loc != vantagesTab {
+		t.Fatalf("local resolver landed at %q, want %q", loc, vantagesTab)
+	}
+	var got string
+	for _, v := range f.vantages {
+		if v.ID == local {
+			got = v.Resolver
+		}
+	}
+	if got != "203.0.113.53:53" {
+		t.Fatalf("local resolver = %q, want 203.0.113.53:53", got)
+	}
+}
+
 func TestViewerCannotSetAResolver(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -315,12 +381,37 @@ func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams)
 	return v, nil
 }
 
-func (f *fakeStore) SetVantageResolver(_ context.Context, arg db.SetVantageResolverParams) error {
+func (f *fakeStore) SetVantageResolver(_ context.Context, arg db.SetVantageResolverParams) (int64, error) {
 	for i := range f.vantages {
-		if f.vantages[i].ID == arg.ID {
-			f.vantages[i].Resolver = arg.Resolver
-			return nil
+		if f.vantages[i].ID != arg.ID {
+			continue
+		}
+		if f.vantageObserved(arg.ID) {
+			return 0, nil
+		}
+		f.vantages[i].Resolver = arg.Resolver
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func (f *fakeStore) vantageObserved(id int64) bool {
+	for _, o := range f.observations {
+		if o.VantageID.Valid && o.VantageID.Int64 == id {
+			return true
 		}
 	}
-	return pgx.ErrNoRows
+	return false
+}
+
+func (f *fakeStore) observeFromVantage(t *testing.T, vid int64, serviceKey string, at time.Time, value string) {
+	t.Helper()
+	b := f.freshBatch("hot", "connect-outcome")
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: b, Facet: "reachability", SubjectKind: "service",
+		SubjectKey: serviceKey, VantageID: pgtype.Int8{Int64: vid, Valid: true},
+		Source: "prober", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
 }

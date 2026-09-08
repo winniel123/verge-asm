@@ -110,7 +110,7 @@ type resolvedNameAbsentFromZone struct{}
 
 func (resolvedNameAbsentFromZone) Name() string { return "resolved-name-absent-from-zone" }
 func (resolvedNameAbsentFromZone) Version() Version {
-	return Version{Rule: "v1", Composes: leafVersions}
+	return Version{Rule: "v2", Composes: leafVersions}
 }
 
 func (resolvedNameAbsentFromZone) Severity() Severity { return SevLow }
@@ -120,6 +120,10 @@ func (resolvedNameAbsentFromZone) Eval(f NameFacts) Outcome {
 	}
 	switch f.Resolution {
 	case Resolved:
+		// The file delegates the subzone away and never read this name (ADR-0020, #1712).
+		if f.BeneathDelegation {
+			return NotEvaluable
+		}
 		if f.ZoneDeclared {
 			return NotFired
 		}

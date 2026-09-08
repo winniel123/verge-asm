@@ -91,11 +91,13 @@ WHERE sp.subject_kind = 'service'
 ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC;
 
 -- name: ListSpansForSubject :many
-SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
-       value, is_gap, derivation, opened_at, closed_at, closure_reason
-FROM span
-WHERE subject_kind = @subject_kind AND subject_key = @subject_key
-ORDER BY facet, discriminator, vantage_id, source, opened_at, id;
+SELECT s.id, s.subject_kind, s.subject_key, s.facet, s.discriminator, s.vantage_id, s.source,
+       s.value, s.is_gap, s.derivation, s.opened_at, s.closed_at, s.closure_reason,
+       v.name AS vantage_name
+FROM span s
+LEFT JOIN vantage v ON v.id = s.vantage_id
+WHERE s.subject_kind = @subject_kind AND s.subject_key = @subject_key
+ORDER BY s.facet, s.discriminator, s.vantage_id, s.source, s.opened_at, s.id;
 
 -- name: ListRecentDriftEvents :many
 SELECT
@@ -111,7 +113,30 @@ SELECT
     pred.value          AS prev_value,
     pred.derivation     AS prev_derivation,
     pred.closed_at      AS prev_closed_at,
-    pred.closure_reason AS prev_closure_reason
+    pred.closure_reason AS prev_closure_reason,
+    -- A Break on any resolution witness open at this instant voids returned (ADR-0097).
+    EXISTS (
+        SELECT 1
+        FROM span w
+        WHERE w.subject_kind = sp.subject_kind
+          AND w.subject_key = sp.subject_key
+          AND w.facet = 'resolution'
+          AND w.opened_at <= sp.opened_at
+          AND (w.closed_at IS NULL OR w.closed_at > sp.opened_at)
+          AND w.derivation <> (
+              SELECT wp.derivation
+              FROM span wp
+              WHERE wp.subject_kind = w.subject_kind
+                AND wp.subject_key = w.subject_key
+                AND wp.facet = w.facet
+                AND wp.discriminator = w.discriminator
+                AND wp.vantage_id IS NOT DISTINCT FROM w.vantage_id
+                AND wp.source = w.source
+                AND (wp.opened_at < w.opened_at OR (wp.opened_at = w.opened_at AND wp.id < w.id))
+              ORDER BY wp.opened_at DESC, wp.id DESC
+              LIMIT 1
+          )
+    )::boolean AS witness_broke
 FROM span sp
 JOIN batch b ON b.id = sp.opened_batch_id
 LEFT JOIN LATERAL (
@@ -123,7 +148,7 @@ LEFT JOIN LATERAL (
       AND p.discriminator = sp.discriminator
       AND p.vantage_id IS NOT DISTINCT FROM sp.vantage_id
       AND p.source = sp.source
-      AND p.opened_at < sp.opened_at
+      AND (p.opened_at < sp.opened_at OR (p.opened_at = sp.opened_at AND p.id < sp.id))
     ORDER BY p.opened_at DESC, p.id DESC
     LIMIT 1
 ) pred ON true
@@ -145,7 +170,8 @@ SELECT
     NULL::jsonb        AS prev_value,
     NULL::jsonb        AS prev_derivation,
     NULL::timestamptz  AS prev_closed_at,
-    NULL::text         AS prev_closure_reason
+    NULL::text         AS prev_closure_reason,
+    FALSE              AS witness_broke
 FROM span sp
 JOIN batch b ON b.id = sp.closed_batch_id
 WHERE b.created_at >= @since

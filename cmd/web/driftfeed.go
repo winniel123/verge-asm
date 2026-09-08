@@ -43,7 +43,7 @@ func buildDriftFeed(rows []db.ListRecentDriftEventsRow, now time.Time) ([]driftB
 }
 
 func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEvent, bool) {
-	facetLabel := timelineLabel(row.Facet, row.Discriminator)
+	facetLabel := facetLabel(row.Facet, row.Discriminator)
 
 	if row.Role == "closed" {
 		change := "withdrawn"
@@ -82,7 +82,7 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 	prevReason := drift.ClosureReason(row.PrevClosureReason.String)
 	if prevReason.Valid() {
 		change := "returned"
-		switch drift.ReEntryKind(&drift.Span{Reason: prevReason}, false, row.OpenedAperture) {
+		switch drift.ReEntryKind(&drift.Span{Reason: prevReason}, row.WitnessBroke, row.OpenedAperture) {
 		case drift.KindAppeared:
 			change = "appeared"
 		case drift.KindRevealed:
@@ -166,7 +166,7 @@ func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, 
 			csvSafe(driftBatchMeta(row)),
 			ev.Change,
 			csvSafe(ev.Subject),
-			csvSafe(timelineLabel(row.Facet, row.Discriminator)),
+			csvSafe(facetLabel(row.Facet, row.Discriminator)),
 			when.UTC().Format(time.RFC3339),
 			ev.Reason,
 			csvSafe(before),

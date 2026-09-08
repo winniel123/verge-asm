@@ -26,6 +26,12 @@ type fakeMessageStore struct {
 	askedFor    [][]string
 
 	addressExclusions []*netip.Prefix
+
+	open map[string][]db.ListOpenSpansForSubjectRow
+}
+
+func (f *fakeMessageStore) ListOpenSpansForSubject(_ context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error) {
+	return f.open[arg.SubjectKind+"|"+arg.SubjectKey], nil
 }
 
 func (f *fakeMessageStore) PreviousBatchTime(context.Context) (pgtype.Timestamptz, error) {
@@ -331,8 +337,10 @@ func TestProduceMeasuredAbsentDepartureFiresNoDeclaredInput(t *testing.T) {
 	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
-	if len(store.inserted) != 0 {
-		t.Errorf("a world withdrawal fires no declared-input message, got %d", len(store.inserted))
+	for _, m := range store.inserted {
+		if m.Cause == string(message.CauseDeclaredInput) || m.SubjectKind == "source" {
+			t.Errorf("a world withdrawal fires no declared-input message, got %+v", m)
+		}
 	}
 	if len(log) != 0 {
 		t.Errorf("a world withdrawal routes nothing, got %d", len(log))

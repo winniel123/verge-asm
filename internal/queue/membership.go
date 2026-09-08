@@ -66,7 +66,31 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 		}
 	}
 	// The Name closure lands first, so the citer read omits the departed spans (ADR-0087).
-	return closeUncitedAddresses(ctx, qtx, batchID, observedAt, departed, in, deps)
+	return closeUncitedAddresses(ctx, qtx, batchID, observedAt, uncitedCiters(obs, departed), in, deps)
+}
+
+func uncitedCiters(obs []wire.Observation, departed []string) []string {
+	// A Gap closes the citing span without deciding the Name, so it must not de-cite (ADR-0006).
+	gapped := map[string]bool{}
+	for _, o := range obs {
+		if o.Facet == resolutionwalk.FacetResolution && isGapValue(o.Facet, o.Data) {
+			gapped[o.Subject] = true
+		}
+	}
+	seen := make(map[string]bool, len(departed))
+	out := append([]string(nil), departed...)
+	for _, name := range departed {
+		seen[name] = true
+	}
+	// A moved resolution leaves the pre-move Address in the Name's span history (ADR-0087).
+	for _, name := range observedResolutionNames(obs) {
+		if seen[name] || gapped[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	return out
 }
 
 type uncitedClosureStore interface {

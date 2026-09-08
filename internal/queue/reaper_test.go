@@ -28,6 +28,17 @@ func TestStaleCutoff(t *testing.T) {
 	}
 }
 
+func TestStaleThresholdExceedsCTTailRenewalGap(t *testing.T) {
+	// No honest threshold holds a whole 65-fetch window, so the pin is one renewal gap (#1709).
+	gap := crtshInterval + ctFetchTimeout
+	if DefaultStaleJobThreshold <= 2*gap {
+		t.Fatalf("DefaultStaleJobThreshold (%s) must exceed twice the ct-tail lease renewal gap (%s = crtshInterval %s + ctFetchTimeout %s): "+
+			"a ct-tail job renews claimed_at once per throttle reservation, and the reaper sweeps each minute, so one throttle "+
+			"sleep plus one slow fetch must leave the threshold unreached, else a live job is reaped and its MarkJobDone matches no row",
+			DefaultStaleJobThreshold, gap, crtshInterval, ctFetchTimeout)
+	}
+}
+
 func TestStaleThresholdExceedsProbeTimeout(t *testing.T) {
 	if DefaultStaleJobThreshold <= DefaultProbeTimeout {
 		t.Fatalf("DefaultStaleJobThreshold (%s) must exceed DefaultProbeTimeout (%s), else a "+

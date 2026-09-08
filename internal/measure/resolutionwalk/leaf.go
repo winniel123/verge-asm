@@ -69,8 +69,9 @@ const (
 )
 
 type Resolution struct {
-	Outcome   Outcome  `json:"outcome"`
-	Addresses []string `json:"addresses,omitempty"`
+	Outcome   Outcome           `json:"outcome"`
+	Addresses []string          `json:"addresses,omitempty"`
+	Owners    map[string]string `json:"-"`
 }
 
 type NSStatus struct {
@@ -132,7 +133,7 @@ func Resolve(peer Peer, offers Offers, name string) Result {
 		for _, rr := range msg.Answer {
 			switch rr.Type {
 			case QtypeA, QtypeAAAA:
-				addrs.add(rr.Data)
+				addrs.add(rr.Data, rr.Name)
 			case QtypeCNAME:
 				sawCNAME = true
 			}
@@ -147,7 +148,8 @@ func Resolve(peer Peer, offers Offers, name string) Result {
 func decideResolution(addrs addrSet, nxAll, anyNoError, anyReached, sawCNAME bool) Resolution {
 	// Shadowed is wildcard-discrimination's outcome and never this leaf's (golden-corpus.md §1).
 	if addrs.len() > 0 {
-		return Resolution{Outcome: OutcomeResolved, Addresses: addrs.sorted()}
+		// No emitter renders Owners, so no version moves (ADR-0151 §2, #1678).
+		return Resolution{Outcome: OutcomeResolved, Addresses: addrs.sorted(), Owners: addrs.owners()}
 	}
 	if !anyReached {
 		return Resolution{Outcome: OutcomeGap}
@@ -308,22 +310,34 @@ func asciiLower(s string) string {
 }
 
 type addrSet struct {
-	seen map[netip.Addr]struct{}
+	seen map[netip.Addr]string
 }
 
-func (s *addrSet) add(text string) {
+func (s *addrSet) add(text, owner string) {
 	addr, err := netip.ParseAddr(text)
 	if err != nil {
 		return
 	}
 	addr = addr.Unmap()
 	if s.seen == nil {
-		s.seen = make(map[netip.Addr]struct{})
+		s.seen = make(map[netip.Addr]string)
 	}
-	s.seen[addr] = struct{}{}
+	if _, ok := s.seen[addr]; ok {
+		return
+	}
+	// The record's own name: a foreign CNAME target does not extend (ADR-0013 §3).
+	s.seen[addr] = CanonicalName(owner)
 }
 
 func (s *addrSet) len() int { return len(s.seen) }
+
+func (s *addrSet) owners() map[string]string {
+	out := make(map[string]string, len(s.seen))
+	for a, owner := range s.seen {
+		out[a.String()] = owner
+	}
+	return out
+}
 
 func (s *addrSet) sorted() []string {
 	out := make([]netip.Addr, 0, len(s.seen))

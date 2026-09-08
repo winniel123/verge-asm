@@ -92,6 +92,7 @@ type HandshakeResult struct {
 	OCSPStaple  []byte
 	IssuerSPKI  []byte
 	Unreachable bool // Plumbing no facet renders; only edge-fanout reads it (ADR-0151 §3).
+	TimedOut    bool // Plumbing no facet renders; only the pacer reads it (ADR-0151 §2, #1710).
 }
 
 // A self-signature check needs parsed key bytes, so it is the one datum computed in-leaf (#712).
@@ -167,8 +168,8 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err != nil {
-		outcome, unreachable := classifyDialError(err)
-		return HandshakeResult{Outcome: outcome, Unreachable: unreachable}
+		outcome, unreachable, timedOut := classifyDialError(err)
+		return HandshakeResult{Outcome: outcome, Unreachable: unreachable, TimedOut: timedOut}
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -277,35 +278,46 @@ func sigDigestName(a x509.SignatureAlgorithm) string {
 
 // The golden rows pin the fold, never this live split, so a change here is uncovered (ADR-0152 §3).
 
-func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
+func classifyDialError(err error) (outcome TLSOutcome, unreachable, timedOut bool) {
+	timedOut = dialTimedOut(err)
 	var opErr *net.OpError
 	// A connect-phase failure carries Op "dial", so the phase is read off the error, never guessed.
 	if errors.As(err, &opErr) && opErr.Op == "dial" {
-		return NoTLS, true
+		return NoTLS, true, timedOut
 	}
 	var recordErr tls.RecordHeaderError
 	if errors.As(err, &recordErr) {
-		return NoTLS, false
+		return NoTLS, false, timedOut
 	}
 	var alertErr *tls.CertificateVerificationError
 	if errors.As(err, &alertErr) {
-		return TLSRefused, false
+		return TLSRefused, false, timedOut
 	}
 	if errors.Is(err, io.EOF) {
-		return NoTLS, false
+		return NoTLS, false, timedOut
 	}
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "first record does not look like a tls handshake"),
 		strings.Contains(msg, "connection reset"),
 		strings.Contains(msg, "eof"):
-		return NoTLS, false
+		return NoTLS, false, timedOut
 	case strings.Contains(msg, "tls:"),
 		strings.Contains(msg, "handshake failure"),
 		strings.Contains(msg, "protocol version"),
 		strings.Contains(msg, "no cipher suite"):
-		return TLSRefused, false
+		return TLSRefused, false, timedOut
 	}
 	// The unclassifiable case asserts no refusal we did not observe.
-	return NoTLS, false
+	return NoTLS, false, timedOut
+}
+
+func dialTimedOut(err error) bool {
+	// crypto/tls hands back the bare context error when its deadline interrupts the handshake.
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var ne net.Error
+	// os.ErrDeadlineExceeded from a poll deadline has no Is chain to the context.
+	return errors.As(err, &ne) && ne.Timeout()
 }

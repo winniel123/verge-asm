@@ -128,7 +128,11 @@ type pacedHandshaker struct {
 
 func (p *pacedHandshaker) Handshake(ctx context.Context, target netip.AddrPort, serverName string) HandshakeResult {
 	p.gate.wait(ctx, target.Addr())
-	return p.inner.Handshake(ctx, target, serverName)
+	res := p.inner.Handshake(ctx, target, serverName)
+	if res.TimedOut {
+		p.gate.pacer.Signal(target.Addr(), StressTimeout)
+	}
+	return res
 }
 
 func writeNDJSON(w io.Writer, obs []wire.Observation) error {

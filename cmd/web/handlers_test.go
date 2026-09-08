@@ -68,6 +68,8 @@ type fakeStore struct {
 
 	withdrawalLifespans []db.ListWithdrawalLifespansRow
 
+	subjectClosures map[fakeSubjectRef]time.Time
+
 	sourceStates map[string]db.SourceState
 
 	sourceHealth map[string]db.SourceHealth
@@ -425,6 +427,7 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt, LatencyMs: v.LatencyMs,
 			Platform: v.Platform, Egress: v.Egress, DialledAddr: v.DialledAddr,
 			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
+			Observed:          f.vantageObserved(v.ID),
 		})
 	}
 	return rows, nil
@@ -785,7 +788,7 @@ func (f *fakeStore) ListAllOpenSpans(_ context.Context) ([]db.ListAllOpenSpansRo
 			SubjectKind: k.kind, SubjectKey: k.key,
 			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
 		}
-		for _, s := range drift.Fold(key, byKey[k]) {
+		for _, s := range f.foldWithClosure(key, byKey[k]) {
 			if !s.Open() {
 				continue
 			}
@@ -799,6 +802,23 @@ func (f *fakeStore) ListAllOpenSpans(_ context.Context) ([]db.ListAllOpenSpansRo
 		}
 	}
 	return rows, nil
+}
+
+type fakeSubjectRef struct{ kind, key string }
+
+func (f *fakeStore) withdrawSubject(kind, key string, at time.Time) {
+	if f.subjectClosures == nil {
+		f.subjectClosures = map[fakeSubjectRef]time.Time{}
+	}
+	f.subjectClosures[fakeSubjectRef{kind: kind, key: key}] = at
+}
+
+func (f *fakeStore) foldWithClosure(key drift.TimelineKey, readings []drift.Reading) []drift.Span {
+	spans := drift.Fold(key, readings)
+	if at, ok := f.subjectClosures[fakeSubjectRef{kind: key.SubjectKind, key: key.SubjectKey}]; ok {
+		spans = drift.CloseWithdrawal(spans, at, drift.ReasonMeasuredAbsent)
+	}
+	return spans
 }
 
 func (f *fakeStore) fakeBatchByID(id int64) db.Batch {

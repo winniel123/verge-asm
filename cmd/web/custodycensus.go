@@ -70,14 +70,7 @@ func custodyExtensionEstate(ctx context.Context, q custodyCensusStore, asOf time
 	if err != nil {
 		return custody.Estate{}, err
 	}
-	var resolutions []custody.Resolution
-	for _, c := range cited {
-		addr, perr := netip.ParseAddr(c.Address)
-		if perr != nil {
-			continue
-		}
-		resolutions = append(resolutions, custody.Resolution{Owner: c.SubjectKey, Address: addr.Unmap()})
-	}
+	resolutions := queue.CitedResolutions(cited)
 
 	excluded, err := queue.ReadAddressExclusions(ctx, q)
 	if err != nil {

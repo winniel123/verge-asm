@@ -31,6 +31,7 @@ type messageStore interface {
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	AddressExclusionStore
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
+	ListOpenSpansForSubject(ctx context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error)
 }
 
 type spanChange struct {
@@ -40,6 +41,11 @@ type spanChange struct {
 	Opened         bool
 	OpenedAperture bool
 	Value          []byte
+	Previous       []byte // The closed span's value; nil where the timeline opened (ADR-0033 §2).
+	Vector         drift.Vector
+	PrevVector     drift.Vector
+	PriorClosure   *drift.Span
+	WitnessBroke   bool
 }
 
 type departure struct {
@@ -73,6 +79,12 @@ func produceMessages(ctx context.Context, store messageStore, batchID int64, obs
 			return err
 		}
 	}
+	// A membership withdrawal is written and never routed, so it skips the enqueue (ADR-0087).
+	for _, m := range withdrawalMessages(observedAt, departures) {
+		if _, err := store.InsertMessage(ctx, insertParams(m)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -103,6 +115,15 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 	msgs = append(msgs, flagship...)
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
+	msgs = append(msgs, rebaselineMessages(observedAt, changes)...)
+
+	// Composed after every census producer, so the residue clause can consult them (ADR-0033 §3).
+	moves, err := facetMoveMessages(ctx, store, observedAt, changes, msgs)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, moves...)
+
 	msgs = append(msgs, declaredInputMessages(observedAt, departures)...)
 	msgs = append(msgs, narrowingMessages(observedAt, narrowings)...)
 	return msgs, nil
@@ -186,12 +207,16 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 		if !aok || !bok || !exposure.Flagship(before, after) {
 			continue
 		}
+		census, err := flagshipCensusWithRules(ctx, store, observedAt, changes, svc, flagshipCensus(changes, svc))
+		if err != nil {
+			return nil, err
+		}
 		m := message.Flagship(message.ReachMove{
 			ServiceKey: svc,
 			Class:      message.ClassInternet,
 			From:       message.NotReached,
 			To:         message.Reached,
-		}, flagshipCensus(changes, svc), observedAt)
+		}, census, observedAt)
 		if m != nil {
 			msgs = append(msgs, m)
 		}
@@ -206,11 +231,9 @@ func membershipMessages(observedAt time.Time, changes []spanChange, in membershi
 		if !root.Opened || root.Facet != resolutionwalk.FacetResolution || !message.RootFires(root.SubjectKind) {
 			continue
 		}
-		// Re-entry differs from appearance only in wording, so no prior read happens (ADR-0041).
-		entry := message.EntryAppeared
+		entry := membershipEntry(root)
 		seedKey := ""
-		if root.OpenedAperture {
-			entry = message.EntryRevealed
+		if entry == message.EntryRevealed {
 			seedKey = coveringSeedKey(root.SubjectKind, root.SubjectKey, in)
 		}
 		m := message.Membership(entry, root.SubjectKind, root.SubjectKey, seedKey, membershipCensus(changes, root), observedAt)

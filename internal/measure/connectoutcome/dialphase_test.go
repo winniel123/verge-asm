@@ -24,6 +24,7 @@ func TestClassifyDialErrorSplitsThePhase(t *testing.T) {
 		err             error
 		wantOutcome     TLSOutcome
 		wantUnreachable bool
+		wantTimedOut    bool
 	}{
 		{
 			name:            "a refused connect never reached a peer",
@@ -39,9 +40,17 @@ func TestClassifyDialErrorSplitsThePhase(t *testing.T) {
 		},
 		{
 			name:            "a connect timeout never reached a peer",
+			err:             dialErr(context.DeadlineExceeded),
+			wantOutcome:     NoTLS,
+			wantUnreachable: true,
+			wantTimedOut:    true,
+		},
+		{
+			name:            "a connect poll deadline never reached a peer",
 			err:             dialErr(os.ErrDeadlineExceeded),
 			wantOutcome:     NoTLS,
 			wantUnreachable: true,
+			wantTimedOut:    true,
 		},
 		{
 			name:            "the egress guard's socket refusal never reached a peer",
@@ -51,9 +60,17 @@ func TestClassifyDialErrorSplitsThePhase(t *testing.T) {
 		},
 		{
 			name:            "a handshake that stalls after the connect reached a peer",
+			err:             context.DeadlineExceeded,
+			wantOutcome:     NoTLS,
+			wantUnreachable: false,
+			wantTimedOut:    true,
+		},
+		{
+			name:            "a handshake read deadline after the connect reached a peer",
 			err:             readErr(os.ErrDeadlineExceeded),
 			wantOutcome:     NoTLS,
 			wantUnreachable: false,
+			wantTimedOut:    true,
 		},
 		{
 			name:            "a plaintext peer reached a peer",
@@ -83,12 +100,15 @@ func TestClassifyDialErrorSplitsThePhase(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			outcome, unreachable := classifyDialError(tc.err)
+			outcome, unreachable, timedOut := classifyDialError(tc.err)
 			if outcome != tc.wantOutcome {
 				t.Errorf("outcome = %q, want %q", outcome, tc.wantOutcome)
 			}
 			if unreachable != tc.wantUnreachable {
 				t.Errorf("unreachable = %v, want %v", unreachable, tc.wantUnreachable)
+			}
+			if timedOut != tc.wantTimedOut {
+				t.Errorf("timedOut = %v, want %v", timedOut, tc.wantTimedOut)
 			}
 		})
 	}

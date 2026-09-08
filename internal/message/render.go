@@ -54,8 +54,21 @@ func DeclaredInput(sourceKey, headline string, instant time.Time) *Message {
 }
 
 func flagshipHeadline(serviceKey string, census Census) string {
-	return fmt.Sprintf("%s reached from the internet · %s opened beneath it",
-		serviceKey, plural(census.Len(), "facet", "facets"))
+	return fmt.Sprintf("%s reached from the internet · %s opened beneath it%s",
+		serviceKey, plural(len(census.Facets()), "facet", "facets"), rulesOpenedClause(census))
+}
+
+func rulesOpenedClause(census Census) string {
+	// The channel body carries the headline and a count only, so the rules are named here (#1723).
+	rules := census.Rules()
+	if len(rules) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(rules))
+	for _, r := range rules {
+		names = append(names, r.Label())
+	}
+	return fmt.Sprintf(" · %s opened at fired: %s", plural(len(rules), "rule", "rules"), strings.Join(names, ", "))
 }
 
 func membershipHeadline(entry Entry, rootKey string, census Census) string {

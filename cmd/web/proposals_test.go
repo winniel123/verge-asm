@@ -532,3 +532,101 @@ func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) 
 	}
 	return 0, nil
 }
+
+func TestOverCapProposalRowRendersRefusalAndNoConfirm(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	fp := &fakeProposer{candidates: append(twoCandidates(), proposer.Candidate{
+		SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
+		Scope: netip.MustParsePrefix("10.0.0.0/8"), OrgName: "Big Holder",
+	})}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	page := seedsBody(t, ac, base)
+	for _, want := range []string{"10.0.0.0/8", "over your cap", "Settings · Scans", "decline", "Decline selected"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("over-cap row missing %q; body: %s", want, page)
+		}
+	}
+	if got := strings.Count(page, `action="/proposals/confirm"`); got != 2 {
+		t.Errorf("confirm forms = %d, want 2 (one per in-cap row; the over-cap row carries none)", got)
+	}
+	if got := strings.Count(page, `name="ids"`); got != 3 {
+		t.Errorf("decline checkboxes = %d, want 3 (bulk decline stays open to the over-cap row)", got)
+	}
+
+	f.instanceConfig.SeedAddressCap = 16777216
+	page = seedsBody(t, ac, base)
+	if strings.Contains(page, "over your cap") {
+		t.Errorf("a raised cap still renders the refusal; body: %s", page)
+	}
+	if got := strings.Count(page, `action="/proposals/confirm"`); got != 3 {
+		t.Errorf("confirm forms after a raised cap = %d, want 3", got)
+	}
+}
+
+func pendingProposals(f *fakeStore) int {
+	n := 0
+	for _, p := range f.proposals {
+		if p.Status == "pending" {
+			n++
+		}
+	}
+	return n
+}
+
+func TestLookupDoesNotRefileADeclinedScope(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	fp := &fakeProposer{candidates: twoCandidates()}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	var ids []string
+	for _, p := range f.proposals {
+		ids = append(ids, itoa(p.ID))
+	}
+	postForm(t, ac, base+"/proposals/decline", url.Values{"ids": ids}).Body.Close()
+	if pendingProposals(f) != 0 {
+		t.Fatalf("decline left %d pending", pendingProposals(f))
+	}
+
+	page := refusalPage(t, ac, base, lookup(t, ac, base, "Example"))
+	if pendingProposals(f) != 0 {
+		t.Errorf("a second lookup re-filed %d declined scopes as pending", pendingProposals(f))
+	}
+	if !strings.Contains(page, "No candidate scopes matched that name.") {
+		t.Errorf("an all-excluded lookup did not read as a miss; body: %s", page)
+	}
+	if strings.Contains(page, "could not be completed") {
+		t.Errorf("an all-excluded lookup read as a backend failure; body: %s", page)
+	}
+}
+
+func TestLookupSkipsCandidateInsideAnExclusionButOffersAWiderOne(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	for _, raw := range []string{"198.51.100.0/24", "203.0.113.0/25"} {
+		p := netip.MustParsePrefix(raw)
+		f.exclusions = append(f.exclusions, db.Exclusion{ID: f.exclNextID, Kind: "address", AddressCidr: &p, CreatedBy: 1})
+		f.exclNextID++
+	}
+	fp := &fakeProposer{candidates: twoCandidates()}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := lookup(t, ac, base, "Example")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("lookup status=%d, want 303", resp.StatusCode)
+	}
+	if len(f.proposals) != 1 {
+		t.Fatalf("filed %d proposals, want 1: %+v", len(f.proposals), f.proposals)
+	}
+	if got := f.proposals[0].AddressCidr.String(); got != "203.0.113.0/24" {
+		t.Errorf("filed %s; want the candidate wider than its exclusion, 203.0.113.0/24", got)
+	}
+}

@@ -55,8 +55,8 @@ func censusEstateFixture(t *testing.T, f *fakeStore) {
 	t.Helper()
 	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
 	f.cited = []db.NameCitedAddressesRow{
-		{SubjectKey: "shop.example.com", Address: "93.184.216.10"},
-		{SubjectKey: "api.example.com", Address: "93.184.216.20"},
+		{SubjectKey: "shop.example.com", Address: "93.184.216.10", Owner: "shop.example.com"},
+		{SubjectKey: "api.example.com", Address: "93.184.216.20", Owner: "api.example.com"},
 	}
 }
 
@@ -167,9 +167,9 @@ func TestCustodyCensusHeldCandidatesCollapseToOneLine(t *testing.T) {
 	declareExtendedZone(t, f, ac, base, "example.com")
 	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
 	f.cited = []db.NameCitedAddressesRow{
-		{SubjectKey: "a.example.com", Address: "93.184.216.10"},
-		{SubjectKey: "b.example.com", Address: "93.184.216.10"},
-		{SubjectKey: "c.example.com", Address: "93.184.216.20"},
+		{SubjectKey: "a.example.com", Address: "93.184.216.10", Owner: "a.example.com"},
+		{SubjectKey: "b.example.com", Address: "93.184.216.10", Owner: "b.example.com"},
+		{SubjectKey: "c.example.com", Address: "93.184.216.20", Owner: "c.example.com"},
 	}
 
 	page := seedsBody(t, ac, base)
@@ -309,7 +309,7 @@ func TestCustodyCensusEmptyWhereNothingIsDeclined(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declareExtendedZone(t, f, ac, base, "example.com")
-	f.cited = []db.NameCitedAddressesRow{{SubjectKey: "shop.example.com", Address: "93.184.216.10"}}
+	f.cited = []db.NameCitedAddressesRow{{SubjectKey: "shop.example.com", Address: "93.184.216.10", Owner: "shop.example.com"}}
 
 	page := seedsBody(t, ac, base)
 	if !strings.Contains(page, "No in-zone name fronts an edge the extension declined.") {
@@ -317,6 +317,53 @@ func TestCustodyCensusEmptyWhereNothingIsDeclined(t *testing.T) {
 	}
 	if strings.Contains(page, `<span class="sc-declined">declined</span>`) {
 		t.Errorf("a declined row rendered with the Scan out of force; body: %s", page)
+	}
+}
+
+func TestCustodyCensusNeitherReachesNorHoldsAForeignCNAMETarget(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	declareExtendedZone(t, f, ac, base, "example.com")
+	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
+	// shop.example.com CNAME d1.cloudfront.net, whose A record is 13.32.1.1 (ADR-0013 §3).
+	f.cited = []db.NameCitedAddressesRow{
+		{SubjectKey: "shop.example.com", Address: "13.32.1.1", Owner: "d1.cloudfront.net"},
+		{SubjectKey: "api.example.com", Address: "93.184.216.20", Owner: "api.example.com"},
+	}
+	f.measuredEdge("13.32.1.1", string(edgefanout.Presented), sharedEdgeDER(t))
+
+	estate, err := custodyExtensionEstate(t.Context(), f, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("assemble the census estate: %v", err)
+	}
+	foreign := netip.MustParseAddr("13.32.1.1")
+	if got := estate.Derive(foreign); got != custody.ThirdParty {
+		t.Errorf("Derive(13.32.1.1) = %q, want third-party: the A record sits on the foreign CNAME target", got)
+	}
+	if estate.MayProbe(foreign, custody.ClassInternet) {
+		t.Errorf("MayProbe(13.32.1.1) opened the gate on a foreign CNAME target")
+	}
+	held := false
+	for _, e := range estate.ExtensionCensus() {
+		if e.Address == foreign {
+			t.Errorf("the census holds 13.32.1.1 as %q; a foreign CNAME target is neither reached nor pending", e.State)
+		}
+		if e.Address == netip.MustParseAddr("93.184.216.20") && e.State == custody.ExtensionPending {
+			held = true
+		}
+	}
+	if !held {
+		t.Errorf("the direct in-zone A 93.184.216.20 is not pending; the extension no longer reaches it")
+	}
+
+	page := seedsBody(t, ac, base)
+	if strings.Contains(page, "13.32.1.1") || strings.Contains(page, `<span class="sc-declined">declined</span>`) {
+		t.Errorf("the census rendered the foreign CNAME target; body: %s", page)
+	}
+	if got := strings.Count(page, `<span class="sc-stale">pending</span>`); got != 1 {
+		t.Errorf("pending chips = %d, want 1 for the direct in-zone A alone", got)
 	}
 }
 

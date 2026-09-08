@@ -82,19 +82,13 @@ func hotEstate(ctx context.Context, q EstateStore, asOf time.Time) (custody.Esta
 	if err != nil {
 		return custody.Estate{}, nil, err
 	}
-	var resolutions []custody.Resolution
+	resolutions := CitedResolutions(cited)
 	seen := map[netip.Addr]struct{}{}
 	var addrs []netip.Addr
-	for _, c := range cited {
-		addr, perr := netip.ParseAddr(c.Address)
-		if perr != nil {
-			continue
-		}
-		addr = addr.Unmap()
-		resolutions = append(resolutions, custody.Resolution{Owner: c.SubjectKey, Address: addr})
-		if _, ok := seen[addr]; !ok {
-			seen[addr] = struct{}{}
-			addrs = append(addrs, addr)
+	for _, r := range resolutions {
+		if _, ok := seen[r.Address]; !ok {
+			seen[r.Address] = struct{}{}
+			addrs = append(addrs, r.Address)
 		}
 	}
 
@@ -115,6 +109,19 @@ func hotEstate(ctx context.Context, q EstateStore, asOf time.Time) (custody.Esta
 		ExtendedZones: extended,
 		Resolutions:   resolutions,
 	}.WithAddressExclusions(excluded).WithEdgeFanout(fanout), addrs, nil
+}
+
+func CitedResolutions(cited []db.NameCitedAddressesRow) []custody.Resolution {
+	var resolutions []custody.Resolution
+	// The census reads through this too, so gate and census agree on an owner (#1678).
+	for _, c := range cited {
+		addr, err := netip.ParseAddr(c.Address)
+		if err != nil {
+			continue
+		}
+		resolutions = append(resolutions, custody.Resolution{Owner: c.Owner, Address: addr.Unmap()})
+	}
+	return resolutions
 }
 
 func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix, excluded func(netip.Addr) bool) iter.Seq[netip.Addr] {

@@ -23,6 +23,10 @@ const maxCTBody = 64 << 20
 
 const crtshInterval = 12 * time.Second
 
+// crt.sh answers legitimately slowly, measured up to 59.6s (passive-discovery §7).
+
+const ctFetchTimeout = 90 * time.Second
+
 // The key's tier is unknowable, so the free tier binds (passive-discovery-sources.md §2.3).
 
 const certSpotterInterval = 360 * time.Second
@@ -46,8 +50,7 @@ type HTTPCTFetcher struct {
 func NewHTTPCTFetcher(version string) *HTTPCTFetcher {
 	return &HTTPCTFetcher{
 		client: &http.Client{
-			// crt.sh answers legitimately slowly, measured up to 59.6s (passive-discovery §7).
-			Timeout: 90 * time.Second,
+			Timeout: ctFetchTimeout,
 			// A 3xx could bounce the fetch to an internal host such as IMDS (ADR-0196 §1).
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},

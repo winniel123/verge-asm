@@ -1320,7 +1320,29 @@ when. Delete the marker rather than keep an unreadable date.
 HTTP 410 at `internal/seed/seed.go:24` and `:39`, in two survivors a sweep kept (#1227). **410 is
 not 404**, so a check written against "the issue does not exist" can miss it, and `gh` reports the
 deletion rather than a miss. #1227 correctly left its own survivor uncited rather than repairing to
-it. Recorded here, not repaired.
+it. Recorded here, not repaired. #1462 and PR #1511 later repaired every code site in the #740-#774
+batch, and #1509 repaired the Markdown sites under the rule below.
+
+**A Markdown citation to a deleted issue takes one of three arms** (#1509). The arm follows what the
+number does in its sentence. `commentlint` reads no Markdown and `doclint` reads no `#nnn`, so
+nothing mechanical enforces this rule. The grep in #1509 is the acceptance test.
+
+1. **A rule source takes a live-authority swap.** The sentence cites the number as the source of a
+   rule, or uses it to label a mechanism ("the #773 re-gate"). Replace it with the ADR that states
+   the rule, and read that ADR's body first. `#773` is ADR-0217, `#743` is ADR-0079, `#740` is
+   ADR-0053. The label becomes "the ADR-0217 re-gate". A `Rests on:` header takes this arm, and it
+   never hyperlinks an HTTP 410 URL.
+2. **Historical narrative keeps a bare mention, marked once.** The number records what happened
+   rather than what rules ("the hazard #773 exists for"). Keep it unlinked. Mark it at its first
+   mention in that document, in ADR-0159's form: "#773 (deleted, HTTP 410)". Later mentions in the
+   same document stay bare. Stripping the narrative would erase the decision record.
+3. **A time marker goes.** The paragraph above rules it: a change dated against a record nobody can
+   read dates nothing. A "pre-#nnn-gate" phrase names the gate rather than a date, so it takes
+   arm 1.
+
+A measured finding that already states the deletion, such as the `#774` paragraph above, is arm 2
+and needs no further mark. `CHANGELOG.md` sits outside this rule. A release note records the merged
+PR title verbatim.
 
 **The issue API is necessary and not sufficient.** A `#nnn` whose issue was deleted returns
 HTTP 410 and is invisible offline. `(#738)` on `trustedProxies` is one, and nothing under `docs/`

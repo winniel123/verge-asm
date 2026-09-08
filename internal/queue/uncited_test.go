@@ -2,11 +2,15 @@ package queue
 
 import (
 	"context"
+	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/wire"
 )
 
 type uncitedStore struct {
@@ -117,5 +121,72 @@ func TestCloseUncitedAddressesNoDepartureReadsNothing(t *testing.T) {
 	}
 	if store.askedNames != nil || len(store.closed) != 0 {
 		t.Fatalf("a batch with no Name departure must not read or close: asked %v, closed %v", store.askedNames, store.closed)
+	}
+}
+
+func TestCloseUncitedAddressesReResolvedNameLeavesItsOldAddress(t *testing.T) {
+	// `a.example.com` stays open but now resolves to 203.0.113.10 alone, so the
+	// candidate read returns its pre-move Address with no live citer (#1706).
+	store := &uncitedStore{
+		rows: []db.ListCitedAddressSpansForNamesRow{
+			{ID: 40, SubjectKey: "203.0.113.10", Citers: []string{"a.example.com"}},
+			{ID: 41, SubjectKey: "203.0.113.9"},
+		},
+		beneath: []db.ListOpenSpansBeneathAddressesRow{
+			{ID: 50, SubjectKind: "service", SubjectKey: "203.0.113.9:443/tcp"},
+		},
+	}
+	var deps []departure
+	if err := closeUncitedAddresses(context.Background(), store, 7, time.Now(), []string{"a.example.com"}, membershipInputs{}, &deps); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.askedAddrs) != 1 || store.askedAddrs[0] != "203.0.113.9" {
+		t.Fatalf("descent asked for %v, want the pre-move Address alone", store.askedAddrs)
+	}
+	for _, id := range []int64{41, 50} {
+		if got := store.closed[id]; got != string(drift.ReasonUncited) {
+			t.Errorf("span %d closed %q, want %q", id, got, drift.ReasonUncited)
+		}
+	}
+	if _, closed := store.closed[40]; closed {
+		t.Error("the Address the Name now resolves to is still cited and must stay open")
+	}
+	if len(deps) != 2 {
+		t.Fatalf("departures = %+v, want the old Address and the Service beneath it", deps)
+	}
+}
+
+func TestUncitedCitersTakesDepartedAndDecidedNames(t *testing.T) {
+	obs := []wire.Observation{
+		resolutionObservation("moved.example.com", "A", `{"outcome":"Resolved","addresses":["203.0.113.10"]}`),
+		resolutionObservation("gone.example.com", "A", `{"outcome":"NameError"}`),
+		resolutionObservation("outage.example.com", "A", `{"outcome":"Gap"}`),
+		resolutionObservation("outage.example.com", "AAAA", `{"outcome":"Resolved","addresses":["2001:db8::1"]}`),
+		resolutionObservation("moved.example.com", "AAAA", `{"outcome":"Resolved"}`),
+		{Facet: "reachability", Subject: "203.0.113.10:443/tcp", Data: json.RawMessage(`{"outcome":"Open"}`)},
+	}
+	got := uncitedCiters(obs, []string{"gone.example.com"})
+	want := []string{"gone.example.com", "moved.example.com"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("uncitedCiters = %v, want %v", got, want)
+	}
+}
+
+func TestUncitedCitersEmptyBatchReadsNothing(t *testing.T) {
+	if got := uncitedCiters(nil, nil); got != nil {
+		t.Fatalf("uncitedCiters = %v, want nil", got)
+	}
+	obs := []wire.Observation{resolutionObservation("outage.example.com", "A", `{"outcome":"Gap"}`)}
+	if got := uncitedCiters(obs, nil); got != nil {
+		t.Fatalf("a batch of Gaps re-decides no citation, got %v", got)
+	}
+}
+
+func resolutionObservation(subject, qtype, data string) wire.Observation {
+	return wire.Observation{
+		Facet:         resolutionwalk.FacetResolution,
+		Subject:       subject,
+		Discriminator: qtype,
+		Data:          json.RawMessage(data),
 	}
 }
