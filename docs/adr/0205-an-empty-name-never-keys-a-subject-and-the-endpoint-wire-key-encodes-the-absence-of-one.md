@@ -68,7 +68,7 @@ Three decoders, all splitting at the first `@`, none of them in `internal/measur
 | --- | --- | --- |
 | The subject page | [`cmd/web/subjects.go`](../../cmd/web/subjects.go), `splitEndpointKey` | Returns `name = ""`, and `endpointPage` then sets `Nameless: name == ""` |
 | The signals fold | [`cmd/web/signals.go`](../../cmd/web/signals.go), `splitEndpointName` | Returns `name = ""` and keeps the service leg |
-| The #773 re-gate | [`internal/queue/scopegate.go`](../../internal/queue/scopegate.go), `subjectAddrKey` | Drops everything up to the first `@` and normalises the rest as an address |
+| The ADR-0217 re-gate | [`internal/queue/scopegate.go`](../../internal/queue/scopegate.go), `subjectAddrKey` | Drops everything up to the first `@` and normalises the rest as an address |
 
 The round trip is closed at the console: the encoder writes *absent*, and `endpointPage` renders the
 nameless mode from it. Nothing anywhere reads the leading `@` as a name that happens to be empty.

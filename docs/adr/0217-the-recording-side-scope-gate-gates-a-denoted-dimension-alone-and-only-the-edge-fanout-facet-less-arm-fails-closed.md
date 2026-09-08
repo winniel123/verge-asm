@@ -91,10 +91,10 @@ The failure directions are not symmetric, and that is the whole of the argument.
 - **Over-rejection destroys a measurement the estate paid for, and it is silent.** A dropped line
   writes one log entry (`scopegate.go:128`) and no durable record. The span it would have continued
   goes stale, and the operator reads a `Gap` caused by the recorder rather than by the estate.
-- **Under-rejection admits a line whose subject the job did not name.** It is the hazard #773 exists
-  for, and it is bounded by everything downstream: the membership fold still tests every survivor,
-  the `Custody` gate still refuses an unowned address, and the prober transcript still holds the
-  pre-gate bytes (ADR-0126 limb 3).
+- **Under-rejection admits a line whose subject the job did not name.** It is the hazard #773
+  (deleted, HTTP 410) exists for. Everything downstream bounds it: the membership fold still tests
+  every survivor, the `Custody` gate still refuses an unowned address, and the prober transcript
+  still holds the pre-gate bytes (ADR-0126 limb 3).
 
 A silent loss of true measurement is worse than a bounded admission of an unauthorised one.
 
@@ -181,7 +181,8 @@ spelling. The silent one is a change to the key name, and it is the one this lim
   not fail the job. ADR-0001 chooses the stack and the runtime and rules nothing about it. §4 rules
   it, and the replacement is in the same manifest.
 - **The dead `#773` citation is out of scope.** `scopegate.go` carries it four times and the issue
-  number does not resolve. #1323 excludes repairing it, and it needs its own record.
+  number does not resolve. #1323 excludes repairing it, and it needs its own record. #1462 and
+  PR #1511 repaired the code sites, and #1509 is the record for the Markdown sites.
 - **[`CONTEXT.md`](../../CONTEXT.md) gains nothing.** The gate mints no subject and moves no domain
   term. It decides which lines become observations.
 

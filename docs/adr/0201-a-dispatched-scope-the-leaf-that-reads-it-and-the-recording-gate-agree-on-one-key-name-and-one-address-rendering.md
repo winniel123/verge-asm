@@ -7,7 +7,7 @@
 - **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Sibling of, and not ruled by:** [ADR-0150](./0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md). That ADR rules the **cardinality** of a scope field — the dimension is named in the plural, and one address ships as a one-element list. This ADR rules the **name** of that field and the **spelling** of its members. The two are neighbours over one struct and neither contains the other
 - **Rests on:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md), which rules that a subject key is the thing denoted and that its normalisation may never move. It rules the key. It does not rule the scope record that authorises a row about that key
-- **Rests on:** [#773](https://github.com/winniel123/verge-asm/issues/773) and its re-gate, which exists because a compromised prober can name any subject. This ADR states the condition under which that gate admits an honest row
+- **Rests on:** [ADR-0217](./0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md) and its re-gate, which exists because a compromised prober can name any subject. This ADR states the condition under which that gate admits an honest row
 
 ## Context
 
@@ -169,7 +169,7 @@ producer that shipped a mapped form.
   rule is about the encoding of the answer.
 - **The cardinality of the field.** ADR-0150 rules that, and the two rules are independent: a
   correctly-named field can still hold a scalar.
-- **The gate's fail-open default for a facet-bearing kind.** That is #773's own ruling and it stands.
+- **The gate's fail-open default for a facet-bearing kind.** That is ADR-0217 §1's own ruling and it stands.
 - **`Offers`.** An offer is a separate record with its own rule (ADR-0025).
 
 ## Consequences
@@ -197,7 +197,7 @@ producer that shipped a mapped form.
 | Alternative | Why not |
 | --- | --- |
 | **Share one Go type across the dispatcher, the leaf and the gate** | The recorded scope is deliberately **not** the dispatched scope. `scan.scopeRecord` drops the resolver and the offers and adds `control_probe_population`. `scan.httpIdentityScopeRecord` drops the vantage class. The record is what licenses a silence, and it carries a different set of fields from the payload a prober needs. One type would force the two apart again through `omitempty` tags, which is the same coupling with the failure moved into a tag |
-| **Have the gate read `JobSpec.Scope` instead of the recorded scope** | The gate exists because the prober is untrusted (#773). The dispatched scope is the text handed **to** that prober. The recorded scope is the instance's own statement of what it authorised, and it is the one a later reader audits. Reading the payload would gate the prober against a document the prober was given |
+| **Have the gate read `JobSpec.Scope` instead of the recorded scope** | The gate exists because the prober is untrusted (ADR-0217). The dispatched scope is the text handed **to** that prober. The recorded scope is the instance's own statement of what it authorised, and it is the one a later reader audits. Reading the payload would gate the prober against a document the prober was given |
 | **Make the gate accept any list-of-strings field it finds** | Turns a name agreement into a shape guess. `tcp_ports` is a list too, `control_probe_population` is a list of names that were never authorised as probe targets, and admitting by shape would let a scope's diagnostic field widen its own authorisation |
 | **Compare address texts literally and forbid normalisation on the gate side** | The producer, the leaf and the store each render an address at a different moment. `normAddr` on both sides is what makes an honest row survive a legal re-spelling. Removing it would make the gate reject `::ffff:198.51.100.1` against `198.51.100.1`, which ADR-0051 says are one subject |
 | **Let the `edge-fanout` arm fail open like the others** | It fails closed on purpose: an injected `edge-fanout` line feeds the custody veto an answer nothing measured ([#985](https://github.com/winniel123/verge-asm/issues/985)). Opening it to make a key mismatch survivable would trade a loud, total drop for a silent, partial forgery |
