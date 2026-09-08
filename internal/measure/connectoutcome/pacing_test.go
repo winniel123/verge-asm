@@ -21,12 +21,16 @@ func (s *scriptedConnector) Connect(context.Context, netip.AddrPort) ConnResult 
 }
 
 type scriptedHandshaker struct {
-	calls int
+	result HandshakeResult
+	calls  int
 }
 
 func (s *scriptedHandshaker) Handshake(context.Context, netip.AddrPort, string) HandshakeResult {
 	s.calls++
-	return HandshakeResult{Outcome: NoTLS}
+	if s.result.Outcome == "" {
+		return HandshakeResult{Outcome: NoTLS}
+	}
+	return s.result
 }
 
 type fakeClock struct {
@@ -87,6 +91,56 @@ func TestPacedPairSharesOnePacerAcrossBothPaths(t *testing.T) {
 	interval := time.Second / time.Duration(profile.PerHostConnPerSec)
 	if got := clock.now.Sub(time.Unix(0, 0).UTC()); got != 2*interval {
 		t.Fatalf("three attempts spanned %v, want %v", got, 2*interval)
+	}
+}
+
+func TestPacedHandshakerHalvesOnATimedOutHandshake(t *testing.T) {
+	profile := DefaultProfile()
+	target := netip.MustParseAddrPort("203.0.113.10:443")
+	interval := time.Second / time.Duration(profile.PerHostConnPerSec)
+
+	cases := []struct {
+		name string
+		res  HandshakeResult
+		want time.Duration
+	}{
+		{
+			name: "a handshake that times out after the connect halves the rate",
+			res:  HandshakeResult{Outcome: NoTLS, TimedOut: true},
+			want: 2 * interval,
+		},
+		{
+			name: "a plaintext peer signals nothing",
+			res:  HandshakeResult{Outcome: NoTLS},
+			want: interval,
+		},
+		{
+			name: "a TLS refusal signals nothing",
+			res:  HandshakeResult{Outcome: TLSRefused},
+			want: interval,
+		},
+		{
+			name: "an unreachable dial that did not time out signals nothing",
+			res:  HandshakeResult{Outcome: NoTLS, Unreachable: true},
+			want: interval,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			clock := &fakeClock{now: time.Unix(0, 0).UTC()}
+			c, h := pacedPair(profile, &scriptedConnector{result: ConnOpen}, &scriptedHandshaker{result: tc.res}, clock.Now, clock.Sleep)
+
+			c.Connect(context.Background(), target)
+			got := h.Handshake(context.Background(), target, "")
+			if got.Outcome != tc.res.Outcome || got.Unreachable != tc.res.Unreachable || got.TimedOut != tc.res.TimedOut {
+				t.Fatalf("paced handshake returned %+v, want %+v", got, tc.res)
+			}
+			before := clock.now
+			c.Connect(context.Background(), target)
+			if wait := clock.now.Sub(before); wait != tc.want {
+				t.Fatalf("the connect after the handshake waited %v, want %v", wait, tc.want)
+			}
+		})
 	}
 }
 
