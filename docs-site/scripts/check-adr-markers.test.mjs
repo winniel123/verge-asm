@@ -161,7 +161,6 @@ function withRelations(front, rows) {
   return [...replacing(front, "relations"), ...(rows.length ? ["relations:", ...rows] : [])];
 }
 
-// The body of one file after a regeneration, as lines, front matter dropped.
 function regenerated(files, file) {
   return withRepo(files, (root) => {
     const adrs = loadAdrs(root);
@@ -402,6 +401,7 @@ test("the report prints the want and have lines", () => {
     hunks: [
       { line: 33, kind: "missing", want: RETIRE_223_3, have: null },
       { line: 40, kind: "stray", want: null, have: "> x <!-- adr-marker amends 1 -->" },
+      { line: 41, kind: "other", want: "", have: null },
     ],
   });
   assert.deepEqual(lines, [
@@ -411,6 +411,9 @@ test("the report prints the want and have lines", () => {
     `${FILE_223}:40: a marker without a relation`,
     "  want: <none>",
     "  have: > x <!-- adr-marker amends 1 -->",
+    `${FILE_223}:41: differs from the regeneration`,
+    "  want: <blank>",
+    "  have: <none>",
   ]);
 });
 
@@ -437,7 +440,19 @@ test("a corpus with no front matter is clean", () => {
 test("renderMarker refuses a kind that writes no marker", () => {
   withRepo(corpus(), (root) => {
     const adrs = loadAdrs(root);
-    assert.throws(() => renderMarker({ kind: "rests-on", from: 227 }, adrs), /no marker for rests-on/);
+    assert.throws(() => renderMarker({ kind: "rests-on", from: 227 }, adrs, adrs.get(223)), /no marker for rests-on/);
+  });
+});
+
+test("a target with no heading to anchor under fails with exit 2, and --write then touches no file", () => {
+  const files = corpus({ [FILE_3]: ["Text with no H1.", "", ...UNNUMBERED_BODY].join("\n") });
+  files[FILE_1700] = adr({ front: withRelations(FRONT_1700, ["  - {kind: amends, adr: 3}"]), h1: H1_1700, body: NEW_BODY });
+  withRepo(files, (root) => {
+    const r = run(root, { write: true });
+    assert.equal(r.code, 2);
+    assert.deepEqual(r.wrote, []);
+    assert.match(r.problems[0].message, /0003-third-party\.md: no heading to anchor the amends marker under/);
+    assert.equal(readFileSync(join(root, FILE_223), "utf8"), files[FILE_223]);
   });
 });
 

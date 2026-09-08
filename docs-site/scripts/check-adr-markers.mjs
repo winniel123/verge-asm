@@ -14,16 +14,19 @@ const KIND_TEXT = {
   other: "differs from the regeneration",
 };
 
-const pad = (n) => `ADR-${String(n).padStart(4, "0")}`;
+const pad = (n) => String(n).padStart(4, "0");
+
+class AnchorError extends Error {}
 
 function adrLink(a) {
   const title = a.front?.title ?? (a.h1 ? a.h1.title.replace(H1_PREFIX, "") : a.stem);
-  return `[${pad(a.number)}: ${title}](./${a.name})`;
+  const file = a.front ? `${pad(a.number)}-${a.front.slug}.md` : a.name;
+  return `[ADR-${pad(a.number)}: ${title}](./${file})`;
 }
 
-export function renderMarker(m, adrs) {
+export function renderMarker(m, adrs, target) {
   if (m.kind === "withdrawn") {
-    const w = m.withdrawal;
+    const w = target.front.withdrawal;
     const to = w["moved-to"];
     let moved;
     if (to === "none" || to === null || to === undefined) moved = "Nothing replaces it.";
@@ -64,18 +67,15 @@ function stripped(lines) {
   return out;
 }
 
-// Markers grouped by the 0-based line of the heading they sit under, in the index's order.
 function anchors(a, lines, incoming) {
   const all = headings(lines.join("\n"));
   const h1 = all.find((h) => h.level === 1);
   const byLine = new Map();
-  // A legacy target with no front matter still takes its actor's marker (#1644 §5)
-  const plan = plannedMarkers({ front: a.front ?? { status: "accepted" } }, incoming);
-  for (const m of plan) {
+  for (const m of plannedMarkers(a, incoming)) {
     const h = m.clause ? all.find((x) => x.number === m.clause) : h1;
-    if (!h) throw new Error(`${a.file}: no heading to anchor the ${m.kind} marker under`);
+    if (!h) throw new AnchorError(`${a.file}: no heading to anchor the ${m.kind} marker under`);
     const at = h.line - 1;
-    byLine.set(at, [...(byLine.get(at) ?? []), m.kind === "withdrawn" ? { ...m, withdrawal: a.front.withdrawal } : m]);
+    byLine.set(at, [...(byLine.get(at) ?? []), m]);
   }
   return byLine;
 }
@@ -88,7 +88,7 @@ export function regenerate(a, incoming, adrs) {
     out.push(clean[i]);
     const ms = plan.get(i);
     if (!ms) continue;
-    for (const m of ms) out.push("", renderMarker(m, adrs));
+    for (const m of ms) out.push("", renderMarker(m, adrs, a));
     if (i + 1 < clean.length && clean[i + 1] !== "") out.push("");
   }
   return a.frontRaw + out.join("\n");
@@ -103,6 +103,7 @@ export function classify(want, have) {
   return "other";
 }
 
+// Every line number is the on-disk one, so an inserted line names the line it goes before.
 function lcsOps(want, have) {
   const n = want.length;
   const m = have.length;
@@ -123,14 +124,13 @@ function lcsOps(want, have) {
       ops.push({ line: j + 1, want: null, have: have[j] });
       j++;
     } else {
-      ops.push({ line: i + 1, want: want[i], have: null });
+      ops.push({ line: j + 1, want: want[i], have: null });
       i++;
     }
   }
   return ops;
 }
 
-// A delete beside an insert is one edited line, so want and have print together.
 export function hunks(wantText, haveText) {
   const ops = lcsOps(wantText.split("\n"), haveText.split("\n"));
   const out = [];
@@ -146,12 +146,14 @@ export function hunks(wantText, haveText) {
   return (real.length > 0 ? real : out).map((h) => ({ line: h.line, kind: classify(h.want, h.have), want: h.want, have: h.have }));
 }
 
+const shown = (line) => (line === null ? "<none>" : line === "" ? "<blank>" : line);
+
 export function report(diff) {
   const lines = [];
   for (const h of diff.hunks) {
     lines.push(`${diff.file}:${h.line}: ${KIND_TEXT[h.kind]}`);
-    lines.push(`  want: ${h.want ?? "<none>"}`);
-    lines.push(`  have: ${h.have ?? "<none>"}`);
+    lines.push(`  want: ${shown(h.want)}`);
+    lines.push(`  have: ${shown(h.have)}`);
   }
   return lines;
 }
@@ -162,24 +164,26 @@ export function run(repoRoot, { write }) {
   if (problems.length > 0) return { code: 2, adrs, problems, diffs: [], wrote: [] };
 
   const incoming = incomingEdges(adrs);
-  const diffs = [];
-  const wrote = [];
+  const stale = [];
   for (const a of adrs.values()) {
     let want;
     try {
       want = regenerate(a, incoming.get(a.number) ?? [], adrs);
     } catch (err) {
+      if (!(err instanceof AnchorError)) throw err;
       problems.push({ file: a.file, rule: "markers", message: err.message });
       continue;
     }
-    if (want === a.raw) continue;
-    if (write) {
-      writeFileSync(join(repoRoot, a.file), want);
-      wrote.push(a.file);
-    } else diffs.push({ file: a.file, hunks: hunks(want, a.raw) });
+    if (want !== a.raw) stale.push({ a, want });
   }
-  if (problems.length > 0) return { code: 2, adrs, problems, diffs: [], wrote };
-  return { code: diffs.length > 0 ? 1 : 0, adrs, problems, diffs, wrote };
+  if (problems.length > 0) return { code: 2, adrs, problems, diffs: [], wrote: [] };
+
+  if (write) {
+    for (const { a, want } of stale) writeFileSync(join(repoRoot, a.file), want);
+    return { code: 0, adrs, problems, diffs: [], wrote: stale.map(({ a }) => a.file) };
+  }
+  const diffs = stale.map(({ a, want }) => ({ file: a.file, hunks: hunks(want, a.raw) }));
+  return { code: diffs.length > 0 ? 1 : 0, adrs, problems, diffs, wrote: [] };
 }
 
 function main() {

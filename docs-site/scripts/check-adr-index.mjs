@@ -301,7 +301,7 @@ export function incomingEdges(adrs) {
 
 export function plannedMarkers(a, incoming) {
   const out = [];
-  if (a.front.status === "withdrawn") out.push({ kind: "withdrawn", from: null, clause: null });
+  if (a.front?.status === "withdrawn") out.push({ kind: "withdrawn", from: null, clause: null });
   for (const e of incoming) if (DERIVES[e.kind]) out.push({ kind: e.kind, from: e.from, clause: e.clause });
   return out.sort(
     (x, y) => MARKER_ORDER[x.kind] - MARKER_ORDER[y.kind] || (x.from ?? 0) - (y.from ?? 0) || String(x.clause).localeCompare(String(y.clause)),
