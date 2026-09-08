@@ -102,14 +102,19 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 		return err
 	}
 	if changes != nil {
-		*changes = append(*changes, spanChange{
+		change := spanChange{
 			SubjectKind:    key.SubjectKind,
 			SubjectKey:     key.SubjectKey,
 			Facet:          key.Facet,
 			Opened:         open == nil,
 			OpenedAperture: openedAperture,
 			Value:          append([]byte(nil), value...),
-		})
+			Vector:         opened.Vector,
+		}
+		if open != nil {
+			change.PrevVector = open.Vector
+		}
+		*changes = append(*changes, change)
 	}
 	return nil
 }

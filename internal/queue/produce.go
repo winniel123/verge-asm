@@ -40,6 +40,10 @@ type spanChange struct {
 	Opened         bool
 	OpenedAperture bool
 	Value          []byte
+	Vector         drift.Vector
+	PrevVector     drift.Vector
+	PriorClosure   *drift.Span
+	WitnessBroke   bool
 }
 
 type departure struct {
@@ -73,6 +77,12 @@ func produceMessages(ctx context.Context, store messageStore, batchID int64, obs
 			return err
 		}
 	}
+	// A membership withdrawal is written and never routed, so it skips the enqueue (ADR-0087).
+	for _, m := range withdrawalMessages(observedAt, departures) {
+		if _, err := store.InsertMessage(ctx, insertParams(m)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -103,6 +113,7 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 	msgs = append(msgs, flagship...)
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
+	msgs = append(msgs, rebaselineMessages(observedAt, changes)...)
 	msgs = append(msgs, declaredInputMessages(observedAt, departures)...)
 	msgs = append(msgs, narrowingMessages(observedAt, narrowings)...)
 	return msgs, nil
