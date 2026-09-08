@@ -57,11 +57,9 @@ At the end of a wayfinder or implementation session, open a PR and make sure the
 
 ### ADR moratorium
 
-An ADR governance map is open. Its destination is `docs/spec/adr-governance.md`. Until that map closes, do not write an ADR from a comment sweep, an `adr-gap` issue, or a deleted comment. Keep the reason in code, as a comment that passes the two gates in `## Comments`.
+The ADR governance map is closed. Its SPEC is `docs/spec/adr-governance.md`. Until the `main protection` ruleset requires the `adr-review` check, add no ADR file. A decision meanwhile becomes a decision proposal block in the PR body, and a human opens the issue that becomes the ADR. Keep the reason in code, as a comment that passes the two gates in `## Comments`.
 
-A bug or a feature session writes an ADR only when all three hold. The decision is hard to reverse. A reader without context would ask why. The session chose it over a named alternative. When one fails, write no ADR. Put the reason in the PR body instead.
-
-The 72 ADRs a sweep authored, the 43 `adr-gap` issues, and the same-day reversal of ADR-0223 §3 by ADR-0227 are the measured cause. The map decides what replaces this rule.
+The 72 ADRs a sweep authored, the 43 `adr-gap` issues, and the same-day reversal of ADR-0223 §3 by ADR-0227 are the measured cause. The SPEC's landing order ends this rule.
 
 ## Landing PRs on `main`
 
