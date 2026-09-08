@@ -107,6 +107,9 @@ func TestTitleExtraction(t *testing.T) {
 		{"<title>  spaced\n  out </title>", "spaced out"},
 		{"no title here", ""},
 		{"<title>unterminated", ""},
+		{"\xe9\xe9\xe9\xe9\xe9\xe9\xe9\xe9\xe9\xe9<title>ab</title>", "ab"},
+		{"<!-- caf\xe9 -->\n<title>Accueil</title>", "Accueil"},
+		{"<title>\xe9t\xe9</title>", "\xe9t\xe9"},
 	}
 	for _, c := range cases {
 		if got := extractTitle([]byte(c.body)); got != c.want {

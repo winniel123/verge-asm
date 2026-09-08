@@ -14,13 +14,14 @@ import (
 )
 
 var knownBusinessTables = []string{
-	"account", "admitted_name", "annotation", "batch", "channel", "cold_scan_scope",
-	"ct_throttle", "delivery", "dispatch", "exclusion", "heartbeat", "instance_config",
+	"account", "admitted_name", "annotation", "batch", "certificate_material", "channel", "cold_scan_scope",
+	"ct_log_cursor", "ct_reliability_sample", "ct_throttle", "delivery", "dispatch", "edge_fanout_observation",
+	"exclusion", "heartbeat", "instance_config",
 	"integration_state", "invite", "message", "message_read", "observation",
 	"password_reset", "personal_token", "proposal", "proposer_lookup", "queue_job",
 	"recovery_code", "report_delivery", "report_notification", "report_schedule",
 	"retention_settings", "scan", "seed", "seed_withdrawal", "session", "signal_instance", "source_state",
-	"span", "sso_identity", "sso_provider", "transcript", "vantage",
+	"source_health", "span", "sso_identity", "sso_provider", "transcript", "vantage",
 	"verge_core_frequency_edit", "zone_file",
 }
 

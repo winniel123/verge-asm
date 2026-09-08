@@ -170,6 +170,29 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 	}
 }
 
+func TestUnknownMessageIDIsNotAFault(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate · 1 timeline opened beneath it", nil)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := postForm(t, ac, base+"/messages/read", url.Values{"id": {"999999999"}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("mark read of an unknown id: status = %d, want 303", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	body := getBody(t, ac, base+"/inbox?id=999999999", http.StatusOK)
+	if !strings.Contains(body, "a.example.com") {
+		t.Errorf("the inbox should still list the known message\nbody: %s", body)
+	}
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 1 {
+		t.Errorf("unread after an unknown id = %d, want 1", n)
+	}
+}
+
 func TestMarkAllReadIsPerAccount(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -229,7 +252,24 @@ func (f *fakeStore) ListReadMessageIDs(_ context.Context, accountID int64) ([]in
 	return out, nil
 }
 
+type fakeFKViolation struct{}
+
+func (fakeFKViolation) Error() string {
+	return "insert or update on table \"message_read\" violates foreign key constraint"
+}
+func (fakeFKViolation) SQLState() string { return "23503" }
+
 func (f *fakeStore) MarkMessageRead(_ context.Context, arg db.MarkMessageReadParams) error {
+	known := false
+	for _, m := range f.messages {
+		if m.ID == arg.MessageID {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return fakeFKViolation{}
+	}
 	set := f.readMarks(arg.AccountID)
 	if !set[arg.MessageID] {
 		set[arg.MessageID] = true

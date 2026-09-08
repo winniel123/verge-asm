@@ -11,8 +11,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const consumeInvite = `-- name: ConsumeInvite :exec
-UPDATE invite SET consumed_at = $2, accepted_account_id = $3 WHERE id = $1
+const consumeInvite = `-- name: ConsumeInvite :execrows
+UPDATE invite SET consumed_at = $2, accepted_account_id = $3
+WHERE id = $1 AND consumed_at IS NULL
 `
 
 type ConsumeInviteParams struct {
@@ -21,9 +22,13 @@ type ConsumeInviteParams struct {
 	AcceptedAccountID pgtype.Int8        `json:"accepted_account_id"`
 }
 
-func (q *Queries) ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) error {
-	_, err := q.db.Exec(ctx, consumeInvite, arg.ID, arg.ConsumedAt, arg.AcceptedAccountID)
-	return err
+// The guard makes the consume atomic, so two accepts in flight cannot both win (#1650).
+func (q *Queries) ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) (int64, error) {
+	result, err := q.db.Exec(ctx, consumeInvite, arg.ID, arg.ConsumedAt, arg.AcceptedAccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const createInvite = `-- name: CreateInvite :one
