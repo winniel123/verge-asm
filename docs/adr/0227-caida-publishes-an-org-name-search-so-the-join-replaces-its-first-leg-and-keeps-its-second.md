@@ -208,3 +208,75 @@ Reopen this ADR when any one of these holds.
 | Filter on `score` instead of on the name | The threshold is a number nobody has grounded. ADR-0223 §4 refused a threshold on the same reasoning, and the measured scores range from 0 to 30,752 with no documented scale |
 | Return an empty result when no record carries an `opaqueId` | Turns a gap into *no holder matched*, which is the false absence this whole repair exists to refuse |
 | Keep the two proposers barred and record the endpoint only | ADR-0223 §3 wrote its own reopening condition and named this endpoint. Meeting the condition and not acting on it leaves a bar standing on a finding that no longer holds |
+
+## Amendment — [#1634](https://github.com/winniel123/verge-asm/issues/1634), 2026-09-08: `asns/` carries the key an organisation record lacks, so the join reads it there and §3's last row fires only after it
+
+Reopening condition 1 is met and measured. §3's last row stands as written above, and this section
+supersedes it in place: the row's error now fires only after a second CAIDA leg has been read. The
+original text is not rewritten, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+
+### What was measured, 2026-09-08, `api.data.caida.org`
+
+Every figure is a live response, not a schema.
+
+| Request | Answer |
+| --- | --- |
+| `GET /as2org/v1/search/?name=Telkom%20Kenya` | `200`, 19,656 B, 71 rows, all AFRINIC organisation records. Keys: `changed`, `country`, `date`, `members`, `orgId`, `orgName`, `score`, `source`, `ts`. **No row carries `asn` or `opaqueId`.** `members` is a list of ASN strings: `30994` on 69 rows and `12455` on 48 |
+| `GET /as2org/v1/asns/30994` | `200`, 435 B, the same envelope, one ASN record: `asn`, `asnName`, `source: AFRINIC`, `orgId`, `orgName: Kenyan Post & Telecommunications Company / Telkom Kenya Ltd`, **`opaqueId: F367736D_AFRINIC`** |
+| `GET /as2org/v1/asns/12455` | `200`, one ASN record, the same `opaqueId: F367736D_AFRINIC` under the same `orgId` |
+| `GET /as2org/v1/asns/30994,37061` | `200`, `totalCount: 0`, `data: []`. **A comma list is not a list.** It reads as an unknown ASN |
+| `GET /as2org/v1/asns/?asns=30994,37061` | `200`, 146,982 B, `totalCount: 120793`, `hasNextPage: true`. The query form ignores the filter and lists the whole ASN table |
+| `GET /as2org/v1/asns/37476` | `200`, `totalCount: 0`, `data: []`. The `Seacom` capture names this ASN on an organisation record, and the ASN table does not hold it |
+| `GET /as2org/v1/search/?name=Safaricom` | 280 AFRINIC name-matched rows: 121 keyed, 159 unkeyed. The unkeyed organisation records name 3 distinct members (`328988`, `33771`, `37061`), and all 3 already sit on keyed ASN records in the same response |
+
+The issue guessed that an organisation record carries `asn`. It does not. It carries `members`, and
+that is the field the second leg reads. `as-org2info.jsonl.gz` was not fetched: `asns/` closes the
+gap, and the bulk file's 4.6 MB per query is already priced and rejected above.
+
+### The decision
+
+**The join reads a second CAIDA leg before §3's last row fires.** After `search/` has been paged,
+every organisation record that passes §2's rule and carries no `opaqueId` contributes its `members`.
+Each distinct member ASN that no keyed ASN record in the same response already carries is read once
+through `/as2org/v1/asns/{asn}`. An ASN record it returns contributes its `opaqueId` under §2's rule
+unchanged: the same RIR, and an `orgName` that holds the query. The recovered keys merge into the
+one candidate set, and the delegated-stats leg is untouched.
+
+**The cost.** `search/` is one request. The second leg is one request per distinct unkeyed member
+ASN, because the endpoint takes one ASN per call and treats a list as no ASN. Measured:
+`Telkom Kenya` costs 2, `Seacom` costs 1, `Safaricom` costs 0. The leg is capped at 32 lookups.
+A search that names more fails loudly before the first lookup, because a partial second leg would
+read as a narrower estate, which is §3's fourth row. The measured need is 0 to 2, so the cap does
+not fire today.
+
+**§3's last row now reads:** records match the RIR and the name, none carries an `opaqueId`, and
+`asns/` recovers none for the members they name. The error stays, because CAIDA still holds the
+organisation under no key and a gap is still not an absence. It is now typed as
+`proposer.ErrNoJoinKey`, so a caller can tell the gap from a failure.
+
+### The loud-failure property is kept
+
+A transport failure on the second leg is an error and never an empty result. The tests hold the
+property on eight grounds for `asns/`: a transport error, a non-200, the retired `org2ids` envelope,
+an HTML body, a non-null `errors` member, fewer rows than `totalCount`, an ASN record with no key,
+and an unknown ASN. The delegated-stats file is not fetched after any of them. A search over the
+32-lookup cap is a ninth ground.
+
+### What the health surface records
+
+[ADR-0223](./0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md)
+§4's record holds `ok` or `error`, and nothing else. When CAIDA answered correctly on both legs and
+the join still found no key, the source did not fail, so the attempt records **`ok`** and the
+consecutive-failure count does not accrue. The lookup itself still reports the error to the
+operator, because the gap is real. A true transport failure on either leg records `error`, as
+before. No third outcome is added: a third value would need a migration, an amendment to ADR-0223
+§4 and a label nobody has ruled on, and the two-value record already states the true fact, which is
+that the source answered.
+
+### What this amendment does not withdraw
+
+- **§2 stands whole.** The second leg applies the same rule to an ASN record `asns/` returns.
+- **§3's first four rows stand whole**, and they now hold on both legs.
+- **The Consequences bullet on the health surface stands.** The record is unchanged. This amendment
+  rules which outcome one state maps to, and reaches nothing else.
+- **Reopening conditions 2 and 3 stand.** Condition 1 is discharged here.

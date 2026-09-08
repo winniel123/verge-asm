@@ -167,7 +167,7 @@ ships as its own ticket.
 - **A future export that ships an intensity calls `drift.HeatLevels`**, rather than re-deriving four
   quartiles or copying the `pct` table out of `cmd/web/reports.go:709`.
 - **One known violation is named and left standing** (§5), on the footing ADR-0149 gives
-  `cmd/web`'s 178-method `store`.
+  `cmd/web`'s 177-query `store` (#1635).
 
 ## Alternatives rejected
 

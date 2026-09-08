@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -124,6 +125,30 @@ func TestASucceededAttemptEndsTheFailureCount(t *testing.T) {
 	}
 	if got := f.sourceHealth["arin"].ConsecutiveFailures; got != 0 {
 		t.Errorf("consecutive failures = %d after a success, want 0", got)
+	}
+}
+
+func TestAnOrgCAIDAHoldsUnderNoKeyIsNotASourceFailure(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	gap := fmt.Errorf("caida search matched 71 AFRINIC records for %q and none carries an opaqueId: %w", "Telkom Kenya", proposer.ErrNoJoinKey)
+	fp := &fakeProposer{
+		err:      fmt.Errorf("afrinic: %w", gap),
+		attempts: []proposer.Attempt{{SourceSlug: "afrinic", Err: gap}},
+	}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	failingLookup(t, f, base, ac)
+	failingLookup(t, f, base, ac)
+
+	// CAIDA holds the org under no key, so the source did not fail (ADR-0227, #1634).
+	if got := f.sourceHealth["afrinic"]; got.LastOutcome != outcomeOK || got.ConsecutiveFailures != 0 {
+		t.Errorf("a join gap was recorded as a source failure: %+v", got)
+	}
+	row := sourceRow(t, sourcesBody(t, ac, base), "AFRINIC (CAIDA")
+	if !strings.Contains(row, `<span class="st-badge ok">last attempt succeeded · 2026-08-15 12:00 UTC</span>`) {
+		t.Errorf("a working source reads as failed for a gap that is not its failure; row: %s", row)
 	}
 }
 

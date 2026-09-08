@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -61,7 +62,8 @@ func (s *server) recordProposerAttempts(ctx context.Context, attempts []proposer
 	at := pgtype.Timestamptz{Time: s.now().UTC(), Valid: true}
 	for _, a := range attempts {
 		outcome := outcomeOK
-		if a.Err != nil {
+		// A join gap is the source answering correctly, so it accrues no failure (ADR-0227, #1634).
+		if a.Err != nil && !errors.Is(a.Err, proposer.ErrNoJoinKey) {
 			outcome = outcomeError
 		}
 		if _, err := s.proposalsStore.RecordSourceAttempt(ctx, db.RecordSourceAttemptParams{
