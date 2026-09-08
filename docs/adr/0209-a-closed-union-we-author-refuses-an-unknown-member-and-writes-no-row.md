@@ -142,7 +142,7 @@ defect below.
   has a document, so the deleted declaration comment does not come back.
 - **`internal/queue/transcript.go` gains this ADR's citation** on the survivor comment that already
   states the rule. It is recorded in this issue's manifest rather than edited here.
-- **A defect: no test pins any of the four default branches.** ADR-0143 §Consequences found the same
+- **A defect: no test pins any of the four default branches.** ADR-0143 found the same
   hole on its own default, and its finding was that an untested default is how a wrong one survives
   behind a comment asserting it is right. Four table-driven cases over a locally declared union
   member would close it. It ships as its own ticket.

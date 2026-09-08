@@ -142,7 +142,7 @@ domain name preserves its denotation — DNS names are case-insensitive. Rewriti
 ### 3. The comparison is the whole point, and normalising one side destroys it
 
 ADR-0007 keys the timeline per source *"so a zone file cannot keep a dead name alive"* and rules a
-source conflict **reported, never resolved**. ADR-0011 §Rationale says why the two values must stay
+source conflict **reported, never resolved**. ADR-0011 says why the two values must stay
 distinct: one canonicaliser over both shapes would mean *"fixing the zone-file parser moves its
 version and `Break`s every `dns-record` timeline in the estate — including the ones our own resolver
 produced, which nothing touched."*
