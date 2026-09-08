@@ -370,7 +370,31 @@ SELECT
     pred.value          AS prev_value,
     pred.derivation     AS prev_derivation,
     pred.closed_at      AS prev_closed_at,
-    pred.closure_reason AS prev_closure_reason
+    pred.closure_reason AS prev_closure_reason,
+    -- A Break on any resolution witness open at this instant voids returned for the subject;
+    -- a witness with no prior span compares against NULL and contributes none (ADR-0097).
+    EXISTS (
+        SELECT 1
+        FROM span w
+        WHERE w.subject_kind = sp.subject_kind
+          AND w.subject_key = sp.subject_key
+          AND w.facet = 'resolution'
+          AND w.opened_at <= sp.opened_at
+          AND (w.closed_at IS NULL OR w.closed_at > sp.opened_at)
+          AND w.derivation <> (
+              SELECT wp.derivation
+              FROM span wp
+              WHERE wp.subject_kind = w.subject_kind
+                AND wp.subject_key = w.subject_key
+                AND wp.facet = w.facet
+                AND wp.discriminator = w.discriminator
+                AND wp.vantage_id IS NOT DISTINCT FROM w.vantage_id
+                AND wp.source = w.source
+                AND wp.opened_at < w.opened_at
+              ORDER BY wp.opened_at DESC, wp.id DESC
+              LIMIT 1
+          )
+    )::boolean AS witness_broke
 FROM span sp
 JOIN batch b ON b.id = sp.opened_batch_id
 LEFT JOIN LATERAL (
@@ -404,7 +428,8 @@ SELECT
     NULL::jsonb        AS prev_value,
     NULL::jsonb        AS prev_derivation,
     NULL::timestamptz  AS prev_closed_at,
-    NULL::text         AS prev_closure_reason
+    NULL::text         AS prev_closure_reason,
+    FALSE              AS witness_broke
 FROM span sp
 JOIN batch b ON b.id = sp.closed_batch_id
 WHERE b.created_at >= $2
@@ -443,6 +468,7 @@ type ListRecentDriftEventsRow struct {
 	PrevDerivation    []byte             `json:"prev_derivation"`
 	PrevClosedAt      pgtype.Timestamptz `json:"prev_closed_at"`
 	PrevClosureReason pgtype.Text        `json:"prev_closure_reason"`
+	WitnessBroke      bool               `json:"witness_broke"`
 }
 
 func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error) {
@@ -475,6 +501,7 @@ func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDrift
 			&i.PrevDerivation,
 			&i.PrevClosedAt,
 			&i.PrevClosureReason,
+			&i.WitnessBroke,
 		); err != nil {
 			return nil, err
 		}

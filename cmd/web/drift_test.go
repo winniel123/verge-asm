@@ -147,6 +147,34 @@ func TestClassifyDriftEventReturned(t *testing.T) {
 	}
 }
 
+func TestClassifyDriftEventSiblingWitnessBreakVoidsReturned(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	// The external-class row is clean on its own timeline; the internal witness moved (ADR-0097).
+	external := driftOpenedRow(12, now.Add(-time.Hour), "back.example.com", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
+	external.PrevClosureReason = pgtype.Text{String: "measured-absent", Valid: true}
+	external.WitnessBroke = true
+	ev, ok := classifyDriftEvent(external, now)
+	if !ok || ev.Change != "appeared" {
+		t.Fatalf("one Break among the relied-upon witnesses => change %q (ok=%v), want appeared", ev.Change, ok)
+	}
+
+	external.WitnessBroke = false
+	ev, ok = classifyDriftEvent(external, now)
+	if !ok || ev.Change != "returned" {
+		t.Fatalf("every witness clean => change %q (ok=%v), want returned", ev.Change, ok)
+	}
+
+	marked := driftOpenedRow(12, now.Add(-time.Hour), "back.example.com", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
+	marked.PrevClosureReason = pgtype.Text{String: "measured-absent", Valid: true}
+	marked.OpenedAperture = true
+	marked.WitnessBroke = true
+	ev, ok = classifyDriftEvent(marked, now)
+	if !ok || ev.Change != "appeared" {
+		t.Fatalf("the aperture marker does not rescue a broken witness => change %q (ok=%v), want appeared", ev.Change, ok)
+	}
+}
+
 func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

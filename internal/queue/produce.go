@@ -217,11 +217,9 @@ func membershipMessages(observedAt time.Time, changes []spanChange, in membershi
 		if !root.Opened || root.Facet != resolutionwalk.FacetResolution || !message.RootFires(root.SubjectKind) {
 			continue
 		}
-		// Re-entry differs from appearance only in wording, so no prior read happens (ADR-0041).
-		entry := message.EntryAppeared
+		entry := membershipEntry(root)
 		seedKey := ""
-		if root.OpenedAperture {
-			entry = message.EntryRevealed
+		if entry == message.EntryRevealed {
 			seedKey = coveringSeedKey(root.SubjectKind, root.SubjectKey, in)
 		}
 		m := message.Membership(entry, root.SubjectKind, root.SubjectKey, seedKey, membershipCensus(changes, root), observedAt)

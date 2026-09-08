@@ -82,7 +82,7 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 	prevReason := drift.ClosureReason(row.PrevClosureReason.String)
 	if prevReason.Valid() {
 		change := "returned"
-		switch drift.ReEntryKind(&drift.Span{Reason: prevReason}, false, row.OpenedAperture) {
+		switch drift.ReEntryKind(&drift.Span{Reason: prevReason}, row.WitnessBroke, row.OpenedAperture) {
 		case drift.KindAppeared:
 			change = "appeared"
 		case drift.KindRevealed:
