@@ -1,9 +1,18 @@
-# A source may admit without observing, and a decoder translates shape and never fact
+---
+number: 27
+title: "A source may admit without observing, and a decoder translates shape and never fact"
+slug: a-source-may-admit-without-observing
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 56
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 204}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#56 Which subject does a certificate-transparency observation key on, and is CT a certificate source at all?](https://github.com/winniel123/verge-asm/issues/56)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# A source may admit without observing, and a decoder translates shape and never fact
 
 ## Context
 

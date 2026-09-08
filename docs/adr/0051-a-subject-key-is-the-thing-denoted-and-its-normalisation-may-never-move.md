@@ -1,10 +1,22 @@
+---
+number: 51
+title: "A subject key is the thing denoted, not the text that named it — and its normalisation may never move"
+slug: a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 89
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 11}
+  - {kind: bounds, adr: 136}
+  - {kind: bounds, adr: 205}
+---
+
 # A subject key is the thing denoted, not the text that named it — and its normalisation may never move
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#89 What is an `Address`'s natural key — the text, or the address it denotes?](https://github.com/winniel123/verge-asm/issues/89)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Amends:** [ADR-0011](./0011-a-facet-is-six-parts.md) in one detail
+> **Amended** by [ADR-0055: A `Name`'s key is the label sequence on the wire, and we fold only what the protocol folds](./0055-a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds.md), 2026-08-14. <!-- adr-marker amends 55 -->
 
 ## Context
 

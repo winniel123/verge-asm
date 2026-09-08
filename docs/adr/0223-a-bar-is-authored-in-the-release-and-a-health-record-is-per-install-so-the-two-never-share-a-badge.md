@@ -1,11 +1,20 @@
+---
+number: 223
+title: "a bar is authored in the release and a health record is per-install, so the two never share a badge"
+slug: a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge
+date: 2026-09-07
+status: accepted
+source: fix
+ticket: [1519, 1583, 1604]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 3}
+  - {kind: rests-on, adr: 12}
+  - {kind: rests-on, adr: 23}
+---
+
 # ADR-0223: a bar is authored in the release and a health record is per-install, so the two never share a badge
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Tickets:** [#1519 Two shipped proposers point at api.caida.org, which is NXDOMAIN](https://github.com/winniel123/verge-asm/issues/1519), [#1583 A proposer source with a dead endpoint has no health surface](https://github.com/winniel123/verge-asm/issues/1583), [#1604 A source that ships off for a broken endpoint cannot say so](https://github.com/winniel123/verge-asm/issues/1604)
-- **Rests on:** [ADR-0003](./0003-third-party-source-consent-bar.md), which rules the consent bar and owns the phrase *excluded on terms*. This ADR takes no ground from it and narrows the badge that was speaking for it
-- **Rests on:** [ADR-0012](./0012-a-proposer-is-not-a-source.md), which rules that a proposer carries `consent` alone. A proposer's reachability is not `authority`, not `completeness`, and this ADR does not reintroduce either
-- **Rests on:** [ADR-0023](./0023-consent-names-the-door.md), whose structure this ADR reuses: a project reading, taken once and written into the release, is the same for every install
 - **Continues:** [#1553](https://github.com/winniel123/verge-asm/pull/1553), which ruled *a source-health surface, not a build-time check and not nowhere*. That ruling is not relitigated here. This ADR settles the four points it left open
 
 ## Context
@@ -150,6 +159,8 @@ a proposer is barred, because a stale `source_state` override would then still r
 overrides an override.
 
 ### 3. The two CAIDA proposers are barred, not repaired
+
+> **Retired**, with no replacement, by [ADR-0227: CAIDA publishes an org-name search, so the join replaces its first leg and keeps its second](./0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md), 2026-09-07. <!-- adr-marker retires 227 -->
 
 They are barred on reason 2. The finding is authored: no published CAIDA endpoint serves
 `/as2org/v1/org2ids`, and the response shape the decoder expects is not the shape any candidate

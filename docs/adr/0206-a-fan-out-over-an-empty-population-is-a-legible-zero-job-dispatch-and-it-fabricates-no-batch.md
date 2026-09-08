@@ -1,16 +1,27 @@
+---
+number: 206
+title: "A fan-out over an empty population is a legible zero-job dispatch, and it fabricates no `Batch`"
+slug: a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1320
+pr: 1324
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 5}
+  - {kind: rests-on, adr: 129}
+  - {kind: rests-on, adr: 106}
+  - {kind: sibling, adr: 108}
+  - {kind: sibling, adr: 163}
+  - {kind: rests-on, adr: 208}
+---
+
 # ADR-0206: A fan-out over an empty population is a legible zero-job dispatch, and it fabricates no `Batch`
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1320 ADR gaps: internal/queue (#1200, sweep 6/7)](https://github.com/winniel123/verge-asm/issues/1320), gap 1
-- **PR that deleted the comment:** [#1324](https://github.com/winniel123/verge-asm/pull/1324)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0005](./0005-scan-execution-model.md), which fixes one `Dispatch` per `(Scan, scheduled tick)` and rules that a `Batch` is one queue job's outcome. This ADR takes both and rules what the tick records when the fan-out builds no job
 - **Generalises:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md)'s #954 amendment, which states the shape for the `edge-fanout` `Scan` alone — *"no extension means an empty scope and no probe, a legible empty-scope state"*. It rules one population and says nothing about the other eight
-- **Generalises:** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), which states it for the `ct` `Scan` and names `zone`'s parallel — *"the same legible zero-job state `zone` has when no file is supplied"*. It rules a source toggle, not a fan-out in general
 - **Sibling of, and not ruled by:** [ADR-0108](./0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md). That ADR rules the dead-lettered `Batch` whose recorded scope is empty. That is the failure path, where a `Batch` exists. This ADR rules the success path, where no job and therefore no `Batch` exists. §4 states the difference
 - **Sibling of, and not ruled by:** [ADR-0163](./0163-an-absent-certificate-material-row-is-a-fan-out-of-zero-and-is-reached-and-only-an-absent-measurement-row-is-pending.md). That ADR rules a **fan-out of zero** over one edge's SAN set, inside the `Custody` derivation. This ADR rules a **fan-out of zero jobs** by the dispatcher. The two share a phrase and no subject
-- **Depends on:** [ADR-0208](./0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md). An empty population is a legible success only where the population is honestly empty. While the queue re-parses a rendered subject key, a key-form change empties every population at once and this ADR would rule that outage a healthy tick. That ADR removes the parse and so removes the composition
 
 ## Context
 

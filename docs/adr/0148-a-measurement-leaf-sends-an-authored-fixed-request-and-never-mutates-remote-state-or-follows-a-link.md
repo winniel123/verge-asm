@@ -1,12 +1,22 @@
+---
+number: 148
+title: "A measurement leaf sends an authored, fixed request and never mutates remote state or follows a link"
+slug: a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1279
+map: 1131
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 25}
+  - {kind: rests-on, adr: 21}
+  - {kind: bounds, adr: 121}
+---
+
 # ADR-0148: A measurement leaf sends an authored, fixed request and never mutates remote state or follows a link
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1279 ADR gaps: `internal/measure/httpexchange`, `internal/measure/edgefanout`](https://github.com/winniel123/verge-asm/issues/1279), gap 2
 - **Found by:** [#1169](https://github.com/winniel123/verge-asm/issues/1169) / PR [#1278](https://github.com/winniel123/verge-asm/issues/1278), which deleted the two `http-exchange` comments that carried the rule
-- **Map:** [#1131 Comment policy: build commentlint and sweep the tree](https://github.com/winniel123/verge-asm/issues/1131)
-- **Rests on:** [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) (an offer is authored and recorded by content, never a library default) and [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) (a declared parameter ships in the release and is never a dial)
-- **Bounds:** [ADR-0121](./0121-the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard.md), whose egress guard is the mechanism that keeps §3's one second hop bounded
 - **Not gap 1:** the network-seam rule went to [#1272](https://github.com/winniel123/verge-asm/issues/1272) and has its own ADR. This one rules on the **request shape**, not on where the socket is opened
 
 ## Context

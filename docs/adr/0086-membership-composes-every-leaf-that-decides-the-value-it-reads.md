@@ -1,9 +1,19 @@
+---
+number: 86
+title: "Membership composes every leaf that decides the value it reads — `wildcard-discrimination` is in the vector"
+slug: membership-composes-every-leaf-that-decides-the-value-it-reads
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 146
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 146}
+---
+
 # ADR-0086: Membership composes every leaf that decides the value it reads — `wildcard-discrimination` is in the vector
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#146 Is `wildcard-discrimination` in the membership vector?](https://github.com/winniel123/verge-asm/issues/146)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Spec content:** [`golden-corpus.md`](../spec/golden-corpus.md) §8 — the escrow, adopted
 
 ## Context

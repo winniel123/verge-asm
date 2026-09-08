@@ -1,9 +1,25 @@
+---
+number: 21
+title: "A version leaf is a decision, not a binary — and a prober's corpus is authored"
+slug: a-version-leaf-is-a-decision-not-a-binary
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 49
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 140}
+  - {kind: bounds, adr: 194}
+  - {kind: bounds, adr: 224}
+---
+
 # A version leaf is a decision, not a binary — and a prober's corpus is authored
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#49 Is the measurement binary a versioned Derivation, and what is its golden corpus?](https://github.com/winniel123/verge-asm/issues/49)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0068: A wildcard is discriminated only where its synthesis is determinate, and determinacy is measured per component](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md), 2026-08-14. <!-- adr-marker amends 68 -->
+
+> **Amended** by [ADR-0069: A control label is one label, and the set must be able to falsify label-independence](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md), 2026-08-15. <!-- adr-marker amends 69 -->
+
 - **Extended by (this rule is *kept*, not withdrawn):** [ADR-0142](./0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md) (2026-09-05) carries the authored corpus's determinism to the leaf's **own generated input**, which the hermeticity argument below does not reach
 - **Bounded by (the gate below is unchanged):** [ADR-0152](./0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md) (2026-09-05) states the reach of the hermetic corpus in the other direction. Every leaf's **live network adapter** is swapped out before a row renders, so no row and no digest gates it, and a change to one that can move a production value takes this ADR's **uncovered move** limb
 

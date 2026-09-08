@@ -1,14 +1,22 @@
+---
+number: 190
+title: "the CT log list is a build-time artefact pinned in the image, refreshing it is a release act, and the pinned snapshot carries no log public keys"
+slug: the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1308
+pr: 1307
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 139}
+  - {kind: rests-on, adr: 138}
+  - {kind: sibling, adr: 144}
+---
+
 # ADR-0190: the CT log list is a build-time artefact pinned in the image, refreshing it is a release act, and the pinned snapshot carries no log public keys
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gaps 2 and 3
-- **PR that deleted the comments:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Withdraws a clause of:** [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §4.3, whose first sentence says to *"follow logs from the live `log_list.json`"*. The clause is withdrawn at its own site under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). The rest of §4.3 — the `state` filter, the `temporal_interval` filter, the two mandatory client implementations, the `url` versus `monitoring_url` discriminator — is untouched and confirmed
-- **Rests on:** [ADR-0139](./0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md), whose §1 rules that a shipped artefact's origin is the image that carries it, because *"every read path hits the worker image's read-only filesystem. No path fetches a release asset, and no path reaches the network."* It rules the prober binary. This ADR applies the same shape to a data artefact
-- **Rests on:** [ADR-0138](./0138-a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow.md), whose §1 rules that the release pins every byte it builds and that *"this project cannot enforce pin-every-byte inside a third party."* It rules the build. This ADR rules a byte the build pins
-- **Bounded by:** [ADR-0003](./0003-third-party-source-consent-bar.md), which rules which third parties may be queried without the operator saying so, and makes that a property of the release rather than of a deployment. It rules the **source catalogue**. It does not rule which endpoints a source's own runner contacts, which is what the log list decides
 - **Sibling of, and not ruled by:** [ADR-0144](./0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md). It rules that the `verge-core` body is compiled in, over a spec clause that said the opposite, and it changed no Go code. The shape is the same and the artefact is different. Neither contains the other
 
 ## Context

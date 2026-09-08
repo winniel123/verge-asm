@@ -1,11 +1,20 @@
+---
+number: 169
+title: "a reaped job is infrastructure failure, not measurement evidence, so the reap writes no `Batch` and moves no `Availability`"
+slug: a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1391
+pr: 1392
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 108}
+  - {kind: rests-on, adr: 5}
+---
+
 # ADR-0169: a reaped job is infrastructure failure, not measurement evidence, so the reap writes no `Batch` and moves no `Availability`
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1391 ADR gaps: db/queries (measurement, dispatch)](https://github.com/winniel123/verge-asm/issues/1391), gap 1
-- **Sweep PR that compressed the comment:** [#1392](https://github.com/winniel123/verge-asm/pull/1392). The statement survives as one uncited line at [`db/queries/measurement.sql:84`](../../db/queries/measurement.sql) under [`comment-policy.md`](../spec/comment-policy.md) §4.7 route 3, rather than being deleted
-- **Rests on:** [ADR-0108](./0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md), whose limb 4 makes a terminal `resolution-walk` batch outcome the sole producer of `Availability`, and whose limb 1 refuses a signal that is not a transport failure
-- **Rests on:** [ADR-0005](./0005-scan-execution-model.md), which splits evidential coverage from operational attempt and rules that a port whose worker died before recording a result is not a measurement
 - **Not bound by:** [ADR-0164](./0164-an-operator-ends-a-dispatch-by-recording-a-disposition-once-and-stop-keeps-the-running-jobs-while-terminate-rolls-their-staged-work-back.md) and [ADR-0165](./0165-a-recorded-dispatch-disposition-overrides-the-live-status-derivation-and-the-run-pages-status-word-is-one-token-that-styles-and-labels-the-badge.md), which rule how an **operator** ends a `Dispatch`. The reap is nobody's act
 - **Not bound by:** [ADR-0141](./0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md), which rules what the reaper's **loop** does with a failed pass. This ADR rules what a **successful** pass is allowed to write
 

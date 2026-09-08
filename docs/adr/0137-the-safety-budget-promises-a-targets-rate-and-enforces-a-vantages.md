@@ -1,10 +1,17 @@
+---
+number: 137
+title: "The safety budget promises a target's rate and enforces a vantage's, and the gap is disclosed"
+slug: the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages
+date: 2026-09-02
+status: accepted
+source: fix
+ticket: 1107
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0137: The safety budget promises a target's rate and enforces a vantage's, and the gap is disclosed
 
-- **Status:** Accepted
-- **Date:** 2026-09-02
-- **Ticket:** [#1107 Move the active-scan safety budget into Postgres so it survives scaling the worker](https://github.com/winniel123/verge-asm/issues/1107)
 - **Follows:** [#1092](https://github.com/winniel123/verge-asm/issues/1092), which found that the limiter is per prober process, and [#1105](https://github.com/winniel123/verge-asm/issues/1105), which recorded the gap in prose without closing it
-- **Constrained by:** [ADR-0005](./0005-scan-execution-model.md) (one address per batch, and the intra-job coordination claim this ADR corrects), [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md) (a cost the operator chose is priced, not gated)
 - **Relates to:** [#1106](https://github.com/winniel123/verge-asm/issues/1106), which holds the ADR-0005 amendment this ADR supplies the corrected unit for
 
 ## Context

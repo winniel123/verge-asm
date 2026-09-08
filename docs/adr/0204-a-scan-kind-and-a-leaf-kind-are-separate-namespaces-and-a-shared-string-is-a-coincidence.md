@@ -1,13 +1,19 @@
-# ADR-0204: a Scan kind and a leaf kind are separate namespaces, and a shared string is a coincidence
+---
+number: 204
+title: "a Scan kind and a leaf kind are separate namespaces, and a shared string is a coincidence"
+slug: a-scan-kind-and-a-leaf-kind-are-separate-namespaces-and-a-shared-string-is-a-coincidence
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1319
+pr: 1318
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 84}
+  - {kind: rests-on, adr: 28}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1319 ADR gaps: internal/scan (2/3)](https://github.com/winniel123/verge-asm/issues/1319), gap 5
-- **PR that deleted the comment:** [#1318](https://github.com/winniel123/verge-asm/pull/1318)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md), which makes a `Scan` a **cadence over an exchange**. A `Scan` is therefore named for the coverage it provides, and a leaf for the exchange it runs. This ADR states the consequence that the two names are separate
-- **Rests on:** [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), which makes a facet's cadence the cadence of its exchange. It is why `tls-acceptance` needed a `Scan` of its own, and so why one string ended up on both sides
-- **Bounded by:** [ADR-0027](./0027-a-source-may-admit-without-observing.md), which admits a source that observes nothing. The worker-read `Scan`s it licenses run **no leaf at all**, and §3 records that their two namespaces coincide because one of them is empty
+# ADR-0204: a Scan kind and a leaf kind are separate namespaces, and a shared string is a coincidence
 
 ## Context
 

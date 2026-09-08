@@ -1,9 +1,16 @@
-# ADR-0063: A routing announcement names the path, not the estate
+---
+number: 63
+title: "A routing announcement names the path, not the estate"
+slug: a-routing-announcement-names-the-path-not-the-estate
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 126
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#126 Is the BGP leg worth having at all, and does RouteViews join the default set?](https://github.com/winniel123/verge-asm/issues/126)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0063: A routing announcement names the path, not the estate
 
 ## Context
 

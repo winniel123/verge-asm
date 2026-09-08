@@ -1,10 +1,19 @@
+---
+number: 146
+title: "A `Seed` admits a `Name`, and holds it only where measurement cannot decide"
+slug: a-seed-admits-a-name-and-holds-it-only-where-measurement-cannot-decide
+date: 2026-09-05
+status: accepted
+source: fix
+ticket: 1282
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 6}
+  - {kind: rests-on, adr: 7}
+---
+
 # ADR-0146: A `Seed` admits a `Name`, and holds it only where measurement cannot decide
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1282 ADR gaps: internal/delivery, internal/report, internal/estate](https://github.com/winniel123/verge-asm/issues/1282) — Gap 2
-- **Rests on:** [ADR-0006](./0006-subjects-leave-by-measurement.md) (subjects leave by measurement; the disjunction is `Address`'s alone; the residue stays visibly unconfirmed), [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) (`authority` governs **admission** and is *"**not** an ordering"*)
-- **Bounded by:** [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md) (the composition this ruling reads is cross-class), [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) (`wildcard-discrimination` is in the vector, so `Shadowed` is a membership-deciding outcome), [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) (the closure vocabulary is closed at three grounds and states no precedence among them)
 - **Bounded away from:** #1282's Gap 1, the `delivery.Doer` seam, which is deduped into
   [#1272](https://github.com/winniel123/verge-asm/issues/1272) §2 and ruled elsewhere. The
   pure-core / impure-runner file split inside `internal/delivery` is package taste and is ruled

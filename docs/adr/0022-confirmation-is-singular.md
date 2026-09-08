@@ -1,10 +1,19 @@
-# ADR-0022: Confirmation is singular; declining may be plural
+---
+number: 22
+title: "Confirmation is singular; declining may be plural"
+slug: confirmation-is-singular
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 50
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 2}
+  - {kind: bounds, adr: 12}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#50 What does the operator see when confirming or declining a Proposal?](https://github.com/winniel123/verge-asm/issues/50)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Constrains:** [ADR-0002](./0002-ownership-gates-probing.md), [ADR-0012](./0012-a-proposer-is-not-a-source.md)
+# ADR-0022: Confirmation is singular; declining may be plural
 
 ## Context
 

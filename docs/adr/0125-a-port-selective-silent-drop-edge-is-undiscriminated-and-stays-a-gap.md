@@ -1,9 +1,17 @@
+---
+number: 125
+title: "A port-selective silent-drop edge is undiscriminated, so it stays a `Gap` — no positive signal is added"
+slug: a-port-selective-silent-drop-edge-is-undiscriminated-and-stays-a-gap
+date: 2026-08-29
+status: accepted
+source: grilling
+ticket: 833
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0125: A port-selective silent-drop edge is undiscriminated, so it stays a `Gap` — no positive signal is added
 
-- **Status:** Accepted
-- **Date:** 2026-08-29
-- **Ticket:** [#833 Positive detection of port-selective provider edges (e.g. Cloudflare) — ADR needed](https://github.com/winniel123/verge-asm/issues/833)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Completes:** [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md) (its Thin-ground flag on the silent-drop case), and the [#778](https://github.com/winniel123/verge-asm/issues/778) line of work
 
 ## Context

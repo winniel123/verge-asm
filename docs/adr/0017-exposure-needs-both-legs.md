@@ -1,9 +1,16 @@
-# ADR-0017: `Exposure` needs both legs, and a one-legged reading is not a state
+---
+number: 17
+title: "`Exposure` needs both legs, and a one-legged reading is not a state"
+slug: exposure-needs-both-legs
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 45
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#45 Which of the four unnamed Exposure cells need names, and what does the board render for the rest?](https://github.com/winniel123/verge-asm/issues/45)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0017: `Exposure` needs both legs, and a one-legged reading is not a state
 
 ## Context
 

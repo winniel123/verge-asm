@@ -1,9 +1,16 @@
-# ADR-0039: A channel carries the message, never the estate — and a delivery is an operational record
+---
+number: 39
+title: "A channel carries the message, never the estate — and a delivery is an operational record"
+slug: a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 119
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#119 Which notification channels ship in v1, and what are their delivery semantics?](https://github.com/winniel123/verge-asm/issues/119)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0039: A channel carries the message, never the estate — and a delivery is an operational record
 
 ## Context
 

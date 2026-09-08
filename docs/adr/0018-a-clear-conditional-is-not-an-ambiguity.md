@@ -1,9 +1,19 @@
+---
+number: 18
+title: "A clear conditional is not an ambiguity, and a grant is not a reading"
+slug: a-clear-conditional-is-not-an-ambiguity
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 46
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 3}
+---
+
 # ADR-0018: A clear conditional is not an ambiguity, and a grant is not a reading
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#46 May verge-asm index APNIC's bulk file, given its header bars storage in a retrieval system?](https://github.com/winniel123/verge-asm/issues/46)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Amends in effect:** [ADR-0003](./0003-third-party-source-consent-bar.md) — recorded here rather than as a third
   amendment to that file because sibling sessions were editing it concurrently. Reconcile on merge.
 
@@ -130,6 +140,8 @@ them.
 
 ### 3. The tier is `operator-credentialed`, and `Consent` still gains no fourth value
 
+> **Amended** by [ADR-0023: `consent` names the door, never who walked through it](./0023-consent-names-the-door.md), 2026-08-13. <!-- adr-marker amends 23 -->
+
 `Consent` answers *whose permission does this run on*, and its three values are the three available
 answers: nobody's is needed (`unencumbered`), the operator's own reading of terms the project
 declined to read (`operator-accepted`), or **a permission the source actually granted to that
@@ -149,6 +161,8 @@ operator enters a direct relationship with the source, and the project's reading
 stops being the governing document.
 
 ### 4. The capability does not ship in v1
+
+> **Amended** by [ADR-0023: `consent` names the door, never who walked through it](./0023-consent-names-the-door.md), 2026-08-13. <!-- adr-marker amends 23 -->
 
 Ruled on ADR-0003's own rejected alternative, not on cost. The **declared-status bar** was rejected
 because it *"invites operators to self-certify into permissions they may not hold"* and *"puts the

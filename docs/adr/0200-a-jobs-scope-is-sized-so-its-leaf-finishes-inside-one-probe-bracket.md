@@ -1,13 +1,21 @@
+---
+number: 200
+title: "a job's scope is sized so its leaf finishes inside one probe bracket"
+slug: a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1319
+pr: 1318
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 127}
+  - {kind: rests-on, adr: 129, clause: "6"}
+---
+
 # ADR-0200: a job's scope is sized so its leaf finishes inside one probe bracket
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1319 ADR gaps: internal/scan (2/3)](https://github.com/winniel123/verge-asm/issues/1319), gap 1
-- **PR that deleted the comment:** [#1318](https://github.com/winniel123/verge-asm/pull/1318)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Bounded by:** [ADR-0005](./0005-scan-execution-model.md), which rules **where a partition boundary may fall** — along any dimension the source keeps enumerability over, so its silence stays honest. That rule is about the honesty of a scope record. This rule is about the execution of a job whose boundary is already legal. Neither narrows the other, and this ADR does not amend ADR-0005
 - **Sibling of, and not ruled by:** [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md), which removes every ceiling over a **declared** address scope and rules that a scope which cannot finish inside its cadence is reported and never refused. This ADR bounds **one job**, never a declared scope. A larger population makes more jobs and never a larger one, so ADR-0127's no-ceiling ruling is untouched
-- **Rests on:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) §6, which makes the no-SNI handshake a new measurement with a `Scan` of its own. It created the streaming builder this rule first bound
 
 ## Context
 

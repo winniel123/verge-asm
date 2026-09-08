@@ -1,16 +1,21 @@
+---
+number: 177
+title: "a rule two surfaces must agree on lives in one shared function, and a second surface may never re-derive it"
+slug: a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: [1349, 1339]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 145}
+---
+
 # ADR-0177: a rule two surfaces must agree on lives in one shared function, and a second surface may never re-derive it
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1349 ADR gaps: cmd/web/reports.go](https://github.com/winniel123/verge-asm/issues/1349), gap 2, and
-  [#1339 ADR gaps: cmd/web/seeds.go](https://github.com/winniel123/verge-asm/issues/1339), gap 4
 - **Sweep PRs that deleted the comments:** [#1350](https://github.com/winniel123/verge-asm/pull/1350)
   (`cmd/web/reports.go`) and [#1340](https://github.com/winniel123/verge-asm/pull/1340)
   (`cmd/web/seeds.go`)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md),
-  which makes `design-system/` the source of truth and names what the web app actually embeds, and so
-  fixes where the Go/JSX boundary in §3 falls
 - **Not bound by:** [ADR-0149](./0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md),
   which rules how *wide* a consumer's slice of the data layer is. Reach is not agreement, and a
   correctly narrow seam on each of two surfaces still lets them disagree

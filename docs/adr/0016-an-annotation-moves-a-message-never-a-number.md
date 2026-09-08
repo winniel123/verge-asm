@@ -1,9 +1,18 @@
+---
+number: 16
+title: "An `Annotation` moves a message, never a number"
+slug: an-annotation-moves-a-message-never-a-number
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 117
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0016: An `Annotation` moves a message, never a number
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#117 Is operator opinion worth a Declared-layer term, or does it collapse into signal suppression?](https://github.com/winniel123/verge-asm/issues/117)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0092: An operator dial's movement is not a cause — and an `Annotation` never lapses, its subject withdraws](./0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md), 2026-08-15. <!-- adr-marker amends 92 -->
 
 ## Context
 

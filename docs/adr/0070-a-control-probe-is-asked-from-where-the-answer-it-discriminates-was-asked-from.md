@@ -1,9 +1,17 @@
+---
+number: 70
+title: "A control probe is asked from where the answer it discriminates was asked from, and the query path is one declared parameter"
+slug: a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 116
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # A control probe is asked from where the answer it discriminates was asked from, and the query path is one declared parameter
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#116 Is the control probe's vantage a declared parameter, an aperture input, or a query-mode change?](https://github.com/winniel123/verge-asm/issues/116)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Discharges:** [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §13.10's last bullet — *"the probe's vantage is a parameter nobody has declared … not ruled here, and not folded in"* — and the same hole one leaf over, in `resolution-walk`
 
 ## Context

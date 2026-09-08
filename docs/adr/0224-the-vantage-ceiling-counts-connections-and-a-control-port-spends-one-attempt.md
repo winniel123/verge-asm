@@ -1,10 +1,18 @@
+---
+number: 224
+title: "The vantage ceiling counts the connections the pacer spaces, and a control port spends one attempt"
+slug: the-vantage-ceiling-counts-connections-and-a-control-port-spends-one-attempt
+date: 2026-09-07
+status: accepted
+source: fix
+ticket: [1589, 1586]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 137}
+---
+
 # ADR-0224: The vantage ceiling counts the connections the pacer spaces, and a control port spends one attempt
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Tickets:** [#1589 `per_vantage_packets_per_sec` names packets and the pacer counts connects](https://github.com/winniel123/verge-asm/issues/1589), [#1586 Retries multiply a control-port timeout by three, and the blanket discriminator pays it eight times](https://github.com/winniel123/verge-asm/issues/1586)
-- **Follows:** [ADR-0137](./0137-the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages.md) §5, which weighed the same rename trade on this same struct and ruled it
-- **Constrained by:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) (a changed declared parameter moves a leaf's `Version`), [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md) (the control probe rides `SafetyProfile`, and a `Gap` is the safe direction of error)
 - **Measured by:** [`hot-scan-wall-clock-and-emitted-rate.md`](../research/hot-scan-wall-clock-and-emitted-rate.md) §4.1, findings 4 and 7 of §9
 
 ## Context

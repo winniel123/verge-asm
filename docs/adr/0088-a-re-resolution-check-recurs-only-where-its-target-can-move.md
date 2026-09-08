@@ -1,9 +1,16 @@
-# ADR-0088: A re-resolution check recurs only where its target can move — and a citation that carries no live cell is in no check's population
+---
+number: 88
+title: "A re-resolution check recurs only where its target can move — and a citation that carries no live cell is in no check's population"
+slug: a-re-resolution-check-recurs-only-where-its-target-can-move
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 150
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#150 Name G8's population](https://github.com/winniel123/verge-asm/issues/150)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0088: A re-resolution check recurs only where its target can move — and a citation that carries no live cell is in no check's population
 
 ## Context
 

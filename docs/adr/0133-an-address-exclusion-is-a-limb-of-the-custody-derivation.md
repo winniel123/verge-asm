@@ -1,8 +1,21 @@
+---
+number: 133
+title: "An address exclusion is a limb of the `Custody` derivation and cuts the `Seed` limb alone"
+slug: an-address-exclusion-is-a-limb-of-the-custody-derivation
+date: 2026-09-01
+status: accepted
+source: fix
+ticket: 1022
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 12}
+  - {kind: bounds, adr: 135}
+  - {kind: rests-on, adr: 198}
+  - {kind: bounds, adr: 216}
+---
+
 # ADR-0133: An address exclusion is a limb of the `Custody` derivation and cuts the `Seed` limb alone
 
-- **Status:** Accepted
-- **Date:** 2026-09-01
-- **Ticket:** [#1022 An address exclusion enforces nothing](https://github.com/winniel123/verge-asm/issues/1022)
 - **Amends:** [ADR-0012](./0012-a-proposer-is-not-a-source.md), [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md)
 - **Constrained by:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) §3 and its [#956](https://github.com/winniel123/verge-asm/issues/956) amendment
 

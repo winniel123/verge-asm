@@ -1,9 +1,16 @@
-# ADR-0037: An attestation is retrieved over the artefact, not over the row
+---
+number: 37
+title: "An attestation is retrieved over the artefact, not over the row"
+slug: an-attestation-is-retrieved-over-the-artefact-not-over-the-row
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 70
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#70 Is §2.2's footing table right? It was built from web docs, and the shipped config bytes have never been read](https://github.com/winniel123/verge-asm/issues/70)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0037: An attestation is retrieved over the artefact, not over the row
 
 ## Context
 

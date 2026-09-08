@@ -1,9 +1,20 @@
+---
+number: 3
+title: "A source ships enabled only if the modal operator clears its terms"
+slug: third-party-source-consent-bar
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 15
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 190}
+---
+
 # ADR-0003: A source ships enabled only if the modal operator clears its terms
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#15 Which third-party discovery sources may ship enabled by default, given their ToS?](https://github.com/winniel123/verge-asm/issues/15)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0018: A clear conditional is not an ambiguity, and a grant is not a reading](./0018-a-clear-conditional-is-not-an-ambiguity.md), 2026-08-13. <!-- adr-marker amends 18 -->
 
 ## Context
 

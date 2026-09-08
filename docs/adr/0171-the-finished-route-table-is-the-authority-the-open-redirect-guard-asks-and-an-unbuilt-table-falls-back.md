@@ -1,11 +1,19 @@
+---
+number: 171
+title: "the finished route table is the authority the open-redirect guard asks, and an unbuilt table falls back"
+slug: the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1332
+pr: 1336
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 130, clause: "3"}
+---
+
 # ADR-0171: the finished route table is the authority the open-redirect guard asks, and an unbuilt table falls back
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1332 ADR gaps: cmd/web/handlers.go (#1203)](https://github.com/winniel123/verge-asm/issues/1332), gap 3
-- **Sweep PR that deleted the comment:** [#1336](https://github.com/winniel123/verge-asm/pull/1336)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0130](./0130-scroll-restore-is-hardened-by-a-same-url-prg-plus-full-url-key-contract.md) §3, which rules that a mutating handler redirects to the URL the form was submitted from and that the URL rides an explicit hidden field rather than `Referer`. §3 creates an operator-supplied redirect target and states no bound on it. This ADR states the bound
 - **Not bound by:** [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md), which rules what a screen may put **into** its own URL. This ADR rules what the server will accept **back** from a submitted one. A value that satisfies ADR-0158 still faces this guard, and a value that fails this guard is refused whatever put it there
 
 ## Context

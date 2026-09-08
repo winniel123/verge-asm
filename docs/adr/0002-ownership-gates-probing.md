@@ -1,9 +1,24 @@
+---
+number: 2
+title: "Ownership gates probing, it does not merely label it"
+slug: ownership-gates-probing
+date: 2026-08-01
+status: accepted
+source: grilling
+ticket: 7
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0002: Ownership gates probing, it does not merely label it
 
-- **Status:** Accepted
-- **Date:** 2026-08-01
-- **Ticket:** [#7 Core domain model and ubiquitous language](https://github.com/winniel123/verge-asm/issues/7)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0013: Custody is control, not title — and a name scope may extend it](./0013-custody-is-control-and-extends-by-declaration.md), 2026-08-13. <!-- adr-marker amends 13 -->
+
+> **Amended** by [ADR-0019: The probing gate is total over an `Address` — authority is the objection, so no port opens it](./0019-the-probing-gate-is-total-over-an-address.md), 2026-08-15. <!-- adr-marker amends 19 -->
+
+> **Amended** by [ADR-0047: An address scope is its own enumeration, a name scope is not — and the range cap is what makes that affordable](./0047-an-address-scope-is-its-own-enumeration.md), 2026-08-14. <!-- adr-marker amends 47 -->
+
+> **Amended** by [ADR-0079: Authority presupposes denotation — a non-globally-reachable address is one subject per realm, so it is probed only inside a declared one](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md), 2026-08-15. <!-- adr-marker amends 79 -->
 
 ## Context
 

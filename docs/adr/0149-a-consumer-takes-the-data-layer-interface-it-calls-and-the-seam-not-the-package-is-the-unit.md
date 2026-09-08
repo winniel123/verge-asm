@@ -1,12 +1,20 @@
+---
+number: 149
+title: "a consumer takes the data-layer interface it calls, and the seam, not the package, is the unit"
+slug: a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1272
+pr: 1271
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 1}
+---
+
 # ADR-0149: a consumer takes the data-layer interface it calls, and the seam, not the package, is the unit
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1272 ADR gaps: internal/release (sweep 4/14)](https://github.com/winniel123/verge-asm/issues/1272), gap 3
-- **PR that deleted the comment:** [#1271](https://github.com/winniel123/verge-asm/pull/1271)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Sibling of, and not ruled by:** [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md). That ADR rules the **network** seam and says in §5 that a network interface stays with its consumer. This ADR rules the **data** seam. The two share a shape and neither contains the other
-- **Rests on:** [ADR-0001](./0001-stack-and-runtime.md), which chooses `sqlc` and `pgx` over an ORM. It picks the generator and says nothing about how wide a consumer's slice of the generated surface is
 
 ## Context
 

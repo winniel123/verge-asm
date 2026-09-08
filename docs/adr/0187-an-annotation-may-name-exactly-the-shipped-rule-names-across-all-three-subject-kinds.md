@@ -1,24 +1,26 @@
+---
+number: 187
+title: "an `Annotation` may name exactly the shipped rule names, across all three subject kinds"
+slug: an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1301
+pr: 1302
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 16}
+  - {kind: rests-on, adr: 92}
+  - {kind: sibling, adr: 51}
+---
+
 # ADR-0187: an `Annotation` may name exactly the shipped rule names, across all three subject kinds
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1301 ADR gaps: internal/signal](https://github.com/winniel123/verge-asm/issues/1301), gap 5
-- **PR that deleted the comment:** [#1302](https://github.com/winniel123/verge-asm/pull/1302)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0016](./0016-an-annotation-moves-a-message-never-a-number.md), which makes an
-  `Annotation` a declaration about one `(subject, signal-name)` pair whose whole effect is on the
-  message — it fixes the **shape** of the key and bounds neither half — and
-  [ADR-0092](./0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md),
-  which rules that an `Annotation` never lapses, its subject withdraws, and that a returning subject
-  is the same pair. That ADR reasons about the pair throughout and bounds neither half either
 - **Sibling of, and not ruled by:**
   [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md). It
   rules the **subject** half of the same key: a key is the thing denoted, and its normalisation may
   never move. This ADR rules the **signal-name** half. The two halves of one key, ruled separately,
   and neither contains the other
-- **Bounded by:** [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md), whose v1 table
-  enumerates the rules. This ADR bounds a set of names by the shipped rules and enumerates none of
-  them itself, so a rule admitted there changes what an `Annotation` may name with no edit here
 
 ## Context
 

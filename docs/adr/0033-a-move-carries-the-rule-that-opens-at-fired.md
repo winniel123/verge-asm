@@ -1,9 +1,16 @@
-# ADR-0033: A move carries the rule that opens at `fired` — and nothing carries a schedule
+---
+number: 33
+title: "A move carries the rule that opens at `fired` — and nothing carries a schedule"
+slug: a-move-carries-the-rule-that-opens-at-fired
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 65
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#65 Does a rule opening at `fired` need a carrier, and can one be built without a three-way case analysis?](https://github.com/winniel123/verge-asm/issues/65)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0033: A move carries the rule that opens at `fired` — and nothing carries a schedule
 
 ## Context
 

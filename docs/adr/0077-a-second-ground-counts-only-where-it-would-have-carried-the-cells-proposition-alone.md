@@ -1,9 +1,16 @@
-# ADR-0077: A second ground counts only where it would have carried the cell's proposition standing alone — and the filter is run per cell, never per row
+---
+number: 77
+title: "A second ground counts only where it would have carried the cell's proposition standing alone — and the filter is run per cell, never per row"
+slug: a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 135
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#135 Does the queue's sole-ground filter require a ground strong enough to have carried the cell alone?](https://github.com/winniel123/verge-asm/issues/135)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0077: A second ground counts only where it would have carried the cell's proposition standing alone — and the filter is run per cell, never per row
 
 ## Context
 

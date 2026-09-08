@@ -1,9 +1,20 @@
+---
+number: 175
+title: "a certificate's identity is compared as presented — a DN byte-exactly, and only `dNSName` SANs participate"
+slug: certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1342
+pr: 1341
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 51}
+  - {kind: rests-on, adr: 60}
+---
+
 # ADR-0175: a certificate's identity is compared as presented — a DN byte-exactly, and only `dNSName` SANs participate
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1342 ADR gaps: cmd/web/signals.go](https://github.com/winniel123/verge-asm/issues/1342), gaps 1 and 2
-- **Sweep PR that deleted the comment:** [#1341](https://github.com/winniel123/verge-asm/pull/1341)
 - **Rests on, by analogy only:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md) and
   [ADR-0060](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md), which supply the
   posture — *an identifier a specification leaves two readings of is refused, not interpreted* —

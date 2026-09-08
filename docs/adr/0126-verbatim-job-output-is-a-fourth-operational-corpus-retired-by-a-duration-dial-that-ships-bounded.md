@@ -1,9 +1,21 @@
+---
+number: 126
+title: "Verbatim job output is a fourth Operational corpus — the `Transcript` — retired by a duration dial that ships bounded, and it is the one corpus Postgres holds a secret for"
+slug: verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded
+date: 2026-08-29
+status: accepted
+source: grilling
+ticket: [839, 844, 871]
+map: 838
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 41}
+  - {kind: amends, adr: 53}
+  - {kind: bounds, adr: 210}
+---
+
 # ADR-0126: Verbatim job output is a fourth Operational corpus — the `Transcript` — retired by a duration dial that ships bounded, and it is the one corpus Postgres holds a secret for
 
-- **Status:** Accepted
-- **Date:** 2026-08-29 (drafted, [#839](https://github.com/winniel123/verge-asm/issues/839)) · finalised 2026-08-31 ([#871](https://github.com/winniel123/verge-asm/issues/871))
-- **Ticket:** [#839 Raw-output corpus + retention](https://github.com/winniel123/verge-asm/issues/839), finalised from the [#844](https://github.com/winniel123/verge-asm/issues/844) handoff spec ([`docs/spec/raw-job-output.md`](../spec/raw-job-output.md)) by [#871](https://github.com/winniel123/verge-asm/issues/871)
-- **Map:** [#838 Verbatim raw job output for operator debugging](https://github.com/winniel123/verge-asm/issues/838)
 - **Amends/reverses:** [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (the unbounded-default and the single-clock-corpus rulings, at the sites that state them) and [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) (its *"Postgres holds no secret"* clause, for this one corpus)
 
 ## Context

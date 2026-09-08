@@ -1,12 +1,23 @@
+---
+number: 154
+title: "A narrowing fold closes only what it can attribute to a mover, and drops every other candidate"
+slug: a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1326
+pr: 1325
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 133, clause: "8.1"}
+  - {kind: bounds, adr: 134}
+  - {kind: bounds, adr: 135}
+  - {kind: rests-on, adr: 87}
+---
+
 # ADR-0154: A narrowing fold closes only what it can attribute to a mover, and drops every other candidate
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1326 ADR gaps: internal/queue (seed withdrawal limbs)](https://github.com/winniel123/verge-asm/issues/1326), gap 2
-- **PR that deleted the comment:** [#1325](https://github.com/winniel123/verge-asm/pull/1325)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Rules what three ADRs assumed:** [ADR-0133](./0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md) §8.1, [ADR-0134](./0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md) and [ADR-0135](./0135-a-name-seed-withdrawal-states-one-act-and-its-tombstone-carries-the-domain-alone.md) each rest on this rule and none of them rules it. ADR-0134's Context is amended to point here, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
-- **Rests on:** [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) (a closure records its ground, and the union of grounds is closed at three)
 - **Sibling of, and not ruled by:** [ADR-0153](./0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md). That ADR rules which mover the fold takes when several cover the candidate. This ADR rules what happens when none does
 
 ## Context

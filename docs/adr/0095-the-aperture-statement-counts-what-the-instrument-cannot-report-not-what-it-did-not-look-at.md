@@ -1,9 +1,18 @@
+---
+number: 95
+title: "The aperture statement counts what the instrument cannot report, not only what it did not look at"
+slug: the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 173
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0095: The aperture statement counts what the instrument cannot report, not only what it did not look at
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#173 What does `Coverage` render for a `Reach` `Gap` that is not an aperture gap?](https://github.com/winniel123/verge-asm/issues/173)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0120: an address-scope aperture meter counts what the batch walked over its declared range, not the estate](./0120-an-address-scope-meter-counts-what-the-batch-walked-over-its-declared-range-not-the-estate.md), 2026-08-25. <!-- adr-marker amends 120 -->
 
 ## Context
 

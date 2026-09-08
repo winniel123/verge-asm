@@ -1,9 +1,20 @@
-# ADR-0005: Scan execution model
+---
+number: 5
+title: "Scan execution model"
+slug: scan-execution-model
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 9
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 137}
+  - {kind: bounds, adr: 200}
+  - {kind: bounds, adr: 212}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#9 Scan scheduling and job execution model](https://github.com/winniel123/verge-asm/issues/9)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0005: Scan execution model
 
 ## Context
 

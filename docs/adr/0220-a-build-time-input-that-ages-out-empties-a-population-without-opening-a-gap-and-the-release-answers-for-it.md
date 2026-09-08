@@ -1,14 +1,21 @@
+---
+number: 220
+title: "A build-time input that ages out empties a population without opening a `Gap`, and the release answers for it"
+slug: a-build-time-input-that-ages-out-empties-a-population-without-opening-a-gap-and-the-release-answers-for-it
+date: 2026-09-07
+status: accepted
+source: sweep
+ticket: 1513
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 72}
+  - {kind: rests-on, adr: 206, clause: "1"}
+  - {kind: rests-on, adr: 190, clause: "2"}
+---
+
 # ADR-0220: A build-time input that ages out empties a population without opening a `Gap`, and the release answers for it
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Ticket:** [#1513 Decide whether an expired CT log list opens a `Gap`, and amend ADR-0106 if it does](https://github.com/winniel123/verge-asm/issues/1513)
 - **Split out of:** [#1434](https://github.com/winniel123/verge-asm/issues/1434), closed by [PR #1517](https://github.com/winniel123/verge-asm/pull/1517). #1434 answered *not there* and named this question the larger change
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md). It rules absence a property of a **cell**, and a `Gap` a `Span` on a live subject's timeline. This ADR asks what holds the absence when there is no cell
-- **Rests on:** [ADR-0206](./0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md) §1, which rules a fan-out over an empty population a legible zero-job dispatch. Its §5 adds that the rule does not call the population **healthy**. This ADR rules the case §5 left open
-- **Rests on:** [ADR-0190](./0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md) §2, which rules the CT log list a trust input pinned in the image. Its §4 rules the refresh a release act. This ADR rules who answers when the pin ages out
-- **Bounded by:** [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md), whose §7 pre-armed the rule that a `Scan` over a source which admits without observing carries **no currency bound and no withdrawal power**. That rule is untouched, and §2 below states why it is also sufficient
 - **Amends nothing.** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md) keeps its reach exactly as written. §6 states why it was not even the site the amendment would have landed on
 
 ## Context

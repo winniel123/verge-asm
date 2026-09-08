@@ -1,9 +1,16 @@
-# ADR-0004: Signals are release-coupled rules, and comparability is versioned per rule
+---
+number: 4
+title: "Signals are release-coupled rules, and comparability is versioned per rule"
+slug: signals-are-release-coupled-rules
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 16
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#16 Risk signals: which ones does v1 emit from cert and protocol facts alone?](https://github.com/winniel123/verge-asm/issues/16)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0004: Signals are release-coupled rules, and comparability is versioned per rule
 
 ## Context
 

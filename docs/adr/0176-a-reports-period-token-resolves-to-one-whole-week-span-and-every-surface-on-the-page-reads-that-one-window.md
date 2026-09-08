@@ -1,16 +1,20 @@
+---
+number: 176
+title: "a `/reports` period token resolves to one whole-week span, and every surface on the page reads that one window"
+slug: a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1349
+pr: 1350
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 177}
+  - {kind: rests-on, adr: 110}
+---
+
 # ADR-0176: a `/reports` period token resolves to one whole-week span, and every surface on the page reads that one window
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1349 ADR gaps: cmd/web/reports.go](https://github.com/winniel123/verge-asm/issues/1349), gap 1
-- **Sweep PR that deleted the comment:** [#1350](https://github.com/winniel123/verge-asm/pull/1350)
-- **Rests on:** [ADR-0177](./0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md),
-  which rules the general case — a rule two surfaces must agree on lives in one shared function.
-  This ADR does not restate that prohibition. It supplies the particulars ADR-0177 leaves open for
-  `/reports`: the vocabulary, each token's span, and what an unrecognised token does
-- **Rests on:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md),
-  line 103, which is why a window with no backing rows draws the design's empty pattern
-  (`reports.tmpl:233`) rather than a shorter fabricated series
 - **Not bound by:** [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md).
   A period is not a view scope over rows the server already rendered. It moves the row cap, the fold
   width and the query bounds, so it must reach the server, and it does

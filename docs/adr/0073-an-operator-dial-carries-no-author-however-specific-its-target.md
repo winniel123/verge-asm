@@ -1,9 +1,16 @@
-# ADR-0073: An operator dial carries no author, however specific its target — and a per-rule count of mutes renders the partition the numbers refuse
+---
+number: 73
+title: "An operator dial carries no author, however specific its target — and a per-rule count of mutes renders the partition the numbers refuse"
+slug: an-operator-dial-carries-no-author-however-specific-its-target
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 129
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#129 Draw the annotated Signals row and the annotation list — and does an `Annotation` carry its author?](https://github.com/winniel123/verge-asm/issues/129)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0073: An operator dial carries no author, however specific its target — and a per-rule count of mutes renders the partition the numbers refuse
 
 ## Context
 

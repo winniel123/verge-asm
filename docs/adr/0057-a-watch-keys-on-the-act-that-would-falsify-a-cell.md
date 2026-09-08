@@ -1,9 +1,16 @@
-# ADR-0057: A watch keys on the act that would falsify a cell, never on the tier of its evidence — and a release checks what is closed and reads what is not
+---
+number: 57
+title: "A watch keys on the act that would falsify a cell, never on the tier of its evidence — and a release checks what is closed and reads what is not"
+slug: a-watch-keys-on-the-act-that-would-falsify-a-cell
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 125
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#125 Who revises the curated tables, on what watch, and what does the watch list key on?](https://github.com/winniel123/verge-asm/issues/125)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0057: A watch keys on the act that would falsify a cell, never on the tier of its evidence — and a release checks what is closed and reads what is not
 
 ## Context
 

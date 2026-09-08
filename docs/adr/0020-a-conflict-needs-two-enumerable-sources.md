@@ -1,9 +1,19 @@
-# A conflict needs two enumerable sources, and the zone is readable for names and not for records
+---
+number: 20
+title: "A conflict needs two enumerable sources, and the zone is readable for names and not for records"
+slug: a-conflict-needs-two-enumerable-sources
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 48
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 193}
+  - {kind: bounds, adr: 194}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#48 Does zone-declared-name-does-not-resolve join the signal set, and what else does per-source keying expose?](https://github.com/winniel123/verge-asm/issues/48)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# A conflict needs two enumerable sources, and the zone is readable for names and not for records
 
 ## Context
 

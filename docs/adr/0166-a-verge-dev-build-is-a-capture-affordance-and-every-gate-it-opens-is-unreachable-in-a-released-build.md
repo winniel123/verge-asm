@@ -1,11 +1,20 @@
+---
+number: 166
+title: "a `VERGE_DEV` build is a capture affordance, and every gate it opens is unreachable in a released build"
+slug: a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: [1333, 1334]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 53}
+  - {kind: sibling, adr: 160}
+---
+
 # ADR-0166: a `VERGE_DEV` build is a capture affordance, and every gate it opens is unreachable in a released build
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1333 ADR gaps: cmd/web/devfixtures.go](https://github.com/winniel123/verge-asm/issues/1333), gaps 1, 4 and 5; [#1334 ADR gaps: cmd/web/auth.go](https://github.com/winniel123/verge-asm/issues/1334), gap 4
 - **Sweep PRs that deleted the comments:** [#1335](https://github.com/winniel123/verge-asm/pull/1335), [#1337](https://github.com/winniel123/verge-asm/pull/1337)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md), which rules that a secret is held only where the act it authorises is performed. This ADR uses that test to say what a pinned fixture credential *is not*
 - **Read with:** [ADR-0160 §5](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md), which records that a restore rotates the key the archived `account.totp_secret` is sealed under, and files the resulting lockout as [#1419](https://github.com/winniel123/verge-asm/issues/1419). §3 below states the tension that finding creates
 - **Not bound by:** [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md) and [ADR-0109](./0109-design-system-components-are-authored-in-claude-design-and-imported.md), whose handoff workflow was retired on 2026-08-28 ([ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md)). Every deleted comment behind this ADR justified itself out of that workflow — `SPEC-CHANGE` rulings, `G1`/`G2` goldens, and a `run.sh` capture script. None of the four is on disk
 

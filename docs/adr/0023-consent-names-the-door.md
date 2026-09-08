@@ -1,11 +1,19 @@
-# ADR-0023: `consent` names the door, never who walked through it
+---
+number: 23
+title: "`consent` names the door, never who walked through it"
+slug: consent-names-the-door
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 52
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 18, clause: "3"}
+  - {kind: amends, adr: 18, clause: "4"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#52 Can an operator's own act move a source's `consent`, or is it fixed per instrument?](https://github.com/winniel123/verge-asm/issues/52)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Sharpens:** [ADR-0018](./0018-a-clear-conditional-is-not-an-ambiguity.md) §3 and §4, which stated this
-  decision's second limb as a reason not to ship one instrument rather than as a property of the tier.
+# ADR-0023: `consent` names the door, never who walked through it
 
 ## Context
 

@@ -1,8 +1,16 @@
-# ADR-0115: the docs site renders the guides in place, and a version is a git ref — never a copied snapshot
+---
+number: 115
+title: "the docs site renders the guides in place, and a version is a git ref — never a copied snapshot"
+slug: the-docs-site-renders-the-guides-in-place-and-a-version-is-a-git-ref-not-a-copy
+date: 2026-08-23
+status: accepted
+source: fix
+ticket: 349
+map: 348
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-23
-- **Ticket:** [#349 T0 — Scaffold docs-site + port DocsPage layout + ADR](https://github.com/winniel123/verge-asm/issues/349) (map: [#348](https://github.com/winniel123/verge-asm/issues/348))
+# ADR-0115: the docs site renders the guides in place, and a version is a git ref — never a copied snapshot
 
 ## Context
 

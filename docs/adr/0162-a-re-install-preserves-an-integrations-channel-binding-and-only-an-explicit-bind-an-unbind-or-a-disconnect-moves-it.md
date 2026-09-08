@@ -1,12 +1,21 @@
+---
+number: 162
+title: "A re-install preserves an integration's Channel binding, and only an explicit bind, an unbind, or a disconnect moves it"
+slug: a-re-install-preserves-an-integrations-channel-binding-and-only-an-explicit-bind-an-unbind-or-a-disconnect-moves-it
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1389
+pr: 1388
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 73}
+  - {kind: rests-on, adr: 93}
+---
+
 # ADR-0162: A re-install preserves an integration's Channel binding, and only an explicit bind, an unbind, or a disconnect moves it
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1389 ADR gaps: db/queries (3/4)](https://github.com/winniel123/verge-asm/issues/1389), gap 1
-- **PR that deleted the comment:** [#1388](https://github.com/winniel123/verge-asm/pull/1388)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Bounds:** [`docs/guides/integrations.md`](../guides/integrations.md)'s *"Re-installing is an upsert of the one current state"*, at that clause's own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
-- **Rests on:** [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md) and [ADR-0093](./0093-an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates.md). They rule that a Declared act carries no timeline, no actor and no instant. That is why the install is an upsert at all. Neither rules the Channel binding
 
 ## Context
 

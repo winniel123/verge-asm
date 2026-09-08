@@ -1,10 +1,21 @@
+---
+number: 68
+title: "A wildcard is discriminated only where its synthesis is determinate, and determinacy is measured per component"
+slug: a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 111
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 62}
+  - {kind: amends, adr: 21}
+---
+
 # A wildcard is discriminated only where its synthesis is determinate, and determinacy is measured per component
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#111 What is `wildcard-discrimination`'s match predicate, given that a synthesised answer set is not stable across control labels?](https://github.com/winniel123/verge-asm/issues/111)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0062](./0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md)'s deferred **value space**, and [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s *the match predicate has no value anywhere*
+> **Amended** by [ADR-0069: A control label is one label, and the set must be able to falsify label-independence](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md), 2026-08-15. <!-- adr-marker amends 69 -->
 
 ## Context
 

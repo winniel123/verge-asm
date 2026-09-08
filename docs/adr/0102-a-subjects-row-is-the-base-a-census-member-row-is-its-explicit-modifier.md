@@ -1,9 +1,18 @@
-# ADR-0102: A `Subjects` row is the base; a census member row is its explicit modifier, never a default
+---
+number: 102
+title: "A `Subjects` row is the base; a census member row is its explicit modifier, never a default"
+slug: a-subjects-row-is-the-base-a-census-member-row-is-its-explicit-modifier
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 162
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 147}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#162 A member list and the estate listing must not share a row component by default](https://github.com/winniel123/verge-asm/issues/162)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0102: A `Subjects` row is the base; a census member row is its explicit modifier, never a default
 
 ## Context
 

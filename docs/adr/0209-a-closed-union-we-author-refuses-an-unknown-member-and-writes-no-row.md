@@ -1,11 +1,21 @@
+---
+number: 209
+title: "a closed union we author refuses an unknown member and writes no row"
+slug: a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1321
+pr: 1327
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 143}
+  - {kind: rests-on, adr: 126}
+---
+
 # ADR-0209: a closed union we author refuses an unknown member and writes no row
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1321 ADR gaps: internal/queue (#1199)](https://github.com/winniel123/verge-asm/issues/1321), gap 1
-- **PR that deleted the comment:** [#1327](https://github.com/winniel123/verge-asm/pull/1327)
 - **Sibling of, and not ruled by:** [ADR-0143](./0143-an-rcode-is-a-closed-union-and-every-code-the-leaf-does-not-discriminate-on-folds-to-other.md). That ADR rules a closed union over a value a **foreign** party authors — a DNS response code — and folds every member the leaf does not discriminate on to `OTHER`. This ADR rules a closed union over members **we** author. The two share a shape and take opposite defaults, and §2 states the discriminator
-- **Rests on:** [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md), which chose the closed-union value shape for the `Transcript` corpus. It rules that `wire.Transcript` **is** a closed union. It does not rule what a reader of one must do with a member it does not know
 - **Rests on:** [`raw-job-output.md`](../spec/raw-job-output.md) §1.2, which states the same shape and names the three variants. That document makes no new decision by its own statement, so it cannot carry this one
 
 ## Context

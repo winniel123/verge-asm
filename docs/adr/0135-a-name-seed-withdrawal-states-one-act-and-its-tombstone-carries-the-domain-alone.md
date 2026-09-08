@@ -1,10 +1,18 @@
-# ADR-0135: A name `Seed` withdrawal states one act, and its tombstone carries the domain alone
+---
+number: 135
+title: "A name `Seed` withdrawal states one act, and its tombstone carries the domain alone"
+slug: a-name-seed-withdrawal-states-one-act-and-its-tombstone-carries-the-domain-alone
+date: 2026-09-01
+status: accepted
+source: fix
+ticket: 1045
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 134}
+  - {kind: rests-on, adr: 198}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-01
-- **Ticket:** [#1045 Withdrawing a name `Seed` writes no withdrawal](https://github.com/winniel123/verge-asm/issues/1045)
-- **Follows:** [ADR-0134](./0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md) §7, which named this limb and excluded it
-- **Constrained by:** [ADR-0133](./0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md) §8.1 (a withdrawal is driven from the declaration side), [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md) (a narrowing fires at the scope and carries a count, not a census), [ADR-0111](./0111-a-span-cites-the-batch-that-folded-it.md) (a closure cites its batch), [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) (a closure records no actor)
+# ADR-0135: A name `Seed` withdrawal states one act, and its tombstone carries the domain alone
 
 ## Context
 

@@ -1,11 +1,19 @@
-# ADR-0227: CAIDA publishes an org-name search, so the join replaces its first leg and keeps its second
+---
+number: 227
+title: "CAIDA publishes an org-name search, so the join replaces its first leg and keeps its second"
+slug: caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second
+date: 2026-09-07
+status: accepted
+source: fix
+ticket: [1616, 1519]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: retires, adr: 223, clause: "3"}
+  - {kind: rests-on, adr: 3}
+  - {kind: rests-on, adr: 12}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Tickets:** [#1616 The CAIDA org→prefix repair is a path and shape change, not a URL swap](https://github.com/winniel123/verge-asm/issues/1616), [#1519 Two shipped proposers point at api.caida.org, which is NXDOMAIN](https://github.com/winniel123/verge-asm/issues/1519)
-- **Retires:** [ADR-0223](./0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md) §3, under that ADR's own first reopening condition. Nothing else in ADR-0223 moves. Its three bar reasons, its layer ruling and its health surface stand as written
-- **Rests on:** [ADR-0003](./0003-third-party-source-consent-bar.md), which rules the consent bar. The replacement host is keyless, so no tier moves and this ADR takes no ground from it
-- **Rests on:** [ADR-0012](./0012-a-proposer-is-not-a-source.md), which rules that a proposer carries `consent` alone. §5 corrects a citation of it and takes no ground from it
+# ADR-0227: CAIDA publishes an org-name search, so the join replaces its first leg and keeps its second
 
 ## Context
 

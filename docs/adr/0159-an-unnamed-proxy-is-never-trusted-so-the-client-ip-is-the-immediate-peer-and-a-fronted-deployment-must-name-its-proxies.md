@@ -1,10 +1,17 @@
+---
+number: 159
+title: "An unnamed proxy is never trusted, so the client IP is the immediate peer, and a fronted deployment must name its proxies"
+slug: an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1371
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0159: An unnamed proxy is never trusted, so the client IP is the immediate peer, and a fronted deployment must name its proxies
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1371 ADR gaps: cmd/web production 17/17](https://github.com/winniel123/verge-asm/issues/1371), gap 1
 - **PR that deleted the comment:** [#1373](https://github.com/winniel123/verge-asm/pull/1373). A second statement of the same rule left `cmd/web/main.go` in [#1372](https://github.com/winniel123/verge-asm/pull/1372). #1371 recorded that statement so the rule did not fall between the two sweep tickets
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Bounds:** [`running.md`](../guides/running.md)'s *Networking and security posture* proxy bullet and [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §5.1's environment enumeration, at their own sites, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 - **Rests on:** [`v1-spec.md`](../spec/v1-spec.md) §4.3, which refuses reverse-proxy forward-auth. That clause rules **identity**. This ADR rules the **rate-limit key**, and the two never meet
 

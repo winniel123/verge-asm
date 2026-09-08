@@ -1,9 +1,20 @@
+---
+number: 41
+title: "A corpus is retained by what may still read it, never by its age — and the `Span` corpus may never be compacted"
+slug: a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 121
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 134}
+---
+
 # ADR-0041: A corpus is retained by what may still read it, never by its age — and the `Span` corpus may never be compacted
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#121 Retention across three corpora, and the floor that may never be compacted](https://github.com/winniel123/verge-asm/issues/121)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0126: Verbatim job output is a fourth Operational corpus — the `Transcript` — retired by a duration dial that ships bounded, and it is the one corpus Postgres holds a secret for](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md), 2026-08-29. <!-- adr-marker amends 126 -->
 
 ## Context
 

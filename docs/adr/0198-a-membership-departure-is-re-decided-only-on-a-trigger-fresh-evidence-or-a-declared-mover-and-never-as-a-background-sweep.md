@@ -1,15 +1,22 @@
+---
+number: 198
+title: "A membership departure is re-decided only on a trigger — fresh evidence, or a declared mover — and never as a background sweep"
+slug: a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1315
+pr: 1314
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 6}
+  - {kind: rests-on, adr: 111}
+  - {kind: rests-on, adr: 87}
+---
+
 # ADR-0198: A membership departure is re-decided only on a trigger — fresh evidence, or a declared mover — and never as a background sweep
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1315 ADR gaps: internal/queue (2/7)](https://github.com/winniel123/verge-asm/issues/1315), gap 4
-- **PR that deleted the comment:** [#1314](https://github.com/winniel123/verge-asm/pull/1314)
 - **Sibling of, and not ruled by:** [ADR-0006](./0006-subjects-leave-by-measurement.md). That ADR rules that a subject leaves the estate only because something measured its absence, and that verge-asm ships no decay. It rules out a **clock and a counter**. It does not rule out a background pass, and it calls membership a Derived view over the latest observation per facet — a definition of the value, not a rule about when the value is recomputed
-- **Supplies a premise for:** [ADR-0133](./0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md). That ADR rules that an address exclusion is a limb of the `Custody` derivation and cuts the `Seed` limb alone. Its §8.1 reasons *from* this rule — "a withdrawal scoped to the subjects a batch observed — the rule `foldEstateTransitions` applies to Names — could therefore never reach it" — and never rules it
-- **Supplies a premise for:** [ADR-0134](./0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md). That ADR rules that withdrawing a `Seed` writes a tombstone, because the delete destroys the mover the fold would read. Its §5 repeats the same premise — "a fold scoped to the subjects a batch observed could never reach the address" — and its §5.1 rests on `foldEstateTransitions` deciding departures for Names alone
-- **Supplies a premise for:** [ADR-0135](./0135-a-name-seed-withdrawal-states-one-act-and-its-tombstone-carries-the-domain-alone.md). That ADR rules that a name `Seed` withdrawal states one aggregate `Narrowing` and its tombstone carries the domain alone. Its last Alternatives row refuses to let the ordinary fold decide, because "the fold would need a background sweep of the estate"
-- **Rests on:** [ADR-0111](./0111-a-span-cites-the-batch-that-folded-it.md), which rules that a `Span` cites the `Batch` that folded it. A closure therefore needs a batch in hand, which is why no web handler closes a timeline and why every trigger is resolved inside a batch transaction
-- **Rests on:** [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md), which rules that a closure records the ground it rests on and that there are exactly three grounds. A sweep cannot name a ground, which is §3's argument
 
 ## Context
 

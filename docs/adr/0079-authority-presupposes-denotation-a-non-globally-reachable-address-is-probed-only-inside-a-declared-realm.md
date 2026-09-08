@@ -1,9 +1,22 @@
+---
+number: 79
+title: "Authority presupposes denotation — a non-globally-reachable address is one subject per realm, so it is probed only inside a declared one"
+slug: authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 137
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 2}
+  - {kind: amends, adr: 19}
+---
+
 # ADR-0079: Authority presupposes denotation — a non-globally-reachable address is one subject per realm, so it is probed only inside a declared one
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#137 Does the probing gate open on a non-globally-reachable address, and what does an internet-class prober do with it?](https://github.com/winniel123/verge-asm/issues/137)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0225: The declared address scope that admitted a target rides the job, the egress guard reads that scope at the socket, and a discovered address stays refused](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md), 2026-09-07. <!-- adr-marker amends 225 -->
+
 - **Amends:** [ADR-0002](./0002-ownership-gates-probing.md), [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md), [ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md)
 
 ## Context

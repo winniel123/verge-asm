@@ -1,9 +1,16 @@
-# Derivation versions move on content, and a Break clamps the horizon
+---
+number: 8
+title: "Derivation versions move on content, and a Break clamps the horizon"
+slug: derivation-versions-move-on-content
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 18
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#18 How does a Derived value's effective version avoid moving every release?](https://github.com/winniel123/verge-asm/issues/18)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# Derivation versions move on content, and a Break clamps the horizon
 
 ## Context
 

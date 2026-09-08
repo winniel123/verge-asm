@@ -1,9 +1,16 @@
-# ADR-0056: A port constant in a library is not a shipped listener
+---
+number: 56
+title: "A port constant in a library is not a shipped listener"
+slug: a-port-constant-in-a-library-is-not-a-shipped-listener
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 95
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#95 `10249/tcp` kube-proxy metrics: a bare mux with no authn or authz, and two weaker numbers beside it](https://github.com/winniel123/verge-asm/issues/95)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0056: A port constant in a library is not a shipped listener
 
 ## Context
 

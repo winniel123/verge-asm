@@ -1,9 +1,16 @@
-# ADR-0045: An owner's documentation is what it has issued, not what it has drafted
+---
+number: 45
+title: "An owner's documentation is what it has issued, not what it has drafted"
+slug: an-owners-documentation-is-what-it-has-issued
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 86
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#86 Is an owner's unreleased document the owner's documentation? — and does 9092/tcp become a row if it is?](https://github.com/winniel123/verge-asm/issues/86)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0045: An owner's documentation is what it has issued, not what it has drafted
 
 ## Context
 

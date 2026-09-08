@@ -1,12 +1,19 @@
-# ADR-0150: a Batch scope names its dimension in the plural, and a one-address fan-out ships a one-element list, never a scalar
+---
+number: 150
+title: "a Batch scope names its dimension in the plural, and a one-address fan-out ships a one-element list, never a scalar"
+slug: a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1312
+pr: 1313
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 5}
+  - {kind: rests-on, adr: 127}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1312 ADR gaps: internal/scan 3/3](https://github.com/winniel123/verge-asm/issues/1312), gap 1
-- **PR that deleted the comment:** [#1313](https://github.com/winniel123/verge-asm/pull/1313)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0005](./0005-scan-execution-model.md), which sets **one address per `Batch`**. It rules the execution unit. It says nothing about the field shape that unit leaves on the wire
-- **Rests on:** [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md), which names the streamed per-address fan-out and states that the `Batch` unit is unchanged. It also rules no field shape
+# ADR-0150: a Batch scope names its dimension in the plural, and a one-address fan-out ships a one-element list, never a scalar
 
 ## Context
 

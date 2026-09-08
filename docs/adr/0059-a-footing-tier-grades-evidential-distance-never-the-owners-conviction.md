@@ -1,9 +1,16 @@
-# ADR-0059: A footing tier grades evidential distance, never the owner's conviction
+---
+number: 59
+title: "A footing tier grades evidential distance, never the owner's conviction"
+slug: a-footing-tier-grades-evidential-distance-never-the-owners-conviction
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 98
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#98 §20.8's prohibition-tier criterion is refuted by `873/tcp` — apply it or restate it](https://github.com/winniel123/verge-asm/issues/98)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0059: A footing tier grades evidential distance, never the owner's conviction
 
 ## Context
 

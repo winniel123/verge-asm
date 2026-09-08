@@ -1,11 +1,21 @@
+---
+number: 172
+title: "a bearer authenticator seed is admitted to Postgres as AEAD ciphertext, and the sealing key stays on the volume"
+slug: a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1334
+pr: 1337
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 53}
+  - {kind: rests-on, adr: 126}
+  - {kind: amends, adr: 53}
+---
+
 # ADR-0172: a bearer authenticator seed is admitted to Postgres as AEAD ciphertext, and the sealing key stays on the volume
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1334 ADR gaps: cmd/web/auth.go](https://github.com/winniel123/verge-asm/issues/1334), gap 3
-- **Sweep PR that deleted the comment:** [#1337](https://github.com/winniel123/verge-asm/pull/1337)
-- **Rests on:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) (the custody rule, and the volume-secret pattern the sealing key still obeys) and [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md) (the shape of an admission — AEAD at rest, per-value nonce, key on a service volume — and the first one made)
-- **Narrows:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) line 66, whose *"No other secret, and no key, is in Postgres"* is false of this tree and is withdrawn at its own site under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 - **Not bound by:** [ADR-0160](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md). **ADR-0160 rules the BACKUP posture. It does not rule the ADMISSION.** It is cited below for three facts it establishes and none of them is restated here
 
 ## Context

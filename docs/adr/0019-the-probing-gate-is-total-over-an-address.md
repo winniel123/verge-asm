@@ -1,10 +1,21 @@
+---
+number: 19
+title: "The probing gate is total over an `Address` — authority is the objection, so no port opens it"
+slug: the-probing-gate-is-total-over-an-address
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 118
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 2}
+  - {kind: amends, adr: 14}
+---
+
 # ADR-0019: The probing gate is total over an `Address` — authority is the objection, so no port opens it
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#118 What does an install that is honest about holding custody of nothing see?](https://github.com/winniel123/verge-asm/issues/118)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Amends:** [ADR-0002](./0002-ownership-gates-probing.md), [ADR-0014](./0014-only-revealed-generalises.md)
+> **Amended** by [ADR-0079: Authority presupposes denotation — a non-globally-reachable address is one subject per realm, so it is probed only inside a declared one](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md), 2026-08-15. <!-- adr-marker amends 79 -->
 
 ## Context
 

@@ -1,9 +1,16 @@
-# ADR-0058: A superseded mechanism is withdrawn at the site that specifies it, not only at the site that supersedes it
+---
+number: 58
+title: "A superseded mechanism is withdrawn at the site that specifies it, not only at the site that supersedes it"
+slug: a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 97
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#97 Is the hot set actually a superset? `10259` and `10257` were asserted into it, never measured](https://github.com/winniel123/verge-asm/issues/97)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0058: A superseded mechanism is withdrawn at the site that specifies it, not only at the site that supersedes it
 
 ## Context
 

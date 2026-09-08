@@ -1,3 +1,13 @@
+---
+number: 6
+title: "Subjects leave by measurement, never by decay"
+slug: subjects-leave-by-measurement
+date: 2026-08-13
+status: accepted
+source: fix
+proof: {none: "predates the governance SPEC"}
+---
+
 # Subjects leave by measurement, never by decay
 
 A subject leaves the estate only because something measured its absence. verge-asm ships no

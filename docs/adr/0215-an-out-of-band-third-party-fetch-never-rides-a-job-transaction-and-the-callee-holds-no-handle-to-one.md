@@ -1,10 +1,22 @@
+---
+number: 215
+title: "an out-of-band third-party fetch never rides a job transaction, and the callee holds no handle to one"
+slug: an-out-of-band-third-party-fetch-never-rides-a-job-transaction-and-the-callee-holds-no-handle-to-one
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1323
+pr: 1322
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 7}
+  - {kind: sibling, adr: 149}
+  - {kind: sibling, adr: 199}
+  - {kind: sibling, adr: 196}
+---
+
 # ADR-0215: an out-of-band third-party fetch never rides a job transaction, and the callee holds no handle to one
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1323 ADR gaps: internal/queue (queue, cttail, withdrawal, hot, ctverify, scopegate)](https://github.com/winniel123/verge-asm/issues/1323), gap 4
-- **PR that deleted the comment:** [#1322](https://github.com/winniel123/verge-asm/pull/1322)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Rests on:** [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) and [`v1-spec.md`](../spec/v1-spec.md) §2.4, which require the outcome, its observations and its raw output to commit together. That is the transaction this rule protects. Neither says what may not be inside it
 - **Sibling of, and not ruled by:** [ADR-0149](./0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md). That ADR rules how wide a consumer's data-layer interface is. This one rules whether a function holds a transaction handle at all. Both are answered by a signature, and neither contains the other
 - **Sibling of, and not ruled by:** [ADR-0199](./0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md). It rules that the injected message enqueuer **joins** the batch transaction. That is the correct answer for a local database write, and it is the contrast this rule needs: an injected function is not exempt from the transaction, and what decides the side is whether the work reaches a host the operator does not own

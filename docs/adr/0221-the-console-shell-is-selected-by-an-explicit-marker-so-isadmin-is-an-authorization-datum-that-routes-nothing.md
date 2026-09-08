@@ -1,10 +1,20 @@
+---
+number: 221
+title: "the console shell is selected by an explicit marker, so `IsAdmin` is an authorization datum that routes nothing"
+slug: the-console-shell-is-selected-by-an-explicit-marker-so-isadmin-is-an-authorization-datum-that-routes-nothing
+date: 2026-09-07
+status: accepted
+source: grilling
+ticket: 1358
+map: 1131
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 181, clause: "2"}
+  - {kind: sibling, adr: 173}
+---
+
 # ADR-0221: the console shell is selected by an explicit marker, so `IsAdmin` is an authorization datum that routes nothing
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Ticket:** [#1358 cmd/web: the Title/Account/IsAdmin/NavActive clump repeats at 43 render sites, and the IsAdmin key secretly gates the chrome](https://github.com/winniel123/verge-asm/issues/1358)
-- **Parent map:** [#1131](https://github.com/winniel123/verge-asm/issues/1131), which tracks the ticket and does not govern it
-- **Rests on:** [ADR-0181](./0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md) §2, which fixes the organisation chip the injector writes. This ADR changes what selects the injector, and changes nothing the injector writes
 - **Sibling of, and not ruled by:** [ADR-0173](./0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md) §1. That ADR rules a `viewer` carve-out on the tab identifier, and its renderer reads `IsAdmin` as an authorization flag. This ADR keeps that reading intact and takes the second, unrelated job away from the same key
 
 ## Context

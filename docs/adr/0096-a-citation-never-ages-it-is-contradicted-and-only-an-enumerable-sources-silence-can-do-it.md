@@ -1,9 +1,18 @@
-# ADR-0096: A `Citation` never ages — it is contradicted, and only an `enumerable` source's silence can contradict one
+---
+number: 96
+title: "A `Citation` never ages — it is contradicted, and only an `enumerable` source's silence can contradict one"
+slug: a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 176
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 220}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#176 Certificate transparency's admissions have no covering `Scan`, so a `Name` a SAN once carried never leaves](https://github.com/winniel123/verge-asm/issues/176)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0096: A `Citation` never ages — it is contradicted, and only an `enumerable` source's silence can contradict one
 
 ## Context
 

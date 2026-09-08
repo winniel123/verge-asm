@@ -1,9 +1,16 @@
-# ADR-0026: The facet layer is evidence, not a channel — a `Transition` is a message only where it is the sole carrier
+---
+number: 26
+title: "The facet layer is evidence, not a channel — a `Transition` is a message only where it is the sole carrier"
+slug: the-facet-layer-is-evidence-not-a-channel
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 64
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#64 Which facet `Transition`s besides the internet `Reach` leg are messages?](https://github.com/winniel123/verge-asm/issues/64)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0026: The facet layer is evidence, not a channel — a `Transition` is a message only where it is the sole carrier
 
 ## Context
 

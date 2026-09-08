@@ -1,9 +1,16 @@
-# Drift is a timeline of spans, compared only within one derivation
+---
+number: 7
+title: "Drift is a timeline of spans, compared only within one derivation"
+slug: drift-is-a-timeline-of-spans
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 8
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#8 Drift model: how change over time is represented and surfaced](https://github.com/winniel123/verge-asm/issues/8)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# Drift is a timeline of spans, compared only within one derivation
 
 ## Context
 

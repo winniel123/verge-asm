@@ -1,9 +1,16 @@
-# ADR-0031: A membership message fires at the root of the entering sub-tree — and a first run reveals rather than appears
+---
+number: 31
+title: "A membership message fires at the root of the entering sub-tree — and a first run reveals rather than appears"
+slug: membership-alerts-at-the-root-of-the-entering-subtree
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 63
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#63 Is `appeared` alertable, and what is the cause when an Address brings tens of Services with it?](https://github.com/winniel123/verge-asm/issues/63)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0031: A membership message fires at the root of the entering sub-tree — and a first run reveals rather than appears
 
 ## Context
 

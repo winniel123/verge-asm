@@ -1,14 +1,22 @@
+---
+number: 214
+title: "CT verification checks presence, never log integrity, so it authenticates no log and its tiled arm compares one slot"
+slug: ct-verification-checks-presence-not-log-integrity-so-it-authenticates-no-log-and-its-tiled-arm-compares-one-slot
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1323
+pr: 1322
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 193}
+  - {kind: rests-on, adr: 27}
+---
+
 # ADR-0214: CT verification checks presence, never log integrity, so it authenticates no log and its tiled arm compares one slot
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1323 ADR gaps: internal/queue (queue, cttail, withdrawal, hot, ctverify, scopegate)](https://github.com/winniel123/verge-asm/issues/1323), gap 2
-- **PR that deleted the comment:** [#1322](https://github.com/winniel123/verge-asm/pull/1322)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Withdraws a clause of:** [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.1, which promises *"a self-recomputed tile inclusion proof (static-ct-api)"*. The tiled arm compares one slot in a hash tile. The sentence is withdrawn at its own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), and the replacement wording is recorded in this issue's manifest
 - **Rules what [ADR-0190](./0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md) §5 took as a measurement.** That ADR strips the log public keys from the pinned snapshot, and its first ground is *"there is no verifier, so there is nothing a key would feed"*. It reads the absence of a signature check off the code. §1 and §2 below rule that absence as a scope decision, so its successor clause — *"a change that verifies a CT log signature re-embeds the keys, and it is a change to this Decision"* — is now bounded by a rule rather than by an observation
-- **Rests on:** [ADR-0193](./0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md), which rules the verdict union: `not-logged` has exactly one warrant, an error outranks an absence, and `unverifiable` is silent at the operator surface. This ADR rules what the check **claims**. That one rules what it **says** when it cannot claim it. Gap 3 of this issue is that rule, and it is not restated here
-- **Rests on:** [ADR-0027](./0027-a-source-may-admit-without-observing.md), which fences certificate material away from the `certificate` facet value. It is why a verification verdict is an ephemeral event and reaches no drift reading
 
 ## Context
 

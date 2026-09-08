@@ -1,10 +1,21 @@
+---
+number: 160
+title: "a backup redacts a reversible cleartext credential and carries a hash or an externally-keyed ciphertext, and restore re-applies the same redaction"
+slug: a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1367
+pr: 1366
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 124, clause: "1"}
+  - {kind: amends, adr: 53}
+  - {kind: rests-on, adr: 53}
+---
+
 # ADR-0160: a backup redacts a reversible cleartext credential and carries a hash or an externally-keyed ciphertext, and restore re-applies the same redaction
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1367 ADR gaps: cmd/web backup.go](https://github.com/winniel123/verge-asm/issues/1367), gap 1
-- **PR that deleted the comment:** [#1366](https://github.com/winniel123/verge-asm/pull/1366)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Corrects, at the site that states it:** [`docs/guides/backup-and-restore.md`](../guides/backup-and-restore.md), which said the SSO and channel secrets ride with their rows. They do not. [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) requires the edit at the guide, not only here
 - **Extends, and bounds one phrase in:** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) §1. That section rules that the archive holds no secret and grounds the rule on the two key volumes the export never opens. It names no column. Its *"no secret"* phrase, read alone, over-reads the archive, so it takes a bounding note at its own site per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 - **Rests on, and bounds one clause in:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md), which rules where a secret is held. This ADR rules what an export does with a secret the database already holds. ADR-0053's #121 bullet — *"a database backup carries the whole estate and no credential … it is the reason a backup does not need to be treated as a keyring"* — is true in ADR-0053's own sense of *credential* and over-reads when read alone, so it takes a bounding note at its own site per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)

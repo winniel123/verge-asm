@@ -1,11 +1,20 @@
+---
+number: 182
+title: "a progress event reaches a live viewer as a new appended line, and the stream cursor is composite"
+slug: a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1374
+pr: 1375
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 131, clause: "1"}
+  - {kind: rests-on, adr: 5}
+---
+
 # ADR-0182: a progress event reaches a live viewer as a new appended line, and the stream cursor is composite
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1374 ADR gaps: cmd/web production 16/17 (#1217)](https://github.com/winniel123/verge-asm/issues/1374), gap 2
-- **Sweep PR that deleted the comment:** [#1375](https://github.com/winniel123/verge-asm/pull/1375)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0131](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md) §1, which ratifies hand-rolled inline vanilla JavaScript and refuses a fetch/swap layer, and so licenses the poll client this ADR must live with; [ADR-0005](./0005-scan-execution-model.md), which commits a job's outcome with its observations and so puts the terminal write on the `queue_job` row
 - **Read with:** [`raw-job-output.md`](../spec/raw-job-output.md) §6.2, which rules the raw admin view post-hoc only and states that this stream persists nothing at rest
 - **Not bound by:** [ADR-0165](./0165-a-recorded-dispatch-disposition-overrides-the-live-status-derivation-and-the-run-pages-status-word-is-one-token-that-styles-and-labels-the-badge.md), which rules the run page's status **word**. This ADR rules the run page's log **stream**; the badge is a page-render value and never travels on the stream
 

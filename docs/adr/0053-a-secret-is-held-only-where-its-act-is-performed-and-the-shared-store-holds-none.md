@@ -1,10 +1,25 @@
+---
+number: 53
+title: "A secret is held only where the act it authorises is performed, and the store two containers share holds none"
+slug: a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 124
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 1}
+---
+
 # A secret is held only where the act it authorises is performed, and the store two containers share holds none
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#124 Packaging, default configuration, and which container receives which secret](https://github.com/winniel123/verge-asm/issues/124)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0001](./0001-stack-and-runtime.md)'s consequence — *"first-run configuration must now cover which container receives which secret — the split that gives the topology decision its teeth"* — and its sketch of that split
+> **Amended** by [ADR-0126: Verbatim job output is a fourth Operational corpus — the `Transcript` — retired by a duration dial that ships bounded, and it is the one corpus Postgres holds a secret for](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md), 2026-08-29. <!-- adr-marker amends 126 -->
+
+> **Amended** by [ADR-0160: a backup redacts a reversible cleartext credential and carries a hash or an externally-keyed ciphertext, and restore re-applies the same redaction](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md), 2026-09-05. <!-- adr-marker amends 160 -->
+
+> **Amended** by [ADR-0172: a bearer authenticator seed is admitted to Postgres as AEAD ciphertext, and the sealing key stays on the volume](./0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md), 2026-09-05. <!-- adr-marker amends 172 -->
+
 - **Extended by (this rule is *kept*, not withdrawn):** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) (2026-08-26) builds the shipped, UI-taken backup on the #121 consequence below — *a backup carries the estate and no credential* — making it the export's own invariant. The session and prober keys stay out of every backup and regenerate on restore
 
 ## Context

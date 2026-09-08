@@ -1,11 +1,20 @@
+---
+number: 188
+title: "A fan-out record resolves over an `Estate` as a pure function of it, so the floor clears on entry and the candidates are first-seen order"
+slug: a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1305
+pr: 1306
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 129}
+  - {kind: sibling, adr: 195}
+---
+
 # ADR-0188: A fan-out record resolves over an `Estate` as a pure function of it, so the floor clears on entry and the candidates are first-seen order
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1305 ADR gaps: internal/custody 1/3](https://github.com/winniel123/verge-asm/issues/1305), gaps 2 and 4
-- **PR that deleted the comment:** [#1306](https://github.com/winniel123/verge-asm/pull/1306)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md). It rules that a fan-out **measurement** decides a shared foreign proxy edge, and that no provider list decides it. It also fixes that measurement's population at the custody-extension candidates plus the declared address scopes. ADR-0129 rules the derivation. This ADR rules the execution of that derivation, and neither contains the other
 - **Sibling of, and not ruled by:** [ADR-0195](./0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md), from [#1310](https://github.com/winniel123/verge-asm/issues/1310), which rules that the address-scope census renders in **declaration** order. That is a render sequence, so an operator reads back the order of their own declaration. This ADR rules a **probe population** in first-seen order, so one tick matches the next. Two rules over two populations, and neither contains the other
 
 ## Context

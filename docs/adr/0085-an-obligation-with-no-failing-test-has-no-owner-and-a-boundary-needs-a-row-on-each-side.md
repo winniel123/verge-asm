@@ -1,9 +1,17 @@
+---
+number: 85
+title: "An obligation with no failing test has no owner — and a boundary is pinned only by a row on each side"
+slug: an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 143
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0085: An obligation with no failing test has no owner — and a boundary is pinned only by a row on each side
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#143 `resolution-walk`'s golden corpus owes rows pinning the membership-deciding outcomes](https://github.com/winniel123/verge-asm/issues/143)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Spec content:** [`golden-corpus.md`](../spec/golden-corpus.md) — the enumeration and the matrix, which will be revised
 
 ## Context

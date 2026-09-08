@@ -1,9 +1,18 @@
-# ADR-0009: `verge-core` is the union of a frequency set and a normative list
+---
+number: 9
+title: "`verge-core` is the union of a frequency set and a normative list"
+slug: verge-core-is-a-union
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 29
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 144}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#29 Hot-set transport defects and the sensitive-subset-of-hot invariant](https://github.com/winniel123/verge-asm/issues/29)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0009: `verge-core` is the union of a frequency set and a normative list
 
 ## Context
 

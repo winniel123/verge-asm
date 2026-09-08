@@ -1,11 +1,19 @@
+---
+number: 157
+title: "a receipt on a self-refreshing surface rides the server-side flash, never the `?toast=` query"
+slug: a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1343
+pr: 1344
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 130, clause: "1"}
+---
+
 # ADR-0157: a receipt on a self-refreshing surface rides the server-side flash, never the `?toast=` query
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1343 ADR gaps: cmd/web/settings.go (#1205)](https://github.com/winniel123/verge-asm/issues/1343), gap 1
-- **PR that deleted the comment:** [#1344](https://github.com/winniel123/verge-asm/pull/1344)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Bounds:** [ADR-0130](./0130-scroll-restore-is-hardened-by-a-same-url-prg-plus-full-url-key-contract.md) §1, at §1's own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 - **Rests on:** [`scans-monitor-bounding.md`](../spec/scans-monitor-bounding.md) §1 and §6.5. That spec requires the in-flight monitor and its history to survive their own `<meta refresh>`. It rules what the page draws and says nothing about the receipt the page carries
 
 ## Context
