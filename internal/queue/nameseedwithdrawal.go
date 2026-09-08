@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -28,8 +29,12 @@ func foldNameSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64
 		if err != nil {
 			return err
 		}
-		spanIDs, narrowings := composeNameSeedWithdrawals(rows, pending, in, admitted)
+		spanIDs, narrowings, departed := composeNameSeedWithdrawals(rows, pending, in, admitted)
 		if err := closeSpansByID(ctx, qtx, spanIDs, observedAt, drift.ReasonDescoped, batchID); err != nil {
+			return err
+		}
+		// The receipt counts the act's Names; a de-citation is the Name's consequence (ADR-0087).
+		if err := closeUncitedAddresses(ctx, qtx, batchID, observedAt, departed, in, nil); err != nil {
 			return err
 		}
 		if out != nil {
@@ -48,18 +53,23 @@ func foldNameSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64
 	})
 }
 
-func composeNameSeedWithdrawals(rows []db.ListNameSeedWithdrawalCandidatesRow, pending []db.ListPendingNameSeedWithdrawalsRow, in membershipInputs, admitted []string) ([]int64, []message.NarrowingReceipt) {
+func composeNameSeedWithdrawals(rows []db.ListNameSeedWithdrawalCandidatesRow, pending []db.ListPendingNameSeedWithdrawalsRow, in membershipInputs, admitted []string) ([]int64, []message.NarrowingReceipt, []string) {
 	spanIDs, order, counts := composeWithdrawnNameGround(rows, func(name string) string {
 		return coveringNameSeedWithdrawal(name, pending)
 	}, in.seeds, admitted)
 
 	// A Name act that removes many subjects at once takes the aggregate form (ADR-0135 §1).
 	receipts := make([]message.NarrowingReceipt, 0, len(order))
+	var departed []string
 	for _, key := range order {
 		c := counts[key]
 		receipts = append(receipts, message.PreviewSeedWithdrawal(c.scope, len(c.subjects), c.timelines))
+		for name := range c.subjects {
+			departed = append(departed, name)
+		}
 	}
-	return spanIDs, receipts
+	slices.Sort(departed)
+	return spanIDs, receipts, departed
 }
 
 func composeWithdrawnNameGround(rows []db.ListNameSeedWithdrawalCandidatesRow, covering func(string) string, seeds []db.ListSeedsRow, admitted []string) ([]int64, []string, map[string]*withdrawalCount) {
