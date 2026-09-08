@@ -16,6 +16,7 @@ relations:
 
 # ADR-0217: the recording-side scope gate gates a denoted dimension alone, and only the edge-fanout facet-less arm fails closed
 
+- **Rests on:** [ADR-0201](./0201-a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering.md), which rules that the dispatched scope, the leaf, the recorded scope and this gate agree on one key **name** and one address **rendering**. It rules whether a denotation is read at all, and its two failure modes land on opposite sides of this ADR. A **spelling** disagreement leaves the denotation present and drops a legitimate line, which is ADR-0201's stated fault. A **key-name** disagreement leaves the denotation absent, and §1 below then opens the gate. §5 states that consequence
 - **Rests on:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) and its [#954](https://github.com/winniel123/verge-asm/issues/954) amendment, which make the fan-out a **membership-deciding** probe rather than a six-part facet. That is why one arm fails closed and the rest do not
 - **Sibling of, and not ruled by:** [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md). Its limb 3 keeps the prober transcript **before** this gate, so a dropped line survives as evidence. It rules the corpus. It does not rule what the gate drops
 
