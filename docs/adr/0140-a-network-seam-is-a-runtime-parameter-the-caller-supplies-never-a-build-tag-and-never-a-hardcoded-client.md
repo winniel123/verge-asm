@@ -158,8 +158,9 @@ the delivery path.
   its own review, and it ships as its own ticket. **This ADR changes no Go code.**
 - **Every other package in §1 is already compliant.** The five records describe behaviour that exists,
   so closing this gap costs one constructor signature and one test file.
-- **The five `adr-gap` records collapse to one rule.** §8.10's dedup has a document to point at, and a
-  triage session no longer has to decide whether five wordings are one rule.
+- **The five `adr-gap` records collapse to one rule.** The `adr-gap` triage, retired by
+  [`comment-policy.md`](../spec/comment-policy.md) §8.4, has a document to point at. A triage
+  session no longer has to decide whether five wordings are one rule.
 - **ADR-0021 gains a cross-reference row and one qualified clause.** A session reading it for the
   corpus mechanism now lands here, rather than inferring a build-time seam from "build-time
   artefact". ADR-0085 and ADR-0124 gain a cross-reference each on the same grounds.
@@ -183,4 +184,4 @@ the delivery path.
 | **A `commentlint` rule or a `go vet` check that fails on a hardcoded client in a package that declares an interface** | Not decidable from the declaration. A legitimate adapter (`NewHTTPDoer`, `NewHTTPCTFetcher`) has the same shape as `NewHTTPFetcher`, and the difference is whether a caller supplies it. A check that fires on all three trains reviewers to suppress it |
 | **Fix `internal/release` on this ADR's own branch** | Mixes a production signature change and a new test into a docs change, and buries the code review under the ADR review |
 | **A section on [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)** | ADR-0021's subject is the version vector and the measurement corpus. This rule binds `internal/delivery`, `internal/report`, `internal/proposer`, `internal/queue`, `internal/remoteexec` and `internal/release`, none of which are measurement leaves. An amendment there would state a repo-wide rule inside a document scoped to one binary |
-| **Six per-package ADRs, one per record** | Six documents stating one sentence, and the next package that dials out matches none of them. §8.10 asks for dedup by rule sentence, and this is one sentence |
+| **Six per-package ADRs, one per record** | Six documents stating one sentence, and the next package that dials out matches none of them. The `adr-gap` triage, retired by `comment-policy.md` §8.4, asked for dedup by rule sentence, and this is one sentence |
