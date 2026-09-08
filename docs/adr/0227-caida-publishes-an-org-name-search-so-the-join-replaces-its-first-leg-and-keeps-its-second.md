@@ -1,11 +1,20 @@
+---
+number: 227
+title: "CAIDA publishes an org-name search, so the join replaces its first leg and keeps its second"
+slug: caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second
+date: 2026-09-07
+status: accepted
+source: fix
+ticket: [1616, 1519]
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: retires, adr: 223, clause: "3"}
+  - {kind: rests-on, adr: 3}
+  - {kind: rests-on, adr: 12}
+---
+
 # ADR-0227: CAIDA publishes an org-name search, so the join replaces its first leg and keeps its second
 
-- **Status:** Accepted
-- **Date:** 2026-09-07
-- **Tickets:** [#1616 The CAIDA org→prefix repair is a path and shape change, not a URL swap](https://github.com/winniel123/verge-asm/issues/1616), [#1519 Two shipped proposers point at api.caida.org, which is NXDOMAIN](https://github.com/winniel123/verge-asm/issues/1519)
-- **Retires:** [ADR-0223](./0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md) §3, under that ADR's own first reopening condition. Nothing else in ADR-0223 moves. Its three bar reasons, its layer ruling and its health surface stand as written
-- **Rests on:** [ADR-0003](./0003-third-party-source-consent-bar.md), which rules the consent bar. The replacement host is keyless, so no tier moves and this ADR takes no ground from it
-- **Rests on:** [ADR-0012](./0012-a-proposer-is-not-a-source.md), which rules that a proposer carries `consent` alone. §5 corrects a citation of it and takes no ground from it
 
 ## Context
 
@@ -82,6 +91,21 @@ runtime fetch by the operator's own install. It applies unchanged to this endpoi
 here.
 
 ## Decision
+
+The two CAIDA proposers ship on again, against `https://api.data.caida.org/as2org/v1/search/`.
+Both halves stay keyless, and the consent tier does not move. ADR-0223 §3's bar is retired, and the
+`endpoint does not answer` reason leaves both entries.
+
+A record contributes an `opaqueId` only when its `source` equals this proposer's RIR and its
+`orgName` holds the query, case-folded. The rule errs wide, because a lost holder reads as absence.
+
+Three failures stay loud. A transport failure, a malformed envelope, a server-stated error, a short
+page, and a matched record set with no key each return an error. Only an empty answer is quiet.
+
+The join keeps its second leg. The search returns no prefix, so the delegated-stats file is still
+the only artefact that carries one.
+
+Rejected: a URL swap. It trades a loud failure for a silent one.
 
 ### 1. The two CAIDA proposers ship on again, against `/as2org/v1/search/`
 

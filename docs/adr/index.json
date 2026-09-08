@@ -1,0 +1,116 @@
+{
+  "generated": "prototype-adr-index.mjs from YAML front matter in docs/adr/*.md",
+  "adrs": [
+    {
+      "number": 223,
+      "file": "docs/adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md",
+      "title": "a bar is authored in the release and a health record is per-install, so the two never share a badge",
+      "slug": "a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge",
+      "date": "2026-09-07",
+      "status": {
+        "set": "accepted",
+        "derived": "amended"
+      },
+      "source": "fix",
+      "proof": {
+        "none": "predates the governance SPEC"
+      },
+      "ticket": [
+        1519,
+        1583,
+        1604
+      ],
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 3
+        },
+        {
+          "kind": "rests-on",
+          "adr": 12
+        },
+        {
+          "kind": "rests-on",
+          "adr": 23
+        }
+      ],
+      "incoming": [
+        {
+          "kind": "retires",
+          "from": 227,
+          "clause": "3"
+        }
+      ],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "markers": [
+        {
+          "line": 179,
+          "kind": "retires",
+          "from": 227
+        }
+      ],
+      "decision": {
+        "words": 145,
+        "text": "A reachability finding is Declared. A session measures it once and writes it into the release, as\nADR-0023 does for consent. An install's last failed attempt is Operational. It varies per install,\nit changes without a release, and no session authors it. A Declared fact may be badged. An\nOperational fact may not.\n\nThe `Barred` bucket gains a reason, and the badge renders the reason: `excluded on terms`,\n`no runner ships`, or `endpoint does not answer`. A barred source is forced off, over any\n`source_state` override.\n\nThe two CAIDA proposers are barred on `endpoint does not answer`. The `caidaBase` constant stays.\n\nHealth lives in a new table, never in `source_state`. Only the query path writes it. It shows the\nlast outcome, its instant, and the consecutive-failure count. It never changes enablement.\n\nRejected: a periodic probe, a derived `healthy / degraded / dead` state, and auto-disable."
+      }
+    },
+    {
+      "number": 227,
+      "file": "docs/adr/0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md",
+      "title": "CAIDA publishes an org-name search, so the join replaces its first leg and keeps its second",
+      "slug": "caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second",
+      "date": "2026-09-07",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "none": "predates the governance SPEC"
+      },
+      "ticket": [
+        1616,
+        1519
+      ],
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "retires",
+          "adr": 223,
+          "clause": "3"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 3
+        },
+        {
+          "kind": "rests-on",
+          "adr": 12
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 136,
+        "text": "The two CAIDA proposers ship on again, against `https://api.data.caida.org/as2org/v1/search/`.\nBoth halves stay keyless, and the consent tier does not move. ADR-0223 §3's bar is retired, and the\n`endpoint does not answer` reason leaves both entries.\n\nA record contributes an `opaqueId` only when its `source` equals this proposer's RIR and its\n`orgName` holds the query, case-folded. The rule errs wide, because a lost holder reads as absence.\n\nThree failures stay loud. A transport failure, a malformed envelope, a server-stated error, a short\npage, and a matched record set with no key each return an error. Only an empty answer is quiet.\n\nThe join keeps its second leg. The search returns no prefix, so the delegated-stats file is still\nthe only artefact that carries one.\n\nRejected: a URL swap. It trades a loud failure for a silent one."
+      }
+    }
+  ]
+}

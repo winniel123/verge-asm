@@ -21,6 +21,7 @@
     "test:citations": "node --test scripts/check-citations.test.mjs",
     "check:adr-sections": "node scripts/check-adr-sections.mjs",
     "test:adr-sections": "node --test scripts/check-adr-sections.test.mjs",
+    "prototype:adr-index": "node scripts/prototype-adr-index.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
