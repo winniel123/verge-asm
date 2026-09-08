@@ -55,6 +55,7 @@ type totpEnrollStore interface {
 type passwordStore interface {
 	ConsumePasswordReset(ctx context.Context, arg db.ConsumePasswordResetParams) error
 	CreatePasswordReset(ctx context.Context, arg db.CreatePasswordResetParams) (db.PasswordReset, error)
+	DeleteSpentPasswordResets(ctx context.Context, before pgtype.Timestamptz) error
 	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
 	GetPasswordResetByHash(ctx context.Context, tokenHash string) (db.PasswordReset, error)
@@ -64,7 +65,8 @@ type passwordStore interface {
 }
 
 type inviteAcceptStore interface {
-	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) error
+	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) (int64, error)
+	DeleteAccount(ctx context.Context, id int64) error
 	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
 }
 
@@ -1069,6 +1071,17 @@ func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
+	// The reset request is the third pre-auth credential path, so it takes the login bound (#1651).
+	acctKey, ipKey := loginAccountKey(username), s.loginIPKey(r)
+	if s.loginLimiter.locked(acctKey, ipKey) {
+		s.render(w, r, "forgot-sent", s.signinData(map[string]any{"Title": "Reset password"}))
+		return
+	}
+	// Every request counts, known account or not, so the count itself enumerates nothing.
+	s.loginLimiter.fail(acctKey, ipKey)
+	if err := s.passwordStore.DeleteSpentPasswordResets(r.Context(), pgtype.Timestamptz{Time: s.now(), Valid: true}); err != nil {
+		log.Printf("web: forgot: purge spent resets: %v", err)
+	}
 	if acct, err := s.passwordStore.GetAccountByUsername(r.Context(), username); err == nil {
 		if plaintext, hash, terr := newOpaqueToken(); terr != nil {
 			log.Printf("web: forgot: mint reset token: %v", terr)
@@ -1194,10 +1207,20 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 		fail(createError(err))
 		return
 	}
-	if err := s.inviteAcceptStore.ConsumeInvite(r.Context(), db.ConsumeInviteParams{
+	rows, err := s.inviteAcceptStore.ConsumeInvite(r.Context(), db.ConsumeInviteParams{
 		ID: inv.ID, ConsumedAt: s.obsAsOf(), AcceptedAccountID: pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		log.Printf("web: invite: consume token: %v", err)
+	})
+	if err != nil || rows == 0 {
+		// bcrypt sits between the read and the consume, so a parallel accept can win it (#1650).
+		if derr := s.inviteAcceptStore.DeleteAccount(r.Context(), acct.ID); derr != nil {
+			log.Printf("web: invite: remove account %d after a lost consume: %v", acct.ID, derr)
+		}
+		if err != nil {
+			s.serverError(w, "consume invite", err)
+			return
+		}
+		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
+		return
 	}
 	// No session is minted here, so a bare invite token never yields privileged state.
 	http.Redirect(w, r, "/login?invited=1", http.StatusSeeOther)

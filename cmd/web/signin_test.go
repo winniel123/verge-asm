@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"math"
 	"net/http"
 	"net/url"
@@ -26,6 +27,18 @@ func (f *fakeStore) CreatePasswordReset(_ context.Context, arg db.CreatePassword
 	f.passwordResets = append(f.passwordResets, pr)
 	f.resetNextID++
 	return pr, nil
+}
+
+func (f *fakeStore) DeleteSpentPasswordResets(_ context.Context, before pgtype.Timestamptz) error {
+	kept := f.passwordResets[:0]
+	for _, pr := range f.passwordResets {
+		spent := pr.ConsumedAt.Valid || (pr.ExpiresAt.Valid && !pr.ExpiresAt.Time.After(before.Time))
+		if !spent {
+			kept = append(kept, pr)
+		}
+	}
+	f.passwordResets = kept
+	return nil
 }
 
 func (f *fakeStore) GetPasswordResetByHash(_ context.Context, tokenHash string) (db.PasswordReset, error) {
@@ -95,6 +108,10 @@ func (f *fakeStore) ConsumeRecoveryCode(_ context.Context, arg db.ConsumeRecover
 func (f *fakeStore) GetInviteByTokenHash(_ context.Context, tokenHash string) (db.Invite, error) {
 	for _, inv := range f.invites {
 		if inv.TokenHash == tokenHash {
+			if f.inviteStaleRead {
+				inv.ConsumedAt = pgtype.Timestamptz{}
+				inv.AcceptedAccountID = pgtype.Int8{}
+			}
 			return inv, nil
 		}
 	}
@@ -111,15 +128,18 @@ func (f *fakeStore) CreateInvite(_ context.Context, arg db.CreateInviteParams) (
 	return inv, nil
 }
 
-func (f *fakeStore) ConsumeInvite(_ context.Context, arg db.ConsumeInviteParams) error {
+func (f *fakeStore) ConsumeInvite(_ context.Context, arg db.ConsumeInviteParams) (int64, error) {
 	for i := range f.invites {
 		if f.invites[i].ID == arg.ID {
+			if f.invites[i].ConsumedAt.Valid {
+				return 0, nil
+			}
 			f.invites[i].ConsumedAt = arg.ConsumedAt
 			f.invites[i].AcceptedAccountID = arg.AcceptedAccountID
-			return nil
+			return 1, nil
 		}
 	}
-	return pgx.ErrNoRows
+	return 0, nil
 }
 
 // This must equal fixedClock()'s instant, or a seeded expiry is live or stale by accident.
@@ -183,6 +203,30 @@ func TestForgotIsNonEnumerating(t *testing.T) {
 	}
 	if f.passwordResets[0].TokenHash == "" {
 		t.Fatal("reset grant stored no hash")
+	}
+}
+
+func TestForgotIsRateLimitedAndPurgesSpentGrants(t *testing.T) {
+	f := newFakeStore()
+	acct := seedAccount(t, f, "ola", roleViewer, "hunter2hunter2")
+	addReset(t, f, acct.ID, "stale-token", serverClock.Add(-time.Minute))
+	base := start(t, f, "")
+	c := newClient(t)
+
+	var last string
+	for i := 0; i < 8; i++ {
+		last = body(t, postForm(t, c, base+"/forgot", url.Values{"username": {"ola"}}))
+	}
+	if !strings.Contains(last, "Check for your link") {
+		t.Fatalf("a throttled forgot must read the same as an accepted one; body: %s", last)
+	}
+	if len(f.passwordResets) != 5 {
+		t.Fatalf("reset grants after 8 requests from one source = %d, want 5 (the login bound)", len(f.passwordResets))
+	}
+	for _, pr := range f.passwordResets {
+		if pr.TokenHash == hashToken("stale-token") {
+			t.Fatal("the expired grant survived the purge")
+		}
 	}
 }
 
@@ -350,6 +394,37 @@ func TestInviteAcceptanceSetsCredentials(t *testing.T) {
 
 	if got := getAnon(t, base+"/invite?token=invite-token", http.StatusOK); !strings.Contains(got, "expired or already used") {
 		t.Fatalf("spent invite token not refused; body: %s", got)
+	}
+}
+
+func TestInviteIsSingleUseWhenTwoAcceptsRace(t *testing.T) {
+	f := newFakeStore()
+	base := start(t, f, "")
+	addInvite(t, f, roleAdmin, "invite-token", serverClock.Add(24*time.Hour))
+	// Both requests read the invite before either consumes it, which is the race window.
+	f.inviteStaleRead = true
+
+	first := postForm(t, newClient(t), base+"/invite", url.Values{
+		"token": {"invite-token"}, "username": {"alice"}, "password": {"hunter2hunter2"},
+	})
+	first.Body.Close()
+	if first.StatusCode != http.StatusSeeOther {
+		t.Fatalf("first accept: status=%d, want 303", first.StatusCode)
+	}
+
+	second := postForm(t, newClient(t), base+"/invite", url.Values{
+		"token": {"invite-token"}, "username": {"mallory"}, "password": {"hunter2hunter2"},
+	})
+	body, _ := io.ReadAll(second.Body)
+	second.Body.Close()
+	if second.StatusCode != http.StatusOK || !strings.Contains(string(body), "expired or already used") {
+		t.Fatalf("second accept: status=%d body=%s, want the invalid-invite page", second.StatusCode, body)
+	}
+	if n, _ := f.CountAccounts(t.Context()); n != 1 {
+		t.Fatalf("accounts after a raced accept = %d, want 1", n)
+	}
+	if _, err := f.GetAccountByUsername(t.Context(), "mallory"); err == nil {
+		t.Fatal("the losing accept left its account behind")
 	}
 }
 

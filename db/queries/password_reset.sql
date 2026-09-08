@@ -10,3 +10,7 @@ WHERE token_hash = $1;
 
 -- name: ConsumePasswordReset :exec
 UPDATE password_reset SET consumed_at = $2 WHERE id = $1;
+
+-- name: DeleteSpentPasswordResets :exec
+-- Nothing else purges the table, so the request path bounds it to the live grants (#1651).
+DELETE FROM password_reset WHERE expires_at <= $1 OR consumed_at IS NOT NULL;
