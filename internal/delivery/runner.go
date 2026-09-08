@@ -32,20 +32,7 @@ func NewHTTPDoer() *http.Client {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 		// Control runs after resolution, so a rebinding to a private answer is still barred (#325).
-		Control: func(_, address string, _ syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			ip, err := netip.ParseAddr(host)
-			if err != nil {
-				return err
-			}
-			if custody.IsNonGloballyReachable(ip.Unmap()) {
-				return fmt.Errorf("delivery: refusing to dial non-globally-reachable address %s", host)
-			}
-			return nil
-		},
+		Control: dialControl,
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialContext = dialer.DialContext
@@ -224,7 +211,7 @@ func guardTarget(ctx context.Context, res Resolver, targetURL string) error {
 	}
 	host := u.Hostname()
 	if ip, err := netip.ParseAddr(host); err == nil {
-		if custody.IsNonGloballyReachable(ip.Unmap()) {
+		if !dialable(ip) {
 			return fmt.Errorf("refusing delivery to non-globally-reachable host %s", host)
 		}
 		return nil
@@ -233,12 +220,41 @@ func guardTarget(ctx context.Context, res Resolver, targetURL string) error {
 	if err != nil {
 		return fmt.Errorf("resolve %q: %w", host, err)
 	}
+	// A mixed answer is refused, or a name resolving elsewhere would buy the exemption (ADR-0039 §2).
+	loopbacks := 0
 	for _, a := range addrs {
-		if custody.IsNonGloballyReachable(a.Unmap()) {
+		if !dialable(a) {
 			return fmt.Errorf("refusing delivery to %q: resolves to non-globally-reachable address %s", host, a)
 		}
+		if a.Unmap().IsLoopback() {
+			loopbacks++
+		}
+	}
+	if loopbacks != 0 && loopbacks != len(addrs) {
+		return fmt.Errorf("refusing delivery to %q: resolves to loopback and non-loopback addresses", host)
 	}
 	return nil
+}
+
+func dialControl(_, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return err
+	}
+	if !dialable(ip) {
+		return fmt.Errorf("delivery: refusing to dial non-globally-reachable address %s", host)
+	}
+	return nil
+}
+
+func dialable(ip netip.Addr) bool {
+	ip = ip.Unmap()
+	// Loopback is the one plaintext exception, because nothing transits (ADR-0039 §2, #1684).
+	return ip.IsLoopback() || !custody.IsNonGloballyReachable(ip)
 }
 
 func firingFromRow(m db.GetMessageForDeliveryRow) Firing {
