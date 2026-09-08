@@ -55,17 +55,19 @@ This rule holds even when the next ticket looks small or looks blocked on nothin
 
 At the end of a wayfinder or implementation session, open a PR and make sure the branch is up-to-date with `main`. A human squashes and merges the PR.
 
-### ADR moratorium
+### Writing an ADR
 
-The ADR governance map is closed. Its SPEC is `docs/spec/adr-governance.md`. Until the `main protection` ruleset requires the `adr-review` check, add no ADR file. A decision meanwhile becomes a decision proposal block in the PR body, and a human opens the issue that becomes the ADR. Keep the reason in code, as a comment that passes the two gates in `## Comments`.
+An ADR records one decision that passes three tests. It is hard to reverse. A reader without context would ask why. The session chose it over a named alternative. When one fails, write no ADR. Keep the reason in code, and put the rest in the PR body.
 
-The 72 ADRs a sweep authored, the 43 `adr-gap` issues, and the same-day reversal of ADR-0223 §3 by ADR-0227 are the measured cause. The SPEC's landing order ends this rule.
+Only a human opens the issue that becomes an ADR, and its number is the ADR's number. A deleted comment that passes the three tests earns a decision proposal block in the PR body, never an issue. Under orchestration only the orchestrator writes an ADR, one PR at a time.
+
+An ADR PR adds one file: YAML front matter, a Decision block under 150 words, a proof. A fresh-context subagent runs the `adr-review` skill, and the required `adr-review` check holds the merge. A later ADR changes an earlier one through a relation, and the tool writes the marker. Never hand-edit a marker. See `docs/spec/adr-governance.md`.
 
 ## Landing PRs on `main`
 
 `main` is protected by an active repository RULESET, not classic branch protection. `gh api repos/.../branches/main/protection` returns a misleading 404. Check `gh api repos/winniel123/verge-asm/rulesets` instead. No direct pushes. Every change goes through a PR.
 
-11 required status checks must pass before merge: `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, and commentlint's `lint`. The last three joined on 2026-09-07 as Lane A of the ADR-drift repair.
+12 required status checks must pass before merge. They are `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, `adr-review`, and commentlint's `lint`. `citations`, `adr-sections`, and `lint` joined on 2026-09-07 as Lane A of the ADR-drift repair. `adr-review` joined on 2026-09-08 (#1740).
 
 - `gosec` and `govulncheck` BLOCK. `govulncheck` fails on any reachable advisory. `gosec` runs `-exclude-generated -severity high -confidence high`.
 - `test` runs `go vet` and `go test`.

@@ -5,8 +5,8 @@ name: doclint
 # gate (#1436), and `adr-sections` is the `ADR-nnnn §n` gate (#1437, #1465) plus the ADR
 # index and marker gates (#1738); both jobs fail on a violation, and both are required
 # checks since 2026-09-07. `adr-review` is the ADR review gate of SPEC
-# docs/spec/adr-governance.md §8 (#1739); it is built to be required, and the ruleset
-# edit that requires it is a human step (#1740). `doclint` is not.
+# docs/spec/adr-governance.md §8 (#1739); it is a required check since 2026-09-08, when
+# a human added it to the ruleset (#1740). `doclint` is not.
 #
 # THE `doclint` JOB. A dedicated, non-blocking job that runs the doclint tool on a pull
 # request. It is SEPARATE from the docs-site build job (docs-site.yml), whose gates are
@@ -199,9 +199,8 @@ jobs:
   # ALWAYS RUNS. A required check that an `if:` skips counts as passed, so this job has
   # no `if:` and no paths filter. On a PR that adds no ADR file the script passes at once.
   #
-  # BUILT TO BE REQUIRED, not yet required. The `main protection` ruleset gains this job
-  # in the human step of #1740. Until then a red run here blocks nothing, and the CLAUDE.md
-  # moratorium holds.
+  # REQUIRED since 2026-09-08. The `main protection` ruleset gained this job in the human
+  # step of #1740. A red run here blocks the merge.
   #
   # A PR comment does not re-trigger a pull_request workflow, so the reviewer's last step
   # is `gh run rerun --failed` on this run. `edited` in the trigger above covers a PR body
