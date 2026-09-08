@@ -152,7 +152,7 @@ func TestSeedWithdrawalPreviewSparesACustodyExtendedAddress(t *testing.T) {
 	}
 	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
 	f.completedBatchKinds[scan.EdgeFanoutKind] = true
-	f.cited = []db.NameCitedAddressesRow{{SubjectKey: "shop.example.com", Address: "93.184.216.10"}}
+	f.cited = []db.NameCitedAddressesRow{{SubjectKey: "shop.example.com", Address: "93.184.216.10", Owner: "shop.example.com"}}
 	// A leaf on one registrable domain is not a shared edge, so the extension reaches it.
 	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), edgeDER(t, 1))
 

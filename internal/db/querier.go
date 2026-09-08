@@ -229,6 +229,7 @@ type Querier interface {
 	MarkVantageAvailable(ctx context.Context, id int64) error
 	MarkVantageUnavailable(ctx context.Context, id int64) error
 	MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error
+	// The owner comes from the same batch's dns-record rows, so the resolution value keeps its shape and no leaf version moves (ADR-0151 §2, #1678).
 	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
 	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
 	NotifyJobProgress(ctx context.Context, payload string) error
