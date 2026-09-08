@@ -259,7 +259,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
-		s.render(w, r, "totp", map[string]any{"Title": "Two-factor"})
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username}))
 		return
 	}
 	s.completeLogin(w, r, acct.ID)

@@ -207,6 +207,12 @@ func TestSSOCallbackStillRequiresTOTP(t *testing.T) {
 	if !strings.Contains(page, "Two-factor check") {
 		t.Errorf("a TOTP-enrolled account should land on the two-factor step after SSO; body: %s", page)
 	}
+	if !strings.Contains(page, `<span class="mono">alice</span>`) {
+		t.Errorf("the SSO two-factor step should name the account like the password path does; body: %s", page)
+	}
+	if strings.Contains(page, "<span>Verge ASM </span>") {
+		t.Errorf("the SSO two-factor step rendered an empty footer version; body: %s", page)
+	}
 	r3, _ := c.Get(base + "/")
 	r3.Body.Close()
 	if r3.StatusCode != http.StatusSeeOther || r3.Header.Get("Location") != "/login" {
