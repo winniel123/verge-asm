@@ -64,13 +64,13 @@ const added = (filename) => ({ filename, status: "added" });
 const modified = (filename) => ({ filename, status: "modified" });
 
 function run(overrides = {}) {
-  const files = { [FILE_1700]: ADR_1700, [FILE_1701]: ADR_1700.replace("1700", "1701") };
+  const contents = { [FILE_1700]: ADR_1700, [FILE_1701]: ADR_1700.replace("1700", "1701") };
   return evaluate({
     headSha: HEAD,
     files: [added(FILE_1700), modified("docs/adr/index.json")],
     comments: [comment(HEAD, "pass")],
     prBody: BODY,
-    readAdr: (path) => files[path] ?? null,
+    readAdr: (path) => contents[path] ?? null,
     ...overrides,
   });
 }
@@ -136,6 +136,8 @@ test("the marker must open the comment", () => {
   assert.deepEqual(parseMarker(`\n  ${marker(HEAD, "pass")}\nprose`), { sha: HEAD, verdict: "pass" });
   assert.equal(parseMarker(`prose\n${marker(HEAD, "pass")}`), null);
   assert.equal(parseMarker(`<!-- adr-review sha=abc verdict=pass -->`), null);
+  assert.equal(parseMarker(`${marker(HEAD, "pass")}junk`), null);
+  assert.deepEqual(parseMarker(`${marker(HEAD, "fail")} \r\nprose`), { sha: HEAD, verdict: "fail" });
   assert.equal(parseMarker(null), null);
   const r = run({ comments: [{ body: `See below.\n${marker(HEAD, "pass")}` }] });
   assert.match(r.problems.join("\n"), /no adr-review marker for head/);

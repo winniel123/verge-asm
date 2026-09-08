@@ -51,16 +51,16 @@ The required check `adr-review` (`docs-site/scripts/check-adr-review.mjs`) holds
 
    If a marker already names the head SHA, stop and say so. A second marker for one SHA fails the check whatever its verdict, and nobody deletes a marker. A changed verdict needs changed content, and changed content pushes a new SHA.
 
-   If three `fail` markers already sit on the PR, stop. Read `## 4. The cap`.
+   If three `fail` markers already sit on the PR, stop. Read `## 5. The cap`.
 
 ## 2. Judge the four rows
 
 Run the rows of SPEC `docs/spec/adr-governance.md` §8 in the order the table gives them. Quote the SPEC by row number. Do not restate the pass condition in your own words.
 
-- **Row 1** reads the Decision block. The block is the text under the first `## Decision` heading, up to the next heading. Find each of the three parts and name the sentence that carries it. A missing part fails the row.
-- **Row 2** reads the H1 and the Decision block together. Find the one rule both state. A second rule in either fails the row.
-- **Row 3** reads the proof. For `test`, quote the assertion line that exercises the rule. For `ticket`, confirm the issue is open and quote the sentence that names the rule. For `none`, accept the reason or refuse it. Your evidence cell holds the quote or the acceptance.
-- **Row 4** reads `index.json`. Name the three nearest ADRs by number and title, and for each say in one clause why it does not already rule this question. Fewer than three named fails the row.
+- **Row 1**: read the Decision block. The block is the text under the first `## Decision` heading, up to the next heading. Your evidence names the sentence that carries each part the row asks for.
+- **Row 2**: read the H1 and the Decision block together. Your evidence states the one rule, or names the second one.
+- **Row 3**: read the proof. For `test`, quote the assertion line that exercises the rule. For `ticket`, quote the issue's state and the sentence that names the rule. For `none`, accept or refuse the reason.
+- **Row 4**: read `index.json`. Your evidence names each nearest ADR by number and title, with one clause on why it differs.
 
 One evidence line per row. On a `fail` row the evidence names the fix. Any `fail` row makes the verdict `fail`.
 

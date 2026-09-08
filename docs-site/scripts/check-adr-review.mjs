@@ -9,7 +9,7 @@ const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", ".."
 const API = "https://api.github.com";
 const PAGE = 100;
 
-export const REVIEW_MARKER = /^\s*<!-- adr-review sha=([0-9a-f]{40}) verdict=(pass|fail) -->/;
+export const REVIEW_MARKER = /^\s*<!-- adr-review sha=([0-9a-f]{40}) verdict=(pass|fail) -->[ \t]*(?:\r?\n|$)/;
 
 const short = (sha) => sha.slice(0, 7);
 
@@ -28,6 +28,7 @@ export function addedAdrFiles(files) {
 }
 
 function normalise(text) {
+  // A PR body typed in the GitHub web UI arrives with CRLF line endings
   return text
     .split(/\r?\n/)
     .map((l) => l.replace(/\s+$/, ""))
@@ -61,7 +62,7 @@ export function evaluate({ headSha, files, comments, prBody, readAdr }) {
   if (markers.length === 0) {
     problems.push(`no adr-review marker for head ${short(headSha)}; run the adr-review skill on this PR`);
   } else if (markers.length > 1) {
-    problems.push(`${markers.length} adr-review markers for head ${short(headSha)}; one comment per SHA, and nobody deletes one`);
+    problems.push(`${markers.length} adr-review markers for head ${short(headSha)}; post one comment per SHA. Do not delete a marker`);
   } else if (markers[0].verdict !== "pass") {
     problems.push(`the adr-review verdict for head ${short(headSha)} is fail`);
   }
