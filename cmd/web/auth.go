@@ -65,7 +65,8 @@ type passwordStore interface {
 }
 
 type inviteAcceptStore interface {
-	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) error
+	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) (int64, error)
+	DeleteAccount(ctx context.Context, id int64) error
 	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
 }
 
@@ -1206,10 +1207,20 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 		fail(createError(err))
 		return
 	}
-	if err := s.inviteAcceptStore.ConsumeInvite(r.Context(), db.ConsumeInviteParams{
+	rows, err := s.inviteAcceptStore.ConsumeInvite(r.Context(), db.ConsumeInviteParams{
 		ID: inv.ID, ConsumedAt: s.obsAsOf(), AcceptedAccountID: pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		log.Printf("web: invite: consume token: %v", err)
+	})
+	if err != nil || rows == 0 {
+		// bcrypt sits between the read and the consume, so a parallel accept can win it (#1650).
+		if derr := s.inviteAcceptStore.DeleteAccount(r.Context(), acct.ID); derr != nil {
+			log.Printf("web: invite: remove account %d after a lost consume: %v", acct.ID, derr)
+		}
+		if err != nil {
+			s.serverError(w, "consume invite", err)
+			return
+		}
+		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
+		return
 	}
 	// No session is minted here, so a bare invite token never yields privileged state.
 	http.Redirect(w, r, "/login?invited=1", http.StatusSeeOther)
