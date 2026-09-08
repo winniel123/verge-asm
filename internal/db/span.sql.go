@@ -618,11 +618,13 @@ func (q *Queries) ListServiceReachabilitySpansByClassAtForServices(ctx context.C
 }
 
 const listSpansForSubject = `-- name: ListSpansForSubject :many
-SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
-       value, is_gap, derivation, opened_at, closed_at, closure_reason
-FROM span
-WHERE subject_kind = $1 AND subject_key = $2
-ORDER BY facet, discriminator, vantage_id, source, opened_at, id
+SELECT s.id, s.subject_kind, s.subject_key, s.facet, s.discriminator, s.vantage_id, s.source,
+       s.value, s.is_gap, s.derivation, s.opened_at, s.closed_at, s.closure_reason,
+       v.name AS vantage_name
+FROM span s
+LEFT JOIN vantage v ON v.id = s.vantage_id
+WHERE s.subject_kind = $1 AND s.subject_key = $2
+ORDER BY s.facet, s.discriminator, s.vantage_id, s.source, s.opened_at, s.id
 `
 
 type ListSpansForSubjectParams struct {
@@ -644,6 +646,7 @@ type ListSpansForSubjectRow struct {
 	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
 	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
 	ClosureReason pgtype.Text        `json:"closure_reason"`
+	VantageName   pgtype.Text        `json:"vantage_name"`
 }
 
 func (q *Queries) ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error) {
@@ -669,6 +672,7 @@ func (q *Queries) ListSpansForSubject(ctx context.Context, arg ListSpansForSubje
 			&i.OpenedAt,
 			&i.ClosedAt,
 			&i.ClosureReason,
+			&i.VantageName,
 		); err != nil {
 			return nil, err
 		}

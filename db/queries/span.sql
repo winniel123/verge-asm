@@ -91,11 +91,13 @@ WHERE sp.subject_kind = 'service'
 ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC;
 
 -- name: ListSpansForSubject :many
-SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
-       value, is_gap, derivation, opened_at, closed_at, closure_reason
-FROM span
-WHERE subject_kind = @subject_kind AND subject_key = @subject_key
-ORDER BY facet, discriminator, vantage_id, source, opened_at, id;
+SELECT s.id, s.subject_kind, s.subject_key, s.facet, s.discriminator, s.vantage_id, s.source,
+       s.value, s.is_gap, s.derivation, s.opened_at, s.closed_at, s.closure_reason,
+       v.name AS vantage_name
+FROM span s
+LEFT JOIN vantage v ON v.id = s.vantage_id
+WHERE s.subject_kind = @subject_kind AND s.subject_key = @subject_key
+ORDER BY s.facet, s.discriminator, s.vantage_id, s.source, s.opened_at, s.id;
 
 -- name: ListRecentDriftEvents :many
 SELECT

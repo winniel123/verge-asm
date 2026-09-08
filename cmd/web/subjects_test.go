@@ -502,14 +502,17 @@ func TestSubjectsRequiresLogin(t *testing.T) {
 }
 
 func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
-	type tlkey struct{ facet, discriminator, source string }
+	type tlkey struct {
+		facet, discriminator, source string
+		vantage                      pgtype.Int8
+	}
 	order := []tlkey{}
 	byKey := map[tlkey][]drift.Reading{}
 	for _, o := range f.observations {
 		if o.SubjectKind != arg.SubjectKind || o.SubjectKey != arg.SubjectKey {
 			continue
 		}
-		k := tlkey{facet: o.Facet, discriminator: o.Discriminator, source: o.Source}
+		k := tlkey{facet: o.Facet, discriminator: o.Discriminator, source: o.Source, vantage: o.VantageID}
 		if _, seen := byKey[k]; !seen {
 			order = append(order, k)
 		}
@@ -523,7 +526,13 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 		if order[i].facet != order[j].facet {
 			return order[i].facet < order[j].facet
 		}
-		return order[i].discriminator < order[j].discriminator
+		if order[i].discriminator != order[j].discriminator {
+			return order[i].discriminator < order[j].discriminator
+		}
+		if order[i].vantage.Int64 != order[j].vantage.Int64 {
+			return order[i].vantage.Int64 < order[j].vantage.Int64
+		}
+		return order[i].source < order[j].source
 	})
 
 	rows := []db.ListSpansForSubjectRow{}
@@ -539,6 +548,7 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 			row := db.ListSpansForSubjectRow{
 				ID: id, SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
 				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+				VantageID: k.vantage, VantageName: f.vantageName(k.vantage),
 				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
 				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
 			}
@@ -552,6 +562,18 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 		}
 	}
 	return rows, nil
+}
+
+func (f *fakeStore) vantageName(id pgtype.Int8) pgtype.Text {
+	if !id.Valid {
+		return pgtype.Text{}
+	}
+	for _, v := range f.vantages {
+		if v.ID == id.Int64 {
+			return pgtype.Text{String: v.Name, Valid: true}
+		}
+	}
+	return pgtype.Text{}
 }
 
 func (f *fakeStore) GetServiceSubject(_ context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error) {

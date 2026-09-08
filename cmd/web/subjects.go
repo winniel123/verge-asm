@@ -134,6 +134,9 @@ type subjectRule struct {
 type timelineView struct {
 	Facet         string
 	Discriminator string
+	VantageID     int64
+	Vantage       string
+	Source        string
 	Label         string
 	Current       *spanView
 	Closed        []spanView
@@ -626,7 +629,13 @@ func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineVie
 }
 
 func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow) timelineView {
-	tv := timelineView{Facet: facet, Discriminator: discriminator, Label: timelineLabel(facet, discriminator)}
+	tv := timelineView{Facet: facet, Discriminator: discriminator}
+	if len(rows) > 0 {
+		tv.VantageID = rows[0].VantageID.Int64
+		tv.Vantage = vantageDisplayName(rows[0].VantageID, rows[0].VantageName)
+		tv.Source = rows[0].Source
+	}
+	tv.Label = timelineLabel(facet, discriminator, tv.Vantage, tv.Source)
 
 	spans := make([]drift.Span, 0, len(rows))
 	for _, row := range rows {
@@ -666,7 +675,29 @@ func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow
 	return tv
 }
 
-func timelineLabel(facet, discriminator string) string {
+func vantageDisplayName(id pgtype.Int8, name pgtype.Text) string {
+	switch {
+	case !id.Valid:
+		return ""
+	case name.Valid && name.String != "":
+		return name.String
+	}
+	return "vantage " + strconv.FormatInt(id.Int64, 10)
+}
+
+func timelineLabel(facet, discriminator, vantage, source string) string {
+	label := facetLabel(facet, discriminator)
+	// Both are timeline-key components, so two timelines on one facet must not read alike (ADR-0080, #170).
+	if vantage != "" {
+		label += " · " + vantage
+	}
+	if source != "" {
+		label += " · " + source
+	}
+	return label
+}
+
+func facetLabel(facet, discriminator string) string {
 	if discriminator != "" {
 		return facet + " · " + discriminator
 	}
@@ -1237,7 +1268,7 @@ func assetDrift(timelines []timelineView) []assetDriftEvent {
 		out = append(out, assetDriftEvent{
 			Change:  change,
 			Family:  driftFamily(change),
-			Subject: tl.Label,
+			Subject: facetLabel(tl.Facet, tl.Discriminator),
 			Detail:  detail,
 			Time:    when,
 		})
