@@ -119,8 +119,10 @@ button.sc-trow { cursor: pointer; }
 .sc-cb .box svg { display: none; }
 .sc-cb input:checked + .box svg { display: block; }
 .sc-cb input:focus-visible + .box { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
-.sc-prow { display: flex; align-items: center; gap: 12px; padding: 10px 2px; }
+.sc-prow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 2px; }
 .sc-prow + .sc-prow { border-top: 1px solid var(--row-sep); }
+.sc-prow .pref { flex-basis: 100%; display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--danger-soft); border: 1px solid var(--danger-border); font: 400 12px/1.5 var(--font-ui); color: var(--text-body); }
+.sc-prow .pref .ic { color: var(--danger); display: inline-flex; margin-top: 2px; flex: none; }
 .sc-prow .pv { font: 500 12.5px var(--font-mono); color: var(--text-ink); }
 .sc-prow .psrc { font: 400 11.5px var(--font-ui); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-prow form { margin: 0 0 0 auto; flex: none; }
@@ -370,7 +372,7 @@ button.sc-trow { cursor: pointer; }
 <span class="pv">{{.Value}}</span>
 <span class="sc-tag">{{.Kind}}</span>
 <span class="psrc">{{.Source}}</span>
-{{if $.IsAdmin}}<form method="post" action="/proposals/confirm"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="sc-btn-sm">Confirm</button></form>{{end}}
+{{if .OverCap}}<span class="pref"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg></span><span>{{.Refusal}}</span></span>{{else if $.IsAdmin}}<form method="post" action="/proposals/confirm"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="sc-btn-sm">Confirm</button></form>{{end}}
 </div>
 {{end}}
 <div style="display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--row-sep)">
