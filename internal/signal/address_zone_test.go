@@ -65,3 +65,13 @@ func TestDeclaredNamesFoldsCase(t *testing.T) {
 		t.Fatalf("owner names must fold ASCII case like every Name key: %v", got)
 	}
 }
+
+func TestDeclaredNamesSkipsHighBitOwners(t *testing.T) {
+	got := DeclaredNames("café IN A 1.2.3.4\nwww IN A 1.2.3.5\n", "example.com")
+	if got["café.example.com"] {
+		t.Fatalf("a high-bit owner typed as text is not a subject (ADR-0055): %v", got)
+	}
+	if !got["www.example.com"] {
+		t.Fatalf("ordinary owner missing: %v", got)
+	}
+}

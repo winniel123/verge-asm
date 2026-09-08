@@ -961,7 +961,7 @@
         "caption": "across 62 IPs"
       },
       {
-        "label": "Certs expiring ≤30d",
+        "label": "Certs expiring",
         "value": "9",
         "has_delta": true,
         "change": -2,

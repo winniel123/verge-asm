@@ -3,6 +3,7 @@ package scan
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -355,8 +356,16 @@ func TestParseDataTileMalformed(t *testing.T) {
 		t.Fatal("want error on a truncated data tile leaf")
 	}
 	unknown := append(make([]byte, 8), 0x00, 0x09)
-	if _, err := ParseDataTile(unknown); err == nil {
+	_, err := ParseDataTile(unknown)
+	if err == nil {
 		t.Fatal("want error on an unknown tiled entry type")
+	}
+	var unsupported *UnsupportedEntryTypeError
+	if !errors.As(err, &unsupported) || unsupported.EntryType != 9 {
+		t.Fatalf("unknown entry type error = %v, want an UnsupportedEntryTypeError carrying type 9", err)
+	}
+	if _, err := ParseDataTile(bad); errors.As(err, &unsupported) {
+		t.Fatalf("a truncated leaf must not read as an unsupported entry type: %v", err)
 	}
 }
 

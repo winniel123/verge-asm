@@ -384,6 +384,14 @@ func DataTilePath(index int64) string {
 	return strings.Join(segs, "/")
 }
 
+// A retry fetches the same bytes and fails at the same leaf, so no caller retries it (ADR-0191).
+
+type UnsupportedEntryTypeError struct{ EntryType uint16 }
+
+func (e *UnsupportedEntryTypeError) Error() string {
+	return fmt.Sprintf("unsupported entry type %d", e.EntryType)
+}
+
 func ParseDataTile(body []byte) ([][]byte, error) {
 	var out [][]byte
 	b := body
@@ -427,7 +435,7 @@ func parseTileLeaf(b []byte) (der, rest []byte, err error) {
 		b = after
 	default:
 		// Unknown entry type, unknown length: the tile cannot be framed past it (ADR-0191 §2).
-		return nil, nil, fmt.Errorf("unsupported entry type %d", entryType)
+		return nil, nil, &UnsupportedEntryTypeError{EntryType: entryType}
 	}
 
 	_, after, e := takeOpaque16(b)

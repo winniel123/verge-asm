@@ -428,6 +428,43 @@ func TestTOTPReEnableBlockedWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestTOTPEnrollGETDoesNotRerollSecret(t *testing.T) {
+	f := newFakeStore()
+	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/account/totp/enroll", http.StatusOK)
+	if !strings.Contains(page, `action="/account/totp/enable"`) {
+		t.Fatalf("enrol confirm page has no form posting to /account/totp/enable; body: %s", page)
+	}
+	if got, _ := f.GetAccountByID(t.Context(), acct.ID); got.TotpSecret.Valid {
+		t.Fatal("GET /account/totp/enroll stored a TOTP secret before the operator confirmed")
+	}
+
+	body(t, postForm(t, ac, base+"/account/totp/enable", nil))
+	before, _ := f.GetAccountByID(t.Context(), acct.ID)
+	if !before.TotpSecret.Valid {
+		t.Fatal("POST /account/totp/enable stored no secret")
+	}
+
+	getBody(t, ac, base+"/account/totp/enroll", http.StatusOK)
+	after, _ := f.GetAccountByID(t.Context(), acct.ID)
+	if after.TotpSecret.String != before.TotpSecret.String {
+		t.Fatal("GET /account/totp/enroll re-rolled an in-progress enrolment secret")
+	}
+
+	enableTOTP(t, f, acct.ID)
+	resp, err := ac.Get(base + "/account/totp/enroll")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/" {
+		t.Fatalf("enrol confirm on an enrolled account: status=%d loc=%q, want 303 to /", resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
 func TestPasswordTooLongRejected(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

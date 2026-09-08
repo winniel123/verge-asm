@@ -1312,7 +1312,7 @@ var devDashStatBand = []devDashStat{
 	{label: "Critical", value: "3", hasDelta: true, change: -1, tone: "good", caption: "1 withdrawn today"},
 	{label: "Assets watched", value: "1,284", hasDelta: true, change: 12, tone: "neutral", caption: "8 domains · 3 ranges"},
 	{label: "Exposed services", value: "216", hasDelta: true, change: 4, tone: "bad", caption: "across 62 IPs"},
-	{label: "Certs expiring ≤30d", value: "9", hasDelta: true, change: -2, tone: "good", caption: "next: 2026-08-29"},
+	{label: "Certs expiring", value: "9", hasDelta: true, change: -2, tone: "good", caption: "next: 2026-08-29"},
 }
 
 var devDashSevBars = []dashSevBar{

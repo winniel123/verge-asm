@@ -784,7 +784,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 			HasDelta: deltas.Known, Change: deltas.AssetsWatched.Change(), Tone: "neutral"},
 		{Label: "Exposed services", Value: statValue(exposed, hasExposed), Caption: "reachable from the internet",
 			HasDelta: deltas.Known, Change: deltas.Exposed.Change(), Tone: statTone(deltas.Exposed.Change(), true)},
-		{Label: "Certs expiring ≤30d", Value: statValue(certsExpiring, hasCerts), Caption: "expiring within 30 days",
+		{Label: "Certs expiring", Value: statValue(certsExpiring, hasCerts), Caption: "inside the last third of validity",
 			HasDelta: deltas.Known, Change: deltas.CertsExpiring.Change(), Tone: statTone(deltas.CertsExpiring.Change(), true)},
 	}
 
@@ -970,7 +970,12 @@ func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Acco
 }
 
 func (s *server) totpEnrollForm(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.beginTOTPEnroll(w, r, acct)
+	// Lax cookies ride a cross-site top-level GET, so this GET writes nothing (#1666).
+	if acct.TotpEnabled && !s.devMode {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	s.render(w, r, "totp-enroll-confirm", s.signinData(map[string]any{"Title": "Two-factor"}))
 }
 
 func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -1611,6 +1616,7 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 	// A changed password kills every other session, so a stolen old one is dead (ADR-0117, #408).
+	desc := "Every other session was signed out."
 	if curID, ok := s.currentSessionID(r); ok {
 		if err := s.passwordStore.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
 			AccountID: acct.ID,
@@ -1622,8 +1628,9 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 	} else {
 		// Revoking with no exception would sign the caller out of the tab they just changed.
 		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
+		desc = "Other sessions were left in place."
 	}
-	s.toastRedirect(w, r, profilePath, "ok", "Password changed", "Other sessions keep working until they expire.")
+	s.toastRedirect(w, r, profilePath, "ok", "Password changed", desc)
 }
 
 func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {

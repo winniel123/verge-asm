@@ -192,7 +192,7 @@ button.sc-trow { cursor: pointer; }
 <div class="ct">
 <span class="t">Declaration refused: <span class="mono">{{.Input}}</span></span>
 <span class="r">{{.Reason}}</span>
-{{if .Reachable}}<span class="reach">Raise your cap in <span class="mono">Settings · Scans</span> to sweep it whole, or declare a block within your cap like <span class="mono">{{.Reachable}}</span> — nothing is auto-corrected.</span>{{end}}
+{{if .Reachable}}<span class="reach">Raise your cap in <span class="mono">Settings · Scans</span> to sweep it whole, or declare a block within your cap like <span class="mono">{{.Reachable}}</span> — nothing is auto-corrected.</span>{{else if .Route}}<span class="reach">{{.Route}}</span>{{end}}
 </div>
 </div>
 {{end}}

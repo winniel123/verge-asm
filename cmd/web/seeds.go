@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -194,7 +195,7 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 	}
 	domain, err := seed.NormalizeDomain(value)
 	if err != nil {
-		return &refusalView{Input: value, Reason: err.Error()}
+		return nameRefusal(value, err)
 	}
 	key := "name:" + domain
 	if declared[key] {
@@ -210,6 +211,34 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 }
 
 const alreadyDeclaredReason = "already declared"
+
+func nameRefusal(value string, err error) *refusalView {
+	var wild *seed.WildcardError
+	var ulabel *seed.ULabelError
+	// A refusal names a route and never takes it: nothing pre-filled or converted (ADR-0052).
+	switch {
+	case errors.As(err, &wild):
+		sub := wild.Subtree
+		if sub == "" {
+			return &refusalView{Input: value, Reason: err.Error(), Route: "Nothing has been declared, and nothing has been rewritten."}
+		}
+		return &refusalView{
+			Input:  value,
+			Reason: err.Error(),
+			Route: fmt.Sprintf("A subtree exclusion on %s covers %s itself as well as every name beneath it; %s never matches %s. "+
+				"If %s is outside your estate too, exclude the subtree %s. If only the names beneath it are not yours, exclude those names by name — "+
+				"nothing here means everything beneath a name but not the name. Nothing has been declared, and nothing has been rewritten.",
+				sub, sub, value, sub, sub, sub),
+		}
+	case errors.As(err, &ulabel):
+		return &refusalView{
+			Input:  value,
+			Reason: err.Error(),
+			Route:  "Copy the ASCII form from your DNS provider and paste it here. Nothing has been declared, and nothing has been converted.",
+		}
+	}
+	return &refusalView{Input: value, Reason: err.Error()}
+}
 
 func createRefusal(value string, err error) *refusalView {
 	if isUniqueViolation(err) {
@@ -337,6 +366,7 @@ type refusalView struct {
 	Input     string
 	Reason    string
 	Reachable string
+	Route     string
 }
 
 func isAddressValue(v string) bool {
@@ -366,6 +396,17 @@ func overCapFormError(cap int) string {
 }
 
 func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
+	reason := fmt.Sprintf("Spans %s addresses — the cap is %s per scope.", commaGroup(seed.AddressCount(raw).String()), commaInt(cap))
+	// The cap knob reaches IPv4 only; for IPv6 it is named so it stays shut (ADR-0052).
+	if !raw.Addr().Unmap().Is4() {
+		return refusalView{
+			Input:  value,
+			Reason: reason,
+			Route: "Do not raise the cap for this: no setting makes an IPv6 prefix measurable, and a raised cap would accept the declaration and never finish it. " +
+				"Declare the domain those machines answer for and extend its custody — addresses reached that way are found by resolution rather than by walking. " +
+				"Nothing has been declared, and no domain has been filled in for you.",
+		}
+	}
 	// The over-cap set is named, never applied: the operator declares the narrower block.
 	bits := raw.Addr().BitLen()
 	host := 0
@@ -378,7 +419,7 @@ func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
 	}
 	return refusalView{
 		Input:     value,
-		Reason:    fmt.Sprintf("Spans %s addresses — the cap is %s per scope.", commaGroup(seed.AddressCount(raw).String()), commaInt(cap)),
+		Reason:    reason,
 		Reachable: netip.PrefixFrom(raw.Addr(), reachLen).String(),
 	}
 }
@@ -827,12 +868,23 @@ func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
 	return 0, false
 }
 
+// Beyond ten years the zone scan never dispatches, and the seconds overflow (#1667).
+
+const maxZoneIntervalDays = 3650
+
 func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := strings.TrimSpace(r.FormValue("interval_days"))
 	days, err := strconv.Atoi(raw)
+	if errors.Is(err, strconv.ErrRange) || days > maxZoneIntervalDays {
+		s.flashScopeBack(w, r, seedsForms{
+			zoneIntervalError: "Enter a re-supply interval between 1 and 3,650 days.",
+			zoneIntervalDays:  raw,
+		})
+		return
+	}
 	if err != nil || days < 1 {
 		s.flashScopeBack(w, r, seedsForms{
-			zoneIntervalError: "Enter a re-supply interval of at least one day.",
+			zoneIntervalError: "Enter a re-supply interval between 1 and 3,650 days.",
 			zoneIntervalDays:  raw,
 		})
 		return

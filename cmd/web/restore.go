@@ -24,6 +24,12 @@ type restoreStore interface {
 
 const restoreMaxUpload = 1 << 30
 
+const restoreFormMemory = 32 << 20
+
+// A forgotten pre-flight would otherwise pin up to 1 GiB (#1667).
+
+const restoreStageTTL = 15 * time.Minute
+
 // The confirm dialog re-posts only the typed word, so the pre-flighted archive is held here.
 
 type restoreStaging struct {
@@ -32,6 +38,7 @@ type restoreStaging struct {
 	subjects int
 	schema   string
 	archive  []byte
+	stagedAt time.Time
 }
 
 type restorePreflightView struct {
@@ -155,6 +162,7 @@ func backupAllowed(table string) bool {
 
 func (s *server) restorePreflight(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
+	s.clearRestore(acct.ID)
 
 	// A restore mid-dispatch would race an in-progress write (docs/guides/backup-and-restore.md).
 	if s.scanInFlight(ctx) {
@@ -168,7 +176,8 @@ func (s *server) restorePreflight(w http.ResponseWriter, r *http.Request, acct d
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, restoreMaxUpload)
-	if err := r.ParseMultipartForm(restoreMaxUpload); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above)
+	// A larger part spills to a temp file, so RAM never holds the upload twice (#1667).
+	if err := r.ParseMultipartForm(restoreFormMemory); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above)
 		s.restoreErrorRedirect(w, r, "unreadable")
 		return
 	}
@@ -449,18 +458,31 @@ func (s *server) scanInFlight(ctx context.Context) bool {
 }
 
 func (s *server) stashRestore(accountID int64, stg *restoreStaging) {
+	now := s.now()
 	s.restoreMu.Lock()
 	defer s.restoreMu.Unlock()
 	if s.restoreStage == nil {
 		s.restoreStage = make(map[int64]*restoreStaging)
 	}
+	for id, old := range s.restoreStage {
+		if now.Sub(old.stagedAt) > restoreStageTTL {
+			delete(s.restoreStage, id)
+		}
+	}
+	stg.stagedAt = now
 	s.restoreStage[accountID] = stg
 }
 
 func (s *server) stagedRestore(accountID int64) *restoreStaging {
+	now := s.now()
 	s.restoreMu.Lock()
 	defer s.restoreMu.Unlock()
-	return s.restoreStage[accountID]
+	stg := s.restoreStage[accountID]
+	if stg != nil && now.Sub(stg.stagedAt) > restoreStageTTL {
+		delete(s.restoreStage, accountID)
+		return nil
+	}
+	return stg
 }
 
 func (s *server) clearRestore(accountID int64) {

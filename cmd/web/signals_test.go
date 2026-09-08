@@ -19,9 +19,9 @@ import (
 
 func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 	f := newFakeStore()
-	f.addClassReachability(t, "198.51.100.50:3389/tcp", "internet", obsClock,
+	f.addClassReachability(t, "198.51.100.50:5900/tcp", "internet", obsClock,
 		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
-	f.addClassReachability(t, "198.51.100.51:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.51:5900/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 
 	srv := &server{signalsStore: f, vantageClassStore: f, now: fixedClock()}
 	req := httptest.NewRequest(http.MethodGet, "/signals", nil)
@@ -34,17 +34,17 @@ func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 	for _, sf := range facts {
 		byKey[sf.Subject] = sf
 	}
-	blanket, ok := byKey["198.51.100.50:3389/tcp"]
+	blanket, ok := byKey["198.51.100.50:5900/tcp"]
 	if !ok {
 		t.Fatal("blanket responder service missing from facts — a blanketed Service is still a subject")
 	}
 	if !blanket.OnSensitiveList {
-		t.Error("the blanketed pair is 3389/tcp — it must stay in the rule's domain")
+		t.Error("the blanketed pair is 5900/tcp — it must stay in the rule's domain")
 	}
 	if blanket.HasInternetReach {
 		t.Errorf("a blanketed internet reach must read as absent, got InternetReach=%q", blanket.InternetReach)
 	}
-	if origin := byKey["198.51.100.51:3389/tcp"]; !origin.HasInternetReach || origin.InternetReach != signal.Reached {
+	if origin := byKey["198.51.100.51:5900/tcp"]; !origin.HasInternetReach || origin.InternetReach != signal.Reached {
 		t.Errorf("an ordinary reached origin must keep its value, got %+v", origin)
 	}
 
@@ -60,7 +60,7 @@ func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 	if got := rule.Eval(blanket); got != signal.NotEvaluable {
 		t.Errorf("blanket responder verdict = %v, want not-evaluable (not not-fired)", got)
 	}
-	if got := rule.Eval(byKey["198.51.100.51:3389/tcp"]); got != signal.Fired {
+	if got := rule.Eval(byKey["198.51.100.51:5900/tcp"]); got != signal.Fired {
 		t.Errorf("ordinary origin verdict = %v, want fired", got)
 	}
 }
@@ -340,7 +340,7 @@ func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 
 	f.addClassResolution(t, "good.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
 
-	f.addClassReachability(t, "198.51.100.1:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.1:5900/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 	f.addClassReachability(t, "198.51.100.9:443/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 	f.addClassReachability(t, "198.51.100.2:445/tcp", "internal", obsClock, `{"outcome":"reached"}`)
 
@@ -356,7 +356,7 @@ func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 	page := getBody(t, ac, base+"/signals", http.StatusOK)
 
 	for _, asset := range []string{
-		"198.51.100.1:3389/tcp",
+		"198.51.100.1:5900/tcp",
 		"plain.example.com@198.51.100.5:80/tcp",
 		"redir.example.com@198.51.100.6:80/tcp",
 	} {

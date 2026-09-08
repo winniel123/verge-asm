@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"math/rand/v2"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -38,16 +39,24 @@ func exhaustedRetries(attempt, maxAttempts int32) bool {
 }
 
 func backoff(attempt int32) time.Duration {
+	return jitteredBackoff(attempt, rand.Float64())
+}
+
+// The jitter subtracts, never adds, so the summed schedule stays inside the hour (ADR-0005, #1686).
+
+func jitteredBackoff(attempt int32, unit float64) time.Duration {
 	// A 30s base summed to ~15m and missed the promised hour (notification-channels §4.2).
 	base := 2 * time.Minute
 	d := base
 	for i := int32(1); i < attempt; i++ {
 		d *= 2
 		if d >= 32*time.Minute {
-			return 32 * time.Minute
+			d = 32 * time.Minute
+			break
 		}
 	}
-	return d
+	half := d / 2
+	return half + time.Duration(unit*float64(half))
 }
 
 func toObservationParams(batchID int64, vantageID pgtype.Int8, observedAt pgtype.Timestamptz, obs []wire.Observation) []db.InsertObservationParams {

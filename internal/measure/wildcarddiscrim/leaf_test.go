@@ -12,7 +12,7 @@ func rrTXT(name, t string) rw.RR { return rw.RR{Name: name, Type: rw.QtypeTXT, D
 func rrMX(name, mx string) rw.RR { return rw.RR{Name: name, Type: rw.QtypeMX, Data: mx} }
 
 func constWildcard(ip string) controlAnswers {
-	ca := controlAnswers{reached: true}
+	ca := controlAnswers{complete: true}
 	for i := 0; i < LabelCount; i++ {
 		ca.perLabel = append(ca.perLabel, map[rw.Qtype][]rw.RR{
 			rw.QtypeA: {rrA("l.example.com", ip)},
@@ -49,7 +49,7 @@ func TestDiscriminateDiffersAtNoSynthesisComponent(t *testing.T) {
 }
 
 func TestDiscriminateIndeterminateNeverConsulted(t *testing.T) {
-	ca := controlAnswers{reached: true}
+	ca := controlAnswers{complete: true}
 	ca.perLabel = append(ca.perLabel, map[rw.Qtype][]rw.RR{rw.QtypeA: {rrA("l.example.com", "203.0.113.7")}})
 	for i := 1; i < LabelCount; i++ {
 		ca.perLabel = append(ca.perLabel, map[rw.Qtype][]rw.RR{})
@@ -61,7 +61,7 @@ func TestDiscriminateIndeterminateNeverConsulted(t *testing.T) {
 }
 
 func TestDiscriminateNoWildcardLicensesEverything(t *testing.T) {
-	ca := controlAnswers{reached: true}
+	ca := controlAnswers{complete: true}
 	for i := 0; i < LabelCount; i++ {
 		ca.perLabel = append(ca.perLabel, map[rw.Qtype][]rw.RR{})
 	}
@@ -71,7 +71,7 @@ func TestDiscriminateNoWildcardLicensesEverything(t *testing.T) {
 }
 
 func TestDiscriminateIncompleteProbeIsGap(t *testing.T) {
-	if got := Discriminate(map[compKey][]string{}, controlAnswers{reached: false}); got != VerdictGap {
+	if got := Discriminate(map[compKey][]string{}, controlAnswers{complete: false}); got != VerdictGap {
 		t.Errorf("incomplete probe = %q, want Gap", got)
 	}
 }
@@ -124,4 +124,30 @@ func TestCandidateComponentsSplitByAskedAndAnswered(t *testing.T) {
 	}
 	_ = rrTXT
 	_ = rrMX
+}
+
+type oneOfTenPeer struct{ answered string }
+
+func (p oneOfTenPeer) Exchange(q rw.Query) rw.Msg {
+	if rw.CanonicalName(q.Name) == rw.CanonicalName(p.answered) {
+		return rw.Msg{Reached: true, Rcode: rw.NOERROR, Answer: []rw.RR{rrA(q.Name, "203.0.113.1")}}
+	}
+	return rw.Msg{Reached: false}
+}
+
+type fixedLabels []string
+
+func (f fixedLabels) Labels() []string { return f }
+
+func TestProbeControlOneOfTenAnswersIsGap(t *testing.T) {
+	labels := make(fixedLabels, 0, LabelCount)
+	for i := 0; i < LabelCount; i++ {
+		labels = append(labels, "ctl"+string(rune('a'+i)))
+	}
+	peer := oneOfTenPeer{answered: "ctla.example.com"}
+	ctrl := probeControl(peer, rw.DefaultOffers(), "example.com", labels)
+	cand := map[compKey][]string{{rw.QtypeA, rw.QtypeA}: {"203.0.113.1"}}
+	if got := Discriminate(cand, ctrl); got != VerdictGap {
+		t.Errorf("one of ten control labels answered, nine timed out = %q, want Gap", got)
+	}
 }

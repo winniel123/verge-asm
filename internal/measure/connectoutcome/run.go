@@ -64,7 +64,7 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	realm := custody.ParseRealm(spec.Realm)
 	c, h := pacedPair(scope.Profile,
 		NetConnector{Timeout: timeout, realm: realm},
-		NetHandshaker{Timeout: timeout, realm: realm},
+		NetHandshaker{Timeout: timeout, Params: DefaultHandshakeParams(), realm: realm},
 		time.Now, sleepCtx)
 	return RunExchange(context.Background(), c, h, blanketdiscrim.CryptoPorts{}, spec.Batch, scope, w)
 }

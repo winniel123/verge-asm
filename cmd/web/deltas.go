@@ -23,8 +23,6 @@ type deltasStore interface {
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 }
 
-const certExpiryWindow = 30 * 24 * time.Hour
-
 func pgtypeTimestamptz(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: t, Valid: true}
 }
@@ -125,24 +123,26 @@ func (s *server) dashboardDeltas(ctx context.Context, fired []firedSignal) statD
 }
 
 func countCertsExpiring(open []drift.Span, ref time.Time) int {
-	// Only a v2 leaf carries not_after, so an older span is skipped rather than guessed at (#464).
-	horizon := ref.Add(certExpiryWindow)
+	// Only a v3 leaf carries both dates, so an older span is skipped, not guessed (#464).
 	n := 0
 	for _, sp := range open {
 		if sp.Key.Facet != connectoutcome.FacetCertificate || sp.IsGap {
 			continue
 		}
 		var v struct {
-			NotAfter string `json:"not_after"`
+			NotBefore string `json:"not_before"`
+			NotAfter  string `json:"not_after"`
 		}
-		if err := json.Unmarshal([]byte(sp.Value), &v); err != nil || v.NotAfter == "" {
+		if err := json.Unmarshal([]byte(sp.Value), &v); err != nil {
 			continue
 		}
-		na, err := time.Parse(time.RFC3339, v.NotAfter)
-		if err != nil {
+		nb, nbErr := time.Parse(time.RFC3339, v.NotBefore)
+		na, naErr := time.Parse(time.RFC3339, v.NotAfter)
+		if nbErr != nil || naErr != nil {
 			continue
 		}
-		if na.After(ref) && !na.After(horizon) {
+		horizon, ok := signal.CertHorizon(nb, na)
+		if ok && na.After(ref) && !na.After(ref.Add(horizon)) {
 			n++
 		}
 	}

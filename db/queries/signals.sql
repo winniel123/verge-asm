@@ -181,12 +181,13 @@ live AS (
 latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
-        o.value       AS value
+        o.value       AS value,
+        o.observed_at AS observed_at
     FROM live o
     WHERE o.subject_kind = 'endpoint' AND o.facet = 'certificate'
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
-SELECT subject_key, value
+SELECT subject_key, value, observed_at
 FROM latest
 ORDER BY subject_key;
 

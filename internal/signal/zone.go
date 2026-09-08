@@ -40,7 +40,7 @@ func DeclaredNames(content, origin string) map[string]bool {
 			lastOwner = owner
 		}
 		// A wildcard denotes a set of names rather than one, so it is a subject nowhere (ADR-0060).
-		if owner == "" || leftmostWildcard(owner) {
+		if owner == "" || leftmostWildcard(owner) || highBit(owner) {
 			continue
 		}
 		out[owner] = true
@@ -71,4 +71,14 @@ func stripComment(line string) string {
 
 func leftmostWildcard(name string) bool {
 	return name == "*" || strings.HasPrefix(name, "*.")
+}
+
+func highBit(name string) bool {
+	// A high-bit octet typed in a text form has two readings, so it is refused (ADR-0055).
+	for i := 0; i < len(name); i++ {
+		if name[i] >= 0x80 {
+			return true
+		}
+	}
+	return false
 }

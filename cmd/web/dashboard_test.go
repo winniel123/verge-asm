@@ -53,7 +53,7 @@ func TestDashboardParityRegions(t *testing.T) {
 		"Critical",
 		"Assets watched",
 		"Exposed services",
-		"Certs expiring ≤30d",
+		"Certs expiring",
 		"By severity",
 		"Scan infrastructure",
 		"eu-west-1",

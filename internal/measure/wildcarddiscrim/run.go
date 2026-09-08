@@ -103,11 +103,12 @@ func decide(res rw.Result, popSet map[string]struct{}, ctrlByParent map[string]c
 
 func probeControl(peer rw.Peer, offers rw.Offers, parentName string, labels []string) controlAnswers {
 	ca := controlAnswers{perLabel: make([]map[rw.Qtype][]rw.RR, 0, len(labels))}
+	asked, reached := 0, 0
 	for _, label := range labels {
 		name := rw.CanonicalName(label + "." + parentName)
 		ans := make(map[rw.Qtype][]rw.RR, len(offers.Qtypes))
 		for _, qt := range offers.Qtypes {
-			msg := peer.Exchange(rw.Query{
+			msg := rw.Exchange(peer, offers, rw.Query{
 				Path:      rw.PathDeclared,
 				Name:      name,
 				Qtype:     qt,
@@ -115,8 +116,9 @@ func probeControl(peer rw.Peer, offers rw.Offers, parentName string, labels []st
 				EDNS:      true,
 				Cookie:    offers.EDNS.Cookie,
 			})
+			asked++
 			if msg.Reached {
-				ca.reached = true
+				reached++
 			}
 			if len(msg.Answer) > 0 {
 				ans[qt] = msg.Answer
@@ -124,6 +126,8 @@ func probeControl(peer rw.Peer, offers rw.Offers, parentName string, labels []st
 		}
 		ca.perLabel = append(ca.perLabel, ans)
 	}
+	// No quorum is declared, so one silent control query leaves the set unread (ADR-0066, #1685).
+	ca.complete = asked > 0 && reached == asked
 	return ca
 }
 

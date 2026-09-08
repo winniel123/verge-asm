@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
 func editFreq(t *testing.T, c *http.Client, base, action, port string) *http.Response {
@@ -110,6 +111,21 @@ func TestVergeCoreViewerReadOnly(t *testing.T) {
 	}
 	if strings.Contains(page, `action="/verge-core/frequency"`) {
 		t.Errorf("an edit control was shown to a viewer")
+	}
+}
+
+func TestSensitiveServiceLabelsMatchShippedList(t *testing.T) {
+	shipped := map[int]bool{}
+	for _, p := range vergecore.Default().SensitivePairs() {
+		shipped[int(p.Port)] = true
+		if sensitiveServiceLabels[int(p.Port)] == "" {
+			t.Errorf("sensitive pair %s has no service label", p)
+		}
+	}
+	for port, label := range sensitiveServiceLabels {
+		if !shipped[port] {
+			t.Errorf("label %q names port %d, which is not on the shipped sensitive half", label, port)
+		}
 	}
 }
 

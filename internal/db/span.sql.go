@@ -159,6 +159,104 @@ func (q *Queries) ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, 
 	return items, nil
 }
 
+const listCitedAddressSpansForNames = `-- name: ListCitedAddressSpansForNames :many
+WITH cited AS (
+    SELECT DISTINCT a.addr
+    FROM span n
+    CROSS JOIN LATERAL jsonb_array_elements_text(
+        CASE WHEN jsonb_typeof(n.value -> 'addresses') = 'array' THEN n.value -> 'addresses' END
+    ) AS a(addr)
+    WHERE n.subject_kind = 'name'
+      AND n.facet = 'resolution'
+      AND n.subject_key = ANY($1::text[])
+)
+SELECT s.id, s.subject_key,
+       COALESCE((
+           SELECT array_agg(DISTINCT r.subject_key)
+           FROM span r
+           WHERE r.closed_at IS NULL
+             AND r.subject_kind = 'name'
+             AND r.facet = 'resolution'
+             AND r.is_gap = FALSE
+             AND jsonb_typeof(r.value -> 'addresses') = 'array'
+             AND r.value -> 'addresses' @> to_jsonb(s.subject_key)
+       ), '{}'::text[])::text[] AS citers
+FROM span s
+JOIN cited c ON c.addr = s.subject_key
+WHERE s.closed_at IS NULL
+  AND s.subject_kind = 'address'
+ORDER BY s.subject_key, s.id
+`
+
+type ListCitedAddressSpansForNamesRow struct {
+	ID         int64    `json:"id"`
+	SubjectKey string   `json:"subject_key"`
+	Citers     []string `json:"citers"`
+}
+
+// The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
+func (q *Queries) ListCitedAddressSpansForNames(ctx context.Context, names []string) ([]ListCitedAddressSpansForNamesRow, error) {
+	rows, err := q.db.Query(ctx, listCitedAddressSpansForNames, names)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCitedAddressSpansForNamesRow{}
+	for rows.Next() {
+		var i ListCitedAddressSpansForNamesRow
+		if err := rows.Scan(&i.ID, &i.SubjectKey, &i.Citers); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOpenSpansBeneathAddresses = `-- name: ListOpenSpansBeneathAddresses :many
+SELECT s.id, s.subject_kind, s.subject_key
+FROM span s
+WHERE s.closed_at IS NULL
+  AND s.subject_kind IN ('service', 'endpoint')
+  AND EXISTS (
+      SELECT 1 FROM unnest($1::text[]) AS a(addr)
+      WHERE s.subject_key LIKE a.addr || ':%'
+         OR s.subject_key LIKE '[' || a.addr || ']:%'
+         OR s.subject_key LIKE '%@' || a.addr || ':%'
+         OR s.subject_key LIKE '%@[' || a.addr || ']:%'
+  )
+ORDER BY s.subject_kind, s.subject_key, s.id
+`
+
+type ListOpenSpansBeneathAddressesRow struct {
+	ID          int64  `json:"id"`
+	SubjectKind string `json:"subject_kind"`
+	SubjectKey  string `json:"subject_key"`
+}
+
+// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
+func (q *Queries) ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error) {
+	rows, err := q.db.Query(ctx, listOpenSpansBeneathAddresses, addresses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenSpansBeneathAddressesRow{}
+	for rows.Next() {
+		var i ListOpenSpansBeneathAddressesRow
+		if err := rows.Scan(&i.ID, &i.SubjectKind, &i.SubjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenSpansForSubject = `-- name: ListOpenSpansForSubject :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason

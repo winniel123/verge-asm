@@ -1148,7 +1148,7 @@ func TestReportsOpenSignalsAgreeAcrossPageAndExport(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 
-	f.addClassReachability(t, "198.51.100.1:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.1:5900/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 	f.addClassReachability(t, "198.51.100.2:445/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 	f.addHTTPIdentity(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"responded","status":200}`)
 	f.addCertificate(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"no-tls"}`)

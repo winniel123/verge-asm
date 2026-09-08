@@ -183,6 +183,9 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		}
 		ders, pe := scan.ParseDataTile(tb)
 		if pe != nil {
+			if cause, permanent := ctTileCause(pe); permanent {
+				return w.deadLetterCT(ctx, job, nil, cause)
+			}
 			return w.retryOrDeadLetterCT(ctx, job, nil, pe)
 		}
 		offset := int(reached - tileBase)
@@ -291,6 +294,16 @@ func knownNameSet(ctx context.Context, q *db.Queries) (map[string]struct{}, erro
 func ctDriftLabel(n int) string {
 	// A count leaks nothing where a name would, so the drift line never carries one (#780).
 	return fmt.Sprintf("%s for known names", countLabel(n, "new certificate", "new certificates"))
+}
+
+// An unknown entry type withholds the leaf's length, so every refetch fails identically (ADR-0191).
+
+func ctTileCause(err error) (cause error, permanent bool) {
+	var unsupported *scan.UnsupportedEntryTypeError
+	if !errors.As(err, &unsupported) {
+		return err, false
+	}
+	return safeProgress(fmt.Sprintf("cannot read this log: unsupported tile entry type %d", unsupported.EntryType)), true
 }
 
 func ctHTTPCause(ferr error, status int, endpoint string) error {
