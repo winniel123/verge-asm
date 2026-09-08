@@ -2,6 +2,7 @@ package httpexchange
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -89,8 +90,7 @@ func Identity(r ExchangeResult, bodyCap int) HTTPIdentity {
 func extractTitle(body []byte) string {
 	// A deterministic scan, never an HTML parse: the golden corpus pins this output exactly.
 	s := string(body)
-	lower := strings.ToLower(s)
-	open := strings.Index(lower, "<title")
+	open := indexASCIIFold(s, "<title")
 	if open < 0 {
 		return ""
 	}
@@ -99,7 +99,7 @@ func extractTitle(body []byte) string {
 		return ""
 	}
 	start := open + gt + 1
-	end := strings.Index(lower[start:], "</title>")
+	end := indexASCIIFold(s[start:], "</title>")
 	if end < 0 {
 		return ""
 	}
@@ -108,6 +108,16 @@ func extractTitle(body []byte) string {
 		title = title[:titleCap]
 	}
 	return title
+}
+
+func indexASCIIFold(s, sub string) int {
+	// strings.ToLower widens a non-UTF-8 byte, so its offsets do not index the raw body (#1648).
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if strings.EqualFold(s[i:i+len(sub)], sub) {
+			return i
+		}
+	}
+	return -1
 }
 
 type Exchanger interface {
@@ -155,6 +165,8 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// The rebinding-proof line: the kernel's own address is refused even when entry passed.
 	transport.DialContext = (&net.Dialer{Control: control}).DialContext
+	// The URL names an IP, so verification fails every real certificate and reads no-HTTP (#1647).
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402 (accepted: HTTP identity probe — reads the response of an untrusted listener; verifying the chain against an IP literal would drop the measurement. Not a trusted-service client call.)
 	client := &http.Client{
 		Transport: transport,
 		// Not followed: the 3xx is returned as-is so its Location is identity (ADR-0025).
