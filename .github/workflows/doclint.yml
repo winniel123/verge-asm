@@ -122,7 +122,9 @@ jobs:
   # `ADR-nnnn §n` gate (#1437, repaired and wired by #1465). A `§n` citation resolves
   # only against a numbered heading of the ADR it names. 91 of the 218 ADRs number no
   # heading, so a `§n` against one of those is wrong by construction (SPEC
-  # docs/spec/comment-policy.md §4.7).
+  # docs/spec/comment-policy.md §4.7). The citation grammar is SPEC
+  # docs/spec/adr-governance.md §9: `ADR-\d{4,}` must name a file, a `§` naming a
+  # heading by word fails, and `ADR-nnnn #nnn` fails above ADR-0227 (#1735).
   #
   # NOT ADVISORY, and REQUIRED. The step exits non-zero on a violation, so the job
   # goes red, and `main`'s ruleset requires `adr-sections`, so a red run blocks the

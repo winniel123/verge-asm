@@ -144,7 +144,7 @@ admits none. This preserves the rule
 not — by keeping a transport outcome out of the admission path entirely.
 
 The `Location` header is not discarded. Where a surface records it, it is recorded as a fact about
-the response and never acted on. ADR-0148 §Context states this for `http-exchange`, where the
+the response and never acted on. ADR-0148 states this for `http-exchange`, where the
 `Location` is the finding.
 
 ### 3. The rule binds the construction site, not the caller

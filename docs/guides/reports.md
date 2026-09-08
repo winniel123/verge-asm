@@ -51,7 +51,7 @@ They travel in opposite directions and carry opposite payloads.
 
 Because a report carries the whole picture off the instance, it inherits the same
 high-value-target caution the notification layer does: the database is a complete, current
-map of your attack surface (ADR-0039 §Context), and a delivered report is a copy of a
+map of your attack surface (ADR-0039), and a delivered report is a copy of a
 slice of it. Deliver reports only to targets you would trust with that map.
 
 ---
