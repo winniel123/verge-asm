@@ -73,7 +73,6 @@ func flagshipCensusWithRules(ctx context.Context, store messageStore, observedAt
 		return message.Census{}, err
 	}
 	if !hasSubject(subjects, "service", service) {
-		// The Service's own facets may all be unchanged, yet its reach moved beneath it.
 		s, err := readSubjectAtCause(ctx, store, "service", service)
 		if err != nil {
 			return message.Census{}, err
@@ -179,7 +178,6 @@ func subjectsAtCause(ctx context.Context, store messageStore, observedAt time.Ti
 		id := [2]string{c.SubjectKind, c.SubjectKey}
 		i, ok := index[id]
 		if !ok {
-			// The fold already wrote the after state, so the store holds the unchanged facets.
 			s, err := readSubjectAtCause(ctx, store, c.SubjectKind, c.SubjectKey)
 			if err != nil {
 				return nil, err

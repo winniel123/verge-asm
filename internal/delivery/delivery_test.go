@@ -351,7 +351,7 @@ func TestDeliveryRefusesPrivateResolvedTarget(t *testing.T) {
 }
 
 func TestGuardTargetAdmitsLoopbackAndRefusesMixedAnswers(t *testing.T) {
-	// ADR-0039 §2: loopback is the one plaintext exception, tested over the resolved address.
+	// Loopback is the one plaintext exception, tested over the resolved address (ADR-0039 §2).
 	res := fakeResolver{
 		"local.example":  {netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("::1")},
 		"mixed.example":  {netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("93.184.216.34")},

@@ -1039,20 +1039,6 @@ type (
 
 func decodeCertificate(raw []byte) certificateValue { return signalfacts.DecodeCertificate(raw) }
 
-func certDetailsFromValue(v certificateValue, observedAt, now time.Time, serverName string) *signal.CertDetails {
-	return signalfacts.CertDetailsFromValue(v, observedAt, now, serverName)
-}
-
-func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
-	return signalfacts.SelfSignedOf(subject, issuer, selfSigVerifies)
-}
-
-func sanMatchesName(sanDNS []string, name string) bool {
-	return signalfacts.SANMatchesName(sanDNS, name)
-}
-
-func weakKeyOrSignature(chain []chainCert) bool { return signalfacts.WeakKeyOrSignature(chain) }
-
 func parseServicePair(key string) (pair vergecore.Pair, addr string, ok bool) {
 	return signalfacts.ParseServicePair(key)
 }

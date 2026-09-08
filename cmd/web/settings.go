@@ -708,6 +708,15 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	s.renderStatus(w, r, http.StatusOK, "settings", data)
 }
 
+func vantageRowsInclude(rows []db.ListVantagesRow, id int64) bool {
+	for _, v := range rows {
+		if v.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[string]any) error {
 	rows, err := s.instanceSettingsStore.ListVantages(r.Context())
 	if err != nil {
@@ -721,6 +730,7 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 	data["ResolverError"] = f.resolverError
 	data["ResolverID"] = f.resolverID
 	data["ResolverValue"] = f.resolverValue
+	data["ResolverUnmatched"] = f.resolverError != "" && !vantageRowsInclude(rows, f.resolverID)
 	out := make([]vantageRow, 0, len(rows))
 	for _, v := range rows {
 		vr := vantageRow{

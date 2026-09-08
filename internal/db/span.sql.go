@@ -390,7 +390,7 @@ SELECT
                 AND wp.discriminator = w.discriminator
                 AND wp.vantage_id IS NOT DISTINCT FROM w.vantage_id
                 AND wp.source = w.source
-                AND wp.opened_at < w.opened_at
+                AND (wp.opened_at < w.opened_at OR (wp.opened_at = w.opened_at AND wp.id < w.id))
               ORDER BY wp.opened_at DESC, wp.id DESC
               LIMIT 1
           )
@@ -406,7 +406,7 @@ LEFT JOIN LATERAL (
       AND p.discriminator = sp.discriminator
       AND p.vantage_id IS NOT DISTINCT FROM sp.vantage_id
       AND p.source = sp.source
-      AND p.opened_at < sp.opened_at
+      AND (p.opened_at < sp.opened_at OR (p.opened_at = sp.opened_at AND p.id < sp.id))
     ORDER BY p.opened_at DESC, p.id DESC
     LIMIT 1
 ) pred ON true

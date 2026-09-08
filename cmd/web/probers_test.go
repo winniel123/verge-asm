@@ -298,6 +298,24 @@ func TestSetVantageResolverRefusedOnceObserved(t *testing.T) {
 	}
 }
 
+func TestSetVantageResolverUnknownIDIsNotReadAsFixed(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	if loc := submitLoc(t, setResolver(t, ac, base, "424242", "1.1.1.1:53")); loc != vantagesTab {
+		t.Fatalf("unknown vantage landed at %q, want %q", loc, vantagesTab)
+	}
+	page := vantagesBody(t, ac, base)
+	if !strings.Contains(page, "Unknown vantage.") {
+		t.Errorf("an unknown id does not read as unknown; body: %s", page)
+	}
+	if strings.Contains(page, "resolver is fixed") {
+		t.Errorf("an unknown id reads as an observed vantage; body: %s", page)
+	}
+}
+
 func TestLocalVantageWithoutObservationAcceptsResolver(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

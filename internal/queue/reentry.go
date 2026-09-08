@@ -20,7 +20,6 @@ func reEntryInputs(rows []db.ListSpansForSubjectRow) (prior *drift.Span, witness
 			latest = r
 		}
 	}
-	// A value-move closure carries no ground, so the subject never left and this is no re-entry.
 	if latest != nil && drift.ClosureReason(latest.ClosureReason.String).Valid() {
 		prior = &drift.Span{
 			Value:    string(latest.Value),

@@ -455,6 +455,7 @@
 <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Vantages</h2>
 <p class="st-lede">The network positions a scan measures from. A vantage carries a verified class — internet or internal — and the recursive resolver it looks through; provisioning one declares it sits on the internet and opens the Reach and Exposure timelines.</p>
 </header>
+{{if and $.IsAdmin $.ResolverUnmatched}}<div class="st-error">{{$.ResolverError}}</div>{{end}}
 {{if .Vantages}}
 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px">
 {{range .Vantages}}

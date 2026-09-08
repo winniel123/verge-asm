@@ -5,12 +5,9 @@ import (
 	"testing"
 )
 
-// TestSetVantageResolverRefusesAnObservedVantage pins the ADR-0070 guard (#1716):
-// the resolver is a timeline-key component, so the update must hold only while
-// no observation and no span carry the vantage, and the caller must learn that
-// the guard held from the row count.
 func TestSetVantageResolverRefusesAnObservedVantage(t *testing.T) {
 	sql := strings.ToLower(setVantageResolver)
+	// Retention deletes observations while spans persist, so the guard reads both (ADR-0070, #1716).
 	for _, want := range []string{
 		"not exists (select 1 from observation",
 		"not exists (select 1 from span",

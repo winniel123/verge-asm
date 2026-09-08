@@ -33,7 +33,6 @@ func TestFlagshipHeadlineNamesTheRulesThatOpenedAtFired(t *testing.T) {
 	if ContainsValence(msg.Headline) {
 		t.Errorf("headline carries a valence word: %q", msg.Headline)
 	}
-	// Facet entries sort before rule entries, so a renderer walks them in that order.
 	if census.Entries[0].Kind != KindFacet || census.Entries[1].Kind != KindRule {
 		t.Errorf("rule entries must follow facet entries, got %+v", census.Entries)
 	}
