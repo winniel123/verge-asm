@@ -17,7 +17,9 @@ RETURNING id, name, class, resolver, host, port, username, availability,
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
        v.latency_ms, v.platform, v.egress, v.dialled_addr,
-       a.username AS created_by_username
+       a.username AS created_by_username,
+       (EXISTS (SELECT 1 FROM observation o WHERE o.vantage_id = v.id)
+        OR EXISTS (SELECT 1 FROM span sp WHERE sp.vantage_id = v.id))::boolean AS observed
 FROM vantage v
 JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
@@ -52,10 +54,14 @@ FROM vantage
 WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
 ORDER BY id;
 
--- name: SetVantageResolver :exec
+-- name: SetVantageResolver :execrows
+-- A switch after the first observation would continue the timelines the resolver keys;
+-- retention prunes observation but keeps span (ADR-0070, #1716).
 UPDATE vantage
 SET resolver = $2
-WHERE id = $1;
+WHERE vantage.id = $1
+  AND NOT EXISTS (SELECT 1 FROM observation o WHERE o.vantage_id = $1)
+  AND NOT EXISTS (SELECT 1 FROM span sp WHERE sp.vantage_id = $1);
 
 -- name: SetVantageLatency :exec
 UPDATE vantage

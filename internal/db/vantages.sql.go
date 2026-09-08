@@ -144,7 +144,9 @@ const listVantages = `-- name: ListVantages :many
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
        v.latency_ms, v.platform, v.egress, v.dialled_addr,
-       a.username AS created_by_username
+       a.username AS created_by_username,
+       (EXISTS (SELECT 1 FROM observation o WHERE o.vantage_id = v.id)
+        OR EXISTS (SELECT 1 FROM span sp WHERE sp.vantage_id = v.id))::boolean AS observed
 FROM vantage v
 JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
@@ -169,6 +171,7 @@ type ListVantagesRow struct {
 	Egress            pgtype.Text        `json:"egress"`
 	DialledAddr       pgtype.Text        `json:"dialled_addr"`
 	CreatedByUsername string             `json:"created_by_username"`
+	Observed          bool               `json:"observed"`
 }
 
 func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
@@ -198,6 +201,7 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 			&i.Egress,
 			&i.DialledAddr,
 			&i.CreatedByUsername,
+			&i.Observed,
 		); err != nil {
 			return nil, err
 		}
@@ -394,10 +398,12 @@ func (q *Queries) SetVantagePublicKey(ctx context.Context, arg SetVantagePublicK
 	return err
 }
 
-const setVantageResolver = `-- name: SetVantageResolver :exec
+const setVantageResolver = `-- name: SetVantageResolver :execrows
 UPDATE vantage
 SET resolver = $2
-WHERE id = $1
+WHERE vantage.id = $1
+  AND NOT EXISTS (SELECT 1 FROM observation o WHERE o.vantage_id = $1)
+  AND NOT EXISTS (SELECT 1 FROM span sp WHERE sp.vantage_id = $1)
 `
 
 type SetVantageResolverParams struct {
@@ -405,7 +411,12 @@ type SetVantageResolverParams struct {
 	Resolver string `json:"resolver"`
 }
 
-func (q *Queries) SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) error {
-	_, err := q.db.Exec(ctx, setVantageResolver, arg.ID, arg.Resolver)
-	return err
+// A switch after the first observation would continue the timelines the resolver keys;
+// retention prunes observation but keeps span (ADR-0070, #1716).
+func (q *Queries) SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setVantageResolver, arg.ID, arg.Resolver)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

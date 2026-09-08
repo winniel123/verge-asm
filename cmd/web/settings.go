@@ -157,6 +157,7 @@ type vantageRow struct {
 	Endpoint     string
 	Latency      string
 	Unverified   bool
+	Observed     bool
 	Avail        string
 }
 
@@ -725,7 +726,7 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 		vr := vantageRow{
 			ID: v.ID, Name: v.Name, Class: v.Class, Availability: v.Availability.String,
 			Resolver: v.Resolver, Endpoint: endpointString(v.Host.String, v.Port.Int32),
-			Latency: vantageLatencyLabel(v.LatencyMs),
+			Latency: vantageLatencyLabel(v.LatencyMs), Observed: v.Observed,
 		}
 		if vr.Availability == "" {
 			vr.Availability = "pending"

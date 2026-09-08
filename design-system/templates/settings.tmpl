@@ -472,11 +472,15 @@
 {{if not .Resolver}}<span class="st-note">Its dns jobs are skipped until you set one — no batch is opened, and the other vantages still resolve.</span>{{end}}
 {{if $.IsAdmin}}
 {{if and $.ResolverError (eq $.ResolverID .ID)}}<div class="st-error">{{$.ResolverError}}</div>{{end}}
+{{if .Observed}}
+<span class="st-note">Its resolver is fixed — this vantage has observed, and the resolver is part of every timeline it feeds. To switch resolvers, provision a new vantage with the new one and retire this one.</span>
+{{else}}
 <form method="post" action="/settings/vantages/resolver" style="margin:0;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">{{template "backfield" $}}
 <input type="hidden" name="id" value="{{.ID}}">
 <span class="st-input"><span class="lb">Resolver</span><span class="iw"><input name="resolver" value="{{if and $.ResolverError (eq $.ResolverID .ID)}}{{$.ResolverValue}}{{else}}{{.Resolver}}{{end}}" placeholder="9.9.9.9:53" autocomplete="off" spellcheck="false" required></span></span>
 <button type="submit" class="st-btn">Set resolver</button>
 </form>
+{{end}}
 {{end}}
 </section>
 {{end}}

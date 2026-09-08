@@ -427,6 +427,7 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt, LatencyMs: v.LatencyMs,
 			Platform: v.Platform, Egress: v.Egress, DialledAddr: v.DialledAddr,
 			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
+			Observed:          f.vantageObserved(v.ID),
 		})
 	}
 	return rows, nil

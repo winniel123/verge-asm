@@ -15,7 +15,7 @@ import (
 
 type probersStore interface {
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
-	SetVantageResolver(ctx context.Context, arg db.SetVantageResolverParams) error
+	SetVantageResolver(ctx context.Context, arg db.SetVantageResolverParams) (int64, error)
 }
 
 // Only the public half reaches web; the private key stays on the worker volume (ADR-0053).
@@ -91,12 +91,20 @@ func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, _ db
 		fail(err.Error())
 		return
 	}
-	if err := s.probersStore.SetVantageResolver(r.Context(), db.SetVantageResolverParams{ID: id, Resolver: res}); err != nil {
+	n, err := s.probersStore.SetVantageResolver(r.Context(), db.SetVantageResolverParams{ID: id, Resolver: res})
+	if err != nil {
 		fail("Could not set the resolver.")
+		return
+	}
+	// Zero rows means the guard held: a switch after the first observation would continue the old timelines (ADR-0070).
+	if n == 0 {
+		fail(resolverFixedMessage)
 		return
 	}
 	s.backToSection(w, r, "vantages")
 }
+
+const resolverFixedMessage = "This vantage has observed, so its resolver is fixed. Provision a new vantage with the new resolver and retire this one."
 
 func toProberViews(rows []db.ListVantagesRow) []proberView {
 	out := make([]proberView, 0, len(rows))
