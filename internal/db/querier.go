@@ -24,7 +24,8 @@ type Querier interface {
 	CloseSpan(ctx context.Context, arg CloseSpanParams) error
 	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
-	ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) error
+	// The guard makes the consume atomic, so two accepts in flight cannot both win (#1650).
+	ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) (int64, error)
 	ConsumePasswordReset(ctx context.Context, arg ConsumePasswordResetParams) error
 	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
 	CountAccounts(ctx context.Context) (int64, error)
@@ -64,6 +65,8 @@ type Querier interface {
 	DeleteSSOIdentity(ctx context.Context, id int64) error
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
+	// Nothing else purges the table, so the request path bounds it to the live grants (#1651).
+	DeleteSpentPasswordResets(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
