@@ -56,3 +56,33 @@ func TestNetExchangerSendsOneGetRootWithProbeUA(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", res.Status)
 	}
 }
+
+func TestNetExchangerReadsAnHTTPSListenerWhoseCertificateNamesNoIP(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Server", "tls-test-server")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	ap, err := netip.ParseAddrPort(srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("parse listener addr: %v", err)
+	}
+
+	ex := NetExchanger{Params: DefaultParams(), control: allowAllControl}
+	res := ex.Exchange(context.Background(), Target{
+		Address: ap.Addr().String(),
+		Port:    ap.Port(),
+		Scheme:  "https",
+	})
+
+	if res.Failed {
+		t.Fatalf("an https listener with an unverifiable certificate must still be read, got: %s", res.Err)
+	}
+	if res.Status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.Status)
+	}
+	if res.Server != "tls-test-server" {
+		t.Fatalf("expected Server header, got %q", res.Server)
+	}
+}
