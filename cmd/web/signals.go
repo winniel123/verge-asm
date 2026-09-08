@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"sort"
 	"strconv"
@@ -18,11 +17,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/estate"
-	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
-	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
+	"github.com/winniel123/verge-asm/internal/signalfacts"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
@@ -933,9 +931,9 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 	if err != nil {
 		return nil, nil, err
 	}
-	tlsBySubject := make(map[string]tlsAcceptanceValue, len(tlsRows))
+	tlsBySubject := make(map[string][]byte, len(tlsRows))
 	for _, row := range tlsRows {
-		tlsBySubject[row.SubjectKey] = decodeTLSAcceptance(row.Value)
+		tlsBySubject[row.SubjectKey] = row.Value
 	}
 	vc := vergecore.Default()
 
@@ -953,27 +951,20 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 	estateAddrs := map[string]bool{}
 	facts := make([]signal.ServiceFacts, 0, len(order))
 	for _, sub := range order {
-		f := signal.ServiceFacts{Subject: sub}
-		if pair, addr, ok := parseServicePair(sub); ok {
-			f.OnSensitiveList = pair.Transport == vergecore.TCP && vc.IsSensitive(pair)
+		if _, addr, ok := parseServicePair(sub); ok {
 			estateAddrs[addr] = true
 		}
+		var ev signalfacts.ServiceEvidence
 		// A blanket responder's reach is a Gap, so the rule damps at measurement (ADR-0104 §3).
 		if l, ok := byClass[sub]["internet"]; ok && !l.isGap && l.outcome != "" {
-			f.HasInternetReach = true
-			f.InternetReach = l.outcome
+			ev.HasInternetReach = true
+			ev.InternetReach = l.outcome
 		}
-		if tls, ok := tlsBySubject[sub]; ok && tls.Outcome == string(tlsacceptance.Enumerated) {
-			f.TLSHandshakeCompleted = true
-			f.TLSVersionsReadable = len(tls.Versions) > 0
-			for _, ver := range tls.Versions {
-				if ver.Version == tlsacceptance.TLS10 {
-					f.TLS10Accepted = true
-					break
-				}
-			}
+		if tls, ok := tlsBySubject[sub]; ok {
+			ev.HasTLSAcceptance = true
+			ev.TLSAcceptance = tls
 		}
-		facts = append(facts, f)
+		facts = append(facts, signalfacts.ServiceFactsFrom(sub, ev, vc))
 	}
 	sort.Slice(facts, func(i, j int) bool { return facts[i].Subject < facts[j].Subject })
 	return facts, estateAddrs, nil
@@ -994,15 +985,15 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 		return nil, err
 	}
 
-	certVal := map[string]certificateValue{}
+	certVal := map[string][]byte{}
 	certSeen := map[string]time.Time{}
 	for _, row := range certRows {
-		certVal[row.SubjectKey] = decodeCertificate(row.Value)
+		certVal[row.SubjectKey] = row.Value
 		certSeen[row.SubjectKey] = row.ObservedAt.Time
 	}
-	httpID := map[string]httpIdentityValue{}
+	httpID := map[string][]byte{}
 	for _, row := range httpRows {
-		httpID[row.SubjectKey] = decodeHTTPIdentity(row.Value)
+		httpID[row.SubjectKey] = row.Value
 	}
 
 	nameSet := estateNameSet(names)
@@ -1023,202 +1014,50 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 
 	facts := make([]signal.EndpointFacts, 0, len(subjects))
 	for sub := range subjects {
-		name, _ := splitEndpointName(sub)
-		f := signal.EndpointFacts{Subject: sub, HasName: name != ""}
+		var ev signalfacts.EndpointEvidence
 		if cv, ok := certVal[sub]; ok {
-			f.CertMeasured = true
-			f.CertOutcome = cv.Outcome
-			f.CertDetails = certDetailsFromValue(cv, certSeen[sub], s.now(), name)
+			ev.HasCertificate = true
+			ev.Certificate = cv
+			ev.CertObservedAt = certSeen[sub]
 		}
 		if id, ok := httpID[sub]; ok {
-			f.HTTPResponded = id.Outcome == httpexchange.OutcomeResponded
-			f.HTTPStatus = id.Status
-			f.RedirectLocation = id.RedirectLocation
-			if f.HTTPResponded && f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && id.RedirectLocation != "" {
-				_, host := signal.RedirectTarget(id.RedirectLocation)
-				f.RedirectHostInEstate = inEstate(host)
-			}
+			ev.HasHTTPIdentity = true
+			ev.HTTPIdentity = id
 		}
-		facts = append(facts, f)
+		facts = append(facts, signalfacts.EndpointFactsFrom(sub, ev, s.now(), inEstate))
 	}
 	sort.Slice(facts, func(i, j int) bool { return facts[i].Subject < facts[j].Subject })
 	return facts, nil
 }
 
-type certificateValue struct {
-	Outcome    string      `json:"outcome"`
-	Chain      []string    `json:"chain"`
-	NotAfter   string      `json:"not_after"`
-	NotBefore  string      `json:"not_before"`
-	SANDNS     []string    `json:"san_dns"`
-	SANIP      []string    `json:"san_ip"`
-	ChainCerts []chainCert `json:"chain_certs"`
-}
+// The worker's census producers evaluate on the same derivation, so it lives there (ADR-0033 §3).
 
-// These mirror connectoutcome's per-link parsed facts, so a producer edit must land here too.
+type (
+	certificateValue = signalfacts.CertificateValue
+	chainCert        = signalfacts.ChainCert
+)
 
-type chainCert struct {
-	Subject               string `json:"subject"`
-	Issuer                string `json:"issuer"`
-	SelfSignatureVerifies *bool  `json:"self_sig_verifies"`
-	KeyAlg                string `json:"key_alg"`
-	KeyBits               int    `json:"key_bits"`
-	KeyParamN             int    `json:"key_n_bits"`
-	SigDigest             string `json:"sig_digest"`
-}
-
-func decodeCertificate(raw []byte) certificateValue {
-	var v certificateValue
-	_ = json.Unmarshal(raw, &v)
-	return v
-}
+func decodeCertificate(raw []byte) certificateValue { return signalfacts.DecodeCertificate(raw) }
 
 func certDetailsFromValue(v certificateValue, observedAt, now time.Time, serverName string) *signal.CertDetails {
-	if v.Outcome != signal.CertPresented {
-		return nil
-	}
-	d := &signal.CertDetails{}
-
-	// A pre-v3 value has no not_before, so its horizon is underdetermined (ADR-0004 #67).
-	if nb, nbErr := time.Parse(time.RFC3339, v.NotBefore); nbErr == nil {
-		if na, naErr := time.Parse(time.RFC3339, v.NotAfter); naErr == nil {
-			d.Clock = &signal.CertClock{NotBefore: nb, NotAfter: na, ObservedAt: observedAt.UTC(), EvaluatedAt: now.UTC()}
-		}
-	}
-
-	// Under omitempty an empty san_dns is unreadable, so chain_certs is the read/unread witness.
-	if len(v.ChainCerts) > 0 {
-		if serverName != "" {
-			m := sanMatchesName(v.SANDNS, serverName)
-			d.SANMatchesName = &m
-		}
-		weak := weakKeyOrSignature(v.ChainCerts)
-		d.WeakKeyOrSignature = &weak
-		if c0 := v.ChainCerts[0]; c0.SelfSignatureVerifies != nil {
-			ss := selfSignedOf(c0.Subject, c0.Issuer, *c0.SelfSignatureVerifies)
-			d.SelfSigned = &ss
-		}
-	}
-	return d
+	return signalfacts.CertDetailsFromValue(v, observedAt, now, serverName)
 }
 
 func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
-	// Shared so the two rules cannot disagree.
-	// Byte-exact on the presented rendering. RFC 5280 name preparation is refused.
-	return subject == issuer && selfSigVerifies
+	return signalfacts.SelfSignedOf(subject, issuer, selfSigVerifies)
 }
 
 func sanMatchesName(sanDNS []string, name string) bool {
-	// A wildcard SAN admits no Name yet matches one here: matching is not admitting (ADR-0060).
-	nameLabels := dnsLabels(name)
-	if len(nameLabels) == 0 {
-		return false
-	}
-	// Only dNSName SANs participate; RFC 6125 puts an iPAddress out of scope (ADR-0175 §3, #1342).
-	for _, entry := range sanDNS {
-		if sanEntryMatches(entry, nameLabels) {
-			return true
-		}
-	}
-	return false
+	return signalfacts.SANMatchesName(sanDNS, name)
 }
 
-func dnsLabels(name string) []string {
-	labels := strings.Split(name, ".")
-	if n := len(labels); n > 0 && labels[n-1] == "" {
-		labels = labels[:n-1]
-	}
-	if len(labels) == 1 && labels[0] == "" {
-		return nil
-	}
-	return labels
-}
-
-func sanEntryMatches(entry string, nameLabels []string) bool {
-	entryLabels := dnsLabels(entry)
-	if len(entryLabels) == 0 {
-		return false
-	}
-	stars := 0
-	for _, l := range entryLabels {
-		stars += strings.Count(l, "*")
-	}
-	if stars == 0 {
-		return labelsEqualFold(entryLabels, nameLabels)
-	}
-	// Same octets read as a pattern to one client and a literal to the next, so refuse (ADR-0060).
-	if stars != 1 || entryLabels[0] != "*" {
-		return false
-	}
-	if len(entryLabels) != len(nameLabels) {
-		return false
-	}
-	if nameLabels[0] == "" {
-		return false
-	}
-	return labelsEqualFold(entryLabels[1:], nameLabels[1:])
-}
-
-func labelsEqualFold(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !strings.EqualFold(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func weakKeyOrSignature(chain []chainCert) bool {
-	// A self-signed link skips the signature limb only (weak-key-and-signature.md §4.1).
-	weak := false
-	for _, c := range chain {
-		// An unnamed key algorithm is not weak, not unevaluable (weak-key-and-signature.md §4.2).
-		switch c.KeyAlg {
-		case "RSA":
-			if c.KeyBits < 2048 {
-				weak = true
-			}
-		case "ECDSA":
-			if c.KeyBits < 224 {
-				weak = true
-			}
-		case "DSA":
-			if c.KeyBits < 2048 || c.KeyParamN < 224 {
-				weak = true
-			}
-		}
-		selfSig := c.SelfSignatureVerifies != nil && *c.SelfSignatureVerifies
-		if !selfSignedOf(c.Subject, c.Issuer, selfSig) {
-			if c.SigDigest == "MD5" || c.SigDigest == "SHA-1" {
-				weak = true
-			}
-		}
-	}
-	return weak
-}
+func weakKeyOrSignature(chain []chainCert) bool { return signalfacts.WeakKeyOrSignature(chain) }
 
 func parseServicePair(key string) (pair vergecore.Pair, addr string, ok bool) {
-	slash := strings.LastIndex(key, "/")
-	if slash < 0 {
-		return vergecore.Pair{}, "", false
-	}
-	hostPort, transport := key[:slash], key[slash+1:]
-	ap, err := netip.ParseAddrPort(hostPort)
-	if err != nil {
-		return vergecore.Pair{}, "", false
-	}
-	return vergecore.Pair{Port: ap.Port(), Transport: vergecore.Transport(transport)}, ap.Addr().String(), true
+	return signalfacts.ParseServicePair(key)
 }
 
-func splitEndpointName(key string) (name, service string) {
-	if at := strings.Index(key, "@"); at >= 0 {
-		return key[:at], key[at+1:]
-	}
-	return "", key
-}
+func splitEndpointName(key string) (name, service string) { return signalfacts.SplitEndpointName(key) }
 
 func estateNameSet(names []signal.NameFacts) map[string]bool {
 	// The redirect host arrives lowercased, so the zone's own spelling must not decide a match.

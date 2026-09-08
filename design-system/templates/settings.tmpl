@@ -1433,7 +1433,7 @@
 <p class="hl">{{.Headline}}</p>
 {{if .Census}}
 <div class="st-census">
-{{range .Census}}<div class="crow"><span class="k">{{.Kind}}</span>{{if .Href}}<a class="v" href="{{.Href}}">{{.Key}}</a>{{else}}<span class="v">{{.Key}}</span>{{end}}</div>{{end}}
+{{range .Census}}<div class="crow"><span class="k">{{.Kind}}</span>{{if .Href}}<a class="v" href="{{.Href}}">{{.Key}}</a>{{else}}<span class="v">{{.Key}}</span>{{end}}{{if .Detail}}<span class="v">{{.Detail}}</span>{{end}}</div>{{end}}
 </div>
 {{end}}
 {{if .Deliveries}}

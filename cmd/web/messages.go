@@ -61,9 +61,10 @@ type messageRow struct {
 }
 
 type censusRowView struct {
-	Kind string
-	Key  string
-	Href string
+	Kind   string
+	Key    string
+	Detail string
+	Href   string
 }
 
 func (s *server) messagesPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -308,7 +309,7 @@ func toMessageRow(m db.Message, read bool) messageRow {
 	if c, err := message.ParseCensus(m.Census); err == nil {
 		for _, e := range c.Entries {
 			row.Census = append(row.Census, censusRowView{
-				Kind: e.Kind, Key: e.Key, Href: subjectHref(e.Kind, e.Key),
+				Kind: e.Kind, Key: e.Key, Detail: e.Detail, Href: subjectHref(e.Kind, e.Key),
 			})
 		}
 	}
@@ -354,6 +355,9 @@ func subjectHref(kind, key string) string {
 		return "/subjects/endpoint?key=" + url.QueryEscape(key)
 	case "name", "address":
 		return "/subjects/" + url.PathEscape(key)
+	case message.KindRule:
+		// The signals page filters on q, so a rule entry lands on that rule's rows.
+		return "/signals?q=" + url.QueryEscape(key)
 	default:
 		return ""
 	}

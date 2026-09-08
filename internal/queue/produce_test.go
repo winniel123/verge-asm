@@ -26,6 +26,12 @@ type fakeMessageStore struct {
 	askedFor    [][]string
 
 	addressExclusions []*netip.Prefix
+
+	open map[string][]db.ListOpenSpansForSubjectRow
+}
+
+func (f *fakeMessageStore) ListOpenSpansForSubject(_ context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error) {
+	return f.open[arg.SubjectKind+"|"+arg.SubjectKey], nil
 }
 
 func (f *fakeMessageStore) PreviousBatchTime(context.Context) (pgtype.Timestamptz, error) {

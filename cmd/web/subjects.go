@@ -20,6 +20,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
+	"github.com/winniel123/verge-asm/internal/signalfacts"
 )
 
 type subjectsStore interface {
@@ -179,20 +180,9 @@ func decodeReachability(raw []byte) reachabilityValue {
 	return v
 }
 
-type httpIdentityValue struct {
-	Outcome          string `json:"outcome"`
-	Status           int    `json:"status"`
-	Server           string `json:"server"`
-	Title            string `json:"title"`
-	WWWAuthenticate  string `json:"www_authenticate"`
-	RedirectLocation string `json:"redirect_location"`
-}
+type httpIdentityValue = signalfacts.HTTPIdentityValue
 
-func decodeHTTPIdentity(raw []byte) httpIdentityValue {
-	var v httpIdentityValue
-	_ = json.Unmarshal(raw, &v)
-	return v
-}
+func decodeHTTPIdentity(raw []byte) httpIdentityValue { return signalfacts.DecodeHTTPIdentity(raw) }
 
 func httpIdentityLabel(v httpIdentityValue) string {
 	if v.Outcome == httpexchange.OutcomeNoHTTPResponse {
@@ -745,19 +735,9 @@ func valueLabel(facet string, raw []byte, isGap bool) string {
 	}
 }
 
-type tlsAcceptanceValue struct {
-	Outcome  string `json:"outcome"`
-	Versions []struct {
-		Version string   `json:"version"`
-		Ciphers []string `json:"ciphers"`
-	} `json:"versions"`
-}
+type tlsAcceptanceValue = signalfacts.TLSAcceptanceValue
 
-func decodeTLSAcceptance(raw []byte) tlsAcceptanceValue {
-	var v tlsAcceptanceValue
-	_ = json.Unmarshal(raw, &v)
-	return v
-}
+func decodeTLSAcceptance(raw []byte) tlsAcceptanceValue { return signalfacts.DecodeTLSAcceptance(raw) }
 
 func spanDetails(facet string, raw []byte, isGap bool) []spanDetail {
 	// An operator reads a subject's actual records here rather than a count alone (#240).

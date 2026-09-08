@@ -82,9 +82,10 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 	census, _ := message.NewCensus(
 		message.CensusEntry{Kind: "facet", Key: "certificate"},
 		message.CensusEntry{Kind: "facet", Key: "http-identity"},
+		message.CensusEntry{Kind: message.KindRule, Key: "sensitive-port-reached-from-internet", Detail: "3306/tcp"},
 	).Marshal()
 	putMessage(t, f, message.CauseDrift, "service", "198.51.100.1:443/tcp",
-		"198.51.100.1:443/tcp reached from the internet · 2 facets opened beneath it", census)
+		"198.51.100.1:443/tcp reached from the internet · 2 facets opened beneath it · 1 rule opened at fired: sensitive-port-reached-from-internet (3306/tcp)", census)
 	putMessage(t, f, message.CauseAperture, "seed", "198.51.100.0/24",
 		"198.51.100.0/24 narrowed · 198.51.100.128/25 excluded · 128 subjects withdrawn · 17,920 timelines taken out of the estate", nil)
 
@@ -97,6 +98,8 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 		"128 subjects withdrawn",
 		"/subjects/service?key=198.51.100.1%3A443%2Ftcp",
 		"certificate", "http-identity",
+		// A rule entry renders after the facet entries, names its port and links to the rule's rows.
+		`href="/signals?q=sensitive-port-reached-from-internet"`, "3306/tcp",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("message panel missing %q\nbody: %s", want, page)

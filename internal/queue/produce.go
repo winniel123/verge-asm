@@ -31,6 +31,7 @@ type messageStore interface {
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	AddressExclusionStore
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
+	ListOpenSpansForSubject(ctx context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error)
 }
 
 type spanChange struct {
@@ -40,6 +41,7 @@ type spanChange struct {
 	Opened         bool
 	OpenedAperture bool
 	Value          []byte
+	Previous       []byte // The closed span's value; nil where the timeline opened (ADR-0033 §2).
 	Vector         drift.Vector
 	PrevVector     drift.Vector
 	PriorClosure   *drift.Span
@@ -197,12 +199,16 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 		if !aok || !bok || !exposure.Flagship(before, after) {
 			continue
 		}
+		census, err := flagshipCensusWithRules(ctx, store, observedAt, changes, svc, flagshipCensus(changes, svc))
+		if err != nil {
+			return nil, err
+		}
 		m := message.Flagship(message.ReachMove{
 			ServiceKey: svc,
 			Class:      message.ClassInternet,
 			From:       message.NotReached,
 			To:         message.Reached,
-		}, flagshipCensus(changes, svc), observedAt)
+		}, census, observedAt)
 		if m != nil {
 			msgs = append(msgs, m)
 		}

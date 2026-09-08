@@ -11,9 +11,47 @@ type Census struct {
 	Entries []CensusEntry `json:"entries"`
 }
 
+// A rule entry is the carrier of a rule that opened at fired beneath the cause (ADR-0033 §3).
+
+const (
+	KindFacet = "facet"
+	KindRule  = "rule"
+)
+
 type CensusEntry struct {
 	Kind string `json:"kind"`
 	Key  string `json:"key"`
+
+	// The sensitive-port rule names its port here; every other entry leaves it empty (#1723).
+
+	Detail string `json:"detail,omitempty"`
+}
+
+func (e CensusEntry) Label() string {
+	if e.Detail == "" {
+		return e.Key
+	}
+	return e.Key + " (" + e.Detail + ")"
+}
+
+func (c Census) Rules() []CensusEntry {
+	var out []CensusEntry
+	for _, e := range c.Entries {
+		if e.Kind == KindRule {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func (c Census) Facets() []CensusEntry {
+	var out []CensusEntry
+	for _, e := range c.Entries {
+		if e.Kind == KindFacet {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // Never sampled, ranked or truncated: a count is its own list's length (ADR-0102).
