@@ -11,8 +11,8 @@ import (
 )
 
 func hotLagGateApplies(kind string) bool {
-	// cold and edge-fanout lag alike, but only hot connects to a target (ADR-0137 §4).
-	return kind == scan.HotKind
+	// Hot doubles a target's rate; ct-tail's 45-log by 12 s throttle floor outruns its 300 s cadence (ADR-0137 §4, #1658).
+	return kind == scan.HotKind || kind == scan.CTTailKind
 }
 
 type HotLagStore interface {
@@ -34,8 +34,8 @@ func hotTickLags(ctx context.Context, q HotLagStore, scanID, dispatchID int64, s
 	// Two dispatches of one Scan run a pair concurrently, doubling a target's rate (ADR-0137 §4).
 	if !HotLagGateArmed(staleJobThreshold) {
 		if logger != nil {
-			logger.Printf("dispatcher: the stale-running reaper is disabled (stale job timeout %s), so the hot cadence-lag gate is not armed; "+
-				"a hot tick that overtakes an undrained dispatch can double the rate at one target", staleJobThreshold)
+			logger.Printf("dispatcher: the stale-running reaper is disabled (stale job timeout %s), so the cadence-lag gate is not armed; "+
+				"a hot tick that overtakes an undrained dispatch can double the rate at one target, and a ct-tail tick stacks a second dispatch", staleJobThreshold)
 		}
 		return false, nil
 	}
