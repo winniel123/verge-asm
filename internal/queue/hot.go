@@ -112,8 +112,8 @@ func hotEstate(ctx context.Context, q EstateStore, asOf time.Time) (custody.Esta
 }
 
 func CitedResolutions(cited []db.NameCitedAddressesRow) []custody.Resolution {
-	// The census assembles through this too, so the gate and the census cannot disagree on an owner (#1678).
 	var resolutions []custody.Resolution
+	// The census reads through this too, so gate and census agree on an owner (#1678).
 	for _, c := range cited {
 		addr, err := netip.ParseAddr(c.Address)
 		if err != nil {

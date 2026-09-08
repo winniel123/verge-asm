@@ -26,11 +26,11 @@ func DelegatedSubzones(content, origin string) map[string]bool {
 }
 
 func walkOwners(content, origin string, visit func(owner string, rest []string)) {
-	// A pragmatic reader: $INCLUDE, $GENERATE and RDATA change no owner name, so none is evaluated.
-	// Keyed the way every Name is: label sequence, ASCII-lowercased, no trailing dot (ADR-0055).
+	// Keyed like every Name: label sequence, ASCII-lowercased, no trailing dot (ADR-0055).
 	cur := rw.CanonicalName(strings.TrimSuffix(origin, "."))
 	lastOwner := ""
 
+	// $INCLUDE, $GENERATE and RDATA change no owner name, so none is evaluated.
 	for _, raw := range strings.Split(content, "\n") {
 		line := stripComment(raw)
 		if strings.TrimSpace(line) == "" {

@@ -98,7 +98,7 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 		"128 subjects withdrawn",
 		"/subjects/service?key=198.51.100.1%3A443%2Ftcp",
 		"certificate", "http-identity",
-		// A rule entry renders after the facet entries, names its port and links to the rule's rows.
+		// A rule entry renders after the facet entries and names its port.
 		`href="/signals?q=sensitive-port-reached-from-internet"`, "3306/tcp",
 	} {
 		if !strings.Contains(page, want) {

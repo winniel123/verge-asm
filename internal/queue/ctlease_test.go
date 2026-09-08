@@ -41,7 +41,7 @@ func fullEntriesBody() []byte {
 }
 
 func fullDataTile() []byte {
-	// 8 timestamp bytes, x509 type, a 24-bit-prefixed one-byte cert, two 16-bit-prefixed empties (static-ct-api).
+	// Timestamp, x509 type, 24-bit-prefixed one-byte cert, two empties (static-ct-api).
 	leaf := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0x30, 0, 0, 0, 0}
 	tile := make([]byte, 0, len(leaf)*scan.CTTileWidth)
 	for i := 0; i < scan.CTTileWidth; i++ {
@@ -107,7 +107,7 @@ func TestCTTailEndsWithoutAFetchWhenItsLeaseIsGone(t *testing.T) {
 			th := &slotThrottle{failAt: 1 << 30}
 			lease := &leaseDBTX{cancelAt: 2}
 			w := tailWorkerOn(lease, f, th)
-			// The worker holds no pool, so a transaction opened after the lost lease would panic here.
+			// No pool: a transaction opened after the lost lease would panic here.
 			err := w.completeCTTail(context.Background(), db.ClaimJobRow{ID: 9}, tailSpec(t, tc.lg))
 			if err != nil {
 				t.Fatalf("a job whose row was reaped or terminated owes nothing more; got %v, want nil", err)

@@ -16,7 +16,6 @@ const (
 
 	certNoTLS   = `{"outcome":"no-tls"}`
 	certRefused = `{"outcome":"tls-refused"}`
-	// Expired at produceT0 and self-signed; the SAN matches, the key is 2048-bit RSA.
 	certExpired = `{"outcome":"presented","not_before":"2026-01-01T00:00:00Z","not_after":"2026-06-01T00:00:00Z",` +
 		`"san_dns":["admin.example.com"],"chain_certs":[{"subject":"CN=admin","issuer":"CN=admin","self_sig_verifies":true,"key_alg":"RSA","key_bits":2048,"sig_digest":"SHA-256"}]}`
 	certValid = `{"outcome":"presented","not_before":"2026-01-01T00:00:00Z","not_after":"2027-06-01T00:00:00Z",` +

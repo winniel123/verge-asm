@@ -69,10 +69,9 @@ const (
 )
 
 type Resolution struct {
-	Outcome   Outcome  `json:"outcome"`
-	Addresses []string `json:"addresses,omitempty"`
-	// No emitter renders it, so it moves no version; the citation read recovers it from dns-record (ADR-0151 §2, #1678).
-	Owners map[string]string `json:"-"`
+	Outcome   Outcome           `json:"outcome"`
+	Addresses []string          `json:"addresses,omitempty"`
+	Owners    map[string]string `json:"-"`
 }
 
 type NSStatus struct {
@@ -149,6 +148,7 @@ func Resolve(peer Peer, offers Offers, name string) Result {
 func decideResolution(addrs addrSet, nxAll, anyNoError, anyReached, sawCNAME bool) Resolution {
 	// Shadowed is wildcard-discrimination's outcome and never this leaf's (golden-corpus.md §1).
 	if addrs.len() > 0 {
+		// No emitter renders Owners, so no version moves (ADR-0151 §2, #1678).
 		return Resolution{Outcome: OutcomeResolved, Addresses: addrs.sorted(), Owners: addrs.owners()}
 	}
 	if !anyReached {
@@ -325,7 +325,7 @@ func (s *addrSet) add(text, owner string) {
 	if _, ok := s.seen[addr]; ok {
 		return
 	}
-	// The record's own name, never the queried one: a foreign CNAME target does not extend (ADR-0013 §3).
+	// The record's own name: a foreign CNAME target does not extend (ADR-0013 §3).
 	s.seen[addr] = CanonicalName(owner)
 }
 

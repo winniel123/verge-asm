@@ -213,7 +213,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 		}
 	}
 	if q != "" && !exactHit {
-		// A withdrawn Name is reached by its exact key alone, never by a substring (ADR-0072 §3).
+		// A withdrawn Name is reached by its exact key alone, never a substring (ADR-0072).
 		if rows, err := s.searchStore.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{
 			SubjectKind: "name", SubjectKey: q,
 		}); err != nil {

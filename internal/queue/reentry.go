@@ -8,8 +8,8 @@ import (
 )
 
 func reEntryInputs(rows []db.ListSpansForSubjectRow) (prior *drift.Span, witnessBroke bool) {
-	// The conjunction is computed at the fold and never stored (ADR-0097).
 	var latest *db.ListSpansForSubjectRow
+	// The conjunction is computed at the fold and never stored (ADR-0097).
 	for i := range rows {
 		r := &rows[i]
 		if r.Facet != resolutionwalk.FacetResolution || !r.ClosedAt.Valid {

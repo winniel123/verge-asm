@@ -10,7 +10,7 @@ import (
 func withdrawalMessages(observedAt time.Time, departures []departure) []*message.Message {
 	var msgs []*message.Message
 	for _, d := range departures {
-		// A cascade closure is silent and a descoping fires at the scope, so only this ground writes (ADR-0087).
+		// A cascade is silent and a descope fires at its scope (ADR-0087).
 		if d.Reason != string(drift.ReasonMeasuredAbsent) {
 			continue
 		}

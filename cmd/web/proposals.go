@@ -126,7 +126,7 @@ func toProposalLookups(rows []db.ListPendingProposalsRow, addrCap int) []proposa
 			RecordLabel: recordLabel(row.RecordKind), OrgName: row.OrgName,
 			AddrCount: humanCount(row.AddressCidr),
 		}
-		// Confirming a Proposal is a declaration, so the cap refuses in the row, before the click (ADR-0052, #1713).
+		// A confirm is a declaration, so the cap refuses before the click (ADR-0052, #1713).
 		if !seed.WithinCap(row.AddressCidr, addrCap) {
 			v.OverCap = true
 			v.Refusal = overCapProposalNotice(row.AddressCidr, addrCap)
@@ -154,7 +154,7 @@ func excludeCandidates(cands []proposer.Candidate, excl []*netip.Prefix) []propo
 			if e == nil {
 				continue
 			}
-			// A decline is a boundary claim over its prefix, so a wider candidate is still offered (ADR-0012, #1714).
+			// A decline claims its prefix, so a wider candidate is still offered (ADR-0012, #1714).
 			if e.Bits() <= scope.Bits() && e.Contains(scope.Addr()) {
 				skip = true
 				break
@@ -195,7 +195,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.serverError(w, "list address exclusions", err)
 		return
 	}
-	// An excluded candidate is skipped before the miss check, so all-excluded reads as a miss (#1714).
+	// Excluded candidates drop before the miss check, so all-excluded is a miss (#1714).
 	cands = excludeCandidates(cands, excl)
 	if len(cands) == 0 {
 		msg := "No candidate scopes matched that name."

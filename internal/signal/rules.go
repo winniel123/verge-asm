@@ -120,7 +120,7 @@ func (resolvedNameAbsentFromZone) Eval(f NameFacts) Outcome {
 	}
 	switch f.Resolution {
 	case Resolved:
-		// The file delegates the subzone away, so its batch never touched this name (ADR-0020, #1712).
+		// The file delegates the subzone away and never read this name (ADR-0020, #1712).
 		if f.BeneathDelegation {
 			return NotEvaluable
 		}

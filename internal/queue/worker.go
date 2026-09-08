@@ -402,7 +402,7 @@ func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 }
 
 func (w *Worker) renewJobLease(ctx context.Context, jobID int64) error {
-	// The reaper reads a committed claimed_at, so the renewal rides the pool handle, never a job transaction (#1709).
+	// The reaper reads a committed claimed_at, so the renewal never rides the job tx (#1709).
 	n, err := w.q.RenewJobLease(ctx, jobID)
 	if err != nil {
 		return fmt.Errorf("renew job lease: %w", err)

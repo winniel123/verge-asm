@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// A Name whose observations aged out of the currency window keeps its closed spans (ADR-0072 §3).
 func withdrawnNameFixture(t *testing.T) (*fakeStore, string) {
 	t.Helper()
 	f := newFakeStore()
@@ -15,6 +14,7 @@ func withdrawnNameFixture(t *testing.T) (*fakeStore, string) {
 	f.addResolution(t, admin.ID, "live.example.com", "dns", obsClock.Add(29*24*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.9"]}`)
 	f.addResolution(t, admin.ID, "gone.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.7"]}`)
 	f.addResolution(t, admin.ID, "gone.example.com", "dns", obsClock.Add(24*time.Hour), `{"outcome":"NameError"}`)
+	// Observations aged out of the currency window; the closed spans remain (ADR-0072).
 	f.withdrawSubject("name", "gone.example.com", obsClock.Add(24*time.Hour))
 	return f, startAt(t, f, obsClock.Add(30*24*time.Hour))
 }

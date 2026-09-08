@@ -47,7 +47,7 @@ func facetMoveMessages(ctx context.Context, store messageStore, observedAt time.
 }
 
 func coveredByPrior(prior []*message.Message, s subjectAtCause, rule string) bool {
-	// The residue clause: a census above the move that carries the opening silences it (ADR-0033 §3).
+	// A census above the move that carries the opening silences it (ADR-0033 §3).
 	for _, m := range prior {
 		if m == nil || m.Census == nil {
 			continue

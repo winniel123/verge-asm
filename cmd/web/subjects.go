@@ -677,7 +677,7 @@ func vantageDisplayName(id pgtype.Int8, name pgtype.Text) string {
 
 func timelineLabel(facet, discriminator, vantage, source string) string {
 	label := facetLabel(facet, discriminator)
-	// Both are timeline-key components, so two timelines on one facet must not read alike (ADR-0080, #170).
+	// Two timelines on one facet must not read alike (ADR-0080, #170).
 	if vantage != "" {
 		label += " · " + vantage
 	}
@@ -955,7 +955,7 @@ func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
 }
 
 func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, acct db.Account, key string) {
-	// A withdrawn Name has no current value, so only its closed timelines and provenance render (ADR-0072 §3).
+	// A withdrawn Name has no current value, so only closed timelines render (ADR-0072).
 	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
 	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
 	data.Signals = s.assetSignals(r, key)

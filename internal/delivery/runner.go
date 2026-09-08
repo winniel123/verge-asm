@@ -220,7 +220,7 @@ func guardTarget(ctx context.Context, res Resolver, targetURL string) error {
 	if err != nil {
 		return fmt.Errorf("resolve %q: %w", host, err)
 	}
-	// A mixed answer is refused, or a name resolving elsewhere would buy the exemption (ADR-0039 §2).
+	// A name that also resolves elsewhere must not buy the exemption (ADR-0039 §2).
 	loopbacks := 0
 	for _, a := range addrs {
 		if !dialable(a) {

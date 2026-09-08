@@ -317,7 +317,7 @@ func dialTimedOut(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
-	// A poll deadline surfaces os.ErrDeadlineExceeded, which carries no Is chain to the context.
 	var ne net.Error
+	// os.ErrDeadlineExceeded from a poll deadline has no Is chain to the context.
 	return errors.As(err, &ne) && ne.Timeout()
 }

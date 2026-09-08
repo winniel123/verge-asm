@@ -11,7 +11,7 @@ import (
 )
 
 func hotLagGateApplies(kind string) bool {
-	// Hot doubles a target's rate; ct-tail's 45-log by 12 s throttle floor outruns its 300 s cadence (ADR-0137 §4, #1658).
+	// ct-tail's throttle floor outruns its cadence, as hot doubles a rate (ADR-0137, #1658).
 	return kind == scan.HotKind || kind == scan.CTTailKind
 }
 

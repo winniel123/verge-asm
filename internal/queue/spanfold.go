@@ -117,7 +117,7 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 			change.Previous = []byte(open.Value)
 		}
 		if open == nil && key.Facet == resolutionwalk.FacetResolution && message.RootFires(key.SubjectKind) {
-			// The witness set is read after this span opened, so the re-entering timeline is in it (ADR-0097).
+			// Read after the open, so the re-entering timeline is a witness (ADR-0097).
 			rows, err := qtx.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{SubjectKind: key.SubjectKind, SubjectKey: key.SubjectKey})
 			if err != nil {
 				return err

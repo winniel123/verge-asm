@@ -63,7 +63,7 @@ func (w *Worker) completeCTTail(ctx context.Context, job db.ClaimJobRow, spec wi
 }
 
 func (w *Worker) reserveCTTailSlot(ctx context.Context, jobID int64) error {
-	// A full window sleeps past DefaultStaleJobThreshold, so every reservation renews the lease first (#1709).
+	// A full window outlives the stale-job reaper, so each reservation renews first (#1709).
 	if err := w.renewJobLease(ctx, jobID); err != nil {
 		return err
 	}

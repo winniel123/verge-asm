@@ -96,7 +96,7 @@ func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, _ db
 		fail("Could not set the resolver.")
 		return
 	}
-	// Zero rows means the guard held: a switch after the first observation would continue the old timelines (ADR-0070).
+	// Zero rows: a switch after the first observation would continue old timelines (ADR-0070).
 	if n == 0 {
 		fail(resolverFixedMessage)
 		return

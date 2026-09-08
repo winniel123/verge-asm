@@ -91,7 +91,7 @@ func flagshipCensusWithRules(ctx context.Context, store messageStore, observedAt
 			}
 		}
 		for _, o := range rulesAtCause(s, reach, observedAt) {
-			// The reach move is the firing edge the flagship carries, so not-fired counts as opened.
+			// The flagship carries the firing edge, so not-fired reads as opened.
 			if o.after != signal.Fired || o.before == signal.Fired || seen[o.name] {
 				continue
 			}
