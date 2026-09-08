@@ -12,17 +12,17 @@ func TestServiceDetailRendersV32Composition(t *testing.T) {
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
-	f.addClassReachability(t, "198.51.100.1:3389/tcp", "internet", obsClock, `{"outcome":"reached","result":"open"}`)
+	f.addClassReachability(t, "198.51.100.1:5900/tcp", "internet", obsClock, `{"outcome":"reached","result":"open"}`)
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	drill := getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A3389%2Ftcp", http.StatusOK)
+	drill := getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A5900%2Ftcp", http.StatusOK)
 
 	for _, want := range []string{
 		`href="/inventory"`, `class="sh-pill on" href="/inventory"`,
 		`<span class="sd-tag">service</span>`,
 		`class="as-leg exposed">exposed`,
-		"198.51.100.1:3389/tcp",
+		"198.51.100.1:5900/tcp",
 		"Citation chain", "Reachability", "Current and closed timelines",
 		"Rules over this subject", "How it got here", "Signals here",
 		"sensitive-port-reached-from-internet", "var(--sev-critical-fill)", "fired",

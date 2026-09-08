@@ -174,14 +174,14 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (msg Msg,
 		EDNS:      true,
 		Cookie:    offers.EDNS.Cookie,
 	}
-	msg = peer.Exchange(q)
+	msg = Exchange(peer, offers, q)
 	if msg.Unreachable {
 		return Msg{}, false, true
 	}
 
 	if msg.Reached && msg.Rcode == FORMERR && q.EDNS && offers.Transport.EDNSlessRetry {
 		q.EDNS = false
-		msg = peer.Exchange(q)
+		msg = Exchange(peer, offers, q)
 		if msg.Unreachable {
 			return Msg{}, false, true
 		}
@@ -191,7 +191,7 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (msg Msg,
 	if msg.Reached && msg.Truncated && offers.Transport.FallbackOnTC && offers.Transport.TCPAttempts > 0 {
 		tq := q
 		tq.Transport = TCP
-		msg = peer.Exchange(tq)
+		msg = Exchange(peer, offers, tq)
 		if msg.Unreachable {
 			return Msg{}, false, true
 		}
@@ -210,8 +210,32 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (msg Msg,
 	return msg, true, false
 }
 
+func Exchange(peer Peer, offers Offers, q Query) Msg {
+	// Two UDP then one TCP per nameserver is the declared budget (offers §5.2, #1660).
+	attempts := offers.Transport.UDPAttempts
+	if q.Transport == TCP {
+		attempts = offers.Transport.TCPAttempts
+	}
+	if attempts < 1 {
+		attempts = 1
+	}
+	var msg Msg
+	for i := 0; i < attempts; i++ {
+		msg = peer.Exchange(q)
+		if !msg.Unreachable {
+			return msg
+		}
+	}
+	if q.Transport == TCP || offers.Transport.TCPAttempts < 1 {
+		return msg
+	}
+	tq := q
+	tq.Transport = TCP
+	return Exchange(peer, offers, tq)
+}
+
 func walk(peer Peer, offers Offers, name string) Delegation {
-	msg := peer.Exchange(Query{
+	msg := Exchange(peer, offers, Query{
 		Path:      PathWalk,
 		Name:      name,
 		Qtype:     QtypeNS,
@@ -232,7 +256,7 @@ func walk(peer Peer, offers Offers, name string) Delegation {
 			continue
 		}
 		// A walk authority must reach the guard with a non-empty Server, or it is exempted (#324).
-		ns := peer.Exchange(Query{
+		ns := Exchange(peer, offers, Query{
 			Path:      PathWalk,
 			Server:    rr.Data,
 			Name:      name,

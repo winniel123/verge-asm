@@ -1734,3 +1734,52 @@ func TestUpdateHostStepsMatchDesignFixture(t *testing.T) {
 		}
 	}
 }
+
+type fixtureRunningRunPackage struct {
+	Settings struct {
+		Scans struct {
+			Active []struct {
+				ID   int64 `json:"id"`
+				Jobs []struct {
+					ID          int64  `json:"id"`
+					Kind        string `json:"kind"`
+					Vantage     string `json:"vantage"`
+					State       string `json:"state"`
+					Retrying    bool   `json:"retrying"`
+					Attempt     int32  `json:"attempt"`
+					MaxAttempts int32  `json:"max_attempts"`
+					Batch       string `json:"batch"`
+				} `json:"jobs"`
+			} `json:"active"`
+		} `json:"scans"`
+	} `json:"settings"`
+}
+
+func TestRunningRunJobsFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureRunningRunPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	if len(f.Settings.Scans.Active) == 0 {
+		t.Fatal("fixtures.json settings.scans.active is empty")
+	}
+	run := f.Settings.Scans.Active[0]
+
+	if got := itoa(run.ID); got != devRunningRunID {
+		t.Errorf("id drift: fixtures.json = %q, pinned = %q", got, devRunningRunID)
+	}
+	if len(run.Jobs) != len(devRunningRunJobs) {
+		t.Fatalf("jobs length drift: fixtures.json = %d, pinned = %d", len(run.Jobs), len(devRunningRunJobs))
+	}
+	for i, j := range run.Jobs {
+		p := devRunningRunJobs[i]
+		if j.ID != p.ID || j.Kind != p.Kind || j.Vantage != p.Vantage || j.State != p.State ||
+			j.Retrying != p.Retrying || j.Attempt != p.Attempt || j.MaxAttempts != p.MaxAttempts || j.Batch != p.Batch {
+			t.Errorf("job %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, j, p)
+		}
+	}
+}

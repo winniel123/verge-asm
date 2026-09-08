@@ -110,8 +110,14 @@ func TestResolvedNameAbsentFromZone(t *testing.T) {
 func TestNonGloballyReachableFromInternet(t *testing.T) {
 	r := ruleByName(t, "non-globally-reachable-address-resolved-from-internet")
 
-	if got := r.Eval(NameFacts{Name: "n", HasInternetVantage: false, InternetResolution: Resolved, InternetAddresses: []string{"10.0.0.1"}}); got != OutsideDomain {
-		t.Fatalf("no internet vantage: got %s want OutsideDomain", got)
+	if got := r.Eval(NameFacts{Name: "n", HasInternetVantage: false, InternetResolution: Resolved, InternetAddresses: []string{"10.0.0.1"}}); got != NotEvaluable {
+		t.Fatalf("no internet vantage: got %s want NotEvaluable", got)
+	}
+	if got := r.Eval(NameFacts{Name: "n", HasInternetVantage: true, InternetResolution: Resolved, InternetAddresses: []string{"100.64.0.1"}}); got != Fired {
+		t.Fatalf("shared address space: got %s want Fired", got)
+	}
+	if r.Version().Rule == "v1" {
+		t.Fatalf("the table transcription must bump the rule version past v1")
 	}
 	if got := r.Eval(NameFacts{Name: "n", HasInternetVantage: true, InternetResolution: Resolved, InternetAddresses: []string{"93.184.216.34", "10.0.0.5"}}); got != Fired {
 		t.Fatalf("private leak: got %s want Fired", got)
@@ -124,6 +130,23 @@ func TestNonGloballyReachableFromInternet(t *testing.T) {
 	}
 	if got := r.Eval(NameFacts{Name: "n", HasInternetVantage: true, InternetResolution: Shadowed}); got != NotEvaluable {
 		t.Fatalf("shadowed: got %s want NotEvaluable", got)
+	}
+}
+
+func TestCrossClassNotEvaluableResolution(t *testing.T) {
+	// ADR-0080: a disagreeing or incomplete cross-class composition
+	// is not-evaluable for all four.
+	facts := NameFacts{Name: "n", InEstate: true, Resolution: ResolutionNotEvaluable,
+		ZoneDeclared: true, InDeclaredZone: true, CNAMETarget: "t", TargetResolution: NameError}
+	for _, name := range []string{"lame-delegation", "cname-target-name-error",
+		"zone-declared-name-returns-name-error", "resolved-name-absent-from-zone"} {
+		if got := ruleByName(t, name).Eval(facts); got != NotEvaluable {
+			t.Errorf("%s: got %s want NotEvaluable", name, got)
+		}
+	}
+	target := NameFacts{Name: "n", InEstate: true, Resolution: Resolved, CNAMETarget: "t", TargetResolution: ResolutionNotEvaluable}
+	if got := ruleByName(t, "cname-target-name-error").Eval(target); got != NotEvaluable {
+		t.Errorf("cname target not-evaluable: got %s want NotEvaluable", got)
 	}
 }
 

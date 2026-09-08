@@ -161,7 +161,34 @@ func TestZoneIntervalIsConfigurable(t *testing.T) {
 	}
 
 	resp = postForm(t, ac, base+"/seeds/zone/interval", url.Values{"interval_days": {"0"}})
-	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "at least one day") {
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "between 1 and 3,650 days") {
 		t.Fatalf("zero interval not rejected; body=%s", got)
+	}
+}
+
+func TestZoneIntervalIsCappedAtTenYears(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	for _, raw := range []string{"3651", "99999999999999999999"} {
+		resp := postForm(t, ac, base+"/seeds/zone/interval", url.Values{"interval_days": {raw}})
+		got := refusalPage(t, ac, base, resp)
+		if !strings.Contains(got, "between 1 and 3,650 days") {
+			t.Fatalf("interval %s not refused as a form error; body=%s", raw, got)
+		}
+		if !strings.Contains(got, `value="`+raw+`"`) {
+			t.Errorf("refused interval %s not retained in the form", raw)
+		}
+		if f.zoneCadence != 0 {
+			t.Fatalf("interval %s reached the store: cadence=%d", raw, f.zoneCadence)
+		}
+	}
+
+	resp := postForm(t, ac, base+"/seeds/zone/interval", url.Values{"interval_days": {"3650"}})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || f.zoneCadence != 3650*86400 {
+		t.Fatalf("3650 days at the cap: status=%d cadence=%d", resp.StatusCode, f.zoneCadence)
 	}
 }

@@ -140,6 +140,8 @@ type Querier interface {
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
+	// The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
+	ListCitedAddressSpansForNames(ctx context.Context, names []string) ([]ListCitedAddressSpansForNamesRow, error)
 	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
 	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error)
@@ -167,6 +169,8 @@ type Querier interface {
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
 	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
+	// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
+	ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error)
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
 	ListPendingNameSeedWithdrawals(ctx context.Context) ([]ListPendingNameSeedWithdrawalsRow, error)
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)

@@ -635,3 +635,26 @@ func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRete
 	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 	return nil
 }
+
+func TestViewerIsRefusedEverySettingsTabButAPI(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	vc := login(t, base, "viewer", "hunter2hunter2")
+
+	for _, tab := range settingsTabs {
+		want := http.StatusForbidden
+		if tab == "api" {
+			want = http.StatusOK
+		}
+		resp, err := vc.Get(base + "/settings?tab=" + tab)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := body(t, resp)
+		if resp.StatusCode != want {
+			t.Errorf("viewer GET /settings?tab=%s: status = %d, want %d (body: %s)", tab, resp.StatusCode, want, got)
+		}
+	}
+}

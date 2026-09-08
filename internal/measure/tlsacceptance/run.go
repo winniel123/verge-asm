@@ -54,7 +54,8 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 		return err
 	}
 	base := NetEnumerator{Timeout: 3 * time.Second, realm: custody.ParseRealm(spec.Realm)}
-	return RunWithEnumerator(context.Background(), base, spec.Batch, scope, w)
+	paced := &pacedEnumerator{inner: base, pacer: NewPacer(scope.Candidates), now: time.Now, sleep: sleepCtx}
+	return RunWithEnumerator(context.Background(), paced, spec.Batch, scope, w)
 }
 
 func RunWithEnumerator(ctx context.Context, e Enumerator, batch string, scope Scope, w io.Writer) error {

@@ -1097,7 +1097,7 @@ func (f *fakeStore) ListEndpointCertificates(_ context.Context, arg db.ListEndpo
 	}
 	rows := []db.ListEndpointCertificatesRow{}
 	for k, o := range latest {
-		rows = append(rows, db.ListEndpointCertificatesRow{SubjectKey: k, Value: o.Value})
+		rows = append(rows, db.ListEndpointCertificatesRow{SubjectKey: k, Value: o.Value, ObservedAt: o.ObservedAt})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].SubjectKey < rows[j].SubjectKey })
 	return rows, nil

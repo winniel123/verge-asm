@@ -19,11 +19,12 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/custody"
+	"github.com/winniel123/verge-asm/internal/measure/tlsoffer"
 )
 
 // A step inside the reachability exchange, sharing its Kind, but with its own timelines (ADR-0028).
 
-const CertVersion = "tls-handshake/v4"
+const CertVersion = "tls-handshake/v5"
 
 // A closed union, never optional fields: a measured negative is a value, not "not measured".
 
@@ -40,11 +41,14 @@ const (
 // None is operator-configurable; changing one moves the params digest and forces a version bump.
 
 type HandshakeParams struct {
-	SNIEqualsEndpointName bool   `json:"sni_equals_endpoint_name"`
-	ALPN                  string `json:"alpn"`
-	RecordNotVerify       bool   `json:"record_not_verify"`
-	FingerprintHash       string `json:"fingerprint_hash"`
-	ChainOrder            string `json:"chain_order"`
+	SNIEqualsEndpointName bool     `json:"sni_equals_endpoint_name"`
+	ALPN                  string   `json:"alpn"`
+	RecordNotVerify       bool     `json:"record_not_verify"`
+	FingerprintHash       string   `json:"fingerprint_hash"`
+	ChainOrder            string   `json:"chain_order"`
+	MinVersion            string   `json:"min_version"`
+	MaxVersion            string   `json:"max_version"`
+	CipherSuites          []string `json:"cipher_suites"`
 }
 
 func DefaultHandshakeParams() HandshakeParams {
@@ -54,6 +58,11 @@ func DefaultHandshakeParams() HandshakeParams {
 		RecordNotVerify:       true,
 		FingerprintHash:       "sha-256",
 		ChainOrder:            "leaf-first",
+		// Wide on purpose: Go's default MinVersion 1.2 hides a TLS-1.0-only listener (ADR-0025).
+		MinVersion: tlsoffer.TLS10,
+		MaxVersion: tlsoffer.TLS13,
+		// One list with tls-acceptance, so a widening Breaks both facets at once (ADR-0030 §3).
+		CipherSuites: tlsoffer.Ciphers(),
 	}
 }
 
@@ -120,6 +129,7 @@ func chainFingerprints(certs []*x509.Certificate) []string {
 
 type NetHandshaker struct {
 	Timeout time.Duration
+	Params  HandshakeParams
 	realm   custody.Realm
 }
 
@@ -127,6 +137,13 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	timeout := n.Timeout
 	if timeout <= 0 {
 		timeout = 3 * time.Second
+	}
+	p := n.Params
+	minVersion, maxVersion, ok := offeredVersions(p)
+	if !ok {
+		// An undeclared version would hand the offer back to the library default (ADR-0025).
+		p = DefaultHandshakeParams()
+		minVersion, maxVersion, _ = offeredVersions(p)
 	}
 	if !target.Addr().IsValid() {
 		return HandshakeResult{Outcome: NoTLS, Unreachable: true}
@@ -139,6 +156,10 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		ServerName:         serverName,
 		// No ALPN at all, so a listener refusing our protocols cannot cost us a readable chain.
 		NextProtos: nil,
+		// The declared set goes on the wire, never a library default (ADR-0025, #1680).
+		MinVersion:   minVersion,
+		MaxVersion:   maxVersion,
+		CipherSuites: tlsoffer.CipherIDs(p.CipherSuites),
 	}
 	d := tls.Dialer{
 		NetDialer: &net.Dialer{Control: custody.EgressGuard("connectoutcome", n.realm)},
@@ -187,6 +208,12 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		OCSPStaple: state.OCSPResponse,
 		IssuerSPKI: issuerSPKI(state.PeerCertificates),
 	}
+}
+
+func offeredVersions(p HandshakeParams) (minVersion, maxVersion uint16, ok bool) {
+	minVersion, okMin := tlsoffer.VersionID(p.MinVersion)
+	maxVersion, okMax := tlsoffer.VersionID(p.MaxVersion)
+	return minVersion, maxVersion, okMin && okMax
 }
 
 func issuerSPKI(chain []*x509.Certificate) []byte {

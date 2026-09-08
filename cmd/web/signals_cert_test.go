@@ -54,6 +54,7 @@ func TestSelfSignedOf(t *testing.T) {
 	}{
 		{"both-limbs", "CN=root", "CN=root", true, true},
 		{"dn-eq-only", "CN=root", "CN=root", false, false},
+		{"case-only", "CN=Root", "CN=root", true, false},
 		{"verify-only", "CN=leaf", "CN=ca", true, false},
 		{"neither", "CN=leaf", "CN=ca", false, false},
 	}
@@ -122,10 +123,10 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
 
 	t.Run("negative-outcome-nil", func(t *testing.T) {
-		if d := certDetailsFromValue(certificateValue{Outcome: signal.CertNoTLS}, now, "www.example.com"); d != nil {
+		if d := certDetailsFromValue(certificateValue{Outcome: signal.CertNoTLS}, now, now, "www.example.com"); d != nil {
 			t.Errorf("a negative outcome must yield nil CertDetails, got %+v", d)
 		}
-		if d := certDetailsFromValue(certificateValue{Outcome: signal.CertTLSRefused}, now, "www.example.com"); d != nil {
+		if d := certDetailsFromValue(certificateValue{Outcome: signal.CertTLSRefused}, now, now, "www.example.com"); d != nil {
 			t.Errorf("tls-refused must yield nil CertDetails, got %+v", d)
 		}
 	})
@@ -136,15 +137,12 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 			Chain:    []string{"sha256:abc"},
 			NotAfter: now.Add(90 * 24 * time.Hour).Format(time.RFC3339),
 		}
-		d := certDetailsFromValue(v, now, "www.example.com")
+		d := certDetailsFromValue(v, now, now, "www.example.com")
 		if d == nil {
 			t.Fatal("a presented span must yield non-nil CertDetails")
 		}
-		if d.Expired == nil || d.Expiring == nil {
-			t.Errorf("not_after present → Expired/Expiring must be set, got %+v", d)
-		}
-		if d.NotYetValid != nil {
-			t.Errorf("no not_before → NotYetValid must be nil, got %v", *d.NotYetValid)
+		if d.Clock != nil {
+			t.Errorf("no not_before → the horizon is underdetermined, so Clock must be nil, got %+v", *d.Clock)
 		}
 		if d.SANMatchesName != nil {
 			t.Errorf("no chain_certs → SANMatchesName must be nil (never defaulted), got %v", *d.SANMatchesName)
@@ -173,12 +171,12 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 				SigDigest:             "SHA-256",
 			}},
 		}
-		d := certDetailsFromValue(v, now, "www.example.com")
+		d := certDetailsFromValue(v, now, now, "www.example.com")
 		if d == nil {
 			t.Fatal("a v3 presented value must yield non-nil CertDetails")
 		}
-		if d.NotYetValid == nil || !*d.NotYetValid {
-			t.Errorf("not_before in the future → NotYetValid must be true, got %v", d.NotYetValid)
+		if d.Clock == nil || !d.Clock.NotBefore.After(now) || d.Clock.EvaluatedAt != now || d.Clock.ObservedAt != now {
+			t.Errorf("not_before and not_after present → Clock carries both dates and both instants, got %+v", d.Clock)
 		}
 		if d.SANMatchesName == nil || !*d.SANMatchesName {
 			t.Errorf("SAN covers the name → SANMatchesName must be true, got %v", d.SANMatchesName)
@@ -205,7 +203,7 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 				SigDigest:             "SHA-256",
 			}},
 		}
-		d := certDetailsFromValue(v, now, "")
+		d := certDetailsFromValue(v, now, now, "")
 		if d == nil {
 			t.Fatal("a v3 presented value must yield non-nil CertDetails")
 		}
@@ -219,4 +217,44 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 			t.Errorf("CA-issued leaf → SelfSigned must be set false, got %v", d.SelfSigned)
 		}
 	})
+}
+
+func TestCertDetailsFromValueClockCarriesTheObservationInstant(t *testing.T) {
+	day := 24 * time.Hour
+	now := time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)
+	nb := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	v := certificateValue{
+		Outcome:   signal.CertPresented,
+		Chain:     []string{"sha256:abc"},
+		NotBefore: nb.Format(time.RFC3339),
+		NotAfter:  nb.Add(6 * day).Format(time.RFC3339),
+	}
+	d := certDetailsFromValue(v, now.Add(-40*day), now, "www.example.com")
+	if d == nil || d.Clock == nil {
+		t.Fatalf("both dates present → Clock must be set, got %+v", d)
+	}
+	want := signal.CertClock{NotBefore: nb, NotAfter: nb.Add(6 * day), ObservedAt: now.Add(-40 * day), EvaluatedAt: now}
+	if *d.Clock != want {
+		t.Errorf("Clock = %+v, want %+v", *d.Clock, want)
+	}
+
+	// The six-day certificate one day in is outside its three-day horizon (ADR-0004 #67).
+	f := signal.EndpointFacts{Subject: "www.example.com@203.0.113.5:443/tcp", HasName: true, CertMeasured: true, CertOutcome: signal.CertPresented}
+	f.CertDetails = certDetailsFromValue(v, now, now, "www.example.com")
+	census := signal.EvaluateEndpoint(signal.AllEndpointRules()[2], []signal.EndpointFacts{f})
+	if census.Rule != "certificate-expiring" || len(census.NotFired) != 1 {
+		t.Errorf("six-day cert one day in: census = %+v, want not-fired", census)
+	}
+	// Observed 40 days ago, the clock class declines to read it (ADR-0043).
+	f.CertDetails = d
+	for _, r := range signal.AllEndpointRules()[:3] {
+		if c := signal.EvaluateEndpoint(r, []signal.EndpointFacts{f}); len(c.NotEvaluable) != 1 {
+			t.Errorf("%s on a 40-day-old observation: census = %+v, want not-evaluable", r.Name(), c)
+		}
+	}
+
+	bad := certificateValue{Outcome: signal.CertPresented, NotBefore: "yesterday", NotAfter: v.NotAfter}
+	if d := certDetailsFromValue(bad, now, now, ""); d == nil || d.Clock != nil {
+		t.Errorf("an unreadable not_before → Clock must be nil, got %+v", d)
+	}
 }

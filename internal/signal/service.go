@@ -92,7 +92,7 @@ func (sensitivePortReachedFromInternet) Name() string {
 func (sensitivePortReachedFromInternet) Severity() Severity { return SevCritical }
 func (sensitivePortReachedFromInternet) Version() Version {
 	// A release-coupled reference table adds no measured leaf (v1 spec §3.5).
-	return Version{Rule: "v1", Composes: []string{co.Version}}
+	return Version{Rule: "v2", Composes: []string{co.Version}}
 }
 func (sensitivePortReachedFromInternet) Eval(f ServiceFacts) Outcome {
 	// The sensitive-list join fixes the domain: this is not a separate port-membership signal.

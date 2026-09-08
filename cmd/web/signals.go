@@ -17,6 +17,7 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/estate"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
@@ -34,6 +35,7 @@ type signalsStore interface {
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
 	ListServiceTLSAcceptance(ctx context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error)
 	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
+	ListVantagesForDispatch(ctx context.Context) ([]db.ListVantagesForDispatchRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 	MintSignalInstances(ctx context.Context, arg db.MintSignalInstancesParams) error
 }
@@ -755,6 +757,11 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		return nil, err
 	}
 	byClass := collapseNameResolutions(resRows, covered)
+	vantages, err := s.signalsStore.ListVantagesForDispatch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	running := runningVantageClasses(vantages, covered)
 
 	cnameTarget := map[string]string{}
 	nsLame := map[string]bool{}
@@ -800,7 +807,7 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 
 	composed := map[string]composedResolution{}
 	for name := range names {
-		composed[name] = composeResolution(byClass[name], nsLame[name])
+		composed[name] = composeResolution(byClass[name], running, nsLame[name])
 	}
 
 	facts := make([]signal.NameFacts, 0, len(names))
@@ -835,46 +842,43 @@ type composedResolution struct {
 	inEstate  bool
 }
 
-func composeResolution(classes map[string]resolutionValue, lame bool) composedResolution {
-	// A false Resolved fabricates addresses while a false Shadowed only withholds one (CONTEXT.md).
-	if len(classes) == 0 {
-		return composedResolution{outcome: signal.Gap, inEstate: false}
+func composeResolution(classes map[string]resolutionValue, running []string, lame bool) composedResolution {
+	// Every running class must hold a value and agree; absence is a missing term (ADR-0080).
+	witnesses := make([]estate.ClassWitness, 0, len(running))
+	agreed, complete := "", len(running) > 0
+	for i, class := range running {
+		v, ok := classes[class]
+		w := estate.ClassWitness{Class: class}
+		if ok {
+			w.Outcomes = []string{v.Outcome}
+		} else {
+			complete = false
+		}
+		witnesses = append(witnesses, w)
+		if i == 0 {
+			agreed = v.Outcome
+		} else if v.Outcome != agreed {
+			complete = false
+		}
 	}
-	anyShadowed, anyResolved, anyNoData := false, false, false
-	allNameError := true
-	addrs := map[string]struct{}{}
-	for _, v := range classes {
-		switch v.Outcome {
-		case signal.Shadowed:
-			anyShadowed = true
-		case signal.Resolved:
-			anyResolved = true
-			for _, a := range v.Addresses {
+	// Membership reads the one fold the drift engine reads, so the two never disagree (ADR-0080).
+	out := composedResolution{inEstate: len(classes) > 0 && !estate.WithdrawnCrossClass(witnesses)}
+	if !complete {
+		out.outcome = signal.ResolutionNotEvaluable
+		return out
+	}
+	out.outcome = agreed
+	switch {
+	case agreed == signal.Resolved:
+		addrs := map[string]struct{}{}
+		for _, class := range running {
+			for _, a := range classes[class].Addresses {
 				addrs[a] = struct{}{}
 			}
-		case signal.NoData:
-			anyNoData = true
 		}
-		if v.Outcome != signal.NameError {
-			allNameError = false
-		}
-	}
-
-	out := composedResolution{inEstate: !allNameError}
-	switch {
-	case anyShadowed:
-		out.outcome = signal.Shadowed
-	case anyResolved:
-		out.outcome = signal.Resolved
 		out.addresses = sortedKeys(addrs)
-	case lame:
+	case lame && agreed != signal.Shadowed:
 		out.outcome = signal.Lame
-	case anyNoData:
-		out.outcome = signal.NoData
-	case allNameError:
-		out.outcome = signal.NameError
-	default:
-		out.outcome = signal.Gap
 	}
 	return out
 }
@@ -978,8 +982,10 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 	}
 
 	certVal := map[string]certificateValue{}
+	certSeen := map[string]time.Time{}
 	for _, row := range certRows {
 		certVal[row.SubjectKey] = decodeCertificate(row.Value)
+		certSeen[row.SubjectKey] = row.ObservedAt.Time
 	}
 	httpID := map[string]httpIdentityValue{}
 	for _, row := range httpRows {
@@ -1009,7 +1015,7 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 		if cv, ok := certVal[sub]; ok {
 			f.CertMeasured = true
 			f.CertOutcome = cv.Outcome
-			f.CertDetails = certDetailsFromValue(cv, s.now(), name)
+			f.CertDetails = certDetailsFromValue(cv, certSeen[sub], s.now(), name)
 		}
 		if id, ok := httpID[sub]; ok {
 			f.HTTPResponded = id.Outcome == httpexchange.OutcomeResponded
@@ -1054,26 +1060,16 @@ func decodeCertificate(raw []byte) certificateValue {
 	return v
 }
 
-func certDetailsFromValue(v certificateValue, now time.Time, serverName string) *signal.CertDetails {
+func certDetailsFromValue(v certificateValue, observedAt, now time.Time, serverName string) *signal.CertDetails {
 	if v.Outcome != signal.CertPresented {
 		return nil
 	}
-	ref := now.UTC()
 	d := &signal.CertDetails{}
 
-	if v.NotAfter != "" {
-		if na, err := time.Parse(time.RFC3339, v.NotAfter); err == nil {
-			expired := !na.After(ref)
-			expiring := na.After(ref) && !na.After(ref.Add(certExpiryWindow))
-			d.Expired = &expired
-			d.Expiring = &expiring
-		}
-	}
-
-	if v.NotBefore != "" {
-		if nb, err := time.Parse(time.RFC3339, v.NotBefore); err == nil {
-			nyv := nb.After(ref)
-			d.NotYetValid = &nyv
+	// A pre-v3 value has no not_before, so its horizon is underdetermined (ADR-0004 #67).
+	if nb, nbErr := time.Parse(time.RFC3339, v.NotBefore); nbErr == nil {
+		if na, naErr := time.Parse(time.RFC3339, v.NotAfter); naErr == nil {
+			d.Clock = &signal.CertClock{NotBefore: nb, NotAfter: na, ObservedAt: observedAt.UTC(), EvaluatedAt: now.UTC()}
 		}
 	}
 

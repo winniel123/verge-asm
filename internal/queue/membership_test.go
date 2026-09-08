@@ -138,6 +138,9 @@ func TestOpenedByAperture(t *testing.T) {
 		{"address", "203.0.113.7", false},
 		{"service", "198.51.100.7:443", true},
 		{"service", "203.0.113.7:443", false},
+		{"service", "[2001:db8::7]:443/tcp", false},
+		{"endpoint", "www.example.com@198.51.100.7:443/tcp", true},
+		{"endpoint", "www.example.com@203.0.113.7:443/tcp", false},
 	}
 	for _, c := range cases {
 		if got := openedByAperture(c.kind, c.key, in); got != c.want {

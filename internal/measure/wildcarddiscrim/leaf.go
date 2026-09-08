@@ -12,7 +12,7 @@ import (
 
 // Versioned apart from resolution-walk, so a break names its own leaf (golden-corpus.md §8).
 
-const Version = "wildcard-discrimination/v1"
+const Version = "wildcard-discrimination/v2"
 
 type Signature string // never the answer set, and never a union of the observed sets (ADR-0068)
 
@@ -44,7 +44,7 @@ type component struct {
 
 type controlAnswers struct {
 	perLabel []map[rw.Qtype][]rw.RR
-	reached  bool
+	complete bool
 }
 
 func (ca controlAnswers) components() map[compKey]component {
@@ -103,7 +103,7 @@ func signatureOf(sets [][]string) component {
 }
 
 func Discriminate(candidate map[compKey][]string, ctrl controlAnswers) Verdict {
-	if !ctrl.reached {
+	if !ctrl.complete {
 		// An undiscriminated answer is never a value (ADR-0066).
 		return VerdictGap
 	}

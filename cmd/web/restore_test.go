@@ -343,3 +343,45 @@ func TestRestoreErrorMessages(t *testing.T) {
 		t.Error("an unknown restore-error code reflected text; want empty")
 	}
 }
+
+func TestRestoreStageExpiresAfterTTL(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	srv := newServer(f, testKey, "", func() time.Time { return now })
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+
+	srv.stashRestore(admin.ID, &restoreStaging{file: "backup.ndjson", archive: []byte("{}")})
+	now = now.Add(restoreStageTTL - time.Second)
+	if srv.stagedRestore(admin.ID) == nil {
+		t.Fatal("a stage inside the TTL was dropped")
+	}
+
+	now = now.Add(2 * time.Second)
+	resp := postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"restore"}})
+	resp.Body.Close()
+	if got := pendingSettingsFlash(t, srv).restoreError; got != restoreErrorMessage("expired") {
+		t.Fatalf("apply after the TTL: flashed restoreError = %q, want the expired line", got)
+	}
+	if srv.stagedRestore(admin.ID) != nil {
+		t.Fatal("an expired stage is still held")
+	}
+}
+
+func TestRestorePreflightEvictsThePreviousStage(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	srv := newServer(f, testKey, "", fixedClock())
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+
+	srv.stashRestore(admin.ID, &restoreStaging{file: "old.ndjson", archive: []byte("{}")})
+	resp := postForm(t, ac, ts.URL+"/settings/restore/preflight", url.Values{})
+	resp.Body.Close()
+	if srv.stagedRestore(admin.ID) != nil {
+		t.Fatal("a new pre-flight left the previous archive staged")
+	}
+}

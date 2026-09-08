@@ -26,11 +26,31 @@ func TestScheduledTickIsIdempotentWithinAWindow(t *testing.T) {
 }
 
 func TestBackoffGrowsAndCaps(t *testing.T) {
-	if backoff(2) <= backoff(1) {
+	if jitteredBackoff(2, 0) <= jitteredBackoff(1, 0) {
 		t.Error("backoff should grow with attempt")
 	}
-	if backoff(20) != 32*time.Minute {
-		t.Errorf("backoff should cap at 32m, got %s", backoff(20))
+	if jitteredBackoff(20, 1) != 32*time.Minute {
+		t.Errorf("backoff should cap at 32m, got %s", jitteredBackoff(20, 1))
+	}
+}
+
+func TestBackoffJitterStaysInsideTheCurve(t *testing.T) {
+	// ADR-0005 rules per-job exponential with jitter; the jitter only ever shortens a wait.
+	for attempt := int32(1); attempt <= 20; attempt++ {
+		ceiling := jitteredBackoff(attempt, 1)
+		floor := jitteredBackoff(attempt, 0)
+		if floor != ceiling/2 {
+			t.Errorf("attempt %d: floor = %s, want half the ceiling %s", attempt, floor, ceiling)
+		}
+		for range 200 {
+			got := backoff(attempt)
+			if got < floor || got >= ceiling {
+				t.Fatalf("attempt %d: backoff = %s, want in [%s, %s)", attempt, got, floor, ceiling)
+			}
+		}
+	}
+	if got := jitteredBackoff(3, 0.5); got != 6*time.Minute {
+		t.Errorf("jitteredBackoff(3, 0.5) = %s, want 6m: half of 8m plus half the remainder", got)
 	}
 }
 
@@ -126,12 +146,17 @@ func TestMergeResolutionNamesEmptyAdmittedIsSeedsUnchanged(t *testing.T) {
 }
 
 func TestBackoffBudgetIsAboutAnHour(t *testing.T) {
-	var total time.Duration
+	var longest, shortest time.Duration
+	// Five attempts over roughly one hour, never more (notification-channels §4.2).
 	for attempt := int32(2); attempt <= 5; attempt++ {
-		total += backoff(attempt)
+		longest += jitteredBackoff(attempt, 1)
+		shortest += jitteredBackoff(attempt, 0)
 	}
-	if total != 60*time.Minute {
-		t.Errorf("five-attempt budget = %s, want ~1h", total)
+	if longest != 60*time.Minute {
+		t.Errorf("five-attempt budget = %s at most, want 1h", longest)
+	}
+	if shortest != 30*time.Minute {
+		t.Errorf("five-attempt budget = %s at least, want 30m", shortest)
 	}
 }
 

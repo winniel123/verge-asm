@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/scan"
 )
 
 func TestGetEntriesURL(t *testing.T) {
@@ -51,6 +53,30 @@ func TestCTHTTPCause(t *testing.T) {
 	transport := ctHTTPCause(errors.New("dial tcp: connection refused"), 0, "get-entries")
 	if got := redactCause(transport); got != "measurement failed" {
 		t.Fatalf("transport error not redacted: %q", got)
+	}
+}
+
+func TestCTTileCauseDeadLettersAnUnsupportedEntryTypeAtOnce(t *testing.T) {
+	unknown := append(make([]byte, 8), 0x00, 0x09)
+	_, perr := scan.ParseDataTile(unknown)
+	if perr == nil {
+		t.Fatal("want a parse error for an unknown tiled entry type")
+	}
+	cause, permanent := ctTileCause(perr)
+	if !permanent {
+		t.Fatalf("an unsupported entry type must dead-letter at once, not retry: %v", perr)
+	}
+	if got := redactCause(cause); !strings.HasPrefix(got, "cannot read this log") || !strings.Contains(got, "9") {
+		t.Fatalf("cause = %q, want a verbatim 'cannot read this log' naming type 9", got)
+	}
+
+	truncated := append(make([]byte, 8), 0x00, 0x00, 0xff, 0xff, 0xff)
+	_, terr := scan.ParseDataTile(truncated)
+	if terr == nil {
+		t.Fatal("want a parse error for a truncated tile leaf")
+	}
+	if cause, permanent := ctTileCause(terr); permanent || cause != terr {
+		t.Fatalf("a truncated tile stays on the retry path, got permanent=%v cause=%v", permanent, cause)
 	}
 }
 

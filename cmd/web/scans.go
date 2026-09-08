@@ -91,6 +91,7 @@ type jobView struct {
 	MaxAttempts int32
 	Retrying    bool
 	Superseded  bool
+	Reaped      bool
 	Vantage     string
 	Batch       string
 }
@@ -699,7 +700,7 @@ func linkRunLog(v *runView, bareHref string) {
 func runStages(jobs []jobView) []runStage {
 	var order []string
 	idx := map[string]int{}
-	type agg struct{ total, done, dead, inflight int }
+	type agg struct{ total, done, dead, reaped, inflight int }
 	var aggs []agg
 	for _, j := range jobs {
 		if j.Superseded {
@@ -717,7 +718,11 @@ func runStages(jobs []jobView) []runStage {
 		case "done":
 			aggs[i].done++
 		case "dead":
-			aggs[i].dead++
+			if j.Reaped {
+				aggs[i].reaped++
+			} else {
+				aggs[i].dead++
+			}
 		case "ready", "running":
 			aggs[i].inflight++
 		}
@@ -728,6 +733,9 @@ func runStages(jobs []jobView) []runStage {
 		detail := fmt.Sprintf("%d of %d done", a.done, a.total)
 		if a.dead > 0 {
 			detail += fmt.Sprintf(" · %d dead-lettered", a.dead)
+		}
+		if a.reaped > 0 {
+			detail += fmt.Sprintf(" · %d reaped", a.reaped)
 		}
 		stages = append(stages, runStage{
 			Num:     i + 1,
@@ -1056,6 +1064,8 @@ func toJobView(j db.ListJobsForDispatchRow) jobView {
 		MaxAttempts: j.MaxAttempts,
 		Superseded:  j.State == "retried",
 		Retrying:    j.Attempt > 1 && (j.State == "ready" || j.State == "running"),
+		// A dead job with no Batch is a reaped worker, not exhausted retries (ADR-0169 §2).
+		Reaped: j.State == "dead" && !j.BatchID.Valid,
 	}
 	if j.VantageName.Valid {
 		v.Vantage = j.VantageName.String

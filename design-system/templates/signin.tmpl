@@ -206,6 +206,22 @@
 {{template "authcodejs"}}
 {{template "foot" .}}{{end}}
 
+{{define "totp-enroll-confirm"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Enroll two-factor"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Set up two-factor</h1><span class="sub">Continue to get a fresh secret and QR code. Starting again replaces any secret you already scanned.</span></div>
+<form class="vg-form" method="post" action="/account/totp/enable">
+<div class="vg-row">
+<a class="vg-btn ghost" href="/profile">Cancel</a>
+<button class="vg-btn primary grow" type="submit">Continue</button>
+</div>
+</form>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
 {{define "totp-enroll"}}{{template "head" .}}{{template "authcss"}}
 <div class="vg-center" data-screen-label="Enroll two-factor"><div class="vg-authcol">
 {{template "authbrand" .}}

@@ -1,8 +1,10 @@
 package seed
 
 import (
+	"errors"
 	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -200,5 +202,48 @@ func TestEnumerateAddressesTerminatesAtTopOfSpace(t *testing.T) {
 	got := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("255.255.255.254/31")))
 	if len(got) != 2 || got[0].String() != "255.255.255.254" || got[1].String() != "255.255.255.255" {
 		t.Fatalf("enumeration at the top of the space must terminate cleanly, got %v", got)
+	}
+}
+
+func TestNormalizeDomainRefusesTowardARoute(t *testing.T) {
+	var wild *WildcardError
+	_, err := NormalizeDomain("*.example.com")
+	if !errors.As(err, &wild) {
+		t.Fatalf("NormalizeDomain(*.example.com) err = %v, want a WildcardError", err)
+	}
+	if wild.Subtree != "example.com" {
+		t.Errorf("wildcard subtree = %q, want example.com", wild.Subtree)
+	}
+	if !strings.Contains(err.Error(), "subtree exclusion") {
+		t.Errorf("wildcard refusal does not name the subtree exclusion: %q", err)
+	}
+
+	var ulabel *ULabelError
+	_, err = NormalizeDomain("café.example")
+	if !errors.As(err, &ulabel) {
+		t.Fatalf("NormalizeDomain(café.example) err = %v, want a ULabelError", err)
+	}
+	if strings.Contains(err.Error(), "xn--caf") {
+		t.Errorf("U-label refusal computed the A-label: %q", err)
+	}
+	if !strings.Contains(err.Error(), "DNS provider") {
+		t.Errorf("U-label refusal does not name where to obtain the A-label: %q", err)
+	}
+
+	for _, in := range []string{"foo.*.example.com", "ba*.example.com"} {
+		_, err := NormalizeDomain(in)
+		if err == nil || errors.As(err, &wild) {
+			t.Errorf("NormalizeDomain(%q) err = %v, want a plain refusal", in, err)
+		}
+	}
+}
+
+func TestFoldASCIITouchesOnlyTheLetters(t *testing.T) {
+	if got := FoldASCII("WWW.Example.COM."); got != "www.example.com." {
+		t.Errorf("FoldASCII = %q", got)
+	}
+	// A string fold maps U+0130 and the Kelvin sign; the ASCII fold leaves them (ADR-0055).
+	if got := FoldASCII("İ.K.example"); got != "İ.K.example" {
+		t.Errorf("FoldASCII folded a non-ASCII octet: %q", got)
 	}
 }

@@ -203,3 +203,38 @@ func keys(m map[string]ZoneRecord) []string {
 	}
 	return out
 }
+
+func TestRestateZoneSkipsWildcardAndHighBitOwners(t *testing.T) {
+	supply := time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC)
+	content := `$ORIGIN example.com.
+*.example.com. IN A 203.0.113.5
+*       IN A    203.0.113.6
+        IN AAAA 2001:db8::6
+café    IN A    203.0.113.7
+the*    IN A    203.0.113.8
+WWW     IN A    203.0.113.9
+`
+	recs, skipped := RestateZone(ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: content})
+
+	names := map[string]bool{}
+	for _, r := range recs {
+		names[r.Name] = true
+	}
+	for _, notWant := range []string{"*.example.com", "café.example.com"} {
+		if names[notWant] {
+			t.Errorf("%q became a dns-record subject; names=%v", notWant, names)
+		}
+	}
+	// Only a leftmost label of exactly * is a wildcard; the* is an ordinary name (RFC 4592 §2.1.2).
+	for _, want := range []string{"the*.example.com", "www.example.com"} {
+		if !names[want] {
+			t.Errorf("%q missing; names=%v", want, names)
+		}
+	}
+	joined := strings.Join(skipped, "\n")
+	for _, want := range []string{"*.example.com. IN A 203.0.113.5", "*       IN A    203.0.113.6", "IN AAAA 2001:db8::6", "café    IN A    203.0.113.7"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("skip %q not surfaced; got skips=%v", want, skipped)
+		}
+	}
+}

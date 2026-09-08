@@ -9,19 +9,20 @@ import (
 	"encoding/json"
 )
 
-const Version = "http-exchange/v4" // moves only with a moved golden row (ADR-0021)
+const Version = "http-exchange/v5" // moves only with a moved golden row (ADR-0021)
 
 const Kind = "http-exchange"
 
 const FacetHTTPIdentity = "http-identity"
 
 type Params struct {
-	Method           string `json:"method"`
-	Path             string `json:"path"`
-	BodyCapBytes     int    `json:"body_cap_bytes"`
-	TimeoutMillis    int    `json:"timeout_millis"`
-	PerHostReqPerSec int    `json:"per_host_req_per_sec"`
-	FollowRedirects  bool   `json:"follow_redirects"`
+	Method           string   `json:"method"`
+	Path             string   `json:"path"`
+	BodyCapBytes     int      `json:"body_cap_bytes"`
+	TimeoutMillis    int      `json:"timeout_millis"`
+	PerHostReqPerSec int      `json:"per_host_req_per_sec"`
+	FollowRedirects  bool     `json:"follow_redirects"`
+	ALPN             []string `json:"alpn"`
 }
 
 func DefaultParams() Params {
@@ -34,6 +35,8 @@ func DefaultParams() Params {
 		PerHostReqPerSec: 10,
 		// Always false, never an operator dial: a 3xx is recorded, never followed (ADR-0025).
 		FollowRedirects: false,
+		// The whole list in this order; widening it Breaks http-identity (offers §3.1).
+		ALPN: []string{"h2", "http/1.1"},
 	}
 }
 

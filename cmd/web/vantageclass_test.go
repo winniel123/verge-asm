@@ -71,7 +71,7 @@ func TestDeriveVantageClasses(t *testing.T) {
 
 func TestDerivedInternetClassLightsFlagshipRules(t *testing.T) {
 	const (
-		sensitiveSvc = "198.51.100.51:3389/tcp"
+		sensitiveSvc = "198.51.100.51:5900/tcp"
 		leakyName    = "leak.example.com"
 		leakyResol   = `{"outcome":"Resolved","addresses":["10.0.0.5"]}`
 	)

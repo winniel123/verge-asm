@@ -89,6 +89,77 @@ func TestAddressScopeOverCapRejected(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestOverCapIPv6NamesTheRouteAndShutsTheKnob(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := refusalPage(t, ac, base, declare(t, ac, base, "address", "2001:db8::/48"))
+	if !strings.Contains(got, "Do not raise the cap for this") {
+		t.Fatalf("IPv6 over-cap refusal does not shut the knob; body=%s", got)
+	}
+	if strings.Contains(got, "Raise your cap") {
+		t.Errorf("IPv6 over-cap refusal offers the cap setting; body=%s", got)
+	}
+	if !strings.Contains(got, "custody") {
+		t.Errorf("IPv6 over-cap refusal does not name the custody extension as the route; body=%s", got)
+	}
+	if !strings.Contains(got, `value="2001:db8::/48"`) {
+		t.Errorf("rejected scope not retained in the form; body: %s", got)
+	}
+	if len(f.seeds) != 0 {
+		t.Fatalf("seeds = %d, want 0", len(f.seeds))
+	}
+
+	got = refusalPage(t, ac, base, declare(t, ac, base, "address", "10.0.0.0/21"))
+	if !strings.Contains(got, "Raise your cap") {
+		t.Fatalf("IPv4 over-cap refusal must still offer the cap setting; body=%s", got)
+	}
+}
+
+func TestULabelSeedNamesWhereToObtainTheALabel(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := refusalPage(t, ac, base, declare(t, ac, base, "name", "café.example"))
+	if !strings.Contains(got, "DNS provider") {
+		t.Fatalf("U-label refusal does not name where to obtain the A-label; body=%s", got)
+	}
+	if strings.Contains(got, "xn--caf") {
+		t.Errorf("U-label refusal rendered the computed A-label; body=%s", got)
+	}
+	if strings.Contains(got, "not a bare domain") {
+		t.Errorf("U-label fell to the generic refusal; body=%s", got)
+	}
+	if len(f.seeds) != 0 {
+		t.Fatalf("seeds = %d, want 0", len(f.seeds))
+	}
+}
+
+func TestWildcardSeedNamesTheSubtreeExclusion(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := refusalPage(t, ac, base, declare(t, ac, base, "name", "*.example.com"))
+	if !strings.Contains(got, "subtree exclusion") {
+		t.Fatalf("wildcard refusal does not name the subtree exclusion; body=%s", got)
+	}
+	if !strings.Contains(got, "never matches") {
+		t.Errorf("wildcard refusal does not state the apex difference; body=%s", got)
+	}
+	if strings.Contains(got, "not a bare domain") {
+		t.Errorf("wildcard fell to the generic refusal; body=%s", got)
+	}
+	if len(f.seeds) != 0 || len(f.exclusions) != 0 {
+		t.Fatalf("seeds=%d exclusions=%d, want none written", len(f.seeds), len(f.exclusions))
+	}
+}
+
 func TestNameScopeMustBeRegistrable(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

@@ -88,6 +88,37 @@ func TestToJobView(t *testing.T) {
 	if done.Vantage != "eu-resolver" || done.Batch != "completed" || done.Retrying || done.Superseded {
 		t.Errorf("a done job read wrong: %+v", done)
 	}
+
+	reaped := toJobView(db.ListJobsForDispatchRow{ID: 4, Kind: "dns", State: "dead", Attempt: 1, MaxAttempts: 5})
+	if !reaped.Reaped {
+		t.Errorf("a dead job with no batch should read as reaped, got %+v", reaped)
+	}
+	deadLettered := toJobView(db.ListJobsForDispatchRow{
+		ID: 5, Kind: "dns", State: "dead", Attempt: 5, MaxAttempts: 5,
+		BatchID:      pgtype.Int8{Int64: 77, Valid: true},
+		BatchOutcome: pgtype.Text{String: "dead-lettered", Valid: true},
+	})
+	if deadLettered.Reaped {
+		t.Errorf("a dead job with a batch is dead-lettered, not reaped, got %+v", deadLettered)
+	}
+}
+
+func TestRunStagesLabelsAReapedJobReapedNotDeadLettered(t *testing.T) {
+	stages := runStages([]jobView{
+		{ID: 1, Kind: "dns", State: "done"},
+		{ID: 2, Kind: "dns", State: "dead", Reaped: true},
+		{ID: 3, Kind: "dns", State: "dead", Batch: "dead-lettered"},
+		{ID: 4, Kind: "hot", State: "dead", Reaped: true},
+	})
+	if len(stages) != 2 {
+		t.Fatalf("stages = %d, want 2", len(stages))
+	}
+	if got := stages[0].Detail; got != "1 of 3 done · 1 dead-lettered · 1 reaped" {
+		t.Errorf("dns detail = %q, want the reaped share split from the dead-lettered one", got)
+	}
+	if got := stages[1].Detail; got != "0 of 1 done · 1 reaped" {
+		t.Errorf("hot detail = %q, want a reaped job labelled reaped and never dead-lettered", got)
+	}
 }
 
 func TestToJobRollup(t *testing.T) {

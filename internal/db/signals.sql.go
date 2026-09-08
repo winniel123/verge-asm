@@ -66,12 +66,13 @@ live AS (
 latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
-        o.value       AS value
+        o.value       AS value,
+        o.observed_at AS observed_at
     FROM live o
     WHERE o.subject_kind = 'endpoint' AND o.facet = 'certificate'
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
-SELECT subject_key, value
+SELECT subject_key, value, observed_at
 FROM latest
 ORDER BY subject_key
 `
@@ -82,8 +83,9 @@ type ListEndpointCertificatesParams struct {
 }
 
 type ListEndpointCertificatesRow struct {
-	SubjectKey string `json:"subject_key"`
-	Value      []byte `json:"value"`
+	SubjectKey string             `json:"subject_key"`
+	Value      []byte             `json:"value"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
 }
 
 func (q *Queries) ListEndpointCertificates(ctx context.Context, arg ListEndpointCertificatesParams) ([]ListEndpointCertificatesRow, error) {
@@ -95,7 +97,7 @@ func (q *Queries) ListEndpointCertificates(ctx context.Context, arg ListEndpoint
 	items := []ListEndpointCertificatesRow{}
 	for rows.Next() {
 		var i ListEndpointCertificatesRow
-		if err := rows.Scan(&i.SubjectKey, &i.Value); err != nil {
+		if err := rows.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
