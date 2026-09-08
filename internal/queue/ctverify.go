@@ -238,7 +238,8 @@ func (w *Worker) checkTiled(ctx context.Context, lg scan.CTLog, leafHash []byte,
 		return checkErrored
 	}
 	if index >= sth.TreeSize {
-		return checkNotFound
+		// An SCT promises inclusion within the MMD, so a short head is doubt (ADR-0193).
+		return checkErrored
 	}
 	tileBase := (index / scan.CTTileWidth) * scan.CTTileWidth
 	width := int64(scan.CTTileWidth)
