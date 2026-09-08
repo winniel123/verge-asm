@@ -265,6 +265,7 @@ test("status is accepted or withdrawn, and source is grilling, fix, or sweep", (
 
 test("date must be YYYY-MM-DD", () => {
   assertProblem(withFront(223, replacing(FRONT_223, "date", "date: 7 Sep 2026")), /date `7 Sep 2026`/);
+  assertProblem(withFront(223, replacing(FRONT_223, "date", "date: 2026-13-45")), /date `2026-13-45`/);
 });
 
 test("ticket is an integer or a list of integers, and map and pr are integers", () => {
@@ -418,7 +419,7 @@ function statusOf(files, number) {
   });
 }
 
-test("a retires edge derives amended on the target and leaves the actor accepted", () => {
+test("retires and amends derive amended on their targets, and an actor with no incoming edge stays accepted", () => {
   assert.deepEqual(statusOf(corpus(), 223), { set: "accepted", derived: "amended" });
   assert.deepEqual(statusOf(corpus(), 227), { set: "accepted", derived: "amended" });
   assert.deepEqual(statusOf(corpus(), 1700), { set: "accepted", derived: "accepted" });
@@ -588,7 +589,7 @@ test("--check fails with exit 2 on a schema or relation problem, and writes noth
   });
 });
 
-test("the six #1645 cases each fail with the stated message", () => {
+test("the four schema cases of #1645 §5 each fail with the stated message, exit 2", () => {
   const cases = [
     [bothSides(), /an edge lives once/],
     [withRelations(227, FRONT_227, ['  - {kind: retires, adr: 223, clause: "9"}']), /target numbers 1, 2, 3, 4/],

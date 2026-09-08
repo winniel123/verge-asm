@@ -10,7 +10,7 @@ export const INDEX_FILE = `${ADR_DIR}/index.json`;
 
 const FRONT = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
 const H1_PREFIX = /^ADR-(\d{4,}):\s+/;
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const CLAUSE = /^\d+(?:\.\d+)*$/;
 export const MARKER_LINE = /^> .*<!-- adr-marker (amends|retires|supersedes|withdrawn)(?: (\d+))? -->\s*$/;
 
