@@ -595,7 +595,7 @@ type NameCitedAddressesRow struct {
 	Owner      string `json:"owner"`
 }
 
-// The owner comes from the same batch's dns-record rows, so the resolution value keeps its shape and no leaf version moves (ADR-0151 §2, #1678).
+// The owner rides the batch's dns-record rows, so no leaf version moves (ADR-0151 §2, #1678).
 func (q *Queries) NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error) {
 	rows, err := q.db.Query(ctx, nameCitedAddresses, arg.AsOf, arg.FloorCadences)
 	if err != nil {
@@ -660,7 +660,7 @@ const renewJobLease = `-- name: RenewJobLease :execrows
 UPDATE queue_job SET claimed_at = now() WHERE id = $1 AND state = 'running'
 `
 
-// A ct-tail job sleeps past the stale threshold, so the owner renews its lease off any transaction (#1709).
+// A ct-tail job outlives the stale threshold, so the owner renews off any transaction (#1709).
 func (q *Queries) RenewJobLease(ctx context.Context, id int64) (int64, error) {
 	result, err := q.db.Exec(ctx, renewJobLease, id)
 	if err != nil {

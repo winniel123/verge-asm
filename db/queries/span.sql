@@ -114,8 +114,7 @@ SELECT
     pred.derivation     AS prev_derivation,
     pred.closed_at      AS prev_closed_at,
     pred.closure_reason AS prev_closure_reason,
-    -- A Break on any resolution witness open at this instant voids returned for the subject;
-    -- a witness with no prior span compares against NULL and contributes none (ADR-0097).
+    -- A Break on any resolution witness open at this instant voids returned (ADR-0097).
     EXISTS (
         SELECT 1
         FROM span w

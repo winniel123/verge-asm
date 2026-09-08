@@ -55,8 +55,7 @@ WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
 ORDER BY id;
 
 -- name: SetVantageResolver :execrows
--- A switch after the first observation would continue the timelines the resolver keys;
--- retention prunes observation but keeps span (ADR-0070, #1716).
+-- The resolver keys every timeline. Retention keeps span, not observation (ADR-0070, #1716).
 UPDATE vantage
 SET resolver = $2
 WHERE vantage.id = $1

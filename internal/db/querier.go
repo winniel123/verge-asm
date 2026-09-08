@@ -229,7 +229,7 @@ type Querier interface {
 	MarkVantageAvailable(ctx context.Context, id int64) error
 	MarkVantageUnavailable(ctx context.Context, id int64) error
 	MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error
-	// The owner comes from the same batch's dns-record rows, so the resolution value keeps its shape and no leaf version moves (ADR-0151 §2, #1678).
+	// The owner rides the batch's dns-record rows, so no leaf version moves (ADR-0151 §2, #1678).
 	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
 	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
 	NotifyJobProgress(ctx context.Context, payload string) error
@@ -246,7 +246,7 @@ type Querier interface {
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	RecordSourceAttempt(ctx context.Context, arg RecordSourceAttemptParams) (SourceHealth, error)
-	// A ct-tail job sleeps past the stale threshold, so the owner renews its lease off any transaction (#1709).
+	// A ct-tail job outlives the stale threshold, so the owner renews off any transaction (#1709).
 	RenewJobLease(ctx context.Context, id int64) (int64, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
 	ResetAccountTOTP(ctx context.Context, id int64) error
@@ -275,8 +275,7 @@ type Querier interface {
 	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
 	SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
-	// A switch after the first observation would continue the timelines the resolver keys;
-	// retention prunes observation but keeps span (ADR-0070, #1716).
+	// The resolver keys every timeline. Retention keeps span, not observation (ADR-0070, #1716).
 	SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) (int64, error)
 	// A non-positive interval is refused by the table's CHECK, not by this statement.
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error

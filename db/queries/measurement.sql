@@ -111,7 +111,7 @@ INSERT INTO observation (
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: RenewJobLease :execrows
--- A ct-tail job sleeps past the stale threshold, so the owner renews its lease off any transaction (#1709).
+-- A ct-tail job outlives the stale threshold, so the owner renews off any transaction (#1709).
 UPDATE queue_job SET claimed_at = now() WHERE id = $1 AND state = 'running';
 
 -- name: MarkJobDone :execrows
@@ -175,7 +175,7 @@ cited AS (
     FROM latest l
     WHERE l.outcome = 'Resolved'
 ),
--- The owner comes from the same batch's dns-record rows, so the resolution value keeps its shape and no leaf version moves (ADR-0151 §2, #1678).
+-- The owner rides the batch's dns-record rows, so no leaf version moves (ADR-0151 §2, #1678).
 terminal AS (
     SELECT o.subject_key, o.vantage_id, o.batch_id,
            rr->>'data' AS address,

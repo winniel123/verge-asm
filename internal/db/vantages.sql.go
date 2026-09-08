@@ -411,8 +411,7 @@ type SetVantageResolverParams struct {
 	Resolver string `json:"resolver"`
 }
 
-// A switch after the first observation would continue the timelines the resolver keys;
-// retention prunes observation but keeps span (ADR-0070, #1716).
+// The resolver keys every timeline. Retention keeps span, not observation (ADR-0070, #1716).
 func (q *Queries) SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setVantageResolver, arg.ID, arg.Resolver)
 	if err != nil {
