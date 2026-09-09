@@ -144,6 +144,9 @@ func link(base string, cause message.Cause, subjectKind, firedAt string) string 
 	case message.LinkSource:
 		return base + "/sources"
 	case message.LinkSeed:
+		if subjectKind == message.KindVantageClass {
+			return base + "/settings?tab=vantages"
+		}
 		return base + "/seeds"
 	default:
 		switch subjectKind {

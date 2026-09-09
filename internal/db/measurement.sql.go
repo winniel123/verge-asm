@@ -672,6 +672,30 @@ func (q *Queries) PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, er
 	return prev_batch_at, err
 }
 
+const reachFoldedBeforeAtVantages = `-- name: ReachFoldedBeforeAtVantages :one
+SELECT EXISTS (
+    SELECT 1 FROM batch
+    WHERE kind = ANY($1::text[])
+      AND outcome = 'completed'
+      AND vantage_id = ANY($2::bigint[])
+      AND id < $3::bigint
+) AS folded
+`
+
+type ReachFoldedBeforeAtVantagesParams struct {
+	Kinds         []string `json:"kinds"`
+	VantageIds    []int64  `json:"vantage_ids"`
+	BeforeBatchID int64    `json:"before_batch_id"`
+}
+
+// EXISTS stops at the first hit, so the kind range is read in full once per class (#1731).
+func (q *Queries) ReachFoldedBeforeAtVantages(ctx context.Context, arg ReachFoldedBeforeAtVantagesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, reachFoldedBeforeAtVantages, arg.Kinds, arg.VantageIds, arg.BeforeBatchID)
+	var folded bool
+	err := row.Scan(&folded)
+	return folded, err
+}
+
 const reapStaleRunningJobs = `-- name: ReapStaleRunningJobs :execrows
 UPDATE queue_job
 SET state      = CASE WHEN attempt >= max_attempts THEN 'dead' ELSE 'ready' END,

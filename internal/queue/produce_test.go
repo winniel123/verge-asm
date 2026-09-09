@@ -42,6 +42,11 @@ type fakeMessageStore struct {
 
 	citers      map[string][]db.ListResolutionCitersForAddressesRow
 	citersAsked [][]string
+
+	vantages      []db.ListVantagesForDispatchRow
+	vantageReads  int
+	classUnfolded bool // zero value reads "the class already ran", so an unrelated test stays quiet
+	foldedAsked   []db.ReachFoldedBeforeAtVantagesParams
 }
 
 func (f *fakeMessageStore) ListResolutionCitersForAddresses(_ context.Context, addresses []string) ([]db.ListResolutionCitersForAddressesRow, error) {
@@ -54,6 +59,16 @@ func (f *fakeMessageStore) ListResolutionCitersForAddresses(_ context.Context, a
 		}
 	}
 	return out, nil
+}
+
+func (f *fakeMessageStore) ListVantagesForDispatch(context.Context) ([]db.ListVantagesForDispatchRow, error) {
+	f.vantageReads++
+	return f.vantages, nil
+}
+
+func (f *fakeMessageStore) ReachFoldedBeforeAtVantages(_ context.Context, arg db.ReachFoldedBeforeAtVantagesParams) (bool, error) {
+	f.foldedAsked = append(f.foldedAsked, arg)
+	return !f.classUnfolded, nil
 }
 
 func (f *fakeMessageStore) FoldedBatchWindow(_ context.Context, unfoldedKinds []string) (db.FoldedBatchWindowRow, error) {

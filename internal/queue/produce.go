@@ -29,6 +29,8 @@ type messageStore interface {
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]db.ListServiceReachabilitySpansByClassForServicesRow, error)
 	ListServiceReachabilitySpansByClassAtForServices(ctx context.Context, arg db.ListServiceReachabilitySpansByClassAtForServicesParams) ([]db.ListServiceReachabilitySpansByClassAtForServicesRow, error)
+	ListVantagesForDispatch(ctx context.Context) ([]db.ListVantagesForDispatchRow, error)
+	ReachFoldedBeforeAtVantages(ctx context.Context, arg db.ReachFoldedBeforeAtVantagesParams) (bool, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	AddressExclusionStore
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
@@ -70,13 +72,12 @@ type departure struct {
 }
 
 func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
-	_ = batchID // a message links by fired-at subject key, never the batch id (ADR-0064)
 	// A devMode worker produces nothing, so a fixture install never pages anyone (ADR-0197 §1).
 	if devMode {
 		return nil
 	}
 	// A message is computed once at the cause and committed with its spans (ADR-0064).
-	msgs, err := buildMessages(ctx, store, observedAt, changes, departures, narrowings, in)
+	msgs, err := buildMessages(ctx, store, batchID, observedAt, changes, departures, narrowings, in)
 	if err != nil {
 		return err
 	}
@@ -118,14 +119,26 @@ func insertParams(m *message.Message) db.InsertMessageParams {
 	return p
 }
 
-func buildMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) ([]*message.Message, error) {
+func buildMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) ([]*message.Message, error) {
 	var msgs []*message.Message
 
-	flagship, err := flagshipMessages(ctx, store, observedAt, changes)
+	legs, err := readBatchLegs(ctx, store, changes)
+	if err != nil {
+		return nil, err
+	}
+
+	flagship, err := flagshipMessages(ctx, store, observedAt, changes, legs)
 	if err != nil {
 		return nil, err
 	}
 	msgs = append(msgs, flagship...)
+
+	// The widening opens what it composes, so it fires beside the flagship (ADR-0029).
+	widened, err := vantageClassMessages(ctx, store, batchID, observedAt, changes, legs)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, widened...)
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
 
@@ -215,39 +228,51 @@ func declaredInputHeadline(subjectKey, sourceKey string, timelines int) string {
 		subjectKey, sourceKey, timelines, tl)
 }
 
-func flagshipMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange) ([]*message.Message, error) {
-	services := flagshipCandidateServices(changes)
-	if len(services) == 0 {
-		return nil, nil
-	}
+type batchLegs struct {
+	services []string
+	covered  func(netip.Addr) bool
+	cur      []classLeg
+	prev     []classLeg
+}
 
+// One read pair serves the flagship and the vantage-class widening, so a fold pays for it once.
+
+func readBatchLegs(ctx context.Context, store messageStore, changes []spanChange) (batchLegs, error) {
+	out := batchLegs{services: flagshipCandidateServices(changes)}
+	if len(out.services) == 0 {
+		return out, nil
+	}
 	covered, err := coveredAddressScope(ctx, store)
 	if err != nil {
-		return nil, err
+		return batchLegs{}, err
 	}
+	out.covered = covered
 
-	current, err := store.ListServiceReachabilitySpansByClassForServices(ctx, services)
+	current, err := store.ListServiceReachabilitySpansByClassForServices(ctx, out.services)
 	if err != nil {
-		return nil, err
+		return batchLegs{}, err
 	}
-	curLegs := legsFromCurrent(current, covered)
+	out.cur = legsFromCurrent(current, covered)
 
-	var prevLegs []classLeg
 	prev, err := store.PreviousBatchTime(ctx)
 	if err != nil {
-		return nil, err
+		return batchLegs{}, err
 	}
 	if prev.Valid {
 		past, err := store.ListServiceReachabilitySpansByClassAtForServices(ctx, db.ListServiceReachabilitySpansByClassAtForServicesParams{
-			ServiceKeys: services,
+			ServiceKeys: out.services,
 			At:          prev,
 		})
 		if err != nil {
-			return nil, err
+			return batchLegs{}, err
 		}
-		prevLegs = legsFromAt(past, covered)
+		out.prev = legsFromAt(past, covered)
 	}
+	return out, nil
+}
 
+func flagshipMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, legs batchLegs) ([]*message.Message, error) {
+	services, curLegs, prevLegs := legs.services, legs.cur, legs.prev
 	var msgs []*message.Message
 	for _, svc := range services {
 		after, aok := composeInternetLeg(curLegs, svc)
@@ -342,9 +367,13 @@ func coveredAddressScope(ctx context.Context, store messageStore) (func(netip.Ad
 }
 
 func composeInternetLeg(legs []classLeg, service string) (exposure.ReachValue, bool) {
+	return composeLeg(legs, service, "internet")
+}
+
+func composeLeg(legs []classLeg, service, class string) (exposure.ReachValue, bool) {
 	var outcomes []string
 	for _, l := range legs {
-		if l.subject == service && l.class == "internet" {
+		if l.subject == service && l.class == class {
 			outcomes = append(outcomes, l.outcome)
 		}
 	}

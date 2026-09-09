@@ -218,3 +218,13 @@ ORDER BY c.subject_key, c.address, owner;
 SELECT EXISTS (
     SELECT 1 FROM batch WHERE kind = $1 AND outcome = 'completed'
 ) AS completed;
+
+-- name: ReachFoldedBeforeAtVantages :one
+-- EXISTS stops at the first hit, so the kind range is read in full once per class (#1731).
+SELECT EXISTS (
+    SELECT 1 FROM batch
+    WHERE kind = ANY(sqlc.arg(kinds)::text[])
+      AND outcome = 'completed'
+      AND vantage_id = ANY(sqlc.arg(vantage_ids)::bigint[])
+      AND id < sqlc.arg(before_batch_id)::bigint
+) AS folded;
