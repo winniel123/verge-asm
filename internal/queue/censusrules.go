@@ -66,7 +66,7 @@ func ruleSubjectKind(kind string) bool {
 	return kind == "service" || kind == "endpoint"
 }
 
-func flagshipCensusWithRules(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, service string, base message.Census) (message.Census, error) {
+func censusWithRules(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, service string, base message.Census, reach reachAtCause) (message.Census, error) {
 	beneath := func(kind, key string) bool { return ruleSubjectKind(kind) && keyNestsService(service, key) }
 	subjects, err := subjectsAtCause(ctx, store, observedAt, changes, beneath)
 	if err != nil {
@@ -82,15 +82,12 @@ func flagshipCensusWithRules(ctx context.Context, store messageStore, observedAt
 	entries := append([]message.CensusEntry(nil), base.Entries...)
 	seen := map[string]bool{}
 	for _, s := range subjects {
-		var reach reachAtCause
+		var legs reachAtCause
 		if s.kind == "service" {
-			reach = reachAtCause{
-				before: reachLeg{has: true, outcome: signal.NotReached},
-				after:  reachLeg{has: true, outcome: signal.Reached},
-			}
+			legs = reach
 		}
-		for _, o := range rulesAtCause(s, reach, observedAt) {
-			// The flagship carries the firing edge, so not-fired reads as opened.
+		for _, o := range rulesAtCause(s, legs, observedAt) {
+			// The message carries the firing edge, so not-fired reads as opened.
 			if o.after != signal.Fired || o.before == signal.Fired || seen[o.name] {
 				continue
 			}

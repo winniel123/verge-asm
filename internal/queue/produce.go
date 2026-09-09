@@ -17,6 +17,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
@@ -46,6 +47,10 @@ type spanChange struct {
 	OpenedAperture bool
 	Value          []byte
 	Previous       []byte // The closed span's value; nil where the timeline opened (ADR-0033 §2).
+	IsGap          bool
+	PrevIsGap      bool
+	BeforeGap      []byte
+	BrokeAcrossGap bool
 	Vector         drift.Vector
 	PrevVector     drift.Vector
 	PriorClosure   *drift.Span
@@ -128,6 +133,13 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 	msgs = append(msgs, gains...)
 
 	msgs = append(msgs, rebaselineMessages(observedAt, changes)...)
+
+	// A closing Gap is member 7 of the coverage class, fired at the cause (ADR-0014, ADR-0026 §1).
+	restored, err := gapCloseMessages(ctx, store, observedAt, changes, in)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, restored...)
 
 	// Composed after every census producer, so the residue clause can consult them (ADR-0033 §3).
 	moves, err := facetMoveMessages(ctx, store, observedAt, changes, msgs)
@@ -233,7 +245,10 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 		if !aok || !bok || !exposure.Flagship(before, after) {
 			continue
 		}
-		census, err := flagshipCensusWithRules(ctx, store, observedAt, changes, svc, flagshipCensus(changes, svc))
+		census, err := censusWithRules(ctx, store, observedAt, changes, svc, flagshipCensus(changes, svc), reachAtCause{
+			before: reachLeg{has: true, outcome: signal.NotReached},
+			after:  reachLeg{has: true, outcome: signal.Reached},
+		})
 		if err != nil {
 			return nil, err
 		}

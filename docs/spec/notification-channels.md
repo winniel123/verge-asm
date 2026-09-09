@@ -266,6 +266,25 @@ one's, and a `not-fired` → `fired` edge between the two fires at this fold. Th
 batches one at a time, so the windows partition time and a crossing fires once, with no stored
 marker ([#1728](https://github.com/winniel123/verge-asm/issues/1728)).
 
+A `Gap` has two edges and one of them is a message. The opening edge sends nothing: a `Gap` is
+`Coverage` inventory, and the standing readout already carries it
+([#882](https://github.com/winniel123/verge-asm/issues/882),
+[ADR-0026 §1](../adr/0026-the-facet-layer-is-evidence-not-a-channel.md)). The closing edge, a
+`Gap` giving way to a value, is coverage member 7
+([ADR-0014](../adr/0014-only-revealed-generalises.md)). It fires at the fold that closed it, at
+the `Seed` whose scope covers the subject. Its census names every subject whose sight it
+restored. A census entry carries the pair of values either side of the `Gap` only where they
+differ. The headline states how many differ from the last value seen. A timeline that opened as
+a `Gap` has no earlier value, so no pair is stated for it. A pair is licensed under one
+derivation only, so a `Break` beneath the `Gap` states none
+([ADR-0008](../adr/0008-derivation-versions-move-on-content.md)). The census also carries every
+rule that opened at `fired` beneath the restored leg, read from the composed internet leg. So the
+edge producers stay silent beneath it
+([ADR-0026 §5](../adr/0026-the-facet-layer-is-evidence-not-a-channel.md)).
+A subject that no `Seed` covers, a
+`Name` reached through a record outside every declared scope, fires at itself, so the closing is
+never lost ([#1729](https://github.com/winniel123/verge-asm/issues/1729)).
+
 | Option | Why not |
 | --- | --- |
 | Wait for a defined set of tiers | The message's **content** becomes a function of when it fired; it holds the flagship for up to a week on `tls-acceptance`'s weekly `Scan`; and it is §6's coalescing window under another name |

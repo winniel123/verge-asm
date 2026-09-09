@@ -110,15 +110,28 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 			Opened:         open == nil,
 			OpenedAperture: openedAperture,
 			Value:          append([]byte(nil), value...),
+			IsGap:          opened.IsGap,
 			Vector:         opened.Vector,
 		}
 		if open != nil {
 			change.PrevVector = open.Vector
 			change.Previous = []byte(open.Value)
+			change.PrevIsGap = open.IsGap
+		}
+		// Read after the open, so the re-entering timeline is a witness (ADR-0097).
+		history := func() ([]db.ListSpansForSubjectRow, error) {
+			return qtx.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{SubjectKind: key.SubjectKind, SubjectKey: key.SubjectKey})
+		}
+		if change.PrevIsGap && !opened.IsGap {
+			// The pair across a Gap is stated at the cause and never stored (ADR-0014).
+			rows, err := history()
+			if err != nil {
+				return err
+			}
+			change.BeforeGap, change.BrokeAcrossGap = lastValueBeforeGap(rows, key, vantageID, opened.Vector)
 		}
 		if open == nil && key.Facet == resolutionwalk.FacetResolution && message.RootFires(key.SubjectKind) {
-			// Read after the open, so the re-entering timeline is a witness (ADR-0097).
-			rows, err := qtx.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{SubjectKind: key.SubjectKind, SubjectKey: key.SubjectKey})
+			rows, err := history()
 			if err != nil {
 				return err
 			}
