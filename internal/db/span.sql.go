@@ -630,6 +630,77 @@ func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDrift
 	return items, nil
 }
 
+const listResolutionCitersForAddresses = `-- name: ListResolutionCitersForAddresses :many
+SELECT a.addr::text AS addr,
+       r.subject_key, r.discriminator, r.vantage_id, r.source
+FROM unnest($1::text[]) AS a(addr)
+JOIN span r
+  ON r.closed_at IS NULL
+ AND r.subject_kind = 'name'
+ AND r.facet = 'resolution'
+ AND (
+      (r.is_gap = FALSE
+       AND jsonb_typeof(r.value -> 'addresses') = 'array'
+       AND r.value -> 'addresses' @> to_jsonb(a.addr))
+   -- A gapped Name still cites its pre-Gap value, as the withdrawal fold reads it (ADR-0006).
+   OR (r.is_gap = TRUE AND EXISTS (
+          SELECT 1
+          FROM (
+              SELECT q.value
+              FROM span q
+              WHERE q.subject_kind = 'name'
+                AND q.facet = 'resolution'
+                AND q.subject_key = r.subject_key
+                AND q.discriminator = r.discriminator
+                AND q.vantage_id IS NOT DISTINCT FROM r.vantage_id
+                AND q.source = r.source
+                AND q.closed_at IS NOT NULL
+                AND q.is_gap = FALSE
+              ORDER BY q.closed_at DESC, q.id DESC
+              LIMIT 1
+          ) p
+          WHERE jsonb_typeof(p.value -> 'addresses') = 'array'
+            AND p.value -> 'addresses' @> to_jsonb(a.addr)
+      ))
+ )
+ORDER BY a.addr, r.subject_key, r.discriminator, r.vantage_id, r.source
+`
+
+type ListResolutionCitersForAddressesRow struct {
+	Addr          string      `json:"addr"`
+	SubjectKey    string      `json:"subject_key"`
+	Discriminator string      `json:"discriminator"`
+	VantageID     pgtype.Int8 `json:"vantage_id"`
+	Source        string      `json:"source"`
+}
+
+// One row per citing timeline, so a fold drops its own span and keeps a sibling vantage (#1730).
+func (q *Queries) ListResolutionCitersForAddresses(ctx context.Context, addresses []string) ([]ListResolutionCitersForAddressesRow, error) {
+	rows, err := q.db.Query(ctx, listResolutionCitersForAddresses, addresses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListResolutionCitersForAddressesRow{}
+	for rows.Next() {
+		var i ListResolutionCitersForAddressesRow
+		if err := rows.Scan(
+			&i.Addr,
+			&i.SubjectKey,
+			&i.Discriminator,
+			&i.VantageID,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listServiceReachabilitySpansByClassAt = `-- name: ListServiceReachabilitySpansByClassAt :many
 SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
     sp.subject_key AS subject_key,

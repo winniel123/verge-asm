@@ -194,6 +194,8 @@ type Querier interface {
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
+	// One row per citing timeline, so a fold drops its own span and keeps a sibling vantage (#1730).
+	ListResolutionCitersForAddresses(ctx context.Context, addresses []string) ([]ListResolutionCitersForAddressesRow, error)
 	ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error)
 	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error)
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)

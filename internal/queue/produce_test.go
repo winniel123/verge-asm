@@ -40,10 +40,25 @@ type fakeMessageStore struct {
 	certSpans     []db.ListOpenEndpointCertificateSpansRow
 	certReads     int
 
+	citers      map[string][]db.ListResolutionCitersForAddressesRow
+	citersAsked [][]string
+
 	vantages      []db.ListVantagesForDispatchRow
 	vantageReads  int
 	classUnfolded bool // zero value reads "the class already ran", so an unrelated test stays quiet
 	foldedAsked   []db.ReachFoldedBeforeAtVantagesParams
+}
+
+func (f *fakeMessageStore) ListResolutionCitersForAddresses(_ context.Context, addresses []string) ([]db.ListResolutionCitersForAddressesRow, error) {
+	f.citersAsked = append(f.citersAsked, addresses)
+	var out []db.ListResolutionCitersForAddressesRow
+	for _, a := range addresses {
+		for _, r := range f.citers[a] {
+			r.Addr = a
+			out = append(out, r)
+		}
+	}
+	return out, nil
 }
 
 func (f *fakeMessageStore) ListVantagesForDispatch(context.Context) ([]db.ListVantagesForDispatchRow, error) {

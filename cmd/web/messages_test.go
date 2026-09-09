@@ -39,7 +39,7 @@ func TestSubjectHrefAllKinds(t *testing.T) {
 		want string
 	}{
 		{"name", "example.com", "/subjects/example.com"},
-		{"address", "198.51.100.1", "/subjects/198.51.100.1"},
+		{"address", "198.51.100.1", ""},
 		{"service", "104.21.61.6:80/tcp", "/subjects/service?key=104.21.61.6%3A80%2Ftcp"},
 		{"endpoint", "@104.21.61.6:9100/tcp", "/subjects/endpoint?key=%40104.21.61.6%3A9100%2Ftcp"},
 		{"endpoint", "host.example.com@104.21.61.6:443/tcp", "/subjects/endpoint?key=host.example.com%40104.21.61.6%3A443%2Ftcp"},
