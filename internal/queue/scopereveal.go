@@ -1,10 +1,10 @@
 package queue
 
 import (
-	"context"
 	"sort"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/signalfacts"
@@ -19,15 +19,11 @@ type scopeCandidate struct {
 	addr  string
 }
 
-func scopeRevealMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, in membershipInputs) ([]*message.Message, error) {
-	candidates := darkScopeOpenings(changes, in)
+func scopeRevealMessages(observedAt time.Time, candidates []scopeCandidate, citers []db.ListResolutionCitersForAddressesRow) []*message.Message {
 	if len(candidates) == 0 {
-		return nil, nil
+		return nil
 	}
-	cited, err := openCitedAddresses(ctx, store, candidates)
-	if err != nil {
-		return nil, err
-	}
+	cited := addressesWithOpenCiters(citers)
 	byScope := map[string][]message.CensusEntry{}
 	for _, c := range candidates {
 		if cited[c.addr] {
@@ -47,7 +43,7 @@ func scopeRevealMessages(ctx context.Context, store messageStore, observedAt tim
 			msgs = append(msgs, m)
 		}
 	}
-	return msgs, nil
+	return msgs
 }
 
 func darkScopeOpenings(changes []spanChange, in membershipInputs) []scopeCandidate {
@@ -85,7 +81,7 @@ func darkScopeOpenings(changes []spanChange, in membershipInputs) []scopeCandida
 	return out
 }
 
-func openCitedAddresses(ctx context.Context, store messageStore, candidates []scopeCandidate) (map[string]bool, error) {
+func scopeCandidateAddresses(candidates []scopeCandidate) []string {
 	seen := map[string]bool{}
 	keys := make([]string, 0, len(candidates))
 	for _, c := range candidates {
@@ -96,16 +92,15 @@ func openCitedAddresses(ctx context.Context, store messageStore, candidates []sc
 		keys = append(keys, c.addr)
 	}
 	sort.Strings(keys)
-	// An unchanged open span still cites its address, and no change in this fold names it (#1779).
-	rows, err := store.ListResolutionCitersForAddresses(ctx, keys)
-	if err != nil {
-		return nil, err
-	}
+	return keys
+}
+
+func addressesWithOpenCiters(rows []db.ListResolutionCitersForAddressesRow) map[string]bool {
 	out := make(map[string]bool, len(rows))
 	for _, r := range rows {
 		out[r.Addr] = true
 	}
-	return out, nil
+	return out
 }
 
 func foldCitedAddresses(changes []spanChange) map[string]bool {

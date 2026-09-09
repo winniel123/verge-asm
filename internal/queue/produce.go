@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"sort"
 	"strings"
 	"time"
 
@@ -103,6 +104,31 @@ func produceMessages(ctx context.Context, store messageStore, batchID int64, obs
 	return nil
 }
 
+func readResolutionCiters(ctx context.Context, store messageStore, openings []scopeCandidate, moves []rePoint) ([]db.ListResolutionCitersForAddressesRow, error) {
+	keys := mergeAddressKeys(scopeCandidateAddresses(openings), rePointCandidateAddresses(moves))
+	if len(keys) == 0 {
+		return nil, nil
+	}
+	// An unchanged open span still cites its address, and no change in this fold names it (#1779).
+	return store.ListResolutionCitersForAddresses(ctx, keys)
+}
+
+func mergeAddressKeys(sets ...[]string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, set := range sets {
+		for _, k := range set {
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func insertParams(m *message.Message) db.InsertMessageParams {
 	p := db.InsertMessageParams{
 		Cause:       string(m.Cause),
@@ -143,19 +169,19 @@ func buildMessages(ctx context.Context, store messageStore, batchID int64, obser
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
 
-	// Dark declared space owes one message and has no root to fire it (ADR-0047, ADR-0052, #1770).
-	revealed, err := scopeRevealMessages(ctx, store, observedAt, changes, in)
+	openings := darkScopeOpenings(changes, in)
+	rePointed := rePoints(changes)
+	// The read scans span for want of an index on value, so the fold pays once, not twice (#1784).
+	citers, err := readResolutionCiters(ctx, store, openings, rePointed)
 	if err != nil {
 		return nil, err
 	}
-	msgs = append(msgs, revealed...)
+
+	// Dark declared space owes one message and has no root to fire it (ADR-0047, ADR-0052, #1770).
+	msgs = append(msgs, scopeRevealMessages(observedAt, openings, citers)...)
 
 	// An Address root and ADR-0026 §2's residue are one partition, so they cannot disagree (#1730).
-	repoints, err := rePointMessages(ctx, store, observedAt, changes, in)
-	if err != nil {
-		return nil, err
-	}
-	msgs = append(msgs, repoints...)
+	msgs = append(msgs, rePointMessages(observedAt, changes, rePointed, in, citers)...)
 
 	// The gate opening under a standing declaration is coverage, as revealed is (ADR-0013 #55).
 	gains, err := extensionGainMessages(ctx, store, observedAt, changes, in)

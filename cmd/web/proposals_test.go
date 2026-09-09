@@ -72,6 +72,15 @@ func twoCandidates() []proposer.Candidate {
 	}
 }
 
+func oneScopeFromTwoSources() []proposer.Candidate {
+	return []proposer.Candidate{
+		{SourceSlug: proposer.SlugARIN, RecordKind: proposer.RecordRIRDelegation,
+			Scope: netip.MustParsePrefix("203.0.113.0/24"), OrgName: "Example Org"},
+		{SourceSlug: proposer.SlugAPNIC, RecordKind: proposer.RecordRIRDelegation,
+			Scope: netip.MustParsePrefix("203.0.113.0/24"), OrgName: "Example Org"},
+	}
+}
+
 func TestLookupProducesProposalsNotSeeds(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -559,9 +568,11 @@ func (f *fakeStore) ListDeclinedProposalScopes(context.Context) ([]db.ListDeclin
 	return out, nil
 }
 
-func (f *fakeStore) DeleteAddressExclusion(_ context.Context, addressCidr *netip.Prefix) error {
-	if addressCidr == nil {
-		return nil
+func (f *fakeStore) DeleteUnclaimedAddressExclusion(_ context.Context, addressCidr netip.Prefix) (bool, error) {
+	for _, p := range f.proposals {
+		if p.Status == "declined" && p.AddressCidr.String() == addressCidr.String() {
+			return true, nil
+		}
 	}
 	kept := f.exclusions[:0]
 	for _, e := range f.exclusions {
@@ -571,7 +582,7 @@ func (f *fakeStore) DeleteAddressExclusion(_ context.Context, addressCidr *netip
 		kept = append(kept, e)
 	}
 	f.exclusions = kept
-	return nil
+	return false, nil
 }
 
 func declineOne(t *testing.T, c *http.Client, base string, id int64) {
@@ -666,6 +677,107 @@ func TestUndoDeclineReturnsTheProposalAndLiftsItsExclusion(t *testing.T) {
 	}
 	if page := seedsBody(t, ac, base); !strings.Contains(page, `action="/proposals/confirm"`) {
 		t.Errorf("the returned scope is not offered for a fresh confirm; body: %s", page)
+	}
+}
+
+const undoDeclineKeptFlash = "203.0.113.0/24 returned to pending. " +
+	"Its exclusion stays — another declined proposal still claims that scope. Confirming it is a fresh act."
+
+func declineOneScopeFromTwoSources(t *testing.T, f *fakeStore) (string, *http.Client, int64, int64) {
+	t.Helper()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: oneScopeFromTwoSources()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	if len(f.proposals) != 2 {
+		t.Fatalf("proposals = %d, want 2; one scope from two sources is the ordinary case", len(f.proposals))
+	}
+	first, second := f.proposals[0].ID, f.proposals[1].ID
+	declineOne(t, ac, base, first)
+	declineOne(t, ac, base, second)
+	if got := addressExclusions(f); len(got) != 1 || got[0] != "203.0.113.0/24" {
+		t.Fatalf("exclusions after both declines = %v, want the one [203.0.113.0/24] row", got)
+	}
+	return base, ac, first, second
+}
+
+func TestBothDeclinesOfOneScopeRenderAnUndoControl(t *testing.T) {
+	f := newFakeStore()
+	base, ac, first, second := declineOneScopeFromTwoSources(t, f)
+
+	page := seedsBody(t, ac, base)
+	if got := strings.Count(page, `action="/proposals/undo-decline"`); got != 2 {
+		t.Fatalf("undo controls = %d, want 2 (one per declined proposal); body: %s", got, page)
+	}
+	for _, id := range []int64{first, second} {
+		if !strings.Contains(page, `<input type="hidden" name="id" value="`+itoa(id)+`">`) {
+			t.Errorf("no undo control carries declined proposal %d; body: %s", id, page)
+		}
+	}
+}
+
+func TestUndoDeclineKeepsAnExclusionASiblingDeclineStillClaims(t *testing.T) {
+	f := newFakeStore()
+	base, ac, first, second := declineOneScopeFromTwoSources(t, f)
+
+	resp := postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(first)}})
+	if got := toastText(t, resp); got != undoDeclineKeptFlash {
+		t.Errorf("first undo flash = %q, want %q", got, undoDeclineKeptFlash)
+	}
+	if got := statusOf(f, first); got != "pending" {
+		t.Errorf("proposal %d status=%q, want pending", first, got)
+	}
+	if got := statusOf(f, second); got != "declined" {
+		t.Errorf("sibling proposal %d status=%q, want declined", second, got)
+	}
+	if got := addressExclusions(f); len(got) != 1 || got[0] != "203.0.113.0/24" {
+		t.Fatalf("exclusions after the first undo = %v, want the sibling's [203.0.113.0/24] row", got)
+	}
+
+	resp = postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(second)}})
+	if got := toastText(t, resp); got != undoDeclineFlash {
+		t.Errorf("second undo flash = %q, want %q", got, undoDeclineFlash)
+	}
+	if got := addressExclusions(f); len(got) != 0 {
+		t.Errorf("exclusions after the last undo = %v, want none", got)
+	}
+}
+
+func TestConfirmRefusesAScopeASiblingDeclineStillExcludes(t *testing.T) {
+	f := newFakeStore()
+	base, ac, first, second := declineOneScopeFromTwoSources(t, f)
+
+	postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(first)}}).Body.Close()
+	if got := addressExclusions(f); len(got) != 1 {
+		t.Fatalf("exclusions after the first undo = %v, want the sibling's row", got)
+	}
+
+	resp := postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(first)}})
+	page := refusalPage(t, ac, base, resp)
+	if len(f.seeds) != 0 {
+		t.Fatalf("a seed was declared under a standing exclusion, so its ground measures nothing: %+v", f.seeds)
+	}
+	if got := statusOf(f, first); got != "pending" {
+		t.Errorf("refused proposal %d status=%q, want pending", first, got)
+	}
+	if got := statusOf(f, second); got != "declined" {
+		t.Errorf("sibling proposal %d status=%q, want declined", second, got)
+	}
+	for _, want := range []string{"203.0.113.0/24", "refuses ground", "Undo every decline"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("still-excluded refusal missing %q; body: %s", want, page)
+		}
+	}
+
+	postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(second)}}).Body.Close()
+	resp = postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(first)}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("confirm after the last undo status=%d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+	if len(f.seeds) != 1 || f.seeds[0].AddressCidr.String() != "203.0.113.0/24" {
+		t.Fatalf("the scope was not confirmed once no decline claimed it: %+v", f.seeds)
 	}
 }
 

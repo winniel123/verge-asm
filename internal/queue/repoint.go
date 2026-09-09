@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"context"
 	"encoding/json"
 	"net/netip"
 	"sort"
@@ -27,15 +26,11 @@ type rePoint struct {
 	after         map[string]bool
 }
 
-func rePointMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, in membershipInputs) ([]*message.Message, error) {
-	moves := rePoints(changes)
+func rePointMessages(observedAt time.Time, changes []spanChange, moves []rePoint, in membershipInputs, citers []db.ListResolutionCitersForAddressesRow) []*message.Message {
 	if len(moves) == 0 {
-		return nil, nil
+		return nil
 	}
-	fresh, err := addressesNewToEstate(ctx, store, moves, in)
-	if err != nil {
-		return nil, err
-	}
+	fresh := addressesNewToEstate(moves, in, citers)
 	var msgs []*message.Message
 	for _, addr := range fresh {
 		root := spanChange{SubjectKind: subjectKindAddress, SubjectKey: addr}
@@ -52,7 +47,7 @@ func rePointMessages(ctx context.Context, store messageStore, observedAt time.Ti
 			msgs = append(msgs, m)
 		}
 	}
-	return msgs, nil
+	return msgs
 }
 
 func rePoints(changes []spanChange) []rePoint {
@@ -83,7 +78,7 @@ func (mv rePoint) sameTimeline(r db.ListResolutionCitersForAddressesRow) bool {
 		r.VantageID == mv.vantageID && r.Source == mv.source
 }
 
-func addressesNewToEstate(ctx context.Context, store messageStore, moves []rePoint, in membershipInputs) ([]string, error) {
+func rePointCandidateAddresses(moves []rePoint) []string {
 	before := map[string]bool{}
 	for _, mv := range moves {
 		for a := range mv.before {
@@ -98,20 +93,29 @@ func addressesNewToEstate(ctx context.Context, store messageStore, moves []rePoi
 			}
 		}
 	}
-	if len(candidates) == 0 {
-		return nil, nil
-	}
 	keys := make([]string, 0, len(candidates))
 	for a := range candidates {
 		keys = append(keys, a)
 	}
 	sort.Strings(keys)
-	rows, err := store.ListResolutionCitersForAddresses(ctx, keys)
-	if err != nil {
-		return nil, err
+	return keys
+}
+
+func addressesNewToEstate(moves []rePoint, in membershipInputs, citers []db.ListResolutionCitersForAddressesRow) []string {
+	keys := rePointCandidateAddresses(moves)
+	if len(keys) == 0 {
+		return nil
+	}
+	want := make(map[string]bool, len(keys))
+	for _, a := range keys {
+		want[a] = true
 	}
 	citedElsewhere := map[string]bool{}
-	for _, r := range rows {
+	for _, r := range citers {
+		// The read is shared, so it carries rows the other producer asked for (#1784).
+		if !want[r.Addr] {
+			continue
+		}
 		// A timeline that moved here is open, so it is no prior citer of its address (#1730).
 		if movedTimeline(moves, r) {
 			continue
@@ -133,7 +137,7 @@ func addressesNewToEstate(ctx context.Context, store messageStore, moves []rePoi
 		}
 		fresh = append(fresh, a)
 	}
-	return fresh, nil
+	return fresh
 }
 
 func movedTimeline(moves []rePoint, r db.ListResolutionCitersForAddressesRow) bool {

@@ -193,3 +193,28 @@ func TestDeclaredAddressScopeReadsTheCitersOncePerFold(t *testing.T) {
 		t.Errorf("the read carries every candidate address once, want %v, got %v", want, store.citersAsked[0])
 	}
 }
+
+func TestARePointAndADarkOpeningReadTheCitersOncePerFold(t *testing.T) {
+	changes := append(rePointChanges(rpNew, resolved(rpOld)), darkOpening("198.51.100.7:443/tcp"))
+	store := &fakeMessageStore{}
+	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
+
+	msgs, err := buildMessages(context.Background(), store, 77, produceT0, changes, nil, nil, in)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if len(store.citersAsked) != 1 {
+		t.Fatalf("the two producers share one read of the fold's addresses, got %d reads: %+v", len(store.citersAsked), store.citersAsked)
+	}
+	want := []string{"198.51.100.7", rpNew}
+	if !reflect.DeepEqual(store.citersAsked[0], want) {
+		t.Errorf("the one read carries both producers' keys once, want %v, got %v", want, store.citersAsked[0])
+	}
+	got := byKind(msgs)
+	if len(got["seed"]) != 1 || got["seed"][0].CensusLen() != 1 {
+		t.Errorf("the dark opening still fires one scope message, got %+v", got["seed"])
+	}
+	if len(got["address"]) != 1 || got["address"][0].FiredAt != rpNew {
+		t.Errorf("the move still roots on the address it reached, got %+v", got["address"])
+	}
+}
