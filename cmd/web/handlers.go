@@ -345,6 +345,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /seeds/custody", s.requireAdmin(s.setCustody))
 	mux.HandleFunc("POST /seeds/zone", s.requireAdmin(s.uploadZoneFile))
 	mux.HandleFunc("POST /seeds/zone/interval", s.requireAdmin(s.setZoneInterval))
+	mux.HandleFunc("POST /seeds/dns/interval", s.requireAdmin(s.setDnsInterval))
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/preview", s.requireAdmin(s.previewExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))

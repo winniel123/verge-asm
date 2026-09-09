@@ -34,7 +34,7 @@ func TestScopeFormsCarryTheSubmittingURL(t *testing.T) {
 	// The withdrawal is two-step, so the chip's remove control posts to /seeds/preview.
 	// A confirm state is the only render that ships /seeds/delete, and this is not one.
 	for _, act := range []string{"/seeds", "/seeds/preview", "/seeds/custody", "/seeds/zone",
-		"/seeds/zone/interval", "/exclusions", "/exclusions/delete", "/proposals/search",
+		"/seeds/zone/interval", "/seeds/dns/interval", "/exclusions", "/exclusions/delete", "/proposals/search",
 		"/proposals/confirm", "/proposals/decline"} {
 		if n := strings.Count(page, `action="`+act+`"`); n == 0 {
 			t.Errorf("no form posts to %s on /scope", act)
@@ -210,6 +210,8 @@ func TestSucceedingScopeActsReturnToTheSubmittingURL(t *testing.T) {
 		{"exclusion create", "/exclusions",
 			url.Values{"kind": {"subtree"}, "value": {"old.example.com"}, "return": {from}}, false},
 		{"zone interval", "/seeds/zone/interval",
+			url.Values{"interval_days": {"14"}, "return": {from}}, false},
+		{"dns interval", "/seeds/dns/interval",
 			url.Values{"interval_days": {"14"}, "return": {from}}, false},
 		{"seed delete", "/seeds/delete",
 			url.Values{"id": {intStr(seedID)}, "return": {from}}, true},

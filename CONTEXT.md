@@ -427,8 +427,8 @@ scopes**, where the result is **labelling only** and decides no membership
 ([#956](https://github.com/winniel123/verge-asm/issues/956)). So it is no longer empty until a custody
 extension is declared. Its exchange is a **connect**, so it is none of the query-only or
 worker-read `Scan`s, and it runs **before its target is a member**, so it is neither `hot` nor
-`tls-acceptance`, which cover members only. It ships at **daily**, matching the `dns` cadence that grants
-membership, and has **no vantage dimension** — the default certificate is not a function of vantage, and
+`tls-acceptance`, which cover members only. It ships at **daily**, matching the `dns` cadence's shipped default; `dns`
+carries an operator dial and `edge-fanout` does not, so the two may diverge. It has **no vantage dimension** — the default certificate is not a function of vantage, and
 vantage-varying fan-out is anycast, out of v1. Like `ct` it **holds no facet timeline**, so it carries **no
 currency bound and no withdrawal power**: its result — the hostname set the edge presents — is recorded on
 its `Batch` by content and composed into the `Custody` derivation as the **second Observed input** to the

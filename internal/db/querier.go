@@ -82,6 +82,7 @@ type Querier interface {
 	GetCertificateMaterial(ctx context.Context, fingerprint string) (CertificateMaterial, error)
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
 	GetChannelForDelivery(ctx context.Context, id int64) (GetChannelForDeliveryRow, error)
+	GetDnsCadenceSeconds(ctx context.Context) (int64, error)
 	GetEndpointSubject(ctx context.Context, arg GetEndpointSubjectParams) (GetEndpointSubjectRow, error)
 	// The migration seeds this row, so no-rows is not a reachable state.
 	GetInstanceConfig(ctx context.Context) (GetInstanceConfigRow, error)
@@ -266,6 +267,8 @@ type Querier interface {
 	// The seed CHECK rejects a true extension on an address scope, so an unguarded declare errors.
 	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
 	SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error
+	// A non-positive interval is refused by the table's CHECK, not by this statement.
+	SetDnsCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	SetIntegrationChannel(ctx context.Context, arg SetIntegrationChannelParams) error
 	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
 	SetReleaseCache(ctx context.Context, arg SetReleaseCacheParams) error

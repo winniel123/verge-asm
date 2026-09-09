@@ -124,6 +124,7 @@ type fakeStore struct {
 	zoneFiles    []fakeZoneFile
 	zoneNextID   int64
 	zoneCadence  int64
+	dnsCadence   int64
 	lookups      []db.ProposerLookup
 	lookupNextID int64
 	proposals    []db.Proposal
@@ -1291,6 +1292,13 @@ func (f *fakeStore) GetZoneCadenceSeconds(context.Context) (int64, error) {
 		return 2592000, nil
 	}
 	return f.zoneCadence, nil
+}
+
+func (f *fakeStore) GetDnsCadenceSeconds(context.Context) (int64, error) {
+	if f.dnsCadence == 0 {
+		return 86400, nil
+	}
+	return f.dnsCadence, nil
 }
 
 func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, error) {

@@ -106,6 +106,7 @@ button.sc-trow { cursor: pointer; }
 .sc-crow .nm { font: 600 12px var(--font-mono); color: var(--text-ink); overflow-wrap: anywhere; }
 .sc-crow .det { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
 .sc-crow .det .mono { font: 500 12px var(--font-mono); color: var(--text-body); }
+.sc-hint .mono { font: 500 11.5px var(--font-mono); color: var(--text-body); }
 .sc-declined { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-strong); color: var(--text-secondary); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; }
 .sc-input { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
 .sc-input .il { font-size: 12.5px; font-weight: 500; color: var(--text-body); }
@@ -298,6 +299,15 @@ button.sc-trow { cursor: pointer; }
 </form>
 </div>
 {{if .ZoneIntervalError}}<div class="sc-error">{{.ZoneIntervalError}}</div>{{end}}
+<div class="sc-introw">
+<span class="sc-micro">DNS scan interval</span>
+<form method="post" action="/seeds/dns/interval" style="margin:0 0 0 auto;display:flex;align-items:center;gap:8px">
+{{template "backfield" $}}<input name="interval_days" inputmode="numeric" value="{{.DnsIntervalDays}}" aria-label="DNS scan interval in days"><span class="unit">days</span>
+<button type="submit" class="sc-btn-sm">Save</button>
+</form>
+</div>
+<span class="sc-hint">The <span class="mono">dns</span> scan covers <span class="mono">resolution</span> and <span class="mono">dns-record</span> on every vantage, across your name scopes. Its observations stay current for {{.DnsCurrencyDays}} days — twice the interval.</span>
+{{if .DnsIntervalError}}<div class="sc-error">{{.DnsIntervalError}}</div>{{end}}
 {{end}}
 </div>
 </div>

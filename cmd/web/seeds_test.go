@@ -419,3 +419,8 @@ func (f *fakeStore) SetZoneCadenceSeconds(_ context.Context, cadenceSeconds int6
 	f.zoneCadence = cadenceSeconds
 	return nil
 }
+
+func (f *fakeStore) SetDnsCadenceSeconds(_ context.Context, cadenceSeconds int64) error {
+	f.dnsCadence = cadenceSeconds
+	return nil
+}
