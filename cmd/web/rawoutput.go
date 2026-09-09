@@ -141,6 +141,7 @@ func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error
 	if err != nil {
 		return fmt.Errorf("open stdout: %w", err)
 	}
+	_ = s.acts.Record(context.Background(), "transcript.disclose", "proto")
 	view.Bytes.Stdout = rawSplitLines(stdout)
 	view.StdoutSize = rawHumanBytes(len(stdout))
 	view.StdoutTrunc = notes["stdout"]

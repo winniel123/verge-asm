@@ -302,6 +302,7 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 	if err != nil {
 		return err
 	}
+	_ = s.acts.WithTx(tx).Record(ctx, "instance.restore", "proto")
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	// CASCADE also clears ephemeral tables the archive never carried, which a restore must drop.

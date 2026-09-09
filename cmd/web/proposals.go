@@ -300,6 +300,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 
 func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
+		_ = s.acts.Record(r.Context(), "proposal.decline", "proto-devmode-only")
 		s.backToScope(w, r)
 		return
 	}
@@ -334,6 +335,7 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 			s.serverError(w, "record declined proposal as exclusion", err)
 			return
 		}
+		_ = s.acts.Record(r.Context(), "proposal.decline", cidr.String())
 	}
 	s.backToScope(w, r)
 }

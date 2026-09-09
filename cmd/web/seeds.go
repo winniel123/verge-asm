@@ -156,6 +156,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 			desc = fmt.Sprintf("%d refused — see the callouts", len(refusals))
 		}
 		if len(refusals) == 0 {
+			_ = s.acts.Record(r.Context(), "seed.declare", "proto")
 			s.toastRedirectBack(w, r, "/scope", "neutral", title, desc)
 			return
 		}

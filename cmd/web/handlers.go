@@ -181,6 +181,8 @@ type server struct {
 
 	setupMu sync.Mutex
 
+	acts stubRecorder
+
 	flash *flashStore
 
 	formFlash *formFlashStore
