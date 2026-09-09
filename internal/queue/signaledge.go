@@ -8,7 +8,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// A clock rule fires on an unchanged span, so its edge is the clock sweep's (#1728).
+// A clock rule fires on an unchanged span, so its edge is certificateLifetimeMessages' (#1728).
 
 var clockRules = map[string]bool{
 	"certificate-expired":       true,

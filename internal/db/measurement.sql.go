@@ -121,6 +121,29 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, 
 	return id, err
 }
 
+const foldedBatchWindow = `-- name: FoldedBatchWindow :one
+WITH done AS (
+    -- A dead-lettered or CT or zone batch folds no message, so it may not bound the window (#1728).
+    SELECT created_at FROM batch
+    WHERE outcome = 'completed' AND kind <> ALL($1::text[])
+)
+SELECT (SELECT max(created_at) FROM done
+        WHERE created_at < (SELECT max(created_at) FROM done))::timestamptz AS prev_at,
+       (SELECT max(created_at) FROM done)::timestamptz AS latest_at
+`
+
+type FoldedBatchWindowRow struct {
+	PrevAt   pgtype.Timestamptz `json:"prev_at"`
+	LatestAt pgtype.Timestamptz `json:"latest_at"`
+}
+
+func (q *Queries) FoldedBatchWindow(ctx context.Context, unfoldedKinds []string) (FoldedBatchWindowRow, error) {
+	row := q.db.QueryRow(ctx, foldedBatchWindow, unfoldedKinds)
+	var i FoldedBatchWindowRow
+	err := row.Scan(&i.PrevAt, &i.LatestAt)
+	return i, err
+}
+
 const getScanByKind = `-- name: GetScanByKind :one
 SELECT id, kind, enabled, cadence_seconds, created_at
 FROM scan

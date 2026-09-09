@@ -285,6 +285,54 @@ func (q *Queries) ListNameCitationSpansWithinCurrency(ctx context.Context, arg L
 	return items, nil
 }
 
+const listOpenEndpointCertificateSpans = `-- name: ListOpenEndpointCertificateSpans :many
+SELECT s.subject_key, s.vantage_id, s.value, o.observed_at
+FROM span s
+JOIN LATERAL (
+    -- The clock class reads the latest observation's age, not the span's (ADR-0043).
+    SELECT observed_at FROM observation o
+    WHERE o.subject_key = s.subject_key AND o.facet = s.facet AND o.discriminator = s.discriminator
+      AND o.vantage_id IS NOT DISTINCT FROM s.vantage_id AND o.source = s.source
+    ORDER BY o.observed_at DESC, o.id DESC
+    LIMIT 1
+) o ON TRUE
+WHERE s.subject_kind = 'endpoint' AND s.facet = 'certificate'
+  AND s.closed_at IS NULL AND NOT s.is_gap
+ORDER BY s.subject_key, s.vantage_id, s.id
+`
+
+type ListOpenEndpointCertificateSpansRow struct {
+	SubjectKey string             `json:"subject_key"`
+	VantageID  pgtype.Int8        `json:"vantage_id"`
+	Value      []byte             `json:"value"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
+}
+
+func (q *Queries) ListOpenEndpointCertificateSpans(ctx context.Context) ([]ListOpenEndpointCertificateSpansRow, error) {
+	rows, err := q.db.Query(ctx, listOpenEndpointCertificateSpans)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenEndpointCertificateSpansRow{}
+	for rows.Next() {
+		var i ListOpenEndpointCertificateSpansRow
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.VantageID,
+			&i.Value,
+			&i.ObservedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenSpansBeneathAddresses = `-- name: ListOpenSpansBeneathAddresses :many
 SELECT s.id, s.subject_kind, s.subject_key
 FROM span s

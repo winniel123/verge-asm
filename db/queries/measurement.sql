@@ -100,6 +100,16 @@ SELECT max(created_at)::timestamptz AS prev_batch_at
 FROM batch
 WHERE created_at < (SELECT max(created_at) FROM batch);
 
+-- name: FoldedBatchWindow :one
+WITH done AS (
+    -- A dead-lettered or CT or zone batch folds no message, so it may not bound the window (#1728).
+    SELECT created_at FROM batch
+    WHERE outcome = 'completed' AND kind <> ALL(sqlc.arg(unfolded_kinds)::text[])
+)
+SELECT (SELECT max(created_at) FROM done
+        WHERE created_at < (SELECT max(created_at) FROM done))::timestamptz AS prev_at,
+       (SELECT max(created_at) FROM done)::timestamptz AS latest_at;
+
 -- name: EarliestBatchTime :one
 SELECT min(created_at)::timestamptz AS earliest_batch_at
 FROM batch;

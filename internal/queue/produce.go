@@ -34,6 +34,8 @@ type messageStore interface {
 	ListOpenSpansForSubject(ctx context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error)
 	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
 	ListNameCitationSpansWithinCurrency(ctx context.Context, arg db.ListNameCitationSpansWithinCurrencyParams) ([]db.ListNameCitationSpansWithinCurrencyRow, error)
+	FoldedBatchWindow(ctx context.Context, unfoldedKinds []string) (db.FoldedBatchWindowRow, error)
+	ListOpenEndpointCertificateSpans(ctx context.Context) ([]db.ListOpenEndpointCertificateSpansRow, error)
 }
 
 type spanChange struct {
@@ -61,7 +63,7 @@ type departure struct {
 func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
 	_ = batchID // a message links by fired-at subject key, never the batch id (ADR-0064)
 	// A devMode worker produces nothing, so a fixture install never pages anyone (ADR-0197 §1).
-	if devMode || (len(changes) == 0 && len(departures) == 0 && len(narrowings) == 0) {
+	if devMode {
 		return nil
 	}
 	// A message is computed once at the cause and committed with its spans (ADR-0064).
@@ -140,6 +142,13 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 		return nil, err
 	}
 	msgs = append(msgs, edges...)
+
+	// A batch that moved nothing still folds, so the clock's crossings are read here (#1728).
+	clock, err := certificateLifetimeMessages(ctx, store, observedAt, changes, msgs)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, clock...)
 
 	msgs = append(msgs, declaredInputMessages(observedAt, departures)...)
 	msgs = append(msgs, narrowingMessages(observedAt, narrowings)...)

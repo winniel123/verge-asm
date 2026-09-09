@@ -43,6 +43,21 @@ FROM span
 WHERE closed_at IS NULL
 ORDER BY subject_kind, subject_key, facet, discriminator, vantage_id, source;
 
+-- name: ListOpenEndpointCertificateSpans :many
+SELECT s.subject_key, s.vantage_id, s.value, o.observed_at
+FROM span s
+JOIN LATERAL (
+    -- The clock class reads the latest observation's age, not the span's (ADR-0043).
+    SELECT observed_at FROM observation o
+    WHERE o.subject_key = s.subject_key AND o.facet = s.facet AND o.discriminator = s.discriminator
+      AND o.vantage_id IS NOT DISTINCT FROM s.vantage_id AND o.source = s.source
+    ORDER BY o.observed_at DESC, o.id DESC
+    LIMIT 1
+) o ON TRUE
+WHERE s.subject_kind = 'endpoint' AND s.facet = 'certificate'
+  AND s.closed_at IS NULL AND NOT s.is_gap
+ORDER BY s.subject_key, s.vantage_id, s.id;
+
 -- name: ListSpansOpenSince :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason

@@ -260,6 +260,12 @@ defined set of tiers, and not emitted incrementally per completed `Batch`. These
 to guess. `[derived]` — a census is computed **once at the cause**, and *a schedule arriving is not
 the world moving*.
 
+A clock crossing has no fold of its own. The first message-folding batch after it reads it: the
+three certificate-lifetime rules are evaluated at the previous such batch's instant and at this
+one's, and a `not-fired` → `fired` edge between the two fires at this fold. The worker folds
+batches one at a time, so the windows partition time and a crossing fires once, with no stored
+marker ([#1728](https://github.com/winniel123/verge-asm/issues/1728)).
+
 | Option | Why not |
 | --- | --- |
 | Wait for a defined set of tiers | The message's **content** becomes a function of when it fired; it holds the flagship for up to a week on `tls-acceptance`'s weekly `Scan`; and it is §6's coalescing window under another name |
