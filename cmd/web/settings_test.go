@@ -389,9 +389,9 @@ func TestTeamRolesCopyHasNoOperatorRole(t *testing.T) {
 	}
 }
 
-// Settings hosts the transcript dial alone. The observation and dispatch dials moved to
-// Coverage, where the projection that justifies them lives (ADR-0081, #1692); their
-// contract is asserted in retentionpanel_test.go.
+// The observation and dispatch dials moved to Coverage, and retentionpanel_test.go
+// asserts their contract. Settings hosts the transcript dial alone.
+
 func TestTranscriptRetentionPersistsAndValidates(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

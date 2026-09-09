@@ -18,8 +18,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
-// The dials live on Coverage because a dial whose only justification is a projection
-// may not be separated from it (ADR-0081).
+// A dial's only justification is the projection, so it is not shown apart from it (ADR-0081).
 
 type retentionPanelStore interface {
 	CountHeldObservations(ctx context.Context) (int64, error)
@@ -32,8 +31,7 @@ type retentionPanelStore interface {
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
 }
 
-// A dial renders a track of positions and a ground below the floor. Ground is not a
-// value the operator may pick and be corrected for (ADR-0081).
+// Ground is not a value the operator may pick and be corrected for (ADR-0081).
 
 type retentionStopView struct {
 	Value    int64
@@ -93,8 +91,7 @@ type retentionPanelView struct {
 	UpdatedBy   string
 }
 
-// The two ladders are rendering positions, not model constants: every one of them is
-// above a floor the screen computes, and none is a default (ADR-0038, ADR-0081).
+// A ladder is a rendering position above a computed floor, never a default (ADR-0038).
 
 var observationLadder = []int64{30, 90, 180, 365, 730}
 
@@ -102,9 +99,8 @@ var dispatchLadder = []int64{4, 8, 13, 26, 52}
 
 const breakClampLimit = 200
 
-// A floor is stated as a multiple and a named Scan so it cannot go stale the way a day
-// count already has (ADR-0038, ADR-0081).
 func floorText(f retention.FloorExpression) string {
+	// A multiple and a named Scan cannot go stale the way a day count already has (ADR-0038).
 	if !f.Bounded() {
 		return "no enabled Scan supplies a cadence, so no floor is in force"
 	}
@@ -151,10 +147,9 @@ func humanCadences(n int64) string {
 	return fmt.Sprintf("%d cadences", n)
 }
 
-// The handle parks on a labelled terminal stop, so there is no state in which the
-// control has no value (ADR-0081).
 func buildDial(field, title, unit string, floor retention.FloorExpression, floorUnits int64, ladder []int64, value int64, label func(int64) string) retentionDialView {
 	stops := retention.DialStops(floorUnits, ladder)
+	// The handle parks on a labelled stop, so the control is never valueless (ADR-0081).
 	view := retentionDialView{
 		Field:     field,
 		Title:     title,
@@ -287,9 +282,8 @@ func relativeAge(d time.Duration) string {
 	}
 }
 
-// A scope with no declared address count is the >99% install, so the projection renders
-// and states it has no denominator rather than hiding (ADR-0081, #47).
 func declaredAddresses(rows []*netip.Prefix) (int64, string) {
+	// An undeclared scope is the >99% install, so the projection renders anyway (#47).
 	total := new(big.Int)
 	for _, p := range rows {
 		if p == nil {
@@ -389,11 +383,10 @@ func dialInstant(now time.Time, dialSeconds int64) (time.Time, bool) {
 	return now.Add(-time.Duration(dialSeconds) * time.Second), true
 }
 
-// The year's row count is arithmetic over the enabled cadences, never a forecast about
-// an estate we have already ruled we cannot enumerate (ADR-0081).
 func rowsPerAddressPerYear(scans []retention.ScanCadence) int64 {
 	const secondsPerYear = 365 * retention.SecondsPerDay
 	var total int64
+	// Arithmetic over the enabled cadences, never a forecast about the estate (ADR-0081).
 	for _, s := range scans {
 		if s.CadenceSeconds > 0 {
 			total += secondsPerYear / s.CadenceSeconds
@@ -414,8 +407,7 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 		scans = scanCadences(rows)
 	}
 
-	// A value the track cannot express is raised to the floor, never refused: below the
-	// floor is not the operator's territory, so nothing was rejected (ADR-0081).
+	// Below the floor is not the operator's territory, so nothing is rejected (ADR-0081).
 	obs := retention.ClampToFloor(
 		parseDialValue(r.FormValue("observation_currency_days"), settings.ObservationCurrencyDays),
 		retention.ObservationFloor(scans).Days())
@@ -435,9 +427,8 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 	s.redirectBack(w, r, "/coverage")
 }
 
-// An unparseable or negative post is the terminal stop, which is a position and not an
-// absence, so the control still has a value (ADR-0081).
 func parseDialValue(raw string, fallback int64) int64 {
+	// An unreadable post lands on the terminal stop, which is a position (ADR-0081).
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return fallback

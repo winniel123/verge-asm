@@ -586,9 +586,8 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 
 // The floor is derived from the tightest bound in force, never an operator choice (ADR-0094).
 
-// The observation and dispatch dials live on Coverage (ADR-0081, #1692). This handler
-// keeps the transcript dial alone: ADR-0126 gives it a fixed floor and no derivation.
 func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// The other two dials live on Coverage, so this form may not write them (ADR-0081).
 	transRaw := strings.TrimSpace(r.FormValue("transcript_currency_days"))
 	fail := func(msg string) {
 		s.failSettings(w, r, settingsForms{
