@@ -63,15 +63,6 @@ func (q *Queries) CreateNameExclusion(ctx context.Context, arg CreateNameExclusi
 	return i, err
 }
 
-const deleteAddressExclusion = `-- name: DeleteAddressExclusion :exec
-DELETE FROM exclusion WHERE kind = 'address' AND address_cidr = $1
-`
-
-func (q *Queries) DeleteAddressExclusion(ctx context.Context, addressCidr *netip.Prefix) error {
-	_, err := q.db.Exec(ctx, deleteAddressExclusion, addressCidr)
-	return err
-}
-
 const deleteExclusion = `-- name: DeleteExclusion :exec
 DELETE FROM exclusion WHERE id = $1
 `
@@ -79,6 +70,27 @@ DELETE FROM exclusion WHERE id = $1
 func (q *Queries) DeleteExclusion(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteExclusion, id)
 	return err
+}
+
+const deleteUnclaimedAddressExclusion = `-- name: DeleteUnclaimedAddressExclusion :one
+WITH claim AS (
+    SELECT 1 FROM proposal p
+    WHERE p.status = 'declined' AND p.address_cidr = $1
+), lift AS (
+    DELETE FROM exclusion
+    WHERE kind = 'address' AND address_cidr = $1
+      AND NOT EXISTS (SELECT 1 FROM claim)
+    RETURNING id
+)
+SELECT EXISTS (SELECT 1 FROM claim) AS still_claimed
+`
+
+// A data-modifying CTE fires on its own, so nothing need select from lift (#1777).
+func (q *Queries) DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (bool, error) {
+	row := q.db.QueryRow(ctx, deleteUnclaimedAddressExclusion, addressCidr)
+	var still_claimed bool
+	err := row.Scan(&still_claimed)
+	return still_claimed, err
 }
 
 const listAddressExclusionCidrs = `-- name: ListAddressExclusionCidrs :many

@@ -25,7 +25,7 @@ type proposalsStore interface {
 	CreateProposal(ctx context.Context, arg db.CreateProposalParams) (db.Proposal, error)
 	CreateProposerLookup(ctx context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error)
 	DeclineProposal(ctx context.Context, id int64) (int64, error)
-	DeleteAddressExclusion(ctx context.Context, addressCidr *netip.Prefix) error
+	DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (bool, error)
 	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListDeclinedProposalScopes(ctx context.Context) ([]db.ListDeclinedProposalScopesRow, error)
@@ -318,15 +318,17 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 	s.backToScope(w, r)
 }
 
-func (s *server) declinedProposalScopes(ctx context.Context) map[string]int64 {
+func (s *server) declinedProposalScopes(ctx context.Context) map[string][]int64 {
 	// No screen lists the declined tail, so the decline's own exclusion row carries it (#1721).
 	rows, err := s.proposalsStore.ListDeclinedProposalScopes(ctx)
 	if err != nil {
 		return nil
 	}
-	out := make(map[string]int64, len(rows))
+	out := make(map[string][]int64, len(rows))
 	for _, row := range rows {
-		out[row.AddressCidr.String()] = row.ID
+		// A proposal scope has no unique constraint, so one range holds two declines (#1777).
+		scope := row.AddressCidr.String()
+		out[scope] = append(out[scope], row.ID)
 	}
 	return out
 }
@@ -348,8 +350,16 @@ func (s *server) undoDecline(w http.ResponseWriter, r *http.Request, _ db.Accoun
 		return
 	}
 	// A declined scope was never declared, so lifting it admits no ground (ADR-0133, #1721).
-	if err := s.proposalsStore.DeleteAddressExclusion(r.Context(), &scope); err != nil {
+	claimed, err := s.proposalsStore.DeleteUnclaimedAddressExclusion(r.Context(), scope)
+	if err != nil {
 		s.serverError(w, "lift declined proposal exclusion", err)
+		return
+	}
+	if claimed {
+		// Both paths return the scope to pending, so both carry the rider (ADR-0022).
+		s.toastRedirectBack(w, r, "/scope", "neutral",
+			scope.String()+" returned to pending.",
+			"Its exclusion stays — another declined proposal still claims that scope. Confirming it is a fresh act.")
 		return
 	}
 	// The second sentence is the rider: undo may not become a confirm shortcut (ADR-0022).
