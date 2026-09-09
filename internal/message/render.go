@@ -54,8 +54,34 @@ func DeclaredInput(sourceKey, headline string, instant time.Time) *Message {
 }
 
 func flagshipHeadline(serviceKey string, census Census) string {
+	// A facet count's only factors are its rows, and the body carries no rows (ADR-0039 §3, #1717).
 	return fmt.Sprintf("%s reached from the internet · %s opened beneath it%s",
 		serviceKey, plural(len(census.Facets()), "facet", "facets"), rulesOpenedClause(census))
+}
+
+// A count is stated with its factors and never as a bare product (ADR-0064 §4, #1717).
+
+func factorsClause(factors []string) string {
+	if len(factors) == 0 {
+		return ""
+	}
+	return strings.Join(factors, " + ") + " · "
+}
+
+func kindCountFactors(census Census) []string {
+	counts := map[string]int{}
+	var kinds []string
+	for _, e := range census.Entries {
+		if counts[e.Kind] == 0 {
+			kinds = append(kinds, e.Kind)
+		}
+		counts[e.Kind]++
+	}
+	out := make([]string, 0, len(kinds))
+	for _, k := range kinds {
+		out = append(out, plural(counts[k], k, k+"s"))
+	}
+	return out
 }
 
 func rulesOpenedClause(census Census) string {
@@ -80,8 +106,9 @@ func membershipHeadline(entry Entry, rootKey string, census Census) string {
 	if verb == "" {
 		verb = "entered the estate"
 	}
-	return fmt.Sprintf("%s %s · %s opened beneath it",
-		rootKey, verb, plural(census.Len(), "timeline", "timelines"))
+	return fmt.Sprintf("%s %s · %s%s opened beneath it",
+		rootKey, verb, factorsClause(kindCountFactors(census)),
+		plural(census.Len(), "timeline", "timelines"))
 }
 
 func narrowingHeadline(scope, removed string, subjects, timelines int) string {

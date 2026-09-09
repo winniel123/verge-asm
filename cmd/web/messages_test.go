@@ -116,7 +116,7 @@ func TestMessagePanelSurfacesUndeliveredDeliveries(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	m := putMessage(t, f, message.CauseDrift, "name", "a.example.com",
-		"a.example.com entered the estate · 1 timeline opened beneath it", nil)
+		"a.example.com entered the estate · 1 endpoint · 1 timeline opened beneath it", nil)
 	f.deliveryOutcomes = []db.ListDeliveryOutcomesRow{{
 		MessageID: m.ID, ChannelID: 1, Url: "https://hooks.example.net/verge?token=secret",
 		State: "undelivered", Attempt: 5, LastError: pgtype.Text{String: "HTTP 503", Valid: true},
@@ -146,8 +146,8 @@ func TestMessagePanelSurfacesUndeliveredDeliveries(t *testing.T) {
 func TestUnreadCountAndMarkRead(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	m1 := putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate · 1 timeline opened beneath it", nil)
-	putMessage(t, f, message.CauseDrift, "name", "b.example.com", "b.example.com entered the estate · 1 timeline opened beneath it", nil)
+	m1 := putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate · 1 endpoint · 1 timeline opened beneath it", nil)
+	putMessage(t, f, message.CauseDrift, "name", "b.example.com", "b.example.com entered the estate · 1 endpoint · 1 timeline opened beneath it", nil)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
@@ -176,7 +176,7 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 func TestUnknownMessageIDIsNotAFault(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate · 1 timeline opened beneath it", nil)
+	putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate · 1 endpoint · 1 timeline opened beneath it", nil)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
