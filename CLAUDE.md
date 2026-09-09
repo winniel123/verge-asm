@@ -71,7 +71,7 @@ An ADR PR adds one file: YAML front matter, a Decision block under 150 words, a 
 
 `main` is protected by an active repository RULESET, not classic branch protection. `gh api repos/.../branches/main/protection` returns a misleading 404. Check `gh api repos/winniel123/verge-asm/rulesets` instead. No direct pushes. Every change goes through a PR.
 
-12 required status checks must pass before merge. They are `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, `adr-review`, and commentlint's `lint`. `citations`, `adr-sections`, and `lint` joined on 2026-09-07 as Lane A of the ADR-drift repair. `adr-review` joined on 2026-09-08 (#1740).
+16 required status checks must pass before merge. They are `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, `adr-review`, commentlint's `lint`, `corpus-version-gate`, and the three `golden-corpus` legs `golden-corpus (ubuntu-24.04, v1)`, `golden-corpus (ubuntu-24.04, v3)` and `golden-corpus (ubuntu-24.04-arm, v8.0)`. `citations`, `adr-sections`, and `lint` joined on 2026-09-07 as Lane A of the ADR-drift repair. `adr-review` joined on 2026-09-08 (#1740). `corpus-version-gate` and the three `golden-corpus` legs joined on 2026-09-09. The ruleset is the only record of that date.
 
 - `gosec` and `govulncheck` BLOCK. `govulncheck` fails on any reachable advisory. `gosec` runs `-exclude-generated -severity high -confidence high`.
 - `test` runs `go vet` and `go test`.
@@ -107,7 +107,7 @@ The dev machine is Ubuntu Server 24.04 LTS (x86_64). It replaced a Windows machi
 - **Go 1.26.8.** Install it from the go.dev tarball into `~/.local/go`, and put `~/.local/go/bin` on `PATH`. The `golang-go` apt package is 1.22 and too old. `go.mod` pins `go 1.26.8` and has no `toolchain` line. Do not use 1.27-only features.
 - **Docker with the Compose plugin.** `docker.io`, `docker-buildx` and `docker-compose-v2` come from apt. The user must be in the `docker` group.
 - **sqlc 1.31.1.** Do not install it. Run `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`.
-- **Node 22.12.0 or newer.** `docs-site/package.json` pins `astro ^7.2.4`, and Astro 7 declares `engines.node` of `>=22.12.0`. `docs-site/package.json` declares the same floor, so a wrong Node names its own cause. Only `docs-site/` and the `doclint` and `commentlint` jobs need Node at all. The apt package is 18, so use nvm or NodeSource. No required check needs Node.
+- **Node 22.12.0 or newer.** `docs-site/package.json` pins `astro ^7.2.8`, and Astro 7 declares `engines.node` of `>=22.12.0`. `docs-site/package.json` declares the same floor, so a wrong Node names its own cause. Only `docs-site/` and the `doclint` and `commentlint` jobs need Node at all. The apt package is 18, so use nvm or NodeSource. No required check needs Node.
 - **Node 20 stays correct for CI.** The `doclint` and `commentlint` workflows pin `node-version: 20`. Their suites are plain Node. The `docs-site` workflow builds inside a Playwright container. That container supplies its own Node above the Astro floor.
 
 Run `go version` before you trust the toolchain. A missing `go` means the setup above is incomplete.
