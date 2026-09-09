@@ -14,6 +14,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type backupStore interface {
+	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
+}
+
 // The export reads a business-table allowlist by rule, so a new table is not swept in (ADR-0124).
 
 var backupTables = []string{ // FK-parent-first, so a naive in-order restore is close to load-safe.
@@ -30,6 +34,10 @@ var backupTables = []string{ // FK-parent-first, so a naive in-order restore is 
 	"scan",
 	"dispatch",
 	"batch",
+	// It carries the batch FK, and the fan-out verdict reads its newest row per address (#1649).
+	"edge_fanout_observation",
+	// Immutable CT inputs by fingerprint: a restore with no row cannot verify a chain (#1649).
+	"certificate_material",
 	"observation",
 	"span",
 	// It carries the batch FK, and dropping it leaves a timeline nothing closes (ADR-0134).
@@ -58,14 +66,17 @@ var backupTables = []string{ // FK-parent-first, so a naive in-order restore is 
 
 // #nosec G101 -- keys are database table names (e.g. "password_reset") paired with prose
 var backupExcluded = map[string]string{
-	"session":        "live login sessions — the ADR-0053 'DB leak → live admin sessions' surface; they lapse on restore and are invalid under the regenerated session key",
-	"password_reset": "single-use, short-TTL reset-token hashes — expired and meaningless off-host, a needless credential surface with no restore value",
-	"recovery_code":  "MFA recovery-code hashes — auth-bypass material with no cross-host restore value; a restored instance's operators re-enroll",
-	"invite":         "pending single-use account-creation invite tokens — short-lived, no durable configuration value",
-	"heartbeat":      "worker liveness ping — ephemeral runtime state, re-derived immediately after restore",
-	"ct_throttle":    "per-source CT fetch rate-limit buckets — ephemeral runtime state",
-	"queue_job":      "in-flight scan queue — transient work-in-progress; stale 'running' rows would be phantom after an overwrite restore",
-	"transcript":     "raw job output (raw-job-output spec §5.4) — bounded-retention verbatim debug bytes, AEAD ciphertext under a volume key the archive must not carry; excluding it keeps ADR-0124's 'a backup carries data and no credential' invariant and avoids shipping ciphertext a fresh restore cannot decrypt",
+	"session":               "live login sessions — the ADR-0053 'DB leak → live admin sessions' surface; they lapse on restore and are invalid under the regenerated session key",
+	"password_reset":        "single-use, short-TTL reset-token hashes — expired and meaningless off-host, a needless credential surface with no restore value",
+	"recovery_code":         "MFA recovery-code hashes — auth-bypass material with no cross-host restore value; a restored instance's operators re-enroll",
+	"invite":                "pending single-use account-creation invite tokens — short-lived, no durable configuration value",
+	"heartbeat":             "worker liveness ping — ephemeral runtime state, re-derived immediately after restore",
+	"ct_throttle":           "per-source CT fetch rate-limit buckets — ephemeral runtime state",
+	"ct_log_cursor":         "the ct-tail's per-log forward cursor — runtime state the next poll re-seeds from the log's own head; carrying it would replay a stale window",
+	"ct_reliability_sample": "rolling samples of this install's own bulk-CT queries — runtime measurement of our requests, re-accrued after restore",
+	"source_health":         "what this install's last attempt to a source did (ADR-0223 §1) — an Operational record of our own requests, re-derived on the next query",
+	"queue_job":             "in-flight scan queue — transient work-in-progress; stale 'running' rows would be phantom after an overwrite restore",
+	"transcript":            "raw job output (raw-job-output spec §5.4) — bounded-retention verbatim debug bytes, AEAD ciphertext under a volume key the archive must not carry; excluding it keeps ADR-0124's 'a backup carries data and no credential' invariant and avoids shipping ciphertext a fresh restore cannot decrypt",
 }
 
 const (
@@ -150,7 +161,7 @@ func (s *server) backupDownload(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 
-	if err := s.store.SetLastBackup(ctx, pgtype.Int8{Int64: cw.n, Valid: true}); err != nil {
+	if err := s.backupStore.SetLastBackup(ctx, pgtype.Int8{Int64: cw.n, Valid: true}); err != nil {
 		log.Printf("web: backup: record last backup: %v", err)
 	}
 }

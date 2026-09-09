@@ -455,6 +455,7 @@
 <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Vantages</h2>
 <p class="st-lede">The network positions a scan measures from. A vantage carries a verified class — internet or internal — and the recursive resolver it looks through; provisioning one declares it sits on the internet and opens the Reach and Exposure timelines.</p>
 </header>
+{{if and $.IsAdmin $.ResolverUnmatched}}<div class="st-error">{{$.ResolverError}}</div>{{end}}
 {{if .Vantages}}
 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px">
 {{range .Vantages}}
@@ -472,11 +473,15 @@
 {{if not .Resolver}}<span class="st-note">Its dns jobs are skipped until you set one — no batch is opened, and the other vantages still resolve.</span>{{end}}
 {{if $.IsAdmin}}
 {{if and $.ResolverError (eq $.ResolverID .ID)}}<div class="st-error">{{$.ResolverError}}</div>{{end}}
+{{if .Observed}}
+<span class="st-note">Its resolver is fixed — this vantage has observed, and the resolver is part of every timeline it feeds. To switch resolvers, provision a new vantage with the new one and retire this one.</span>
+{{else}}
 <form method="post" action="/settings/vantages/resolver" style="margin:0;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">{{template "backfield" $}}
 <input type="hidden" name="id" value="{{.ID}}">
 <span class="st-input"><span class="lb">Resolver</span><span class="iw"><input name="resolver" value="{{if and $.ResolverError (eq $.ResolverID .ID)}}{{$.ResolverValue}}{{else}}{{.Resolver}}{{end}}" placeholder="9.9.9.9:53" autocomplete="off" spellcheck="false" required></span></span>
 <button type="submit" class="st-btn">Set resolver</button>
 </form>
+{{end}}
 {{end}}
 </section>
 {{end}}
@@ -943,15 +948,17 @@
 {{end}}</div>
 </section>
 <section class="st-card">
-<div class="st-cardhead"><div class="hd"><span class="st-micro">unencumbered</span><h3>Shipped on</h3></div></div>
+<div class="st-cardhead"><div class="hd"><span class="st-micro">toggleable</span><h3>Shipped on</h3></div></div>
 <div class="st-body"><div style="display:flex;flex-direction:column;gap:8px">
+<p class="st-note">A proposer row states the outcome of the last lookup you ran against it. No source is queried on a schedule, so a proposer you never enable stays at never attempted.</p>
 {{range .Unencumbered}}
 <div class="st-row">
 <span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span>
 <span class="st-tag">{{.Kind}}</span>
 <span class="st-note">{{.What}}</span>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
-<span class="st-badge ok">unencumbered</span>
+{{if .Health}}<span class="st-badge {{.HealthClass}}">{{.Health}}</span>{{end}}
+<span class="st-badge {{.ConsentClass}}">{{.Consent}}</span>
 {{if $.IsAdmin}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="{{if .On}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}" class="st-switch{{if .On}} on{{end}}" aria-label="{{if .On}}Disable{{else}}Enable{{end}} {{.Name}}"><span class="knob"></span></button></form>{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
 </span>
 </div>
@@ -967,7 +974,8 @@
 <span class="st-tag">{{.Kind}}</span>
 <span class="st-note">{{.What}}</span>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
-<span class="st-badge warn">operator-accepted</span>
+{{if .Health}}<span class="st-badge {{.HealthClass}}">{{.Health}}</span>{{end}}
+<span class="st-badge {{.ConsentClass}}">{{.Consent}}</span>
 {{if $.IsAdmin}}{{if .On}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="false">{{template "backfield" $}}<button type="submit" role="switch" aria-checked="true" class="st-switch on" aria-label="Disable {{.Name}}"><span class="knob"></span></button></form>{{else}}<a href="/settings?tab=sources&consent={{.ID}}" role="switch" aria-checked="false" class="st-switch" aria-label="Enable {{.Name}} — accept the terms" style="text-decoration:none"><span class="knob"></span></a>{{end}}{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
 </span>
 </div>
@@ -982,7 +990,7 @@
 <span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span>
 <span class="st-tag">{{.Kind}}</span>
 {{if .What}}<span class="st-note">{{.What}}</span>{{end}}
-<span style="margin-left:auto"><span class="st-badge neutral">barred — excluded on terms</span></span>
+<span style="margin-left:auto"><span class="st-badge neutral">barred — {{.Reason}}</span></span>
 </div>
 {{end}}
 </div></div>
@@ -1426,7 +1434,7 @@
 <p class="hl">{{.Headline}}</p>
 {{if .Census}}
 <div class="st-census">
-{{range .Census}}<div class="crow"><span class="k">{{.Kind}}</span>{{if .Href}}<a class="v" href="{{.Href}}">{{.Key}}</a>{{else}}<span class="v">{{.Key}}</span>{{end}}</div>{{end}}
+{{range .Census}}<div class="crow"><span class="k">{{.Kind}}</span>{{if .Href}}<a class="v" href="{{.Href}}">{{.Key}}</a>{{else}}<span class="v">{{.Key}}</span>{{end}}{{if .Detail}}<span class="v">{{.Detail}}</span>{{end}}</div>{{end}}
 </div>
 {{end}}
 {{if .Deliveries}}

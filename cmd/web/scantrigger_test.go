@@ -325,7 +325,7 @@ func TestActiveDispatchKinds(t *testing.T) {
 		progressRow(10, "hot", tick, 3, 1, 1, 1, 0, 0),
 		progressRow(9, "dns", tick, 2, 0, 0, 2, 0, 0),
 	}
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scanTriggerStore: f}
 
 	got, err := srv.activeDispatchKinds(context.Background())
 	if err != nil {

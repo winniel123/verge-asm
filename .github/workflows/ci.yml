@@ -44,6 +44,71 @@ jobs:
         # the 7 required checks, and an 8th would need a human (ADR-0001, #1247).
         run: scripts/check-go-pins.sh --mode ci
 
+  # An unused-code and static-analysis pass (#1568). Go compiles an unreachable
+  # unexported declaration without complaint and `go vet` reports none, so a
+  # thirteen-declaration dead cluster in internal/message/render.go outlived the
+  # whole artifactdoc migration. A human sweep found it, not a tool (PR #1548).
+  #
+  # The gate is U1000 alone, and it is NARROWER than the report. Every default
+  # check still runs and every finding still reaches the job summary. Only an
+  # unreachable declaration fails the job.
+  #
+  # U1000 alone, because the rest of the default set is not ready to block.
+  # S1016 would couple pairs of sqlc-generated types that a later `sqlc
+  # generate` may separate again, and 3 of the 5 SA1019 rows name crypto/dsa,
+  # which the certificate work reads deliberately
+  # (docs/research/staticcheck-backlog-2026-09.md §4).
+  #
+  # The job sits outside `test` rather than inside it. A step inside `test`
+  # buries its finding under another check's name.
+  #
+  # PR #1628 emptied the U1000 backlog, so this gate starts green. Registering
+  # `staticcheck` on main's ruleset stays the maintainer's act. No pull request
+  # can perform it.
+  staticcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: .go-version
+      - name: staticcheck ./... (U1000 gates, the rest reports)
+        run: |
+          # Pinned exactly, as govulncheck below is. 2026.2.1 is the first
+          # release whose own go.mod names go 1.26, so it is the first that
+          # reads this tree's language version.
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
+          # No staticcheck.conf accompanies this, so the default check set runs
+          # and a local `staticcheck ./...` reports what CI reports.
+          staticcheck ./... >findings.txt 2>&1 || true
+          total=$(grep -cE '\([A-Z]+[0-9]+\)$' findings.txt || true)
+          unused=$(grep -cE '\(U1000\)$' findings.txt || true)
+          {
+            echo "## staticcheck 2026.2.1 — U1000 gates, the rest reports (#1568)"
+            echo
+            echo "- findings: $total"
+            echo "- U1000, an unreachable declaration: $unused — this number gates"
+            echo
+            echo '```'
+            cat findings.txt
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+          echo "staticcheck reported $total finding(s), $unused of them U1000"
+          # staticcheck exits 1 both for a finding and for a tree it could not
+          # load, so the exit code cannot tell the two apart. A load error
+          # prints a line this regex does not match, and it would otherwise
+          # read as zero U1000 findings and pass the gate.
+          if [ "$total" -eq 0 ] && [ -s findings.txt ]; then
+            echo "::error::staticcheck printed output that holds no finding; it did not analyse the tree"
+            cat findings.txt
+            exit 1
+          fi
+          if [ "$unused" -ne 0 ]; then
+            echo "::error::staticcheck reports $unused unreachable declaration(s) (U1000)"
+            grep -E '\(U1000\)$' findings.txt
+            exit 1
+          fi
+
   # An architecture is in this matrix exactly where the golden corpus (a
   # later ticket) runs on it in CI (ADR-0001, packaging-and-configuration.md
   # §1.2) — amd64 and arm64 only.
@@ -511,7 +576,7 @@ jobs:
       - name: Run gosec
         # The v2.29.0 tag was cut 83 minutes before the commit that pointed
         # action.yml at the 2.29.0 image, so the tag still runs 2.28.0.
-        uses: securego/gosec@57f161386e11e13e4c8a37255bc1a6502993d079 # v2.29.0 image sha256:a6cd2f30
+        uses: securego/gosec@8075fd2e520d33330afe168f26fc7a91f57f2cbc # v2.29.0 image sha256:a6cd2f30
         with:
           # -exclude-generated: sqlc/goose output carries the standard
           # "Code generated ... DO NOT EDIT." header; scanning it only yields G101

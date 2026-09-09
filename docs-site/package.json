@@ -21,12 +21,20 @@
     "test:citations": "node --test scripts/check-citations.test.mjs",
     "check:adr-sections": "node scripts/check-adr-sections.mjs",
     "test:adr-sections": "node --test scripts/check-adr-sections.test.mjs",
+    "check:adr-index": "node scripts/check-adr-index.mjs --check",
+    "write:adr-index": "node scripts/check-adr-index.mjs --write",
+    "test:adr-index": "node --test scripts/check-adr-index.test.mjs",
+    "check:adr-markers": "node scripts/check-adr-markers.mjs --check",
+    "write:adr-markers": "node scripts/check-adr-markers.mjs --write",
+    "test:adr-markers": "node --test scripts/check-adr-markers.test.mjs",
+    "check:adr-review": "node scripts/check-adr-review.mjs",
+    "test:adr-review": "node --test scripts/check-adr-review.test.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.4",
-    "astro": "^7.2.4",
+    "astro": "^7.2.8",
     "github-slugger": "^2.0.0",
     "lucide-react": "^1.33.0",
     "react": "^19.2.8",
@@ -35,6 +43,9 @@
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^22.20.0",
+    "js-yaml": "^4.3.2",
     "parse-english": "7.0.0",
     "pixelmatch": "7.2.0",
     "playwright": "1.62.1",
@@ -42,6 +53,7 @@
     "pos": "0.4.2",
     "remark-frontmatter": "^5.0.0",
     "remark-parse": "^11.0.0",
+    "typescript": "^5.9.3",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
     "unist-util-visit-parents": "^6.0.2"

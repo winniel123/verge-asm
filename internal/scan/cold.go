@@ -55,6 +55,7 @@ type ColdJob struct {
 	Addresses    []string
 	TCPPorts     []uint16
 	Profile      connectoutcome.SafetyProfile
+	Realm        custody.Realm
 }
 
 func BuildColdJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr], vantages []Vantage, scope ColdScope) iter.Seq[ColdJob] {
@@ -76,7 +77,8 @@ func BuildColdJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Add
 			}
 			for i, v := range vantages {
 				// Opt-in widens the tier but never moves an address past Custody (ADR-0019).
-				if !estate.MayProbe(a, classes[i]) {
+				realmScope, ok := estate.ProbeRealm(a, classes[i])
+				if !ok {
 					continue
 				}
 				// One address per Batch, so a dead-letter withdraws one address's scope (ADR-0005).
@@ -89,6 +91,7 @@ func BuildColdJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Add
 					Addresses:    []string{a.Unmap().String()},
 					TCPPorts:     tcp,
 					Profile:      connectoutcome.DefaultProfile(),
+					Realm:        custody.Realm{}.With(realmScope),
 				}
 				if !yield(job) {
 					return
@@ -109,7 +112,7 @@ func (j ColdJob) JobSpec(batch string) (wire.JobSpec, error) {
 	if err != nil {
 		return wire.JobSpec{}, fmt.Errorf("scan: marshal cold scope: %w", err)
 	}
-	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw}, nil
+	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw, Realm: j.Realm.CIDRs()}, nil
 }
 
 func (j ColdJob) AttemptedScope() ([]byte, error) {

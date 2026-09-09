@@ -22,6 +22,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
+type reportsStore interface {
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
+	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (db.ReportDelivery, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
+	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error)
+	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error)
+}
+
 // An absent datum draws the design's empty pattern, never a fabricated figure (ADR-0110).
 
 // The Dispatch read is newest-first by id, so a flat cap drops a long range's oldest days.
@@ -29,12 +39,13 @@ import (
 const reportsDispatchPerWeek = 250
 
 func reportsDispatchLimit(weeks int) int32 {
-	return int32(weeks * reportsDispatchPerWeek) // #nosec G115 (weeks bounded by 4-digit-year date parse; weeks*250 well under int32)
+	return int32(weeks * reportsDispatchPerWeek) // #nosec G115 (weeks bounded by reportsMaxWeeks; weeks*250 well under int32)
 }
 
 const (
 	reportsHeatWeeks = 12
 	reportsHeatDays  = reportsHeatWeeks * 7
+	reportsMaxWeeks  = 52
 )
 
 type reportsPeriod struct {
@@ -49,7 +60,7 @@ func reportsPeriods() []reportsPeriod {
 		{Token: "24h", Label: "Last 24h", Weeks: 4},
 		{Token: "7d", Label: "Last 7d", Weeks: reportsHeatWeeks},
 		{Token: "30d", Label: "Last 30d", Weeks: 26},
-		{Token: "90d", Label: "Last 90d", Weeks: 52},
+		{Token: "90d", Label: "Last 90d", Weeks: reportsMaxWeeks},
 	}
 }
 
@@ -106,7 +117,10 @@ func resolveReportsWindow(r *http.Request) reportsWindow {
 			if weeks < 1 {
 				weeks = 1
 			}
-			return reportsWindow{Token: reportsCustomPrefix + start + "_" + end, Label: start + " – " + end, Weeks: weeks}
+			// A range past the widest preset falls to the default rather than a clamped label.
+			if weeks <= reportsMaxWeeks {
+				return reportsWindow{Token: reportsCustomPrefix + start + "_" + end, Label: start + " – " + end, Weeks: weeks}
+			}
 		}
 	}
 	p := resolveReportsPeriod(q.Get("period"))
@@ -125,7 +139,7 @@ const reportsTrendBucket = 7 * 24 * time.Hour
 
 func (s *server) signalRaises(ctx context.Context) ([]drift.Raise, error) {
 	// The whole ledger is read unwindowed, so the standing level counts signals raised before it.
-	rows, err := s.store.ListSignalInstances(ctx)
+	rows, err := s.reportsStore.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +158,7 @@ func (s *server) signalRaises(ctx context.Context) ([]drift.Raise, error) {
 }
 
 func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]drift.Withdrawal, error) {
-	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: since, Valid: true})
+	rows, err := s.reportsStore.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: since, Valid: true})
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +179,7 @@ func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]dr
 const reportsDiscoveryBucket = 24 * time.Hour
 
 func (s *server) firstAppearances(ctx context.Context, since time.Time) ([]drift.Appearance, error) {
-	rows, err := s.store.ListSubjectFirstAppearances(ctx, pgtype.Timestamptz{Time: since, Valid: true})
+	rows, err := s.reportsStore.ListSubjectFirstAppearances(ctx, pgtype.Timestamptz{Time: since, Valid: true})
 	if err != nil {
 		return nil, err
 	}
@@ -558,7 +572,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	// A failed analytics read degrades its own region; the page a viewer depends on still renders.
 	cells, heatTotal := []heatCell{}, 0
-	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
+	if rows, err := s.reportsStore.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
 		log.Printf("web: reports: list dispatch progress: %v", err)
 	} else {
 		cells, heatTotal, _, _ = s.foldScanActivity(rows, days)
@@ -627,10 +641,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	mttwSpark, hasMTTWSpark := buildSparkline(meanDaysSeries(withdrawalPoints), 300, 46, "var(--chart-2)")
 
-	s.render(w, r, "reports", map[string]any{
-		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports",
-
+	s.render(w, r, "reports", pageData(acct, "Reports", "reports", map[string]any{
 		"OpenSignals":    openSignals,
 		"HasOpenSignals": hasOpenSignals,
 		"OpenDelta":      openDelta,
@@ -666,7 +677,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"PeriodLabel": window.Label,
 
 		"Schedules": s.reportScheduleRows(ctx),
-	})
+	}))
 }
 
 func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int) (counts []int, window, active int) {
@@ -744,14 +755,12 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 		scheduleHole = scheduleID
 	}
 
-	s.render(w, r, "reportartifact", map[string]any{
-		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "reports",
+	s.render(w, r, "reportartifact", pageData(acct, "Report delivery", "reports", map[string]any{
 		"Heading":    heading,
 		"Period":     message.ArtifactPeriod(art),
 		"ScheduleID": scheduleHole,
 		"Doc":        message.BuildArtifactDoc(art),
-	})
+	}))
 }
 
 func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -779,7 +788,7 @@ func reportDeliveryPDFName(a message.Artifact) string {
 }
 
 func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, int64, bool) {
-	schedules, err := s.store.ListReportSchedules(ctx)
+	schedules, err := s.reportsStore.ListReportSchedules(ctx)
 	if err != nil {
 		log.Printf("web: report delivery: list schedules: %v", err)
 		return message.Artifact{}, 0, false
@@ -790,7 +799,7 @@ func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, 
 		found bool
 	)
 	for _, sc := range schedules {
-		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
+		del, err := s.reportsStore.GetLatestReportDelivery(ctx, sc.ID)
 		switch {
 		case err == nil:
 			if !found || del.ID > best.ID {
@@ -823,7 +832,7 @@ func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSc
 	}
 	if del.DeliveredAt.Valid {
 		art.Delivered = del.DeliveredAt.Time.UTC().Format(time.RFC3339)
-		art.ChannelHost = deliveryTargetHost(sc.DeliveryTarget)
+		art.ChannelHost = s.deliveryHost(ctx, sc)
 	}
 	// The receipt snapshots no content, so the artifact recomputes from its bounds (ADR-0118).
 	if del.PeriodStart.Valid && del.PeriodEnd.Valid {
@@ -835,7 +844,7 @@ func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSc
 }
 
 func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time) ([]message.ArtifactSignal, []message.ArtifactSeverityCount) {
-	rows, err := s.store.ListSignalInstances(ctx)
+	rows, err := s.reportsStore.ListSignalInstances(ctx)
 	if err != nil {
 		log.Printf("web: report delivery: list signal instances: %v", err)
 		return nil, nil
@@ -872,7 +881,7 @@ func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time
 }
 
 func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.Time) []message.ArtifactChange {
-	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: start, Valid: true})
+	rows, err := s.reportsStore.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: start, Valid: true})
 	if err != nil {
 		log.Printf("web: report delivery: list withdrawal lifespans: %v", err)
 		return nil
@@ -893,6 +902,16 @@ func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.
 		})
 	}
 	return out
+}
+
+func (s *server) deliveryHost(ctx context.Context, sc db.ReportSchedule) string {
+	if sc.ChannelID.Valid {
+		// ADR-0119 retired delivery_target, so the bound channel carries the destination (#1691).
+		if ch, err := s.reportsStore.GetChannelForDelivery(ctx, sc.ChannelID.Int64); err == nil {
+			return deliveryTargetHost(ch.Url)
+		}
+	}
+	return deliveryTargetHost(sc.DeliveryTarget)
 }
 
 func deliveryTargetHost(target string) string {

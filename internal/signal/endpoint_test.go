@@ -1,6 +1,9 @@
 package signal
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func cb(b bool) *bool { return &b }
 
@@ -45,9 +48,9 @@ func TestCertificatePredicates(t *testing.T) {
 		fired *CertDetails
 		clean *CertDetails
 	}{
-		{certificateExpired, &CertDetails{Expired: cb(true)}, &CertDetails{Expired: cb(false)}},
-		{certificateNotYetValid, &CertDetails{NotYetValid: cb(true)}, &CertDetails{NotYetValid: cb(false)}},
-		{certificateExpiring, &CertDetails{Expiring: cb(true)}, &CertDetails{Expiring: cb(false)}},
+		{certificateExpired, &CertDetails{Clock: clock(-90, -1, 0)}, &CertDetails{Clock: clock(-1, 89, 0)}},
+		{certificateNotYetValid, &CertDetails{Clock: clock(1, 91, 0)}, &CertDetails{Clock: clock(-1, 89, 0)}},
+		{certificateExpiring, &CertDetails{Clock: clock(-80, 10, 0)}, &CertDetails{Clock: clock(-1, 89, 0)}},
 		{certificateSelfSigned, &CertDetails{SelfSigned: cb(true)}, &CertDetails{SelfSigned: cb(false)}},
 		{certificateWeakKeyOrSignature, &CertDetails{WeakKeyOrSignature: cb(true)}, &CertDetails{WeakKeyOrSignature: cb(false)}},
 		{certificateHostnameSANMismatch{}, &CertDetails{SANMatchesName: cb(false)}, &CertDetails{SANMatchesName: cb(true)}},
@@ -74,11 +77,13 @@ func TestCertDetailPerAttributeNullability(t *testing.T) {
 		rule EndpointRule
 		d    *CertDetails
 	}{
-		{certificateNotYetValid, &CertDetails{Expired: cb(false)}},
-		{certificateSelfSigned, &CertDetails{Expired: cb(false)}},
-		{certificateWeakKeyOrSignature, &CertDetails{Expired: cb(false)}},
-		{certificateHostnameSANMismatch{}, &CertDetails{Expired: cb(false)}},
-		{certificateHostnameSANMismatch{}, &CertDetails{Expiring: cb(true)}},
+		{certificateNotYetValid, &CertDetails{SelfSigned: cb(false)}},
+		{certificateExpired, &CertDetails{SelfSigned: cb(false)}},
+		{certificateExpiring, &CertDetails{SelfSigned: cb(false)}},
+		{certificateSelfSigned, &CertDetails{Clock: clock(-90, -1, 0)}},
+		{certificateWeakKeyOrSignature, &CertDetails{Clock: clock(-90, -1, 0)}},
+		{certificateHostnameSANMismatch{}, &CertDetails{Clock: clock(-90, -1, 0)}},
+		{certificateHostnameSANMismatch{}, &CertDetails{Clock: clock(-80, 10, 0)}},
 	}
 	for _, c := range notEvaluableWhenAttrNil {
 		if got := c.rule.Eval(presented(c.d)); got != NotEvaluable {
@@ -86,11 +91,11 @@ func TestCertDetailPerAttributeNullability(t *testing.T) {
 		}
 	}
 
-	if got := certificateExpired.Eval(presented(&CertDetails{Expired: cb(true)})); got != Fired {
-		t.Errorf("certificate-expired with Expired=true: Eval = %q, want Fired", got)
+	if got := certificateExpired.Eval(presented(&CertDetails{Clock: clock(-90, -1, 0)})); got != Fired {
+		t.Errorf("certificate-expired past not_after: Eval = %q, want Fired", got)
 	}
-	if got := certificateExpiring.Eval(presented(&CertDetails{Expiring: cb(true)})); got != Fired {
-		t.Errorf("certificate-expiring with Expiring=true: Eval = %q, want Fired", got)
+	if got := certificateExpiring.Eval(presented(&CertDetails{Clock: clock(-80, 10, 0)})); got != Fired {
+		t.Errorf("certificate-expiring inside its horizon: Eval = %q, want Fired", got)
 	}
 
 	if got := (certificateHostnameSANMismatch{}).Eval(presented(&CertDetails{SANMatchesName: nil})); got == Fired {
@@ -98,17 +103,83 @@ func TestCertDetailPerAttributeNullability(t *testing.T) {
 	}
 }
 
+func clock(nb, na, age int) *CertClock {
+	now := time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)
+	day := 24 * time.Hour
+	return &CertClock{
+		NotBefore:   now.Add(time.Duration(nb) * day),
+		NotAfter:    now.Add(time.Duration(na) * day),
+		ObservedAt:  now.Add(-time.Duration(age) * day),
+		EvaluatedAt: now,
+	}
+}
+
+func TestCertHorizonIsAFractionOfValidity(t *testing.T) {
+	day := 24 * time.Hour
+	nb := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		validity time.Duration
+		want     time.Duration
+		ok       bool
+	}{
+		{6 * day, 3 * day, true},
+		{10 * day, 5 * day, true},
+		{90 * day, 30 * day, true},
+		{398 * day, 398 * day / 3, true},
+		{0, 0, false},
+		{-day, 0, false},
+	}
+	for _, c := range cases {
+		got, ok := CertHorizon(nb, nb.Add(c.validity))
+		if got != c.want || ok != c.ok {
+			t.Errorf("CertHorizon(validity %v) = (%v, %v), want (%v, %v)", c.validity, got, ok, c.want, c.ok)
+		}
+	}
+}
+
+func TestClockRulesReadTheCertificatesOwnHorizon(t *testing.T) {
+	// Each row carries not_before, not_after, the observation instant
+	// and the evaluation instant (ADR-0004 #67, ADR-0043).
+	cases := []struct {
+		name string
+		rule EndpointRule
+		c    *CertClock
+		want Outcome
+	}{
+		{"six-day-cert-one-day-in-is-outside-its-three-day-horizon", certificateExpiring, clock(-1, 5, 0), NotFired},
+		{"six-day-cert-with-two-days-left-is-inside-its-horizon", certificateExpiring, clock(-4, 2, 0), Fired},
+		{"398-day-cert-with-100-days-left-is-inside-its-133-day-horizon", certificateExpiring, clock(-298, 100, 0), Fired},
+		{"90-day-cert-with-31-days-left-is-outside-its-30-day-horizon", certificateExpiring, clock(-59, 31, 0), NotFired},
+		{"90-day-cert-observed-40-days-ago-is-not-evaluable", certificateExpiring, clock(-85, 5, 40), NotEvaluable},
+		{"90-day-cert-observed-40-days-ago-expired-is-not-evaluable", certificateExpired, clock(-85, 5, 40), NotEvaluable},
+		{"90-day-cert-observed-40-days-ago-not-yet-valid-is-not-evaluable", certificateNotYetValid, clock(-85, 5, 40), NotEvaluable},
+		{"90-day-cert-observed-29-days-ago-is-evaluable", certificateExpiring, clock(-85, 5, 29), Fired},
+		{"non-positive-validity-is-not-evaluable", certificateExpired, clock(5, -5, 0), NotEvaluable},
+		{"non-positive-validity-is-not-evaluable-for-expiring", certificateExpiring, clock(5, 5, 0), NotEvaluable},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := c.rule.Eval(presented(&CertDetails{Clock: c.c})); got != c.want {
+				t.Errorf("%s: Eval = %q, want %q", c.rule.Name(), got, c.want)
+			}
+		})
+	}
+}
+
 func TestCertificateVersionsComposeTLSHandshake(t *testing.T) {
-	const want = "rule@v1|tls-handshake/v4"
-	for _, r := range []EndpointRule{
-		certificateExpired, certificateNotYetValid, certificateExpiring,
-		certificateSelfSigned, certificateHostnameSANMismatch{},
-	} {
+	const wantClock = "rule@v2|cert-horizon/v1|tls-handshake/v5"
+	for _, r := range []EndpointRule{certificateExpired, certificateNotYetValid, certificateExpiring} {
+		if got := r.Version().String(); got != wantClock {
+			t.Errorf("%s version = %q, want %q", r.Name(), got, wantClock)
+		}
+	}
+	const want = "rule@v1|tls-handshake/v5"
+	for _, r := range []EndpointRule{certificateSelfSigned, certificateHostnameSANMismatch{}} {
 		if got := r.Version().String(); got != want {
 			t.Errorf("%s version = %q, want %q", r.Name(), got, want)
 		}
 	}
-	const wantWeak = "rule@v1|tls-handshake/v4|weak-key-floor/v1"
+	const wantWeak = "rule@v1|tls-handshake/v5|weak-key-floor/v1"
 	if got := certificateWeakKeyOrSignature.Version().String(); got != wantWeak {
 		t.Errorf("certificate-weak-key-or-signature version = %q, want %q", got, wantWeak)
 	}
@@ -135,7 +206,7 @@ func TestPlaintextHTTPNoHTTPS(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v4"
+	const wantVer = "rule@v1|http-exchange/v5|tls-handshake/v5"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}
@@ -187,7 +258,7 @@ func TestRedirectToHostOutsideEstate(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v2|resolution-walk/v1|wildcard-discrimination/v1"
+	const wantVer = "rule@v1|http-exchange/v5|resolution-walk/v1|wildcard-discrimination/v2"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}

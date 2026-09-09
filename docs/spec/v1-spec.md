@@ -122,9 +122,16 @@ CZDS**, **Wayback CDX** and **bgp.tools** are excluded on availability, needing 
 observation of absence (the map's standing rule). **RIPEstat**, the **RIPE Database**, **APNIC**'s
 registry path and **LACNIC**'s registry path ship off under `operator-accepted` (asked, no reply —
 [ADR-0003](../adr/0003-third-party-source-consent-bar.md)'s amendments). **AFRINIC** and **APNIC**
-clear a keyless org→prefix path via CAIDA ⋈ delegated-stats and ship on. **ARIN**'s `entities?fn=`
-org-name path ships on keyless. A **BGP** leg (route-collector-derived address scopes) is out of
-v1 entirely — a routing announcement names the path, not the estate
+clear a keyless org→prefix path via CAIDA ⋈ delegated-stats on terms and **ship on**. The CAIDA half
+reads `api.data.caida.org/as2org/v1/search/`, a published keyless org-name search whose `opaqueId`
+joins field 8 of the RIR's extended delegated-stats file
+([#1616](https://github.com/winniel123/verge-asm/issues/1616),
+[ADR-0227](../adr/0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md)).
+The `/as2org/v1/org2ids` path the CAIDA half called before is served by no published CAIDA endpoint,
+and `api.caida.org` does not resolve ([#1519](https://github.com/winniel123/verge-asm/issues/1519),
+[ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md)).
+**ARIN**'s `entities?fn=` org-name path ships on keyless. A
+**BGP** leg (route-collector-derived address scopes) is out of v1 entirely — a routing announcement names the path, not the estate
 ([ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)) — even where the
 source (RouteViews) clears the consent bar cleanly. Clearing the bar is not an argument for
 shipping. The **operator's own zone file** is Tier-0 ground truth, uploaded (never mounted — a
@@ -175,18 +182,20 @@ membership itself composes: `Shadowed` (wildcard discrimination's suppression) c
 so it decides membership as affirmatively as `resolution-walk`'s own outcomes
 ([ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)).
 
-**Safety profile**, from [`safe-active-probing.md`](../research/safe-active-probing.md):
+**Safety profile**, from [`safe-active-probing.md`](../research/safe-active-probing.md). That research
+declares 20 in-flight connections per host. The `Port-scan rate` row records the figure the code runs
+instead ([#1591](https://github.com/winniel123/verge-asm/issues/1591)):
 
 | Knob | Default |
 | --- | --- |
 | Technique | TCP connect (never SYN) — non-root, `cap_drop: [ALL]`, no added capabilities |
 | Host discovery | Skipped (`-Pn`) — targets are seeded, not swept for liveness |
-| Port-scan rate | ≤ 50 conn/s per host, ≤ 20 concurrent, 3 s connect timeout, 2 retries |
+| Port-scan rate | ≤ 50 conn/s per host, 1 in-flight (`connectoutcome.ExchangeInFlight`, [#1591](https://github.com/winniel123/verge-asm/issues/1591). The ADR-0137 [#1116](https://github.com/winniel123/verge-asm/issues/1116) amendment lists a raise among the grant's reopen triggers), 3 s connect timeout, 2 retries on a service port and 0 on a control port ([ADR-0224](../adr/0224-the-vantage-ceiling-counts-connections-and-a-control-port-spends-one-attempt.md)) |
 | HTTP | `GET /` only, 64 KB capped body read, 10 s timeout, ≤ 10 req/s per host — one exchange per `Endpoint`, and there is no path list. This row is `http-exchange`'s **instance** of [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md), not the whole rule |
 | Redirects | **Never** followed — not *not by default*: a declared parameter of `http-exchange`, not an operator dial. The `Location` is recorded and the next hop is never dialled ([ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md)) |
 | Admin-panel / credential probing | Response-matching only; default-credential login attempts never, not even opt-in |
 | TLS | Certificate fetched every run (rides the `reachability` exchange); version/cipher enumeration weekly, own `Scan` |
-| Per-vantage ceiling | 200 pkt/s across the targets one `Vantage` probes; round-robin by host, never by port (ADR-0137) |
+| Per-vantage ceiling | 200 conn/s across the targets one `Vantage` probes; round-robin by host, never by port (ADR-0137, [ADR-0224](../adr/0224-the-vantage-ceiling-counts-connections-and-a-control-port-spends-one-attempt.md)). The pacer spaces connection attempts. A dropped SYN is retransmitted by the kernel below that seam, so the packet count on the wire is not this figure |
 | Adaptive back-off | Halves the rate on timeout/RST-spike/429/503; never touches the deadline (ADR-0021 keeps it outside `connect-outcome`) |
 
 **The `Host discovery`, `HTTP`, `Redirects` and `Admin-panel` rows above are each an instance of one

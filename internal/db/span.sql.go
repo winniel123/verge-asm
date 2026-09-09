@@ -159,6 +159,104 @@ func (q *Queries) ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, 
 	return items, nil
 }
 
+const listCitedAddressSpansForNames = `-- name: ListCitedAddressSpansForNames :many
+WITH cited AS (
+    SELECT DISTINCT a.addr
+    FROM span n
+    CROSS JOIN LATERAL jsonb_array_elements_text(
+        CASE WHEN jsonb_typeof(n.value -> 'addresses') = 'array' THEN n.value -> 'addresses' END
+    ) AS a(addr)
+    WHERE n.subject_kind = 'name'
+      AND n.facet = 'resolution'
+      AND n.subject_key = ANY($1::text[])
+)
+SELECT s.id, s.subject_key,
+       COALESCE((
+           SELECT array_agg(DISTINCT r.subject_key)
+           FROM span r
+           WHERE r.closed_at IS NULL
+             AND r.subject_kind = 'name'
+             AND r.facet = 'resolution'
+             AND r.is_gap = FALSE
+             AND jsonb_typeof(r.value -> 'addresses') = 'array'
+             AND r.value -> 'addresses' @> to_jsonb(s.subject_key)
+       ), '{}'::text[])::text[] AS citers
+FROM span s
+JOIN cited c ON c.addr = s.subject_key
+WHERE s.closed_at IS NULL
+  AND s.subject_kind = 'address'
+ORDER BY s.subject_key, s.id
+`
+
+type ListCitedAddressSpansForNamesRow struct {
+	ID         int64    `json:"id"`
+	SubjectKey string   `json:"subject_key"`
+	Citers     []string `json:"citers"`
+}
+
+// The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
+func (q *Queries) ListCitedAddressSpansForNames(ctx context.Context, names []string) ([]ListCitedAddressSpansForNamesRow, error) {
+	rows, err := q.db.Query(ctx, listCitedAddressSpansForNames, names)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCitedAddressSpansForNamesRow{}
+	for rows.Next() {
+		var i ListCitedAddressSpansForNamesRow
+		if err := rows.Scan(&i.ID, &i.SubjectKey, &i.Citers); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOpenSpansBeneathAddresses = `-- name: ListOpenSpansBeneathAddresses :many
+SELECT s.id, s.subject_kind, s.subject_key
+FROM span s
+WHERE s.closed_at IS NULL
+  AND s.subject_kind IN ('service', 'endpoint')
+  AND EXISTS (
+      SELECT 1 FROM unnest($1::text[]) AS a(addr)
+      WHERE s.subject_key LIKE a.addr || ':%'
+         OR s.subject_key LIKE '[' || a.addr || ']:%'
+         OR s.subject_key LIKE '%@' || a.addr || ':%'
+         OR s.subject_key LIKE '%@[' || a.addr || ']:%'
+  )
+ORDER BY s.subject_kind, s.subject_key, s.id
+`
+
+type ListOpenSpansBeneathAddressesRow struct {
+	ID          int64  `json:"id"`
+	SubjectKind string `json:"subject_kind"`
+	SubjectKey  string `json:"subject_key"`
+}
+
+// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
+func (q *Queries) ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error) {
+	rows, err := q.db.Query(ctx, listOpenSpansBeneathAddresses, addresses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenSpansBeneathAddressesRow{}
+	for rows.Next() {
+		var i ListOpenSpansBeneathAddressesRow
+		if err := rows.Scan(&i.ID, &i.SubjectKind, &i.SubjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenSpansForSubject = `-- name: ListOpenSpansForSubject :many
 SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
        value, is_gap, derivation, opened_at, closed_at, closure_reason
@@ -272,7 +370,30 @@ SELECT
     pred.value          AS prev_value,
     pred.derivation     AS prev_derivation,
     pred.closed_at      AS prev_closed_at,
-    pred.closure_reason AS prev_closure_reason
+    pred.closure_reason AS prev_closure_reason,
+    -- A Break on any resolution witness open at this instant voids returned (ADR-0097).
+    EXISTS (
+        SELECT 1
+        FROM span w
+        WHERE w.subject_kind = sp.subject_kind
+          AND w.subject_key = sp.subject_key
+          AND w.facet = 'resolution'
+          AND w.opened_at <= sp.opened_at
+          AND (w.closed_at IS NULL OR w.closed_at > sp.opened_at)
+          AND w.derivation <> (
+              SELECT wp.derivation
+              FROM span wp
+              WHERE wp.subject_kind = w.subject_kind
+                AND wp.subject_key = w.subject_key
+                AND wp.facet = w.facet
+                AND wp.discriminator = w.discriminator
+                AND wp.vantage_id IS NOT DISTINCT FROM w.vantage_id
+                AND wp.source = w.source
+                AND (wp.opened_at < w.opened_at OR (wp.opened_at = w.opened_at AND wp.id < w.id))
+              ORDER BY wp.opened_at DESC, wp.id DESC
+              LIMIT 1
+          )
+    )::boolean AS witness_broke
 FROM span sp
 JOIN batch b ON b.id = sp.opened_batch_id
 LEFT JOIN LATERAL (
@@ -284,11 +405,12 @@ LEFT JOIN LATERAL (
       AND p.discriminator = sp.discriminator
       AND p.vantage_id IS NOT DISTINCT FROM sp.vantage_id
       AND p.source = sp.source
-      AND p.opened_at < sp.opened_at
+      AND (p.opened_at < sp.opened_at OR (p.opened_at = sp.opened_at AND p.id < sp.id))
     ORDER BY p.opened_at DESC, p.id DESC
     LIMIT 1
 ) pred ON true
 WHERE b.created_at >= $2
+  AND ($3::timestamptz IS NULL OR b.created_at < $3::timestamptz)
 
 UNION ALL
 
@@ -305,10 +427,12 @@ SELECT
     NULL::jsonb        AS prev_value,
     NULL::jsonb        AS prev_derivation,
     NULL::timestamptz  AS prev_closed_at,
-    NULL::text         AS prev_closure_reason
+    NULL::text         AS prev_closure_reason,
+    FALSE              AS witness_broke
 FROM span sp
 JOIN batch b ON b.id = sp.closed_batch_id
 WHERE b.created_at >= $2
+  AND ($3::timestamptz IS NULL OR b.created_at < $3::timestamptz)
   -- A value-move close rides its successor's opened row, so counting it doubles the transition.
   AND sp.closure_reason IS NOT NULL
 
@@ -319,6 +443,7 @@ LIMIT $1
 type ListRecentDriftEventsParams struct {
 	MaxEvents int32              `json:"max_events"`
 	Since     pgtype.Timestamptz `json:"since"`
+	Until     pgtype.Timestamptz `json:"until"`
 }
 
 type ListRecentDriftEventsRow struct {
@@ -342,10 +467,11 @@ type ListRecentDriftEventsRow struct {
 	PrevDerivation    []byte             `json:"prev_derivation"`
 	PrevClosedAt      pgtype.Timestamptz `json:"prev_closed_at"`
 	PrevClosureReason pgtype.Text        `json:"prev_closure_reason"`
+	WitnessBroke      bool               `json:"witness_broke"`
 }
 
 func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error) {
-	rows, err := q.db.Query(ctx, listRecentDriftEvents, arg.MaxEvents, arg.Since)
+	rows, err := q.db.Query(ctx, listRecentDriftEvents, arg.MaxEvents, arg.Since, arg.Until)
 	if err != nil {
 		return nil, err
 	}
@@ -374,6 +500,7 @@ func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDrift
 			&i.PrevDerivation,
 			&i.PrevClosedAt,
 			&i.PrevClosureReason,
+			&i.WitnessBroke,
 		); err != nil {
 			return nil, err
 		}
@@ -447,12 +574,83 @@ func (q *Queries) ListServiceReachabilitySpansByClassAt(ctx context.Context, at 
 	return items, nil
 }
 
+const listServiceReachabilitySpansByClassAtForServices = `-- name: ListServiceReachabilitySpansByClassAtForServices :many
+SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
+    sp.subject_key AS subject_key,
+    sp.vantage_id  AS vantage_id,
+    sp.value       AS value,
+    sp.is_gap      AS is_gap,
+    sp.opened_at   AS opened_at,
+    sp.id          AS id,
+    v.host         AS host,
+    v.egress       AS egress,
+    v.dialled_addr AS dialled_addr
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.subject_key = ANY($1::text[])
+  AND sp.opened_at <= $2
+  AND (sp.closed_at IS NULL OR sp.closed_at > $2)
+ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC
+`
+
+type ListServiceReachabilitySpansByClassAtForServicesParams struct {
+	ServiceKeys []string           `json:"service_keys"`
+	At          pgtype.Timestamptz `json:"at"`
+}
+
+type ListServiceReachabilitySpansByClassAtForServicesRow struct {
+	SubjectKey  string             `json:"subject_key"`
+	VantageID   pgtype.Int8        `json:"vantage_id"`
+	Value       []byte             `json:"value"`
+	IsGap       bool               `json:"is_gap"`
+	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
+	ID          int64              `json:"id"`
+	Host        pgtype.Text        `json:"host"`
+	Egress      pgtype.Text        `json:"egress"`
+	DialledAddr pgtype.Text        `json:"dialled_addr"`
+}
+
+// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0226 §1, #1609).
+func (q *Queries) ListServiceReachabilitySpansByClassAtForServices(ctx context.Context, arg ListServiceReachabilitySpansByClassAtForServicesParams) ([]ListServiceReachabilitySpansByClassAtForServicesRow, error) {
+	rows, err := q.db.Query(ctx, listServiceReachabilitySpansByClassAtForServices, arg.ServiceKeys, arg.At)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceReachabilitySpansByClassAtForServicesRow{}
+	for rows.Next() {
+		var i ListServiceReachabilitySpansByClassAtForServicesRow
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.VantageID,
+			&i.Value,
+			&i.IsGap,
+			&i.OpenedAt,
+			&i.ID,
+			&i.Host,
+			&i.Egress,
+			&i.DialledAddr,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpansForSubject = `-- name: ListSpansForSubject :many
-SELECT id, subject_kind, subject_key, facet, discriminator, vantage_id, source,
-       value, is_gap, derivation, opened_at, closed_at, closure_reason
-FROM span
-WHERE subject_kind = $1 AND subject_key = $2
-ORDER BY facet, discriminator, vantage_id, source, opened_at, id
+SELECT s.id, s.subject_kind, s.subject_key, s.facet, s.discriminator, s.vantage_id, s.source,
+       s.value, s.is_gap, s.derivation, s.opened_at, s.closed_at, s.closure_reason,
+       v.name AS vantage_name
+FROM span s
+LEFT JOIN vantage v ON v.id = s.vantage_id
+WHERE s.subject_kind = $1 AND s.subject_key = $2
+ORDER BY s.facet, s.discriminator, s.vantage_id, s.source, s.opened_at, s.id
 `
 
 type ListSpansForSubjectParams struct {
@@ -474,6 +672,7 @@ type ListSpansForSubjectRow struct {
 	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
 	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
 	ClosureReason pgtype.Text        `json:"closure_reason"`
+	VantageName   pgtype.Text        `json:"vantage_name"`
 }
 
 func (q *Queries) ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error) {
@@ -499,6 +698,7 @@ func (q *Queries) ListSpansForSubject(ctx context.Context, arg ListSpansForSubje
 			&i.OpenedAt,
 			&i.ClosedAt,
 			&i.ClosureReason,
+			&i.VantageName,
 		); err != nil {
 			return nil, err
 		}

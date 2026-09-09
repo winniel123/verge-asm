@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"net/url"
@@ -10,6 +11,19 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 )
+
+type ssoAdminStore interface {
+	DeleteSSOIdentity(ctx context.Context, id int64) error
+	DeleteSSOProvider(ctx context.Context, id int64) error
+	InsertSSOProvider(ctx context.Context, arg db.InsertSSOProviderParams) (int64, error)
+	ListSSOBindings(ctx context.Context) ([]db.ListSSOBindingsRow, error)
+
+	// A secret is read only where its act is performed, so no listing read selects it (ADR-0053).
+
+	ListSSOProviders(ctx context.Context) ([]db.ListSSOProvidersRow, error)
+	SetSSOProviderSecret(ctx context.Context, arg db.SetSSOProviderSecretParams) error
+	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) (int64, error)
+}
 
 var ssoSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
@@ -34,7 +48,7 @@ type ssoBindingView struct {
 }
 
 func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[string]any) error {
-	rows, err := s.store.ListSSOProviders(r.Context())
+	rows, err := s.ssoAdminStore.ListSSOProviders(r.Context())
 	if err != nil {
 		return err
 	}
@@ -48,7 +62,7 @@ func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[strin
 	}
 	data["SSOProviders"] = out
 
-	bindings, err := s.store.ListSSOBindings(r.Context())
+	bindings, err := s.ssoAdminStore.ListSSOBindings(r.Context())
 	if err != nil {
 		return err
 	}
@@ -114,7 +128,7 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		fail(msg)
 		return
 	}
-	if _, err := s.store.InsertSSOProvider(r.Context(), db.InsertSSOProviderParams{
+	if _, err := s.ssoAdminStore.InsertSSOProvider(r.Context(), db.InsertSSOProviderParams{
 		Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
 		ClientSecret: optionalSecret(r.FormValue("client_secret")),
 		Enabled:      true, CreatedBy: acct.ID,
@@ -144,7 +158,7 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, _ db.
 		fail(msg)
 		return
 	}
-	rows, err := s.store.UpdateSSOProvider(r.Context(), db.UpdateSSOProviderParams{
+	rows, err := s.ssoAdminStore.UpdateSSOProvider(r.Context(), db.UpdateSSOProviderParams{
 		ID: id, Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
 		Enabled: r.FormValue("enabled") != "",
 	})
@@ -172,12 +186,12 @@ func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, _ 
 	// A default arm would clear the stored secret when the box is unchecked and the field blank.
 	switch {
 	case r.FormValue("clear_secret") != "":
-		if err := s.store.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{ID: id}); err != nil {
+		if err := s.ssoAdminStore.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{ID: id}); err != nil {
 			s.serverError(w, "clear sso provider secret", err)
 			return
 		}
 	case strings.TrimSpace(r.FormValue("client_secret")) != "":
-		if err := s.store.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{
+		if err := s.ssoAdminStore.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{
 			ID: id, ClientSecret: optionalSecret(r.FormValue("client_secret")),
 		}); err != nil {
 			s.serverError(w, "set sso provider secret", err)
@@ -193,7 +207,7 @@ func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, _ db.
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
-	if err := s.store.DeleteSSOProvider(r.Context(), id); err != nil {
+	if err := s.ssoAdminStore.DeleteSSOProvider(r.Context(), id); err != nil {
 		s.serverError(w, "delete sso provider", err)
 		return
 	}
@@ -207,7 +221,7 @@ func (s *server) removeSSOBinding(w http.ResponseWriter, r *http.Request, acct d
 		return
 	}
 	// A departed or recycled identity must stop authenticating as the account it bound (ADR-0113).
-	if err := s.store.DeleteSSOIdentity(r.Context(), id); err != nil {
+	if err := s.ssoAdminStore.DeleteSSOIdentity(r.Context(), id); err != nil {
 		s.serverError(w, "remove sso binding", err)
 		return
 	}

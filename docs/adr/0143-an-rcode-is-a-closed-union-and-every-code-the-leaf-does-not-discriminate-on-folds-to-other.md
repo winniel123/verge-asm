@@ -1,14 +1,22 @@
+---
+number: 143
+title: "an `Rcode` is a closed union, and every code the leaf does not discriminate on folds to `OTHER`"
+slug: an-rcode-is-a-closed-union-and-every-code-the-leaf-does-not-discriminate-on-folds-to-other
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1160
+pr: 1159
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 11}
+---
+
 # ADR-0143: an `Rcode` is a closed union, and every code the leaf does not discriminate on folds to `OTHER`
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1160 ADR gaps: internal/measure/resolutionwalk](https://github.com/winniel123/verge-asm/issues/1160), gap 1
-- **Sweep PR that deleted the comment:** [#1159](https://github.com/winniel123/verge-asm/pull/1159)
 - **Not bound by:** [ADR-0015](./0015-the-value-space-is-the-commitment.md), whose commitment is a
   **facet's** value space. `Rcode` is a leaf-internal discriminator that reaches no emitted
   timeline, so widening or narrowing it prices at nothing
-- **Rests on:** [ADR-0011](./0011-a-facet-is-six-parts.md) (what a facet is, and therefore what
-  `Rcode` is not)
 
 ## Context
 

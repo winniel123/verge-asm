@@ -1,13 +1,22 @@
+---
+number: 138
+title: "a release pins every byte it builds, so it delegates no build step, and its identity is the keyless anchor of its own workflow"
+slug: a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow
+date: 2026-09-03
+status: accepted
+source: grilling
+ticket: 1240
+map: 1064
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 53}
+  - {kind: rests-on, adr: 1}
+---
+
 # ADR-0138: a release pins every byte it builds, so it delegates no build step, and its identity is the keyless anchor of its own workflow
 
-- **Status:** Accepted
-- **Date:** 2026-09-03
-- **Ticket:** [#1240 Which ADRs this effort writes, and where the stale ADR-0118 citation lands](https://github.com/winniel123/verge-asm/issues/1240)
-- **Map:** [#1064 Release pipeline: a tag becomes a signed, attested, multi-arch release](https://github.com/winniel123/verge-asm/issues/1064)
 - **Decides, from three sides:** [#1080](https://github.com/winniel123/verge-asm/issues/1080) (the build delegates nothing), [#1076](https://github.com/winniel123/verge-asm/issues/1076) (Build L2 and the L3 refusal), [#1079](https://github.com/winniel123/verge-asm/issues/1079) (the permission scope and the keyless anchor)
 - **Spec:** [`docs/spec/release-pipeline.md`](../spec/release-pipeline.md), which states the mechanism this ADR rules on
-- **Rests on:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) — a secret is held only where its act is performed. §3 is that rule reaching the release.
-- **Inherits the runtime of:** [ADR-0001](./0001-stack-and-runtime.md) — one image, two compose services, distroless, and a cross-compiling build
 
 ## Context
 

@@ -1,9 +1,16 @@
-# The value space is the commitment, not the signal set
+---
+number: 15
+title: "The value space is the commitment, not the signal set"
+slug: the-value-space-is-the-commitment
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 41
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#41 Does the observation-driven listener rule ship in v1, and at what granularity?](https://github.com/winniel123/verge-asm/issues/41)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# The value space is the commitment, not the signal set
 
 ## Context
 

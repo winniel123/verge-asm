@@ -1,6 +1,6 @@
 // CT verification is a stateless point-check that one certificate is logged
 // (ct-source-replacement.md §5). It never enumerates, always starts from an SCT
-// rather than a name (§5.1), and verifies no log signature (§4.4).
+// rather than a name (§5.1), and verifies no log signature (ADR-0214 §2).
 package scan
 
 import (
@@ -21,7 +21,7 @@ import (
 
 var oidSCTList = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 2}
 
-// The log's signature is read past, never checked: inclusion recomputes to the head's root (§4.4).
+// The log's signature is never checked: inclusion recomputes to the head's root (ADR-0214 §2).
 
 type SCT struct {
 	Version    uint8
@@ -92,7 +92,7 @@ func SCTLeafIndex(extensions []byte) (int64, bool) {
 const ctExtLeafIndex = 0
 
 func EmbeddedSCTs(leafDER []byte) ([][]byte, error) {
-	// Many certificates carry SCTs only out of band, so an absent extension is not an error (§3.3).
+	// A certificate may carry SCTs out of band, so an absent extension is no error (RFC 6962 §3.3).
 	cert, err := x509.ParseCertificate(leafDER)
 	if err != nil {
 		return nil, fmt.Errorf("scan: parse leaf for embedded scts: %w", err)
@@ -161,7 +161,7 @@ func IssuerKeyHash(issuerSPKI []byte) [32]byte {
 }
 
 func PrecertTBS(leafDER []byte) ([]byte, error) {
-	// An embedded SCT signs the precert, whose TBS is this TBS minus the SCT-list extension (§3.2).
+	// An embedded SCT signs the precert: this TBS minus the SCT-list extension (RFC 6962 §3.2).
 	cert, err := x509.ParseCertificate(leafDER)
 	if err != nil {
 		return nil, fmt.Errorf("scan: parse leaf for precert tbs: %w", err)
@@ -269,7 +269,7 @@ func LeafHashPrecert(issuerKeyHash [32]byte, precertTBS, sctExtensions []byte, t
 }
 
 func leafHash(merkleTreeLeaf []byte) []byte {
-	// The 0x00 prefix separates domains, so a leaf hash never collides with an interior one (§2.1).
+	// The 0x00 prefix separates domains, so a leaf hash never collides with a node (RFC 6962 §2.1).
 	h := sha256.New()
 	h.Write([]byte{0x00})
 	h.Write(merkleTreeLeaf)
@@ -327,7 +327,7 @@ func ParseProofByHash(body []byte) (index int64, auditPath [][]byte, err error) 
 }
 
 func VerifyInclusion(leafHash []byte, index, size int64, auditPath [][]byte, root []byte) bool {
-	// The root comes from the caller's signed head, so a log cannot prove a hash it lacks (§2.1.1).
+	// The root is the caller's signed head, so no log proves a hash it lacks (RFC 6962 §2.1.1).
 	computed, ok := rootFromInclusionProof(leafHash, index, size, auditPath)
 	if !ok {
 		return false

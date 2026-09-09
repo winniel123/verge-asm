@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/docs/guides"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/scan"
@@ -52,7 +54,7 @@ func TestCTReliabilityViews(t *testing.T) {
 		"certspotter": {Total: 200, Successes: 196, Empties: 0, P95LatencyMs: 3200},
 		"crtsh":       {Total: 8, Successes: 4, Empties: 2, P95LatencyMs: 59600},
 	}
-	s := &server{store: f}
+	s := &server{sourcesStore: f}
 
 	views, err := s.ctReliabilityViews(context.Background())
 	if err != nil {
@@ -99,7 +101,7 @@ func TestCTReliabilityViews(t *testing.T) {
 }
 
 func TestCTReliabilityViewsNoData(t *testing.T) {
-	s := &server{store: newFakeStore()}
+	s := &server{sourcesStore: newFakeStore()}
 
 	views, err := s.ctReliabilityViews(context.Background())
 	if err != nil {
@@ -774,5 +776,213 @@ func TestSourceRoutesRequireLogin(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("anon GET /sources: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+func TestCAIDAProposersShipOnThePublishedOrgNameSearch(t *testing.T) {
+	for _, slug := range []string{"afrinic", "apnic-caida"} {
+		c, ok := catalogBySlug(slug)
+		if !ok {
+			t.Fatalf("%s is not in the catalogue", slug)
+		}
+		if !c.DefaultOn {
+			t.Errorf("%s ships off, but api.data.caida.org/as2org/v1/search/ answers (ADR-0227, #1616)", slug)
+		}
+		if c.Barred || c.BarredReason != "" {
+			t.Errorf("%s stays barred on a reachability finding ADR-0227 retired: %q", slug, c.BarredReason)
+		}
+		if c.Consent != consentUnencumbered {
+			t.Errorf("%s consent = %q; the replacement host is keyless, so the tier does not move", slug, c.Consent)
+		}
+		for _, want := range []string{"api.data.caida.org/as2org/v1/search/", "opaqueId", "ADR-0227"} {
+			if !strings.Contains(c.ShipNote, want) {
+				t.Errorf("%s ShipNote omits %q: %s", slug, want, c.ShipNote)
+			}
+		}
+		for _, gone := range []string{"org2ids", "api.caida.org"} {
+			if strings.Contains(c.ShipNote, gone) {
+				t.Errorf("%s ShipNote still names the retired %q: %s", slug, gone, c.ShipNote)
+			}
+		}
+	}
+}
+
+func TestNoEntryClaimsTheEndpointBarADR0227Retired(t *testing.T) {
+	// The reason stays defined for the next entry that earns it (ADR-0227 §4).
+	for _, c := range sourceCatalog {
+		if c.BarredReason == barredNoEndpoint {
+			t.Errorf("%s carries %q, but no catalogue endpoint is currently unreachable", c.Slug, barredNoEndpoint)
+		}
+	}
+}
+
+func TestEveryBarredEntryStatesItsOwnReason(t *testing.T) {
+	for _, c := range sourceCatalog {
+		if !c.Barred && !c.NoRunner {
+			if c.BarredReason != "" {
+				t.Errorf("%s: a runnable entry carries the bar reason %q", c.Slug, c.BarredReason)
+			}
+			continue
+		}
+		switch c.BarredReason {
+		case barredOnTerms, barredNoRunner, barredNoEndpoint:
+		case "":
+			t.Errorf("%s: barred with no reason, so the badge would state another entry's", c.Slug)
+		default:
+			t.Errorf("%s: unknown bar reason %q", c.Slug, c.BarredReason)
+		}
+	}
+}
+
+func TestBarredBadgeStatesTheReasonTheEntryWasBarredFor(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+
+	for _, want := range []string{barredOnTerms, barredNoRunner} {
+		if !strings.Contains(page, "barred — "+want) {
+			t.Errorf("no entry rendered %q; body: %s", "barred — "+want, page)
+		}
+	}
+	if n := strings.Count(page, "barred — "+barredOnTerms); n != 1 {
+		t.Errorf("%q rendered %d times; only hackertarget fails the consent bar (ADR-0003)", barredOnTerms, n)
+	}
+	if strings.Contains(page, "barred — "+barredNoEndpoint) {
+		t.Errorf("an entry still renders %q after ADR-0227 retired the CAIDA bar", barredNoEndpoint)
+	}
+}
+
+func TestABarOutranksAStaleEnablementOverride(t *testing.T) {
+	f := newFakeStore()
+	f.sourceStates["hackertarget"] = db.SourceState{Slug: "hackertarget", Enabled: true}
+	srv := newServer(f, testKey, "", fixedClock())
+
+	views, err := srv.sourceViews(httptest.NewRequest(http.MethodGet, "/settings?tab=sources", nil))
+	if err != nil {
+		t.Fatalf("sourceViews: %v", err)
+	}
+	for _, v := range views {
+		if v.Slug == "hackertarget" && v.Enabled {
+			t.Error("hackertarget: a stale override still runs a barred source (ADR-0223 §2)")
+		}
+		if v.Slug == "arin" && !v.Enabled {
+			t.Error("arin: the unbarred proposer stopped running")
+		}
+	}
+}
+
+func TestSourcesGuideSaysTheCAIDAProposersShipOn(t *testing.T) {
+	b, err := guides.FS.ReadFile("sources.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows int
+	for _, line := range strings.Split(string(b), "\n") {
+		if !strings.HasPrefix(line, "|") || !strings.Contains(line, "(CAIDA ⋈ delegated-stats)") {
+			continue
+		}
+		rows++
+		if !strings.Contains(line, "| **on** |") {
+			t.Errorf("the guide bars this, but the catalogue ships it on (ADR-0227, #1616): %s", line)
+		}
+	}
+	if rows != 2 {
+		t.Fatalf("docs/guides/sources.md holds %d CAIDA catalogue rows, want 2", rows)
+	}
+}
+
+func TestSourcesGuideCountsTheWholeCatalogue(t *testing.T) {
+	b, err := guides.FS.ReadFile("sources.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	guide := string(b)
+
+	var proposers int
+	for _, c := range sourceCatalog {
+		if c.IsProposer {
+			proposers++
+		}
+	}
+	want := fmt.Sprintf("The catalogue holds %d entries: %d sources and %d proposers.",
+		len(sourceCatalog), len(sourceCatalog)-proposers, proposers)
+	if !strings.Contains(guide, want) {
+		t.Errorf("docs/guides/sources.md does not state the measured catalogue count, want %q", want)
+	}
+
+	const heading = "## The v1 catalogue"
+	start := strings.Index(guide, heading)
+	if start < 0 {
+		t.Fatalf("docs/guides/sources.md holds no %q section", heading)
+	}
+	section := guide[start:]
+	if end := strings.Index(section, "\n---\n"); end >= 0 {
+		section = section[:end]
+	}
+	var rows int
+	for _, line := range strings.Split(section, "\n") {
+		if strings.HasPrefix(line, "| **") {
+			rows++
+		}
+	}
+	if rows != len(sourceCatalog) {
+		t.Errorf("the catalogue tables hold %d rows, but the catalogue holds %d entries (#1605)", rows, len(sourceCatalog))
+	}
+}
+
+func TestConsentBadgeStatesTheTierTheRowCarries(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+
+	if !strings.Contains(page, `<span class="st-badge accent">`+consentCredentialed+"</span>") {
+		t.Errorf("Cert Spotter draws no operator-credentialed badge; body: %s", page)
+	}
+	// The bucket is an action an operator may take, so its heading may not name one tier (#1613).
+	if strings.Contains(page, `<span class="st-micro">`+consentUnencumbered+"</span>") {
+		t.Errorf("a bucket heading still claims one consent tier for every row it holds; body: %s", page)
+	}
+	for _, c := range sourceCatalog {
+		if c.Barred || c.NoRunner || c.Consent == "" {
+			continue
+		}
+		want := `<span class="st-badge ` + consentBadgeClass(c.Consent) + `">` + c.Consent + "</span>"
+		if !strings.Contains(page, want) {
+			t.Errorf("%s carries consent %q but no row draws %q", c.Slug, c.Consent, want)
+		}
+	}
+}
+
+func TestEveryToggleableEntryDrawsItsOwnTier(t *testing.T) {
+	f := newFakeStore()
+	srv := newServer(f, testKey, "", fixedClock())
+
+	views, err := srv.sourceViews(httptest.NewRequest(http.MethodGet, "/settings?tab=sources", nil))
+	if err != nil {
+		t.Fatalf("sourceViews: %v", err)
+	}
+	for _, v := range views {
+		if !v.Toggleable {
+			continue
+		}
+		c, ok := catalogBySlug(v.Slug)
+		if !ok {
+			t.Fatalf("%s is not in the catalogue", v.Slug)
+		}
+		if v.Consent != c.Consent {
+			t.Errorf("%s renders consent %q, but the catalogue says %q", v.Slug, v.Consent, c.Consent)
+		}
+		if v.Consent == "" {
+			t.Errorf("%s is toggleable with no consent tier, so its badge would be blank", v.Slug)
+		}
+		if got := consentBadgeClass(v.Consent); got == "neutral" {
+			t.Errorf("%s tier %q has no badge treatment of its own", v.Slug, v.Consent)
+		}
 	}
 }

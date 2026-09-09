@@ -1,9 +1,22 @@
+---
+number: 1
+title: "Stack and runtime for web, worker, and persistence"
+slug: stack-and-runtime
+date: 2026-08-01
+status: accepted
+source: grilling
+ticket: 6
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0001: Stack and runtime for web, worker, and persistence
 
-- **Status:** Accepted
-- **Date:** 2026-08-01
-- **Ticket:** [#6 Stack and runtime for web, worker, and persistence](https://github.com/winniel123/verge-asm/issues/6)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0053: A secret is held only where the act it authorises is performed, and the store two containers share holds none](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md), 2026-08-15. <!-- adr-marker amends 53 -->
+
+> **Amended** by [ADR-0123: a token-authed API is read-only always, opt-in and off by default, and a bearer path fully separate from sessions](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md), 2026-08-26. <!-- adr-marker amends 123 -->
+
+> **Amended** by [ADR-0131: The console is vanilla server-rendered PRG; the htmx stack is withdrawn](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md), 2026-08-31. <!-- adr-marker amends 131 -->
 
 ## Context
 

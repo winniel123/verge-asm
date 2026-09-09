@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,6 +12,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
 )
+
+type apiV1Store interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListCurrentEndpointSubjects(ctx context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error)
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
+	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+}
 
 func (s *server) mountAPIv1(mux *http.ServeMux) {
 	// A method-less pattern neither dominates nor is dominated by GET /, which net/http refuses.
@@ -72,7 +83,7 @@ type apiInventoryFacet struct {
 }
 
 func (s *server) apiInventory(w http.ResponseWriter, r *http.Request, _ db.Account) {
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.apiV1Store.ListAllOpenSpans(r.Context())
 	if err != nil {
 		apiReadError(w, "inventory: list all open spans", err)
 		return
@@ -109,21 +120,21 @@ func (s *server) apiSubjects(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	ctx := r.Context()
 	asOf := s.obsAsOf()
 
-	names, err := s.store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
+	names, err := s.apiV1Store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
 		Search: "", AsOf: asOf, FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		apiReadError(w, "subjects: list name subjects", err)
 		return
 	}
-	services, err := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+	services, err := s.apiV1Store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: asOf, FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		apiReadError(w, "subjects: list service subjects", err)
 		return
 	}
-	endpoints, err := s.store.ListCurrentEndpointSubjects(ctx, db.ListCurrentEndpointSubjectsParams{
+	endpoints, err := s.apiV1Store.ListCurrentEndpointSubjects(ctx, db.ListCurrentEndpointSubjectsParams{
 		Search: "", AsOf: asOf, FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
@@ -172,7 +183,7 @@ type apiDriftEvent struct {
 
 func (s *server) apiDrift(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	period := resolveDriftPeriod(driftDefaultPeriod)
-	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
+	rows, err := s.apiV1Store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
 		Since: s.driftSince(period), MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
@@ -257,18 +268,18 @@ type apiCoverageMeter struct {
 
 func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	ctx := r.Context()
-	seeds, err := s.store.ListSeeds(ctx)
+	seeds, err := s.apiV1Store.ListSeeds(ctx)
 	if err != nil {
 		apiReadError(w, "coverage: list seeds", err)
 		return
 	}
-	zones, zerr := s.store.ListZoneDeclarations(ctx)
+	zones, zerr := s.apiV1Store.ListZoneDeclarations(ctx)
 	if zerr != nil {
 		zones = nil
 		log.Printf("web: api: coverage: list zone declarations: %v", zerr)
 	}
 	var walked []walkedAddr
-	svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+	svcs, serr := s.apiV1Store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if serr == nil {

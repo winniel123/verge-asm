@@ -1,12 +1,22 @@
+---
+number: 213
+title: "a CT tail skips one entry it cannot decode, the poll continues, and the cursor advances past it"
+slug: a-ct-tail-skips-one-entry-it-cannot-decode-and-the-poll-continues-and-advances-past-it
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1323
+pr: 1322
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 106}
+  - {kind: rests-on, adr: 96}
+  - {kind: sibling, adr: 141}
+  - {kind: sibling, adr: 207}
+---
+
 # ADR-0213: a CT tail skips one entry it cannot decode, the poll continues, and the cursor advances past it
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1323 ADR gaps: internal/queue (queue, cttail, withdrawal, hot, ctverify, scopegate)](https://github.com/winniel123/verge-asm/issues/1323), gap 1
-- **PR that deleted the comment:** [#1322](https://github.com/winniel123/verge-asm/pull/1322)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), which rules that a non-200 admits nothing and never an absence. It rules the **whole response**. It says nothing about one entry inside a well-formed response
-- **Rests on:** [ADR-0096](./0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md), which rules that a citation never ages and that only an enumerable source's silence contradicts one. It is what makes a name the tail missed a delayed discovery rather than a wrong fact
 - **Sibling of, and not ruled by:** [ADR-0141](./0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md). That ADR lets a periodic loop log a failed pass and keep ticking, and its §2 fixes the ground as *the next tick retries the same work*. A skipped CT entry is never read again. ADR-0141 §2 states its own bound — *"a pass whose failure is not retried by the next tick is outside this rule and gets no cover from it"* — so this skip needs a different ground, and §3 below supplies it
 - **Bounded by, and it bounds:** [ADR-0191](./0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md). It rules the **parse** layer's answer to a value it does not know: `LeafSANs` returns `(nil, nil)` for an unrecognised `entry_type`, and `parseTileLeaf` fails the whole tile for the same value. This ADR rules the **queue** layer's answer to an entry that framed correctly and whose bytes it cannot read as a certificate. The two inputs are disjoint and §1 below sets the boundary. ADR-0191 §2's *"the tiled path refuses"* must not be read as *the tiled path never skips a leaf* — it does, on this ADR's input class, at `cttail.go:167`
 - **Sibling of, and not ruled by:** [ADR-0207](./0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md). That rule runs on the **enumeration** side: a read that assembles a probing target set drops a row it cannot fully name, because a fabricated target would be probed. This rule runs on the **ingest** side: an entry the decoder cannot read is dropped, because a guessed name would be admitted. Both refuse to reconstruct a subject from a partial record. Neither contains the other, because an enumeration-side drop costs a probe the next cadence retries and this one is permanent (§2)

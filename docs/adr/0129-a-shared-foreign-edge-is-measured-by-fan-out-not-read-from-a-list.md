@@ -1,9 +1,19 @@
+---
+number: 129
+title: "A shared foreign proxy edge is measured by fan-out, never read from a provider list"
+slug: a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list
+date: 2026-08-31
+status: accepted
+source: grilling
+ticket: 943
+map: 936
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 133}
+---
+
 # ADR-0129: A shared foreign proxy edge is measured by fan-out, never read from a provider list
 
-- **Status:** Accepted
-- **Date:** 2026-08-31
-- **Ticket:** [#943 List vs measurement: how verge-asm knows an address is a foreign shared edge](https://github.com/winniel123/verge-asm/issues/943)
-- **Map:** [#936 Map: suppress scanning of foreign shared proxy edges](https://github.com/winniel123/verge-asm/issues/936)
 - **Amends:** [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md)
 
 ## Context

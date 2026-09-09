@@ -1,9 +1,17 @@
+---
+number: 30
+title: "An offer is admitted on a finding it reaches or a falsity it prevents — and the expensive list gets the lower bar"
+slug: an-offer-is-admitted-on-a-finding-or-on-a-falsity-it-prevents
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 62
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # An offer is admitted on a finding it reaches or a falsity it prevents — and the expensive list gets the lower bar
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#62 What does the measurement binary actually offer, now that a default may not stand in for a declaration?](https://github.com/winniel123/verge-asm/issues/62)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **The enumeration itself:** [`docs/spec/measurement-offers.md`](../spec/measurement-offers.md)
 
 ## Context

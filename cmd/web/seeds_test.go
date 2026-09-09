@@ -1,11 +1,20 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"sort"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func declare(t *testing.T, c *http.Client, base, kind, scope string) *http.Response {
@@ -78,6 +87,77 @@ func TestAddressScopeOverCapRejected(t *testing.T) {
 		t.Fatalf("IPv6 /118 at the cap should be accepted: status=%d", resp.StatusCode)
 	}
 	resp.Body.Close()
+}
+
+func TestOverCapIPv6NamesTheRouteAndShutsTheKnob(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := refusalPage(t, ac, base, declare(t, ac, base, "address", "2001:db8::/48"))
+	if !strings.Contains(got, "Do not raise the cap for this") {
+		t.Fatalf("IPv6 over-cap refusal does not shut the knob; body=%s", got)
+	}
+	if strings.Contains(got, "Raise your cap") {
+		t.Errorf("IPv6 over-cap refusal offers the cap setting; body=%s", got)
+	}
+	if !strings.Contains(got, "custody") {
+		t.Errorf("IPv6 over-cap refusal does not name the custody extension as the route; body=%s", got)
+	}
+	if !strings.Contains(got, `value="2001:db8::/48"`) {
+		t.Errorf("rejected scope not retained in the form; body: %s", got)
+	}
+	if len(f.seeds) != 0 {
+		t.Fatalf("seeds = %d, want 0", len(f.seeds))
+	}
+
+	got = refusalPage(t, ac, base, declare(t, ac, base, "address", "10.0.0.0/21"))
+	if !strings.Contains(got, "Raise your cap") {
+		t.Fatalf("IPv4 over-cap refusal must still offer the cap setting; body=%s", got)
+	}
+}
+
+func TestULabelSeedNamesWhereToObtainTheALabel(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := refusalPage(t, ac, base, declare(t, ac, base, "name", "café.example"))
+	if !strings.Contains(got, "DNS provider") {
+		t.Fatalf("U-label refusal does not name where to obtain the A-label; body=%s", got)
+	}
+	if strings.Contains(got, "xn--caf") {
+		t.Errorf("U-label refusal rendered the computed A-label; body=%s", got)
+	}
+	if strings.Contains(got, "not a bare domain") {
+		t.Errorf("U-label fell to the generic refusal; body=%s", got)
+	}
+	if len(f.seeds) != 0 {
+		t.Fatalf("seeds = %d, want 0", len(f.seeds))
+	}
+}
+
+func TestWildcardSeedNamesTheSubtreeExclusion(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := refusalPage(t, ac, base, declare(t, ac, base, "name", "*.example.com"))
+	if !strings.Contains(got, "subtree exclusion") {
+		t.Fatalf("wildcard refusal does not name the subtree exclusion; body=%s", got)
+	}
+	if !strings.Contains(got, "never matches") {
+		t.Errorf("wildcard refusal does not state the apex difference; body=%s", got)
+	}
+	if strings.Contains(got, "not a bare domain") {
+		t.Errorf("wildcard fell to the generic refusal; body=%s", got)
+	}
+	if len(f.seeds) != 0 || len(f.exclusions) != 0 {
+		t.Fatalf("seeds=%d exclusions=%d, want none written", len(f.seeds), len(f.exclusions))
+	}
 }
 
 func TestNameScopeMustBeRegistrable(t *testing.T) {
@@ -212,4 +292,130 @@ func TestScopeServesWhenOneRegionReadFails(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (f *fakeStore) CreateNameSeed(_ context.Context, arg db.CreateNameSeedParams) (db.Seed, error) {
+	for _, s := range f.seeds {
+		if s.Kind == "name" && s.NameDomain.String == arg.NameDomain.String {
+			return db.Seed{}, &pgconn.PgError{Code: "23505", Message: "duplicate seed"}
+		}
+	}
+	sd := db.Seed{
+		ID: f.seedNextID, Kind: "name", NameDomain: arg.NameDomain, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.seeds = append(f.seeds, sd)
+	f.seedNextID++
+	return sd, nil
+}
+
+func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error) {
+	for i, s := range f.seeds {
+		if s.ID != arg.SeedID {
+			continue
+		}
+		f.seeds = append(f.seeds[:i], f.seeds[i+1:]...)
+		w := db.SeedWithdrawal{
+			ID:        int64(len(f.seedWithdrawals) + 1),
+			Kind:      s.Kind,
+			CreatedBy: arg.CreatedBy,
+		}
+		switch {
+		case s.Kind == "address" && s.AddressCidr != nil:
+			w.AddressCidr = s.AddressCidr
+		case s.Kind == "name" && s.NameDomain.Valid:
+			w.NameDomain = s.NameDomain
+		default:
+			return db.WithdrawSeedRow{SeedsRemoved: 1}, nil
+		}
+		f.seedWithdrawals = append(f.seedWithdrawals, w)
+		return db.WithdrawSeedRow{SeedsRemoved: 1, TombstonesWritten: 1}, nil
+	}
+	return db.WithdrawSeedRow{}, nil
+}
+
+func (f *fakeStore) ListSeedWithdrawalCandidates(_ context.Context, cidrs []string) ([]db.ListSeedWithdrawalCandidatesRow, error) {
+	prefixes := make([]netip.Prefix, 0, len(cidrs))
+	for _, c := range cidrs {
+		p, err := netip.ParsePrefix(c)
+		if err != nil {
+			return nil, err
+		}
+		prefixes = append(prefixes, p)
+	}
+	out := []db.ListSeedWithdrawalCandidatesRow{}
+	for _, row := range f.withdrawalCandidates {
+		key := row.SubjectKey
+		if i := strings.IndexByte(key, ':'); i >= 0 {
+			key = key[:i]
+		}
+		addr, err := netip.ParseAddr(key)
+		if err != nil {
+			continue
+		}
+		for _, p := range prefixes {
+			if p.Contains(addr) {
+				out = append(out, row)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListNameSeedWithdrawalCandidates(_ context.Context, domains []string) ([]db.ListNameSeedWithdrawalCandidatesRow, error) {
+	out := []db.ListNameSeedWithdrawalCandidatesRow{}
+	for _, row := range f.nameWithdrawalCandidates {
+		key := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(row.SubjectKey)), ".")
+		for _, d := range domains {
+			if key == d || strings.HasSuffix(key, "."+d) {
+				out = append(out, row)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListAdmittedNamesOutsideSeed(_ context.Context, seedID int64) ([]string, error) {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, a := range f.admitted {
+		if a.SeedID == seedID || seen[a.Name] {
+			continue
+		}
+		seen[a.Name] = true
+		out = append(out, a.Name)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, error) {
+	if f.exclusionsErr != nil {
+		return nil, f.exclusionsErr
+	}
+	rows := make([]db.ListExclusionsRow, 0, len(f.exclusions))
+	for i := len(f.exclusions) - 1; i >= 0; i-- {
+		e := f.exclusions[i]
+		rows = append(rows, db.ListExclusionsRow{
+			ID: e.ID, Kind: e.Kind, Name: e.Name, AddressCidr: e.AddressCidr,
+			CreatedBy: e.CreatedBy, CreatedAt: e.CreatedAt,
+			CreatedByUsername: f.accounts[e.CreatedBy].Username,
+		})
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) CreateZoneFile(_ context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error) {
+	f.zoneFiles = append(f.zoneFiles, fakeZoneFile{
+		seedID: arg.SeedID, suppliedAt: arg.SuppliedAt.Time, content: arg.Content, uploadedBy: arg.UploadedBy,
+	})
+	f.zoneNextID++
+	return db.CreateZoneFileRow{ID: f.zoneNextID, SuppliedAt: arg.SuppliedAt}, nil
+}
+
+func (f *fakeStore) SetZoneCadenceSeconds(_ context.Context, cadenceSeconds int64) error {
+	f.zoneCadence = cadenceSeconds
+	return nil
 }

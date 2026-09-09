@@ -1,9 +1,18 @@
+---
+number: 58
+title: "A superseded mechanism is withdrawn at the site that specifies it, not only at the site that supersedes it"
+slug: a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 97
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0058: A superseded mechanism is withdrawn at the site that specifies it, not only at the site that supersedes it
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#97 Is the hot set actually a superset? `10259` and `10257` were asserted into it, never measured](https://github.com/winniel123/verge-asm/issues/97)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-1644: For an ADR target, a withdrawal is a tool-written marker, not a hand-edited sentence](./1644-for-an-adr-target-a-withdrawal-is-a-tool-written-marker-not-a-hand-edited-sentence.md), 2026-09-08. <!-- adr-marker amends 1644 -->
 
 ## Context
 

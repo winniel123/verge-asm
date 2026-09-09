@@ -1,4 +1,4 @@
-package main
+package signalfacts
 
 import (
 	"testing"
@@ -37,8 +37,8 @@ func TestSANMatchesName(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := sanMatchesName(tc.sanDNS, tc.host); got != tc.want {
-				t.Errorf("sanMatchesName(%q, %q) = %v, want %v (%s)", tc.sanDNS, tc.host, got, tc.want, tc.comment)
+			if got := SANMatchesName(tc.sanDNS, tc.host); got != tc.want {
+				t.Errorf("SANMatchesName(%q, %q) = %v, want %v (%s)", tc.sanDNS, tc.host, got, tc.want, tc.comment)
 			}
 		})
 	}
@@ -54,20 +54,21 @@ func TestSelfSignedOf(t *testing.T) {
 	}{
 		{"both-limbs", "CN=root", "CN=root", true, true},
 		{"dn-eq-only", "CN=root", "CN=root", false, false},
+		{"case-only", "CN=Root", "CN=root", true, false},
 		{"verify-only", "CN=leaf", "CN=ca", true, false},
 		{"neither", "CN=leaf", "CN=ca", false, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := selfSignedOf(tc.subject, tc.issuer, tc.selfSigVerifies); got != tc.want {
-				t.Errorf("selfSignedOf(%q,%q,%v) = %v, want %v", tc.subject, tc.issuer, tc.selfSigVerifies, got, tc.want)
+			if got := SelfSignedOf(tc.subject, tc.issuer, tc.selfSigVerifies); got != tc.want {
+				t.Errorf("SelfSignedOf(%q,%q,%v) = %v, want %v", tc.subject, tc.issuer, tc.selfSigVerifies, got, tc.want)
 			}
 		})
 	}
 }
 
 func TestWeakKeyOrSignature(t *testing.T) {
-	strongLeaf := chainCert{
+	strongLeaf := ChainCert{
 		Subject: "CN=leaf", Issuer: "CN=ca",
 		SelfSignatureVerifies: certBoolPtr(false),
 		KeyAlg:                "RSA", KeyBits: 2048, SigDigest: "SHA-256",
@@ -75,33 +76,33 @@ func TestWeakKeyOrSignature(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		chain []chainCert
+		chain []ChainCert
 		want  bool
 	}{
-		{"rsa-below-floor-fires", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 1024, SigDigest: "SHA-256"}}, true},
-		{"rsa-at-floor-clean", []chainCert{strongLeaf}, false},
-		{"ecdsa-below-floor-fires", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "ECDSA", KeyBits: 192, SigDigest: "SHA-256"}}, true},
-		{"ecdsa-at-floor-clean", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "ECDSA", KeyBits: 224, SigDigest: "SHA-256"}}, false},
-		{"dsa-L-below-floor-fires", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "DSA", KeyBits: 1024, KeyParamN: 224, SigDigest: "SHA-256"}}, true},
-		{"dsa-N-below-floor-fires", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "DSA", KeyBits: 2048, KeyParamN: 160, SigDigest: "SHA-256"}}, true},
-		{"dsa-at-floors-clean", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "DSA", KeyBits: 2048, KeyParamN: 224, SigDigest: "SHA-256"}}, false},
-		{"md5-sig-fires", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "MD5"}}, true},
-		{"sha1-sig-fires", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "SHA-1"}}, true},
+		{"rsa-below-floor-fires", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 1024, SigDigest: "SHA-256"}}, true},
+		{"rsa-at-floor-clean", []ChainCert{strongLeaf}, false},
+		{"ecdsa-below-floor-fires", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "ECDSA", KeyBits: 192, SigDigest: "SHA-256"}}, true},
+		{"ecdsa-at-floor-clean", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "ECDSA", KeyBits: 224, SigDigest: "SHA-256"}}, false},
+		{"dsa-L-below-floor-fires", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "DSA", KeyBits: 1024, KeyParamN: 224, SigDigest: "SHA-256"}}, true},
+		{"dsa-N-below-floor-fires", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "DSA", KeyBits: 2048, KeyParamN: 160, SigDigest: "SHA-256"}}, true},
+		{"dsa-at-floors-clean", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "DSA", KeyBits: 2048, KeyParamN: 224, SigDigest: "SHA-256"}}, false},
+		{"md5-sig-fires", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "MD5"}}, true},
+		{"sha1-sig-fires", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "SHA-1"}}, true},
 		{
 			"self-signed-sha1-root-sig-skipped-but-key-clean",
-			[]chainCert{{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "SHA-1"}},
+			[]ChainCert{{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "SHA-1"}},
 			false,
 		},
 		{
 			"self-signed-sha1-root-weak-key-still-fires",
-			[]chainCert{{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 1024, SigDigest: "SHA-1"}},
+			[]ChainCert{{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 1024, SigDigest: "SHA-1"}},
 			true,
 		},
-		{"ed25519-not-weak", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "Ed25519", SigDigest: "Ed25519"}}, false},
-		{"unknown-alg-not-weak", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "UnknownAlg", SigDigest: ""}}, false},
+		{"ed25519-not-weak", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "Ed25519", SigDigest: "Ed25519"}}, false},
+		{"unknown-alg-not-weak", []ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "UnknownAlg", SigDigest: ""}}, false},
 		{
 			"weak-intermediate-in-strong-chain-fires",
-			[]chainCert{
+			[]ChainCert{
 				strongLeaf,
 				{Subject: "CN=int", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 1024, SigDigest: "SHA-256"},
 				{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 4096, SigDigest: "SHA-256"},
@@ -111,7 +112,7 @@ func TestWeakKeyOrSignature(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := weakKeyOrSignature(tc.chain); got != tc.want {
+			if got := WeakKeyOrSignature(tc.chain); got != tc.want {
 				t.Errorf("weakKeyOrSignature = %v, want %v", got, tc.want)
 			}
 		})
@@ -122,29 +123,26 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
 
 	t.Run("negative-outcome-nil", func(t *testing.T) {
-		if d := certDetailsFromValue(certificateValue{Outcome: signal.CertNoTLS}, now, "www.example.com"); d != nil {
+		if d := CertDetailsFromValue(CertificateValue{Outcome: signal.CertNoTLS}, now, now, "www.example.com"); d != nil {
 			t.Errorf("a negative outcome must yield nil CertDetails, got %+v", d)
 		}
-		if d := certDetailsFromValue(certificateValue{Outcome: signal.CertTLSRefused}, now, "www.example.com"); d != nil {
+		if d := CertDetailsFromValue(CertificateValue{Outcome: signal.CertTLSRefused}, now, now, "www.example.com"); d != nil {
 			t.Errorf("tls-refused must yield nil CertDetails, got %+v", d)
 		}
 	})
 
 	t.Run("pre-v3-presented-span-v3-attrs-nil", func(t *testing.T) {
-		v := certificateValue{
+		v := CertificateValue{
 			Outcome:  signal.CertPresented,
 			Chain:    []string{"sha256:abc"},
 			NotAfter: now.Add(90 * 24 * time.Hour).Format(time.RFC3339),
 		}
-		d := certDetailsFromValue(v, now, "www.example.com")
+		d := CertDetailsFromValue(v, now, now, "www.example.com")
 		if d == nil {
 			t.Fatal("a presented span must yield non-nil CertDetails")
 		}
-		if d.Expired == nil || d.Expiring == nil {
-			t.Errorf("not_after present → Expired/Expiring must be set, got %+v", d)
-		}
-		if d.NotYetValid != nil {
-			t.Errorf("no not_before → NotYetValid must be nil, got %v", *d.NotYetValid)
+		if d.Clock != nil {
+			t.Errorf("no not_before → the horizon is underdetermined, so Clock must be nil, got %+v", *d.Clock)
 		}
 		if d.SANMatchesName != nil {
 			t.Errorf("no chain_certs → SANMatchesName must be nil (never defaulted), got %v", *d.SANMatchesName)
@@ -158,13 +156,13 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	})
 
 	t.Run("v3-presented-attrs-set", func(t *testing.T) {
-		v := certificateValue{
+		v := CertificateValue{
 			Outcome:   signal.CertPresented,
 			Chain:     []string{"sha256:abc"},
 			NotAfter:  now.Add(90 * 24 * time.Hour).Format(time.RFC3339),
 			NotBefore: now.Add(24 * time.Hour).Format(time.RFC3339),
 			SANDNS:    []string{"www.example.com"},
-			ChainCerts: []chainCert{{
+			ChainCerts: []ChainCert{{
 				Subject:               "CN=www.example.com",
 				Issuer:                "CN=www.example.com",
 				SelfSignatureVerifies: certBoolPtr(true),
@@ -173,12 +171,12 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 				SigDigest:             "SHA-256",
 			}},
 		}
-		d := certDetailsFromValue(v, now, "www.example.com")
+		d := CertDetailsFromValue(v, now, now, "www.example.com")
 		if d == nil {
 			t.Fatal("a v3 presented value must yield non-nil CertDetails")
 		}
-		if d.NotYetValid == nil || !*d.NotYetValid {
-			t.Errorf("not_before in the future → NotYetValid must be true, got %v", d.NotYetValid)
+		if d.Clock == nil || !d.Clock.NotBefore.After(now) || d.Clock.EvaluatedAt != now || d.Clock.ObservedAt != now {
+			t.Errorf("not_before and not_after present → Clock carries both dates and both instants, got %+v", d.Clock)
 		}
 		if d.SANMatchesName == nil || !*d.SANMatchesName {
 			t.Errorf("SAN covers the name → SANMatchesName must be true, got %v", d.SANMatchesName)
@@ -192,11 +190,11 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	})
 
 	t.Run("v3-presented-empty-server-name-leaves-san-nil", func(t *testing.T) {
-		v := certificateValue{
+		v := CertificateValue{
 			Outcome: signal.CertPresented,
 			Chain:   []string{"sha256:abc"},
 			SANDNS:  []string{"www.example.com"},
-			ChainCerts: []chainCert{{
+			ChainCerts: []ChainCert{{
 				Subject:               "CN=leaf",
 				Issuer:                "CN=ca",
 				SelfSignatureVerifies: certBoolPtr(false),
@@ -205,7 +203,7 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 				SigDigest:             "SHA-256",
 			}},
 		}
-		d := certDetailsFromValue(v, now, "")
+		d := CertDetailsFromValue(v, now, now, "")
 		if d == nil {
 			t.Fatal("a v3 presented value must yield non-nil CertDetails")
 		}
@@ -219,4 +217,44 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 			t.Errorf("CA-issued leaf → SelfSigned must be set false, got %v", d.SelfSigned)
 		}
 	})
+}
+
+func TestCertDetailsFromValueClockCarriesTheObservationInstant(t *testing.T) {
+	day := 24 * time.Hour
+	now := time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)
+	nb := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	v := CertificateValue{
+		Outcome:   signal.CertPresented,
+		Chain:     []string{"sha256:abc"},
+		NotBefore: nb.Format(time.RFC3339),
+		NotAfter:  nb.Add(6 * day).Format(time.RFC3339),
+	}
+	d := CertDetailsFromValue(v, now.Add(-40*day), now, "www.example.com")
+	if d == nil || d.Clock == nil {
+		t.Fatalf("both dates present → Clock must be set, got %+v", d)
+	}
+	want := signal.CertClock{NotBefore: nb, NotAfter: nb.Add(6 * day), ObservedAt: now.Add(-40 * day), EvaluatedAt: now}
+	if *d.Clock != want {
+		t.Errorf("Clock = %+v, want %+v", *d.Clock, want)
+	}
+
+	// The six-day certificate one day in is outside its three-day horizon (ADR-0004 #67).
+	f := signal.EndpointFacts{Subject: "www.example.com@203.0.113.5:443/tcp", HasName: true, CertMeasured: true, CertOutcome: signal.CertPresented}
+	f.CertDetails = CertDetailsFromValue(v, now, now, "www.example.com")
+	census := signal.EvaluateEndpoint(signal.AllEndpointRules()[2], []signal.EndpointFacts{f})
+	if census.Rule != "certificate-expiring" || len(census.NotFired) != 1 {
+		t.Errorf("six-day cert one day in: census = %+v, want not-fired", census)
+	}
+	// Observed 40 days ago, the clock class declines to read it (ADR-0043).
+	f.CertDetails = d
+	for _, r := range signal.AllEndpointRules()[:3] {
+		if c := signal.EvaluateEndpoint(r, []signal.EndpointFacts{f}); len(c.NotEvaluable) != 1 {
+			t.Errorf("%s on a 40-day-old observation: census = %+v, want not-evaluable", r.Name(), c)
+		}
+	}
+
+	bad := CertificateValue{Outcome: signal.CertPresented, NotBefore: "yesterday", NotAfter: v.NotAfter}
+	if d := CertDetailsFromValue(bad, now, now, ""); d == nil || d.Clock != nil {
+		t.Errorf("an unreadable not_before → Clock must be nil, got %+v", d)
+	}
 }

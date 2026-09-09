@@ -20,9 +20,26 @@ import (
 
 const ctTailBatch = 256
 
-// A newly followed log is far behind, so it catches up over polls (ct-source-replacement §4.4).
+// A busy log outruns one poll, so the delta is read in windows (ct-source-replacement §4.4).
 
 const maxEntriesPerPoll = 16384
+
+func ctTailShrunk(hasCursor bool, cursor, treeSize int64) bool {
+	// An append-only tree cannot shrink, so a head below the cursor is a fork or rollback (#1656).
+	return hasCursor && treeSize < cursor
+}
+
+func ctTailWindow(hasCursor bool, cursor, treeSize int64) (start, end int64) {
+	// A log with no cursor is seeded at its head, so the tail never backfills history (#1654).
+	if !hasCursor {
+		return treeSize, treeSize
+	}
+	end = treeSize
+	if end > cursor+maxEntriesPerPoll {
+		end = cursor + maxEntriesPerPoll
+	}
+	return cursor, end
+}
 
 func (w *Worker) WithCTTail(fetcher CTFetcher, throttle CTThrottle) *Worker {
 	w.ctTailFetcher = fetcher
@@ -40,23 +57,33 @@ func (w *Worker) completeCTTail(ctx context.Context, job db.ClaimJobRow, spec wi
 		return fmt.Errorf("decode ct-tail scope: %w", err)
 	}
 	if lg.Tiled {
-		return w.completeCTTailTiled(ctx, job, lg)
+		return w.discardCanceled(job.ID, w.completeCTTailTiled(ctx, job, lg))
 	}
-	return w.completeCTTailRFC(ctx, job, lg)
+	return w.discardCanceled(job.ID, w.completeCTTailRFC(ctx, job, lg))
+}
+
+func (w *Worker) reserveCTTailSlot(ctx context.Context, jobID int64) error {
+	// A full window outlives the stale-job reaper, so each reservation renews first (#1709).
+	if err := w.renewJobLease(ctx, jobID); err != nil {
+		return err
+	}
+	return w.reserveCTSlot(ctx, w.ctTailThrottle)
 }
 
 func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg scan.CTLog) error {
 	base := ensureTrailingSlash(lg.URL)
 
 	// The tail reads only forward deltas and never backfills (ct-source-replacement §4).
-	start := int64(0)
+	cursor, hasCursor := int64(0), true
 	if cur, gerr := w.q.GetCTLogCursor(ctx, lg.LogID); gerr == nil {
-		start = cur.TreeSize
-	} else if !errors.Is(gerr, pgx.ErrNoRows) {
+		cursor = cur.TreeSize
+	} else if errors.Is(gerr, pgx.ErrNoRows) {
+		hasCursor = false
+	} else {
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
-	if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+	if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 		return rerr
 	}
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"ct/v1/get-sth")
@@ -69,10 +96,11 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
 	}
 
-	end := sth.TreeSize
-	if end > start+maxEntriesPerPoll {
-		end = start + maxEntriesPerPoll
+	if ctTailShrunk(hasCursor, cursor, sth.TreeSize) {
+		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log STH tree size %d below cursor %d", sth.TreeSize, cursor)))
 	}
+
+	start, end := ctTailWindow(hasCursor, cursor, sth.TreeSize)
 	var sans []string
 	reached := start
 	for reached < end {
@@ -80,7 +108,7 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		if reqEnd > end-1 {
 			reqEnd = end - 1
 		}
-		if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+		if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 			return rerr
 		}
 		st, eb, fe := w.ctTailFetcher.Fetch(ctx, getEntriesURL(base, reached, reqEnd))
@@ -117,14 +145,16 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg scan.CTLog) error {
 	base := ensureTrailingSlash(lg.URL)
 
-	start := int64(0)
+	cursor, hasCursor := int64(0), true
 	if cur, gerr := w.q.GetCTLogCursor(ctx, lg.LogID); gerr == nil {
-		start = cur.TreeSize
-	} else if !errors.Is(gerr, pgx.ErrNoRows) {
+		cursor = cur.TreeSize
+	} else if errors.Is(gerr, pgx.ErrNoRows) {
+		hasCursor = false
+	} else {
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
-	if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+	if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 		return rerr
 	}
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"checkpoint")
@@ -136,16 +166,12 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
 	}
 
-	// An append-only tree cannot shrink, so a tree below the cursor is a fork or a rollback.
 	// This shrink check is not the consistency proof, and no signature is verified here.
-	if sth.TreeSize < start {
-		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, start)))
+	if ctTailShrunk(hasCursor, cursor, sth.TreeSize) {
+		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, cursor)))
 	}
 
-	end := sth.TreeSize
-	if end > start+maxEntriesPerPoll {
-		end = start + maxEntriesPerPoll
-	}
+	start, end := ctTailWindow(hasCursor, cursor, sth.TreeSize)
 	var sans []string
 	reached := start
 	for reached < end {
@@ -156,7 +182,7 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		if tileBase+scan.CTTileWidth > sth.TreeSize {
 			width = sth.TreeSize - tileBase
 		}
-		if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+		if rerr := w.reserveCTTailSlot(ctx, job.ID); rerr != nil {
 			return rerr
 		}
 		st, tb, fe := w.ctTailFetcher.Fetch(ctx, dataTileURL(base, tileIdx, width))
@@ -165,6 +191,9 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		}
 		ders, pe := scan.ParseDataTile(tb)
 		if pe != nil {
+			if cause, permanent := ctTileCause(pe); permanent {
+				return w.deadLetterCT(ctx, job, nil, cause)
+			}
 			return w.retryOrDeadLetterCT(ctx, job, nil, pe)
 		}
 		offset := int(reached - tileBase)
@@ -273,6 +302,16 @@ func knownNameSet(ctx context.Context, q *db.Queries) (map[string]struct{}, erro
 func ctDriftLabel(n int) string {
 	// A count leaks nothing where a name would, so the drift line never carries one (#780).
 	return fmt.Sprintf("%s for known names", countLabel(n, "new certificate", "new certificates"))
+}
+
+// An unknown entry type withholds the leaf's length, so every refetch fails identically (ADR-0191).
+
+func ctTileCause(err error) (cause error, permanent bool) {
+	var unsupported *scan.UnsupportedEntryTypeError
+	if !errors.As(err, &unsupported) {
+		return err, false
+	}
+	return safeProgress(fmt.Sprintf("cannot read this log: unsupported tile entry type %d", unsupported.EntryType)), true
 }
 
 func ctHTTPCause(ferr error, status int, endpoint string) error {

@@ -22,6 +22,15 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type ssoAuthStore interface {
+	DeleteSSOIdentityForAccount(ctx context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error)
+	GetAccountBySSOIdentity(ctx context.Context, arg db.GetAccountBySSOIdentityParams) (db.Account, error)
+	GetSSOIdentityBySub(ctx context.Context, arg db.GetSSOIdentityBySubParams) (db.GetSSOIdentityBySubRow, error)
+	GetSSOProviderForAuth(ctx context.Context, slug string) (db.GetSSOProviderForAuthRow, error)
+	InsertSSOIdentity(ctx context.Context, arg db.InsertSSOIdentityParams) error
+	ListEnabledSSOProviders(ctx context.Context) ([]db.ListEnabledSSOProvidersRow, error)
+}
+
 const (
 	ssoTxCookie = "verge_sso_tx"
 	ssoTxTTL    = 10 * time.Minute
@@ -165,7 +174,7 @@ func (s *server) ssoStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slug := r.PathValue("slug")
-	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
+	prov, err := s.ssoAuthStore.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
 		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
 		return
@@ -214,7 +223,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
+	prov, err := s.ssoAuthStore.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
 		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
 		return
@@ -231,7 +240,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	acct, err := s.store.GetAccountBySSOIdentity(r.Context(), db.GetAccountBySSOIdentityParams{
+	acct, err := s.ssoAuthStore.GetAccountBySSOIdentity(r.Context(), db.GetAccountBySSOIdentityParams{
 		ProviderID: prov.ID, Sub: ident.Sub,
 	})
 	switch {
@@ -250,7 +259,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
-		s.render(w, r, "totp", map[string]any{"Title": "Two-factor"})
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username}))
 		return
 	}
 	s.completeLogin(w, r, acct.ID)
@@ -259,7 +268,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 func (s *server) ssoLinkStart(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	// Only a signed-in self-link binds; trust-on-first-use is a first-claimant race (ADR-0113).
 	slug := r.PathValue("slug")
-	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
+	prov, err := s.ssoAuthStore.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
 		http.Redirect(w, r, "/profile?linkerr=unavailable", http.StatusSeeOther)
 		return
@@ -305,7 +314,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
+	prov, err := s.ssoAuthStore.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
 		http.Redirect(w, r, "/profile?linkerr=unavailable", http.StatusSeeOther)
 		return
@@ -322,7 +331,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	existing, err := s.store.GetSSOIdentityBySub(r.Context(), db.GetSSOIdentityBySubParams{
+	existing, err := s.ssoAuthStore.GetSSOIdentityBySub(r.Context(), db.GetSSOIdentityBySubParams{
 		ProviderID: prov.ID, Sub: ident.Sub,
 	})
 	switch {
@@ -338,7 +347,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	if err := s.store.InsertSSOIdentity(r.Context(), db.InsertSSOIdentityParams{
+	if err := s.ssoAuthStore.InsertSSOIdentity(r.Context(), db.InsertSSOIdentityParams{
 		ProviderID: prov.ID, AccountID: acct.ID, Sub: ident.Sub, DisplayName: ident.Display,
 	}); err != nil {
 		// The sub was just confirmed free, so this is the one-link-per-provider bound (ADR-0113).
@@ -359,7 +368,7 @@ func (s *server) ssoUnlink(w http.ResponseWriter, r *http.Request, acct db.Accou
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
-	rows, err := s.store.DeleteSSOIdentityForAccount(r.Context(), db.DeleteSSOIdentityForAccountParams{
+	rows, err := s.ssoAuthStore.DeleteSSOIdentityForAccount(r.Context(), db.DeleteSSOIdentityForAccountParams{
 		ID: id, AccountID: acct.ID,
 	})
 	if err != nil {
@@ -375,7 +384,8 @@ func (s *server) ssoUnlink(w http.ResponseWriter, r *http.Request, acct db.Accou
 }
 
 func (s *server) loginData(ctx context.Context, errMsg string) map[string]any {
-	data := map[string]any{"Title": "Sign in", "SSOProviders": s.loginProviders(ctx, false)}
+	data := barePageData("Sign in")
+	data["SSOProviders"] = s.loginProviders(ctx, false)
 	if errMsg != "" {
 		data["Error"] = errMsg
 	}
@@ -383,7 +393,7 @@ func (s *server) loginData(ctx context.Context, errMsg string) map[string]any {
 }
 
 func (s *server) enabledSSOProviders(ctx context.Context) []db.ListEnabledSSOProvidersRow {
-	rows, err := s.store.ListEnabledSSOProviders(ctx)
+	rows, err := s.ssoAuthStore.ListEnabledSSOProviders(ctx)
 	if err != nil {
 		log.Printf("web: sso: list enabled providers: %v", err)
 		return nil

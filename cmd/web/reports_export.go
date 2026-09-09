@@ -13,6 +13,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+type reportsExportStore interface {
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+}
+
 type reportsExportRange struct {
 	Weeks int
 	Days  int
@@ -47,7 +51,7 @@ func (s *server) reportsExport(w http.ResponseWriter, r *http.Request, acct db.A
 
 	counts := make([]int, days)
 	window, active, hasActivity := 0, 0, false
-	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
+	if rows, err := s.reportsExportStore.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
 		log.Printf("web: reports export: list dispatch progress: %v", err)
 	} else {
 		// The page folds the same counts, so one bucketing serves both surfaces (ADR-0177, #1349).

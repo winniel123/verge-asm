@@ -50,6 +50,7 @@ export function refForTagVersion(version, tags) {
 export function versionManifest(tags) {
   const stable = newestStableTag(tags);
   const latestRef = refForTagVersion(LATEST_VERSION, tags);
+  // "current" names the newest stable release, or `latest` where none exists (ADR-0155 §3, #1445).
   const options = [
     stable
       ? { value: LATEST_VERSION, ref: latestRef }
@@ -70,4 +71,10 @@ export function versionManifest(tags) {
 export function refFromManifest(version, versions) {
   const match = (versions ?? []).find((v) => v.value === version);
   return match ? match.ref : version;
+}
+
+// `/` lands on `latest`, and `current` names a release, not a default (ADR-0155 §3, #1445).
+export function landingVersion(versions) {
+  const listed = versions ?? [];
+  return (listed.find((v) => v.value === LATEST_VERSION) || listed[0] || {}).value;
 }

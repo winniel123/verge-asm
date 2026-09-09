@@ -13,13 +13,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
-func TestHotLagGateAppliesToTheHotTierAlone(t *testing.T) {
+func TestHotLagGateAppliesToHotAndCTTailAlone(t *testing.T) {
 	if !hotLagGateApplies(scan.HotKind) {
 		t.Error("the hot Scan carries the per-target ceiling, so the gate must apply to it")
 	}
+	if !hotLagGateApplies(scan.CTTailKind) {
+		t.Error("the ct-tail Scan's throttle floor exceeds its cadence, so an ungated tick stacks without bound (#1658)")
+	}
 	ungated := []string{
 		scan.ColdKind, scan.EdgeFanoutKind, scan.DNSKind, scan.ZoneKind,
-		scan.TLSAcceptanceKind, scan.HTTPIdentityKind, scan.CTKind, scan.CTTailKind,
+		scan.TLSAcceptanceKind, scan.HTTPIdentityKind, scan.CTKind,
 	}
 	for _, kind := range ungated {
 		if hotLagGateApplies(kind) {
@@ -171,10 +174,67 @@ func TestDrainedHotTickRecordsNoSkip(t *testing.T) {
 	}
 }
 
+func TestUndrainedCTTailTickRecordsSkipped(t *testing.T) {
+	f := &fakeDispatchGateStore{fakeHotLagStore: fakeHotLagStore{lagging: true}}
+	skip, err := gateHotTick(context.Background(), f, scan.CTTailKind, 7, 42, DefaultStaleJobThreshold, nil)
+	if err != nil {
+		t.Fatalf("gateHotTick: %v", err)
+	}
+	if skip != SkipCadenceLag {
+		t.Fatalf("skip = %q, want %q: an undrained ct-tail dispatch must skip the tick instead of stacking another (#1658)", skip, SkipCadenceLag)
+	}
+	if len(f.statuses) != 1 {
+		t.Fatalf("the skip must stamp its claimed Dispatch exactly once, wrote %d", len(f.statuses))
+	}
+	if got := f.statuses[0]; got.ID != 42 || got.Status != DispatchStatusSkipped {
+		t.Errorf("recorded %+v, want dispatch 42 as %q", got, DispatchStatusSkipped)
+	}
+	if f.scanID != 7 || f.dispatch != 42 {
+		t.Errorf("gate asked about scan %d / dispatch %d, want scan 7 / dispatch 42", f.scanID, f.dispatch)
+	}
+}
+
+func TestDrainedCTTailTickRecordsNoSkip(t *testing.T) {
+	f := &fakeDispatchGateStore{fakeHotLagStore: fakeHotLagStore{lagging: false}}
+	skip, err := gateHotTick(context.Background(), f, scan.CTTailKind, 7, 42, DefaultStaleJobThreshold, nil)
+	if err != nil {
+		t.Fatalf("gateHotTick: %v", err)
+	}
+	if skip != SkipNone {
+		t.Fatalf("skip = %q, want none: a drained ct-tail dispatch fans out one job per log as before", skip)
+	}
+	if !f.called {
+		t.Error("an armed gate must ask the store")
+	}
+	if len(f.statuses) != 0 {
+		t.Errorf("a dispatched tick keeps the status TryFanOut wrote, wrote %+v", f.statuses)
+	}
+}
+
+func TestUnarmedCTTailGateFallsThrough(t *testing.T) {
+	for _, threshold := range []time.Duration{0, -5 * time.Minute} {
+		f := &fakeDispatchGateStore{fakeHotLagStore: fakeHotLagStore{lagging: true}}
+		var buf bytes.Buffer
+		skip, err := gateHotTick(context.Background(), f, scan.CTTailKind, 7, 42, threshold, log.New(&buf, "", 0))
+		if err != nil {
+			t.Fatalf("threshold %s: gateHotTick: %v", threshold, err)
+		}
+		if skip != SkipNone || len(f.statuses) != 0 {
+			t.Errorf("threshold %s: the reaper-disabled fall-through dispatches ct-tail as it does hot, got skip %q and %d status writes", threshold, skip, len(f.statuses))
+		}
+		if f.called {
+			t.Errorf("threshold %s: an unarmed gate must not read the queue", threshold)
+		}
+		if !strings.Contains(buf.String(), "not armed") {
+			t.Errorf("threshold %s: the fall-through must warn, logged %q", threshold, buf.String())
+		}
+	}
+}
+
 func TestUngatedKindsRecordNoSkip(t *testing.T) {
 	ungated := []string{
 		scan.ColdKind, scan.EdgeFanoutKind, scan.DNSKind, scan.ZoneKind,
-		scan.TLSAcceptanceKind, scan.HTTPIdentityKind, scan.CTKind, scan.CTTailKind,
+		scan.TLSAcceptanceKind, scan.HTTPIdentityKind, scan.CTKind,
 	}
 	for _, kind := range ungated {
 		f := &fakeDispatchGateStore{fakeHotLagStore: fakeHotLagStore{lagging: true}}
@@ -183,7 +243,7 @@ func TestUngatedKindsRecordNoSkip(t *testing.T) {
 			t.Fatalf("%s: gateHotTick: %v", kind, err)
 		}
 		if skip != SkipNone || len(f.statuses) != 0 {
-			t.Errorf("%s: the gate is hot-only, got skip %q and %d status writes", kind, skip, len(f.statuses))
+			t.Errorf("%s: the gate holds hot and ct-tail alone, got skip %q and %d status writes", kind, skip, len(f.statuses))
 		}
 		if f.called {
 			t.Errorf("%s: an ungated kind must not read the queue", kind)

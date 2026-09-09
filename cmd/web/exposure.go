@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"net/http"
@@ -10,6 +11,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/exposure"
 )
+
+type exposureStore interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/exposure.tmpl"))
 
@@ -36,7 +43,7 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	// With no internet leg no exposure is constructible, so the board is WITHHELD (v1-spec §6.2).
-	vantages, err := s.store.ListVantages(ctx)
+	vantages, err := s.exposureStore.ListVantages(ctx)
 	if err != nil {
 		s.serverError(w, "list vantages", err)
 		return
@@ -54,11 +61,9 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 	}
 	if !internetVantage {
-		s.render(w, r, "exposure", map[string]any{
-			"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"NavActive": "exposure",
-			"Withheld":  true,
-		})
+		s.render(w, r, "exposure", pageData(acct, "Exposure", "exposure", map[string]any{
+			"Withheld": true,
+		}))
 		return
 	}
 
@@ -69,15 +74,13 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 
-	data := map[string]any{
-		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "exposure",
+	data := pageData(acct, "Exposure", "exposure", map[string]any{
 		"Withheld":   false,
 		"Rows":       rows,
 		"Exposed":    stats.exposed,
 		"Firewalled": stats.firewalled,
 		"NotReached": stats.notReached,
-	}
+	})
 	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
 		log.Printf("web: exposure: previous batch instant: %v", err)
 	} else if ok {
@@ -99,7 +102,7 @@ type legInfo struct {
 
 func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, error) {
 	ctx := r.Context()
-	byClass, err := s.store.ListServiceReachabilitySpansByClass(ctx)
+	byClass, err := s.exposureStore.ListServiceReachabilitySpansByClass(ctx)
 	if err != nil {
 		return nil, exposureStats{}, err
 	}
@@ -115,7 +118,7 @@ func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, er
 	sort.Strings(order)
 
 	since := map[string]string{}
-	if spans, err := s.store.ListAllOpenSpans(ctx); err == nil {
+	if spans, err := s.exposureStore.ListAllOpenSpans(ctx); err == nil {
 		for _, sp := range spans {
 			if sp.SubjectKind != "service" || sp.Facet != "reachability" || !sp.OpenedAt.Valid {
 				continue

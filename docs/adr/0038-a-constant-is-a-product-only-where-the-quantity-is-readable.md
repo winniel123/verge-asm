@@ -1,9 +1,17 @@
+---
+number: 38
+title: "A constant is a product only where the quantity is readable — and the watch is defined by shape, not by cause"
+slug: a-constant-is-a-product-only-where-the-quantity-is-readable
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 71
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0038: A constant is a product only where the quantity is readable — and the watch is defined by shape, not by cause
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#71 Which project-authored constants are products of a moving world quantity rather than the quantity itself?](https://github.com/winniel123/verge-asm/issues/71)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Findings:** [`docs/research/project-authored-constants.md`](../research/project-authored-constants.md)
 
 ## Context

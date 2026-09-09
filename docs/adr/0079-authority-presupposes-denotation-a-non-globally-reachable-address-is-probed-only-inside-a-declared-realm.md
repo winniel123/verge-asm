@@ -1,9 +1,22 @@
+---
+number: 79
+title: "Authority presupposes denotation — a non-globally-reachable address is one subject per realm, so it is probed only inside a declared one"
+slug: authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 137
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 2}
+  - {kind: amends, adr: 19}
+---
+
 # ADR-0079: Authority presupposes denotation — a non-globally-reachable address is one subject per realm, so it is probed only inside a declared one
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#137 Does the probing gate open on a non-globally-reachable address, and what does an internet-class prober do with it?](https://github.com/winniel123/verge-asm/issues/137)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0225: The declared address scope that admitted a target rides the job, the egress guard reads that scope at the socket, and a discovered address stays refused](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md), 2026-09-07. <!-- adr-marker amends 225 -->
+
 - **Amends:** [ADR-0002](./0002-ownership-gates-probing.md), [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md), [ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md)
 
 ## Context
@@ -85,7 +98,7 @@ that is not `internet`-class.**
 | Case | Today | After |
 | --- | --- | --- |
 | Name in an extending scope resolves to `10.0.0.5`; no address scope | `operator`, probed from every vantage | Not connected to from any vantage. Still a subject; #128 still fires |
-| Operator declares `10.0.0.0/24`; instance is the only prober | Probed | **Probed, unchanged.** The internal estate keeps its measurements |
+| Operator declares `10.0.0.0/24`; instance is the only prober | Probed | **Probed, unchanged.** The internal estate keeps its measurements. The socket guard refused this until [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md) |
 | Operator declares `10.0.0.0/24`; an external prober also runs | Both probe it; the external one measures a stranger | The internal one probes; the external one is never asked |
 | Name resolves to `127.0.0.1` or `169.254.169.254` under an extension | Probed — the prober measures **itself**, and on `169.254.169.254` retrieves cloud instance metadata into `http-identity` | Not connected to |
 | Name resolves to a public AWS address under an extension | Probed | **Probed, unchanged.** The extension's motivating case ([#26](https://github.com/winniel123/verge-asm/issues/26)) is entirely globally-reachable space and is untouched |
@@ -298,9 +311,17 @@ size of a zone, and it is visible on a surface the operator authored.
   No golden-corpus row moves, no `Derivation` version moves, no `Break` is written — the same
   bidirectional check ADR-0019 cited under
   [ADR-0008](./0008-derivation-versions-move-on-content.md). This ADR retires a permission, not a
-  behaviour.
+  behaviour. **Withdrawn by
+  [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md).**
+  Nothing implemented this ADR's **permission** either. `custody.EgressGuard` refused every
+  non-globally-reachable address at the socket, so Route 2 below reached no connect in a shipped
+  binary. ADR-0225 repairs that, and the measurement binary does change.
 - **The shipped configuration sends packets to strictly fewer destinations.** Every clause here
-  removes a destination and none adds one.
+  removes a destination and none adds one. **Withdrawn by
+  [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md)
+  for the shipped binary.** The sentence stays true of this ADR measured against the tree that
+  preceded it. ADR-0225 adds destinations measured against the shipped binary, and they are exactly
+  the ones Route 2 always permitted. ADR-0225 enumerates them.
 - **The v1 rule set stays at seventeen.** No rule is added, removed or re-scoped, and #128's is
   untouched in all four of its parts.
 - **`Coverage` gains no member and the notification layer gains nothing.** An address entering the

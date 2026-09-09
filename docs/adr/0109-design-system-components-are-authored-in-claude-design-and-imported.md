@@ -1,9 +1,18 @@
+---
+number: 109
+title: "design-system components are authored in Claude Design and imported, never built in this repo"
+slug: design-system-components-are-authored-in-claude-design-and-imported
+date: 2026-08-22
+status: accepted
+source: grilling
+ticket: 265
+map: 263
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0109: design-system components are authored in Claude Design and imported, never built in this repo
 
-- **Status:** Superseded (2026-08-28) — Design-system handoff workflow retired; the repo's served templates and design-system/ assets are the source of truth. Templates and components may be edited in-repo.
-- **Date:** 2026-08-22
-- **Ticket:** [#265 ADR-0109: design-system components are authored in Claude Design and imported](https://github.com/winniel123/verge-asm/issues/265)
-- **Map:** [#263 Migrate to the redesigned design system (AFK)](https://github.com/winniel123/verge-asm/issues/263)
+> **Superseded** by [ADR-0145: `design-system/` is the shared home and source of truth for UI assets, and a session edits it in the repo](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md), 2026-09-05. <!-- adr-marker supersedes 145 -->
 
 ## Context
 

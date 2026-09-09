@@ -1,9 +1,16 @@
-# A facet's cadence is the cadence of the exchange that measures it
+---
+number: 28
+title: "A facet's cadence is the cadence of the exchange that measures it"
+slug: a-facets-cadence-is-the-cadence-of-its-exchange
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 61
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#61 On which scan tier is the TLS handshake that feeds `certificate` performed?](https://github.com/winniel123/verge-asm/issues/61)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# A facet's cadence is the cadence of the exchange that measures it
 
 ## Context
 

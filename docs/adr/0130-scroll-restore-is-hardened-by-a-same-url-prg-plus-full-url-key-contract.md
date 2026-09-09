@@ -1,9 +1,16 @@
-# ADR-0130: The console scroll-restore is hardened by a same-URL PRG plus full-URL-key contract
+---
+number: 130
+title: "The console scroll-restore is hardened by a same-URL PRG plus full-URL-key contract"
+slug: scroll-restore-is-hardened-by-a-same-url-prg-plus-full-url-key-contract
+date: 2026-08-31
+status: accepted
+source: grilling
+ticket: 945
+map: 937
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-31
-- **Ticket:** [#945 Spec the scroll-restore hardening (classes A/B/C/E)](https://github.com/winniel123/verge-asm/issues/945)
-- **Map:** [#937 Wayfinder: actions must not throw the operator to the top of the page](https://github.com/winniel123/verge-asm/issues/937)
+# ADR-0130: The console scroll-restore is hardened by a same-URL PRG plus full-URL-key contract
 
 ## Context
 

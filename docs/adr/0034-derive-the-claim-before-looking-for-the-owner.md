@@ -1,9 +1,17 @@
+---
+number: 34
+title: "Derive the claim before looking for the owner — and ship the fraction, not its product"
+slug: derive-the-claim-before-looking-for-the-owner
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 67
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0034: Derive the claim before looking for the owner — and ship the fraction, not its product
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#67 Is `certificate-expiring`'s 30-day horizon attested by an owner, or does the number move?](https://github.com/winniel123/verge-asm/issues/67)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Findings:** [`docs/research/acme-renewal-timing.md`](../research/acme-renewal-timing.md)
 
 ## Context

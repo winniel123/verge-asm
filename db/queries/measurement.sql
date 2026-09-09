@@ -110,6 +110,10 @@ INSERT INTO observation (
     source, value, observed_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
+-- name: RenewJobLease :execrows
+-- A ct-tail job outlives the stale threshold, so the owner renews off any transaction (#1709).
+UPDATE queue_job SET claimed_at = now() WHERE id = $1 AND state = 'running';
+
 -- name: MarkJobDone :execrows
 UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1 AND state = 'running';
 
@@ -157,18 +161,41 @@ live AS (
 latest AS (
     SELECT DISTINCT ON (o.subject_key, o.vantage_id)
         o.subject_key AS subject_key,
+        o.vantage_id AS vantage_id,
+        o.batch_id AS batch_id,
         o.value->>'outcome' AS outcome,
         o.value AS value
     FROM live o
     WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
     ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC
+),
+cited AS (
+    SELECT l.subject_key, l.vantage_id, l.batch_id,
+           jsonb_array_elements_text(l.value->'addresses') AS address
+    FROM latest l
+    WHERE l.outcome = 'Resolved'
+),
+-- The owner rides the batch's dns-record rows, so no leaf version moves (ADR-0151 §2, #1678).
+terminal AS (
+    SELECT o.subject_key, o.vantage_id, o.batch_id,
+           rr->>'data' AS address,
+           rr->>'name' AS owner
+    FROM live o
+    CROSS JOIN LATERAL jsonb_array_elements(o.value->'rrs') AS rr
+    WHERE o.facet = 'dns-record' AND o.subject_kind = 'name'
+      AND rr->>'type' IN ('A', 'AAAA')
 )
 SELECT DISTINCT
-    subject_key,
-    jsonb_array_elements_text(value->'addresses') AS address
-FROM latest
-WHERE outcome = 'Resolved'
-ORDER BY subject_key, address;
+    c.subject_key,
+    c.address,
+    COALESCE(t.owner, c.subject_key)::text AS owner
+FROM cited c
+LEFT JOIN terminal t
+    ON  t.subject_key = c.subject_key
+    AND t.vantage_id IS NOT DISTINCT FROM c.vantage_id
+    AND t.batch_id   = c.batch_id
+    AND t.address    = c.address
+ORDER BY c.subject_key, c.address, owner;
 
 -- name: ScanHasCompletedBatch :one
 SELECT EXISTS (

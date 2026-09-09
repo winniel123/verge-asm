@@ -1,9 +1,12 @@
 name: doclint
 
-# Three documentation jobs with different postures. `doclint` is the advisory style lint
+# Four documentation jobs with different postures. `doclint` is the advisory style lint
 # (SPEC docs/spec/doc-lint-tool.md §5.2, ticket #822). `citations` is the cited-path
-# gate (#1436), and `adr-sections` is the `ADR-nnnn §n` gate (#1437, #1465); both fail on
-# a violation. None of the three is a required check.
+# gate (#1436), and `adr-sections` is the `ADR-nnnn §n` gate (#1437, #1465) plus the ADR
+# index and marker gates (#1738); both jobs fail on a violation, and both are required
+# checks since 2026-09-07. `adr-review` is the ADR review gate of SPEC
+# docs/spec/adr-governance.md §8 (#1739); it is a required check since 2026-09-08, when
+# a human added it to the ruleset (#1740). `doclint` is not.
 #
 # THE `doclint` JOB. A dedicated, non-blocking job that runs the doclint tool on a pull
 # request. It is SEPARATE from the docs-site build job (docs-site.yml), whose gates are
@@ -20,14 +23,20 @@ name: doclint
 # so each flag lands inline on the pull-request diff, plus a job-log summary of counts
 # by rule and by severity (SPEC §5.2). There is no SARIF in v1.
 #
-# The other two jobs, `citations` and `adr-sections`, are different gates with different
-# scopes. See their own headers below. Both read the whole tree, so this workflow carries
-# no paths filter: a PR that deletes a Go file and no document at all still breaks a
-# citation (#1436). The doclint job below tolerates that; it lints the diff, which on
-# such a PR is empty.
+# The other three jobs, `citations`, `adr-sections`, and `adr-review`, are different
+# gates with different scopes. See their own headers below. The first two read the whole
+# tree, so this workflow carries no paths filter: a PR that deletes a Go file and no
+# document at all still breaks a citation (#1436). The doclint job below tolerates that;
+# it lints the diff, which on such a PR is empty. `adr-review` must run on every PR for
+# its own reason: a skipped required check counts as passed.
 
+# `edited` is for `adr-review`: a PR body fix to the `## Decision` block must re-run the
+# gate without a push (SPEC docs/spec/adr-governance.md §9, #1739). The default types are
+# the first three; naming `edited` means naming all four. The other three jobs re-run on
+# an edit too, and the concurrency group below cancels the superseded run.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 # Least-privilege default (matches ci.yml / docs-site.yml, #329). The annotations and
 # the step summary are stdout and a runner file, so the job needs no extra grant.
@@ -55,7 +64,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
           cache: npm
@@ -82,9 +91,9 @@ jobs:
   # Cited-path gate (#1436). Every in-repo path a document cites must resolve, in the
   # working tree or on a ref the document names beside it. A dead path fails this job.
   #
-  # NOT ADVISORY, and NOT required. The step exits non-zero on a dead path, so the job
-  # goes red. `main`'s ruleset requires neither job in this workflow, so a red run
-  # blocks no merge; promotion to a required check is a settings change (#1263, #1438).
+  # NOT ADVISORY, and REQUIRED. The step exits non-zero on a dead path, so the job
+  # goes red, and `main`'s ruleset requires `citations`, so a red run blocks the
+  # merge (#1263, #1438, promoted 2026-09-07).
   #
   # WHOLE TREE, not the diff. A citation dies when the file it names is deleted, and
   # that PR need touch no document at all.
@@ -101,7 +110,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
           cache: npm
@@ -122,23 +131,27 @@ jobs:
   # `ADR-nnnn §n` gate (#1437, repaired and wired by #1465). A `§n` citation resolves
   # only against a numbered heading of the ADR it names. 91 of the 218 ADRs number no
   # heading, so a `§n` against one of those is wrong by construction (SPEC
-  # docs/spec/comment-policy.md §4.7).
+  # docs/spec/comment-policy.md §4.7). The citation grammar is SPEC
+  # docs/spec/adr-governance.md §9: `ADR-\d{4,}` must name a file, a `§` naming a
+  # heading by word fails, and `ADR-nnnn #nnn` fails above ADR-0227 (#1735).
   #
-  # NOT ADVISORY, and NOT required. The step exits non-zero on a violation, so the job
-  # goes red. `main`'s ruleset requires no job in this workflow, so a red run blocks no
-  # merge; promotion to a required check is a settings change (#1263, #1438).
+  # NOT ADVISORY, and REQUIRED. The step exits non-zero on a violation, so the job
+  # goes red, and `main`'s ruleset requires `adr-sections`, so a red run blocks the
+  # merge (#1263, #1438, promoted 2026-09-07).
   #
   # WHOLE TREE, not the diff. The index is built from docs/adr/, so deleting a numbered
-  # heading breaks a citation in a file the PR never touched.
+  # heading breaks a citation in a file the PR never touched. The index and marker gates
+  # below read the whole tree for the same reason: a relation on one ADR writes a marker
+  # into another, and the committed index.json is a function of every file.
   #
-  # fetch-depth is the default: the gate reads the working tree and `git ls-files`, and
-  # needs no history.
+  # fetch-depth is the default: the gates read the working tree and `git ls-files`, and
+  # need no history.
   adr-sections:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
           cache: npm
@@ -158,3 +171,70 @@ jobs:
       - name: ADR section gate
         working-directory: docs-site
         run: npm run check:adr-sections -- --github
+
+      # The two regenerate-and-diff gates of SPEC docs/spec/adr-governance.md §9, added by
+      # the legacy backfill (#1738). Each validates every ADR's front matter, then compares
+      # the committed docs/adr/index.json, or every tool-written marker, against a fresh
+      # regeneration. A hand-edited marker or a stale index goes red here. Each step runs
+      # its own test suite first, because no other job runs them.
+      - name: ADR index gate
+        working-directory: docs-site
+        run: |
+          npm run test:adr-index
+          npm run check:adr-index
+
+      - name: ADR marker gate
+        working-directory: docs-site
+        run: |
+          npm run test:adr-markers
+          npm run check:adr-markers
+
+  # ADR review gate (SPEC docs/spec/adr-governance.md §8 and §9, #1739). A PR that adds a
+  # file under docs/adr/ is held until a fresh-context reviewer, running the `adr-review`
+  # skill, has posted one comment that opens with
+  # `<!-- adr-review sha=<head sha> verdict=pass -->`. The script also fails on two
+  # markers for one SHA, on two added ADR files, and on a PR body whose `## Decision`
+  # differs from the file's Decision block.
+  #
+  # ALWAYS RUNS. A required check that an `if:` skips counts as passed, so this job has
+  # no `if:` and no paths filter. On a PR that adds no ADR file the script passes at once.
+  #
+  # REQUIRED since 2026-09-08. The `main protection` ruleset gained this job in the human
+  # step of #1740. A red run here blocks the merge.
+  #
+  # A PR comment does not re-trigger a pull_request workflow, so the reviewer's last step
+  # is `gh run rerun --failed` on this run. `edited` in the trigger above covers a PR body
+  # fix without a push.
+  #
+  # Reads the PR's file list and its comments through the REST API with the job token.
+  # `pull-requests: read` is the grant that reads a PR's comments; `issues: read` is named
+  # beside it because the comments endpoint is the issues one. The ADR file itself is read
+  # from the checkout, which is the PR's merge ref.
+  adr-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      - name: ADR review gate tests
+        working-directory: docs-site
+        run: npm run test:adr-review
+
+      - name: ADR review gate
+        working-directory: docs-site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run check:adr-review

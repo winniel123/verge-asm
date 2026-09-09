@@ -1,12 +1,21 @@
+---
+number: 197
+title: "A dev-mode worker produces no message, and the guard runs before the producer reads or writes anything"
+slug: a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1315
+pr: 1314
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 64}
+---
+
 # ADR-0197: A dev-mode worker produces no message, and the guard runs before the producer reads or writes anything
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1315 ADR gaps: internal/queue (2/7)](https://github.com/winniel123/verge-asm/issues/1315), gap 2
-- **PR that deleted the comment:** [#1314](https://github.com/winniel123/verge-asm/pull/1314)
-- **Dedup:** this ADR is also the surviving record for [#1316](https://github.com/winniel123/verge-asm/issues/1316) gap 4's **message** half. [`comment-policy.md`](../spec/comment-policy.md) §8.10 dedups by rule sentence and #1315 §2 won the sentence
+- **Dedup:** this ADR is also the surviving record for [#1316](https://github.com/winniel123/verge-asm/issues/1316) gap 4's **message** half. The `adr-gap` triage, retired by [`comment-policy.md`](../spec/comment-policy.md) §8.4, deduped by rule sentence, and #1315 §2 won the sentence
 - **Sibling of, and not ruled by:** [`raw-job-output.md`](../spec/raw-job-output.md) §2.5, which states the **transcript** half — capture is a `WithTranscripts` seam, off when unwired and under `devMode`. It rules nothing about a message. The two halves read one field and are two rules
-- **Rests on:** [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md), which rules that a message names what moved and reads it from the fold. It fixes what a message is and when one is owed. It does not rule any build in which none is owed
 - **Bounded by:** [`comment-policy.md`](../spec/comment-policy.md) §4.7, which rules `AL-25` and `G2` unrepairable tokens. Both are cited by the surviving lines this ADR now supplies a citation for
 
 ## Context

@@ -32,6 +32,10 @@ const (
 	Gap       = "Gap"
 )
 
+// Disagreement across classes, or a class with no value, is no measured outcome (ADR-0080).
+
+const ResolutionNotEvaluable = "NotEvaluable"
+
 // A rule reads exactly the evidence it declares (ADR-0024), so no leaf is composed beyond these.
 
 type NameFacts struct {
@@ -47,8 +51,9 @@ type NameFacts struct {
 	CNAMETarget      string
 	TargetResolution string
 
-	ZoneDeclared   bool
-	InDeclaredZone bool
+	ZoneDeclared      bool
+	InDeclaredZone    bool
+	BeneathDelegation bool
 
 	HasInternetVantage bool
 	InternetResolution string

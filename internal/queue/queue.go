@@ -145,6 +145,14 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 	if err != nil {
 		return 0, SkipNone, fmt.Errorf("queue: try fan out: %w", err)
 	}
+	gated, gerr := gateHotTick(ctx, qtx, s.Kind, s.ID, dispatchID, d.staleJobThreshold, d.log)
+	if gerr != nil {
+		return 0, SkipNone, gerr
+	}
+	if gated != SkipNone {
+		d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, recorded skipped", s.Kind, scheduledTime.Format(time.RFC3339))
+		return 0, gated, tx.Commit(ctx)
+	}
 
 	enqueued := 0
 	switch s.Kind {

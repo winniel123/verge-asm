@@ -1,9 +1,16 @@
-# ADR-0032: An evidence standard attaches to a table, not to a rule — and there are three of them
+---
+number: 32
+title: "An evidence standard attaches to a table, not to a rule — and there are three of them"
+slug: an-evidence-standard-attaches-to-a-table-not-to-a-rule
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 33
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#33 Does the claim/attestation/determinacy standard generalise to the other nine signals?](https://github.com/winniel123/verge-asm/issues/33)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0032: An evidence standard attaches to a table, not to a rule — and there are three of them
 
 ## Context
 

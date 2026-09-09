@@ -1,9 +1,21 @@
+---
+number: 24
+title: "A rule is four parts, and its domain is the extension of its name"
+slug: a-rules-domain-is-the-extension-of-its-name
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 53
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 186}
+  - {kind: bounds, adr: 187}
+---
+
 # A rule is four parts, and its domain is the extension of its name
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#53 What is a Signal's predicate domain, and is it a seventh thing a rule must declare?](https://github.com/winniel123/verge-asm/issues/53)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0185: a severity is the operator-facing grade, so it composes into no version vector and is not a fifth part of a rule](./0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md), 2026-09-05. <!-- adr-marker amends 185 -->
 
 ## Context
 

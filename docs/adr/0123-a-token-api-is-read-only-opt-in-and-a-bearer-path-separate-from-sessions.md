@@ -1,9 +1,19 @@
+---
+number: 123
+title: "a token-authed API is read-only always, opt-in and off by default, and a bearer path fully separate from sessions"
+slug: a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions
+date: 2026-08-26
+status: accepted
+source: grilling
+ticket: 660
+map: 658
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 1}
+---
+
 # ADR-0123: a token-authed API is read-only always, opt-in and off by default, and a bearer path fully separate from sessions
 
-- **Status:** Accepted
-- **Date:** 2026-08-26
-- **Ticket:** [#660 A1 — ADR-0123: reverse #6, admit read-only opt-in token API + withdraw the refusal](https://github.com/winniel123/verge-asm/issues/660)
-- **Map:** [#658 Consume v3.18.0 — API token surfaces (#390) + Backup & updates (#391)](https://github.com/winniel123/verge-asm/issues/658)
 - **Reverses, narrowly:** [ADR-0001](./0001-stack-and-runtime.md)'s *"No JSON API in v1"* row and its *"Read-only or full JSON API"* rejected-alternative — but only for a **read-only** surface, and only under the containment this ADR builds. ADR-0001's decision to ship no *mutating* API stands.
 - **Withdraws the refusal at its specifying sites** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) discipline): spec §4.1/§4.3/§7, ADR-0001, [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md), and the `CONTEXT.md` Channel entry.
 - **Leaves untouched:** [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)'s outbound `Channel` (still one-way, bearer-free, opens no read of the instance), and the `internal/delivery` *"no bearer, ever"* rule — that bearer is **us→receiver** and is unrelated to this one. [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)'s secret-placement rule is preserved in full.

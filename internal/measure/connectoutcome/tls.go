@@ -19,11 +19,12 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/custody"
+	"github.com/winniel123/verge-asm/internal/measure/tlsoffer"
 )
 
 // A step inside the reachability exchange, sharing its Kind, but with its own timelines (ADR-0028).
 
-const CertVersion = "tls-handshake/v4"
+const CertVersion = "tls-handshake/v5"
 
 // A closed union, never optional fields: a measured negative is a value, not "not measured".
 
@@ -40,11 +41,14 @@ const (
 // None is operator-configurable; changing one moves the params digest and forces a version bump.
 
 type HandshakeParams struct {
-	SNIEqualsEndpointName bool   `json:"sni_equals_endpoint_name"`
-	ALPN                  string `json:"alpn"`
-	RecordNotVerify       bool   `json:"record_not_verify"`
-	FingerprintHash       string `json:"fingerprint_hash"`
-	ChainOrder            string `json:"chain_order"`
+	SNIEqualsEndpointName bool     `json:"sni_equals_endpoint_name"`
+	ALPN                  string   `json:"alpn"`
+	RecordNotVerify       bool     `json:"record_not_verify"`
+	FingerprintHash       string   `json:"fingerprint_hash"`
+	ChainOrder            string   `json:"chain_order"`
+	MinVersion            string   `json:"min_version"`
+	MaxVersion            string   `json:"max_version"`
+	CipherSuites          []string `json:"cipher_suites"`
 }
 
 func DefaultHandshakeParams() HandshakeParams {
@@ -54,6 +58,11 @@ func DefaultHandshakeParams() HandshakeParams {
 		RecordNotVerify:       true,
 		FingerprintHash:       "sha-256",
 		ChainOrder:            "leaf-first",
+		// Wide on purpose: Go's default MinVersion 1.2 hides a TLS-1.0-only listener (ADR-0025).
+		MinVersion: tlsoffer.TLS10,
+		MaxVersion: tlsoffer.TLS13,
+		// One list with tls-acceptance, so a widening Breaks both facets at once (ADR-0030 §3).
+		CipherSuites: tlsoffer.Ciphers(),
 	}
 }
 
@@ -83,6 +92,7 @@ type HandshakeResult struct {
 	OCSPStaple  []byte
 	IssuerSPKI  []byte
 	Unreachable bool // Plumbing no facet renders; only edge-fanout reads it (ADR-0151 §3).
+	TimedOut    bool // Plumbing no facet renders; only the pacer reads it (ADR-0151 §2, #1710).
 }
 
 // A self-signature check needs parsed key bytes, so it is the one datum computed in-leaf (#712).
@@ -120,12 +130,21 @@ func chainFingerprints(certs []*x509.Certificate) []string {
 
 type NetHandshaker struct {
 	Timeout time.Duration
+	Params  HandshakeParams
+	realm   custody.Realm
 }
 
 func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, serverName string) HandshakeResult {
 	timeout := n.Timeout
 	if timeout <= 0 {
 		timeout = 3 * time.Second
+	}
+	p := n.Params
+	minVersion, maxVersion, ok := offeredVersions(p)
+	if !ok {
+		// An undeclared version would hand the offer back to the library default (ADR-0025).
+		p = DefaultHandshakeParams()
+		minVersion, maxVersion, _ = offeredVersions(p)
 	}
 	if !target.Addr().IsValid() {
 		return HandshakeResult{Outcome: NoTLS, Unreachable: true}
@@ -138,15 +157,19 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		ServerName:         serverName,
 		// No ALPN at all, so a listener refusing our protocols cannot cost us a readable chain.
 		NextProtos: nil,
+		// The declared set goes on the wire, never a library default (ADR-0025, #1680).
+		MinVersion:   minVersion,
+		MaxVersion:   maxVersion,
+		CipherSuites: tlsoffer.CipherIDs(p.CipherSuites),
 	}
 	d := tls.Dialer{
-		NetDialer: &net.Dialer{Control: custody.EgressGuard("connectoutcome")},
+		NetDialer: &net.Dialer{Control: custody.EgressGuard("connectoutcome", n.realm)},
 		Config:    cfg,
 	}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err != nil {
-		outcome, unreachable := classifyDialError(err)
-		return HandshakeResult{Outcome: outcome, Unreachable: unreachable}
+		outcome, unreachable, timedOut := classifyDialError(err)
+		return HandshakeResult{Outcome: outcome, Unreachable: unreachable, TimedOut: timedOut}
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -186,6 +209,12 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		OCSPStaple: state.OCSPResponse,
 		IssuerSPKI: issuerSPKI(state.PeerCertificates),
 	}
+}
+
+func offeredVersions(p HandshakeParams) (minVersion, maxVersion uint16, ok bool) {
+	minVersion, okMin := tlsoffer.VersionID(p.MinVersion)
+	maxVersion, okMax := tlsoffer.VersionID(p.MaxVersion)
+	return minVersion, maxVersion, okMin && okMax
 }
 
 func issuerSPKI(chain []*x509.Certificate) []byte {
@@ -249,35 +278,46 @@ func sigDigestName(a x509.SignatureAlgorithm) string {
 
 // The golden rows pin the fold, never this live split, so a change here is uncovered (ADR-0152 §3).
 
-func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
+func classifyDialError(err error) (outcome TLSOutcome, unreachable, timedOut bool) {
+	timedOut = dialTimedOut(err)
 	var opErr *net.OpError
 	// A connect-phase failure carries Op "dial", so the phase is read off the error, never guessed.
 	if errors.As(err, &opErr) && opErr.Op == "dial" {
-		return NoTLS, true
+		return NoTLS, true, timedOut
 	}
 	var recordErr tls.RecordHeaderError
 	if errors.As(err, &recordErr) {
-		return NoTLS, false
+		return NoTLS, false, timedOut
 	}
 	var alertErr *tls.CertificateVerificationError
 	if errors.As(err, &alertErr) {
-		return TLSRefused, false
+		return TLSRefused, false, timedOut
 	}
 	if errors.Is(err, io.EOF) {
-		return NoTLS, false
+		return NoTLS, false, timedOut
 	}
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "first record does not look like a tls handshake"),
 		strings.Contains(msg, "connection reset"),
 		strings.Contains(msg, "eof"):
-		return NoTLS, false
+		return NoTLS, false, timedOut
 	case strings.Contains(msg, "tls:"),
 		strings.Contains(msg, "handshake failure"),
 		strings.Contains(msg, "protocol version"),
 		strings.Contains(msg, "no cipher suite"):
-		return TLSRefused, false
+		return TLSRefused, false, timedOut
 	}
 	// The unclassifiable case asserts no refusal we did not observe.
-	return NoTLS, false
+	return NoTLS, false, timedOut
+}
+
+func dialTimedOut(err error) bool {
+	// crypto/tls hands back the bare context error when its deadline interrupts the handshake.
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var ne net.Error
+	// os.ErrDeadlineExceeded from a poll deadline has no Is chain to the context.
+	return errors.As(err, &ne) && ne.Timeout()
 }

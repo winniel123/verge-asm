@@ -1,9 +1,21 @@
+---
+number: 92
+title: "An operator dial's movement is not a cause — and an `Annotation` never lapses, its subject withdraws"
+slug: an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 163
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 16}
+  - {kind: rests-on, adr: 74}
+  - {kind: rests-on, adr: 14}
+---
+
 # ADR-0092: An operator dial's movement is not a cause — and an `Annotation` never lapses, its subject withdraws
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#163 Does withdrawing an `Annotation` reach anybody?](https://github.com/winniel123/verge-asm/issues/163)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Amends:** [ADR-0016](./0016-an-annotation-moves-a-message-never-a-number.md),
   [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md)
 - **Confirms without amending:** [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md),

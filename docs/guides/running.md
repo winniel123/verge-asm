@@ -168,13 +168,17 @@ private key: they live on the per-service state volumes, not in Postgres.
 
 ## Volumes
 
-`docker-compose.yml` declares three named volumes. Back these up:
+`docker-compose.yml` declares four named volumes. Back up these three:
 
 | Volume | Holds | Losing it means |
 | --- | --- | --- |
 | `pgdata` | the entire estate — subjects, observations, spans, all declared data | total data loss |
 | `web-state` | session signing key | all sessions invalidated; a new key is regenerated |
 | `worker-state` | prober SSH private key | provisioned vantages must re-install the new public key |
+
+This table excludes the fourth, `transcript-key`, on purpose.
+[backup-and-restore.md → The transcript key](backup-and-restore.md#the-transcript-key)
+states why, and what losing it costs.
 
 For the restore side this section omits — taking and restoring a consistent `pgdata`
 dump, what each state volume regenerates when lost, retention tuning, and a
@@ -217,8 +221,9 @@ verifies it can reach Postgres.
 `--scale worker=3`. That recommendation was wrong. This guide withdraws it
 ([#1092](https://github.com/winniel123/verge-asm/issues/1092)).
 
-The prober process holds the active-scan safety budget: 50 conn/s and 20 in-flight
-connections per host, and 200 pkt/s across every target one vantage probes. The worker
+The prober process holds the active-scan safety budget. That budget is 50 conn/s and
+1 in-flight connection per host. It is also 200 conn/s across every target one vantage
+probes. The worker
 execs a fresh prober for every job, and its drain loop is single-threaded. So exactly one
 prober runs at a time, on this host or on a remote vantage.
 
@@ -278,15 +283,85 @@ reservation at claim time and carries it to the prober in the `JobSpec` on stdin
 one round trip **per job**, never on the connect path, and it expires with the probe
 timeout (`VERGE_PROBE_TIMEOUT`), so a departed worker never holds a share.
 
-**The grant is not built.** It is blocked on a wall-clock measurement of a `hot` scan at
-the default address-scope cap
-([#1115](https://github.com/winniel123/verge-asm/issues/1115)), and it is deliberately
-falsifiable. If that scan finishes comfortably inside its cadence at one worker, nobody
-scales, no second prober runs on a vantage, and the grant guards a case that does not
-occur. The honest outcome then is to keep the per-vantage scope in prose and close the
-grant unbuilt ([#1116](https://github.com/winniel123/verge-asm/issues/1116)).
+**This project does not build the grant.** It was deliberately falsifiable, and
+[#1115](https://github.com/winniel123/verge-asm/issues/1115) falsified it. One worker
+drains 1024 addresses against a refusing estate in 56 minutes. That is 3.9% of the daily
+cadence. The same scan against a silently dropping estate needs 86% of the cadence. One
+worker fits at the default address-scope cap in both cases. Nobody has to scale, so the
+grant guards a case that does not occur.
+[#1116](https://github.com/winniel123/verge-asm/issues/1116) closed it unbuilt on that
+ground. The measurement is `docs/research/hot-scan-wall-clock-and-emitted-rate.md`, which
+PR #1562 lands from branch `docs/1115-hot-scan-wallclock-measurement`. The ruling is the
+#1116 amendment to
+[ADR-0137](../adr/0137-the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages.md).
 
-Until the grant lands or is closed unbuilt, **`--scale worker=N` stays forbidden**.
+**`--scale worker=N` stays forbidden, permanently.** Nothing bounds two probers on one
+vantage, and this project plans nothing. #1115 measured what happens without a bound.
+Four probers put 200 conn/s on a target whose `Batch` declared 50 conn/s for the whole
+scan. Eight probers put 400 SYN/s on a vantage that declared a 200 conn/s ceiling. The
+target refused every port in that run, so one SYN was one connect.
+
+Three changes would reopen the grant, and the ADR-0137 amendment lists a fourth.
+
+- **Declare a second vantage.** The job count is addresses times vantages. Two vantages
+  at the default cap over a dropping estate need 172% of the cadence.
+- **Raise the address cap over an estate that drops.** The measured cliff sits near 1,190
+  addresses, just above the default 1024.
+- **Raise the in-flight count and watch a real estate still miss its cadence.** Every
+  `Batch` now records the count the exchange actually runs, and that count is 1
+  ([#1572](https://github.com/winniel123/verge-asm/issues/1572)). **The serial exchange
+  stays.** Raising it is a safety-budget change under the ADR-0137 amendment and not a
+  performance one, so it waits on a decision about what the pacer then promises at a
+  target. The serial exchange carries the whole 86% figure above, and the honest record
+  is what makes the cost legible before anyone spends it.
+
+Recorded `hot` skips are the signal for all three. Watch them before you reach for a
+second worker.
+
+### The rule also covers the worker-read kinds
+
+Three job kinds never reach a prober. `Worker.process` handles `zone`, `ct` and
+`ct-tail` itself and returns (`internal/queue/worker.go`). They emit no probe packets.
+So the budget the rule protects does not apply to them. They share the cap because they
+share one queue and one single-threaded drain loop.
+
+**Relaxing the rule for them would buy no throughput.**
+Every CT request reserves a slot on a per-source row in Postgres.
+The reservation happens before the request goes on the wire.
+Three paths reserve: `ct`, `ct-tail` and `ct-verify`.
+One throttle value reaches all three from `cmd/worker/main.go`.
+That reservation holds across processes by construction
+([ADR-0106](../adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md)).
+A second reader worker would share the same slot cadence, and fetch no faster.
+Only `zone` would gain from a second process, and the `zone` scan runs monthly.
+
+**What a second reader would buy is decoupling, not scale.** A reservation sleeps the
+drain loop until its slot arrives. One `ct-tail` poll issues up to 65 requests, and each
+one reserves. So a worker-read job can hold the loop for minutes. The worker claims no
+measurement job while it sleeps.
+
+That hold is small against the cadences this install ships.
+The `hot` and `ct` scans run daily, and the `zone` scan runs monthly.
+The `ct-tail` source ships off, so a default install enqueues no tail job.
+A hold of minutes against a daily cadence is under one percent of the period.
+
+**This guide keeps one rule for one worker**
+([#1108](https://github.com/winniel123/verge-asm/issues/1108)). It refuses a split into a
+reader service and a measurement service. It also refuses concurrency inside the drain
+loop. Neither pays for itself while the hold stays this small against these cadences.
+
+Two limits on that decision, both real:
+
+- **Nobody measured the hold.** The figure above is arithmetic over the shipped
+  constants, not an observed time. Nothing records whether a measurement job has ever
+  waited behind a worker-read job. The recorded `hot` skip names a lag, never its cause.
+- **A CertSpotter token paces the tail 30 times slower.** The reservation interval then
+  reads 360 seconds, and one tail poll can hold the loop for hours. That is a defect
+  ([#1520](https://github.com/winniel123/verge-asm/issues/1520)). It is not a reason to
+  restructure the worker.
+
+Revisit this decision if a `hot` scan turns out to fill its daily cadence. #1115 owns
+that number. A hold of minutes matters when the headroom is minutes.
 
 ### On-demand scan triggers
 

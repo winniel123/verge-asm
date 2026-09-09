@@ -18,7 +18,17 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type restoreStore interface {
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+}
+
 const restoreMaxUpload = 1 << 30
+
+const restoreFormMemory = 32 << 20
+
+// A forgotten pre-flight would otherwise pin up to 1 GiB (#1667).
+
+const restoreStageTTL = 15 * time.Minute
 
 // The confirm dialog re-posts only the typed word, so the pre-flighted archive is held here.
 
@@ -28,6 +38,7 @@ type restoreStaging struct {
 	subjects int
 	schema   string
 	archive  []byte
+	stagedAt time.Time
 }
 
 type restorePreflightView struct {
@@ -53,7 +64,6 @@ var (
 	errRestoreBadManifest = errors.New("restore: archive has no valid manifest line")
 	errRestoreBadFormat   = errors.New("restore: not a verge-backup archive")
 	errRestoreUnknownTbl  = errors.New("restore: archive names a table outside the backup allowlist")
-	errRestoreSchema      = errors.New("restore: archive schema version does not match this instance")
 )
 
 func preflightArchive(r io.Reader) (restorePreflight, error) {
@@ -116,6 +126,31 @@ func preflightArchive(r io.Reader) (restorePreflight, error) {
 	}, nil
 }
 
+func checkArchiveRowTables(archive []byte) error {
+	sc := bufio.NewScanner(bytes.NewReader(archive))
+	sc.Buffer(make([]byte, 0, 1<<20), restoreMaxUpload)
+	for sc.Scan() {
+		line := sc.Bytes()
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var row backupRowLine
+		if err := json.Unmarshal(line, &row); err != nil {
+			return fmt.Errorf("restore: malformed archive line: %w", err)
+		}
+		if row.Type != "row" {
+			continue
+		}
+		if !backupAllowed(row.Table) {
+			return errRestoreUnknownTbl
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return fmt.Errorf("restore: read archive: %w", err)
+	}
+	return nil
+}
+
 func backupAllowed(table string) bool {
 	for _, t := range backupTables {
 		if t == table {
@@ -127,6 +162,7 @@ func backupAllowed(table string) bool {
 
 func (s *server) restorePreflight(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
+	s.clearRestore(acct.ID)
 
 	// A restore mid-dispatch would race an in-progress write (docs/guides/backup-and-restore.md).
 	if s.scanInFlight(ctx) {
@@ -140,7 +176,8 @@ func (s *server) restorePreflight(w http.ResponseWriter, r *http.Request, acct d
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, restoreMaxUpload)
-	if err := r.ParseMultipartForm(restoreMaxUpload); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above)
+	// A larger part spills to a temp file, so RAM never holds the upload twice (#1667).
+	if err := r.ParseMultipartForm(restoreFormMemory); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above)
 		s.restoreErrorRedirect(w, r, "unreadable")
 		return
 	}
@@ -249,6 +286,11 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		if !backupAllowed(t) {
 			return errRestoreUnknownTbl
 		}
+	}
+
+	// A pre-scan refuses a forged row before TRUNCATE, and the loop gate stays (ADR-0174 §6).
+	if err := checkArchiveRowTables(archive); err != nil {
+		return err
 	}
 
 	identity, err := s.identityTables(ctx)
@@ -402,7 +444,7 @@ func (s *server) rotateSessionKey() error {
 }
 
 func (s *server) scanInFlight(ctx context.Context) bool {
-	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
+	rows, err := s.restoreStore.ListDispatchProgress(ctx, scansHistoryLimit)
 	if err != nil {
 		log.Printf("web: restore: in-flight check: %v", err)
 		return true
@@ -416,18 +458,31 @@ func (s *server) scanInFlight(ctx context.Context) bool {
 }
 
 func (s *server) stashRestore(accountID int64, stg *restoreStaging) {
+	now := s.now()
 	s.restoreMu.Lock()
 	defer s.restoreMu.Unlock()
 	if s.restoreStage == nil {
 		s.restoreStage = make(map[int64]*restoreStaging)
 	}
+	for id, old := range s.restoreStage {
+		if now.Sub(old.stagedAt) > restoreStageTTL {
+			delete(s.restoreStage, id)
+		}
+	}
+	stg.stagedAt = now
 	s.restoreStage[accountID] = stg
 }
 
 func (s *server) stagedRestore(accountID int64) *restoreStaging {
+	now := s.now()
 	s.restoreMu.Lock()
 	defer s.restoreMu.Unlock()
-	return s.restoreStage[accountID]
+	stg := s.restoreStage[accountID]
+	if stg != nil && now.Sub(stg.stagedAt) > restoreStageTTL {
+		delete(s.restoreStage, accountID)
+		return nil
+	}
+	return stg
 }
 
 func (s *server) clearRestore(accountID int64) {

@@ -16,6 +16,22 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+type messagesStore interface {
+	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
+	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
+	ListMessages(ctx context.Context) ([]db.Message, error)
+	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
+	MarkAllMessagesRead(ctx context.Context, arg db.MarkAllMessagesReadParams) error
+	MarkMessageRead(ctx context.Context, arg db.MarkMessageReadParams) error
+	MarkMessageUnread(ctx context.Context, arg db.MarkMessageUnreadParams) error
+}
+
+type reportScheduleRowStore interface {
+	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (db.ReportDelivery, error)
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
+}
+
 // A delivery failure is legible on the Message it failed to carry, never on Coverage (ADR-0039).
 
 type deliveryView struct {
@@ -45,9 +61,10 @@ type messageRow struct {
 }
 
 type censusRowView struct {
-	Kind string
-	Key  string
-	Href string
+	Kind   string
+	Key    string
+	Detail string
+	Href   string
 }
 
 func (s *server) messagesPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -56,11 +73,11 @@ func (s *server) messagesPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 func (s *server) fillMessagesSection(r *http.Request, acct db.Account, data map[string]any) error {
 	// The list is unbounded until an install shows the volume to size a cap (v1-spec §6.7).
-	rows, err := s.store.ListMessages(r.Context())
+	rows, err := s.messagesStore.ListMessages(r.Context())
 	if err != nil {
 		return err
 	}
-	unread, err := s.store.CountUnreadMessages(r.Context(), acct.ID)
+	unread, err := s.messagesStore.CountUnreadMessages(r.Context(), acct.ID)
 	if err != nil {
 		return err
 	}
@@ -69,7 +86,7 @@ func (s *server) fillMessagesSection(r *http.Request, acct db.Account, data map[
 		return err
 	}
 	byMessage := map[int64][]deliveryView{}
-	if outcomes, derr := s.store.ListDeliveryOutcomes(r.Context()); derr == nil {
+	if outcomes, derr := s.messagesStore.ListDeliveryOutcomes(r.Context()); derr == nil {
 		for _, o := range outcomes {
 			byMessage[o.MessageID] = append(byMessage[o.MessageID], toDeliveryView(o))
 		}
@@ -97,9 +114,10 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db
 		s.redirectBack(w, r, messagesFallback)
 		return
 	}
-	if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
+	if err := s.messagesStore.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
 		AccountID: acct.ID, MessageID: id, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
-	}); err != nil {
+	}); err != nil && !isForeignKeyViolation(err) {
+		// ON CONFLICT covers the unique key only, so a retired id surfaces as the FK (#1652).
 		s.serverError(w, "mark message read", err)
 		return
 	}
@@ -108,7 +126,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db
 
 func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// Read state is per-account, so one operator's mark never clears another's unread badge (#327).
-	if err := s.store.MarkAllMessagesRead(r.Context(), db.MarkAllMessagesReadParams{
+	if err := s.messagesStore.MarkAllMessagesRead(r.Context(), db.MarkAllMessagesReadParams{
 		AccountID: acct.ID, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err != nil {
 		s.serverError(w, "mark all messages read", err)
@@ -123,7 +141,7 @@ func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct 
 		s.redirectBack(w, r, messagesFallback)
 		return
 	}
-	if err := s.store.MarkMessageUnread(r.Context(), db.MarkMessageUnreadParams{
+	if err := s.messagesStore.MarkMessageUnread(r.Context(), db.MarkMessageUnreadParams{
 		AccountID: acct.ID, MessageID: id,
 	}); err != nil {
 		s.serverError(w, "mark message unread", err)
@@ -151,9 +169,10 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	if v := r.URL.Query().Get("id"); v != "" {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			selID = id
-			if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
+			if err := s.messagesStore.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
 				AccountID: acct.ID, MessageID: selID, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
-			}); err != nil {
+			}); err != nil && !isForeignKeyViolation(err) {
+				// A stale bell link names a retired message, which is not a fault (#1652).
 				s.serverError(w, "mark message read", err)
 				return
 			}
@@ -164,12 +183,12 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		filter = "unread"
 	}
 
-	rows, err := s.store.ListMessages(r.Context())
+	rows, err := s.messagesStore.ListMessages(r.Context())
 	if err != nil {
 		s.serverError(w, "list messages", err)
 		return
 	}
-	unread, err := s.store.CountUnreadMessages(r.Context(), acct.ID)
+	unread, err := s.messagesStore.CountUnreadMessages(r.Context(), acct.ID)
 	if err != nil {
 		s.serverError(w, "count unread messages", err)
 		return
@@ -180,7 +199,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	byMessage := map[int64][]deliveryView{}
-	if outcomes, derr := s.store.ListDeliveryOutcomes(r.Context()); derr == nil {
+	if outcomes, derr := s.messagesStore.ListDeliveryOutcomes(r.Context()); derr == nil {
 		for _, o := range outcomes {
 			byMessage[o.MessageID] = append(byMessage[o.MessageID], toDeliveryView(o))
 		}
@@ -218,16 +237,14 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		allHref, unreadHref = "/inbox?"+idq, "/inbox?filter=unread&"+idq
 	}
 
-	s.render(w, r, "inbox", map[string]any{
-		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "inbox",
+	s.render(w, r, "inbox", pageData(acct, "Inbox", "inbox", map[string]any{
 		"Messages":   shown,
 		"Selected":   selected,
 		"Unread":     unread,
 		"Filter":     filter,
 		"AllHref":    allHref,
 		"UnreadHref": unreadHref,
-	})
+	}))
 }
 
 func jumpLabel(cause message.Cause, subjectKind string) string {
@@ -265,7 +282,7 @@ func relTime(t, now time.Time) string {
 }
 
 func (s *server) readSet(ctx context.Context, accountID int64) (map[int64]bool, error) {
-	ids, err := s.store.ListReadMessageIDs(ctx, accountID)
+	ids, err := s.messagesStore.ListReadMessageIDs(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +309,7 @@ func toMessageRow(m db.Message, read bool) messageRow {
 	if c, err := message.ParseCensus(m.Census); err == nil {
 		for _, e := range c.Entries {
 			row.Census = append(row.Census, censusRowView{
-				Kind: e.Kind, Key: e.Key, Href: subjectHref(e.Kind, e.Key),
+				Kind: e.Kind, Key: e.Key, Detail: e.Detail, Href: subjectHref(e.Kind, e.Key),
 			})
 		}
 	}
@@ -338,6 +355,9 @@ func subjectHref(kind, key string) string {
 		return "/subjects/endpoint?key=" + url.QueryEscape(key)
 	case "name", "address":
 		return "/subjects/" + url.PathEscape(key)
+	case message.KindRule:
+		// The signals page filters on q, so a rule entry lands on that rule's rows.
+		return "/signals?q=" + url.QueryEscape(key)
 	default:
 		return ""
 	}
@@ -371,13 +391,13 @@ func lastReportDelivery(deliveries []deliveryView) (href string, has bool) {
 }
 
 func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
-	schedules, err := s.store.ListReportSchedules(ctx)
+	schedules, err := s.reportScheduleRowStore.ListReportSchedules(ctx)
 	if err != nil {
 		log.Printf("web: reports: list report schedules: %v", err)
 		return nil
 	}
 	channelURL := map[int64]string{}
-	if channels, err := s.store.ListChannels(ctx); err != nil {
+	if channels, err := s.reportScheduleRowStore.ListChannels(ctx); err != nil {
 		log.Printf("web: reports: list channels for delivery column: %v", err)
 	} else {
 		for _, c := range channels {
@@ -391,7 +411,7 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 		// A never-run schedule sorts last, never as "just now" (ADR-0179 §1, #1363).
 		lastSent, href, has := "—", "", false
 		lastMins := reportScheduleNeverRunMins
-		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
+		del, err := s.reportScheduleRowStore.GetLatestReportDelivery(ctx, sc.ID)
 		switch {
 		case err == nil:
 			inst := reportDeliveryInstant(del)

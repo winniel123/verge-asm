@@ -1,9 +1,16 @@
-# ADR-0107: The `dns` `Scan` resolves the names CT admitted, and their `Citation` stays the admission that introduced them
+---
+number: 107
+title: "The `dns` `Scan` resolves the names CT admitted, and their `Citation` stays the admission that introduced them"
+slug: the-dns-scan-resolves-the-names-ct-admitted-and-their-citation-stays-the-admission-that-introduced-them
+date: 2026-08-16
+status: accepted
+source: grilling
+ticket: 255
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-16
-- **Ticket:** [#255 Resolve CT-admitted names: feed `admitted_name` into the `dns` Scan (wave-1)](https://github.com/winniel123/verge-asm/issues/255)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0107: The `dns` `Scan` resolves the names CT admitted, and their `Citation` stays the admission that introduced them
 
 ## Context
 

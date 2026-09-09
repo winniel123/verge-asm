@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -23,6 +25,21 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type seedsStore interface {
+	queue.SeedWithdrawalPreviewStore
+	queue.NameSeedWithdrawalPreviewStore
+
+	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
+	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
+	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
+	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
+	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
+	WithdrawSeed(ctx context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/scope.tmpl"))
 
@@ -168,7 +185,7 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 		if declared[key] {
 			return &refusalView{Input: value, Reason: alreadyDeclaredReason}
 		}
-		if _, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
+		if _, err := s.seedsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 			AddressCidr: &p, CreatedBy: acct.ID,
 		}); err != nil {
 			return createRefusal(value, err)
@@ -178,13 +195,13 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 	}
 	domain, err := seed.NormalizeDomain(value)
 	if err != nil {
-		return &refusalView{Input: value, Reason: err.Error()}
+		return nameRefusal(value, err)
 	}
 	key := "name:" + domain
 	if declared[key] {
 		return &refusalView{Input: value, Reason: alreadyDeclaredReason}
 	}
-	if _, err := s.store.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
+	if _, err := s.seedsStore.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
 		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
 	}); err != nil {
 		return createRefusal(value, err)
@@ -194,6 +211,34 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 }
 
 const alreadyDeclaredReason = "already declared"
+
+func nameRefusal(value string, err error) *refusalView {
+	var wild *seed.WildcardError
+	var ulabel *seed.ULabelError
+	// A refusal names a route and never takes it: nothing pre-filled or converted (ADR-0052).
+	switch {
+	case errors.As(err, &wild):
+		sub := wild.Subtree
+		if sub == "" {
+			return &refusalView{Input: value, Reason: err.Error(), Route: "Nothing has been declared, and nothing has been rewritten."}
+		}
+		return &refusalView{
+			Input:  value,
+			Reason: err.Error(),
+			Route: fmt.Sprintf("A subtree exclusion on %s covers %s itself as well as every name beneath it; %s never matches %s. "+
+				"If %s is outside your estate too, exclude the subtree %s. If only the names beneath it are not yours, exclude those names by name — "+
+				"nothing here means everything beneath a name but not the name. Nothing has been declared, and nothing has been rewritten.",
+				sub, sub, value, sub, sub, sub),
+		}
+	case errors.As(err, &ulabel):
+		return &refusalView{
+			Input:  value,
+			Reason: err.Error(),
+			Route:  "Copy the ASCII form from your DNS provider and paste it here. Nothing has been declared, and nothing has been converted.",
+		}
+	}
+	return &refusalView{Input: value, Reason: err.Error()}
+}
 
 func createRefusal(value string, err error) *refusalView {
 	if isUniqueViolation(err) {
@@ -257,9 +302,9 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 			s.serverError(w, "parse seed scope", perr)
 			return
 		}
-		receipt, rerr = queue.SeedWithdrawalReceipt(r.Context(), s.store, s.now().UTC(), p)
+		receipt, rerr = queue.SeedWithdrawalReceipt(r.Context(), s.seedsStore, s.now().UTC(), p)
 	} else {
-		receipt, rerr = queue.NameSeedWithdrawalReceipt(r.Context(), s.store, id, scope)
+		receipt, rerr = queue.NameSeedWithdrawalReceipt(r.Context(), s.seedsStore, id, scope)
 	}
 	if rerr != nil {
 		log.Printf("web: preview seed withdrawal %s: %v", scope, rerr)
@@ -285,7 +330,7 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 	}
 	scope, _ := s.seedScopeByID(r, id)
 	// A delete and its tombstone commit as one, so no withdrawn scope lacks a mover (ADR-0135 §2).
-	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
+	if _, err := s.seedsStore.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "withdraw seed", err)
@@ -305,7 +350,7 @@ func removalFlash(scope string) string {
 }
 
 func (s *server) seedScopeByID(r *http.Request, id int64) (string, bool) {
-	rows, err := s.store.ListSeeds(r.Context())
+	rows, err := s.seedsStore.ListSeeds(r.Context())
 	if err != nil {
 		return "", false
 	}
@@ -321,6 +366,7 @@ type refusalView struct {
 	Input     string
 	Reason    string
 	Reachable string
+	Route     string
 }
 
 func isAddressValue(v string) bool {
@@ -350,6 +396,17 @@ func overCapFormError(cap int) string {
 }
 
 func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
+	reason := fmt.Sprintf("Spans %s addresses — the cap is %s per scope.", commaGroup(seed.AddressCount(raw).String()), commaInt(cap))
+	// The cap knob reaches IPv4 only; for IPv6 it is named so it stays shut (ADR-0052).
+	if !raw.Addr().Unmap().Is4() {
+		return refusalView{
+			Input:  value,
+			Reason: reason,
+			Route: "Do not raise the cap for this: no setting makes an IPv6 prefix measurable, and a raised cap would accept the declaration and never finish it. " +
+				"Declare the domain those machines answer for and extend its custody — addresses reached that way are found by resolution rather than by walking. " +
+				"Nothing has been declared, and no domain has been filled in for you.",
+		}
+	}
 	// The over-cap set is named, never applied: the operator declares the narrower block.
 	bits := raw.Addr().BitLen()
 	host := 0
@@ -362,7 +419,7 @@ func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
 	}
 	return refusalView{
 		Input:     value,
-		Reason:    fmt.Sprintf("Spans %s addresses — the cap is %s per scope.", commaGroup(seed.AddressCount(raw).String()), commaInt(cap)),
+		Reason:    reason,
 		Reachable: netip.PrefixFrom(raw.Addr(), reachLen).String(),
 	}
 }
@@ -405,26 +462,26 @@ func toCustodyViews(nameSeeds []seedView) []custodyView {
 }
 
 func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Account, f seedsForms) {
-	rows, err := s.store.ListSeeds(r.Context())
+	rows, err := s.seedsStore.ListSeeds(r.Context())
 	if err != nil {
 		s.serverError(w, "list seeds", err)
 		return
 	}
 	var excl []db.ListExclusionsRow
 	// A card is one region, so its failed read empties it alone (ADR-0168 §1, #1424).
-	if rows, eerr := s.store.ListExclusions(r.Context()); eerr == nil {
+	if rows, eerr := s.seedsStore.ListExclusions(r.Context()); eerr == nil {
 		excl = rows
 	}
 	var probers []db.ListVantagesRow
-	if rows, verr := s.store.ListVantages(r.Context()); verr == nil {
+	if rows, verr := s.seedsStore.ListVantages(r.Context()); verr == nil {
 		probers = rows
 	}
-	zoneStatus, err := s.store.ListZoneFileStatus(r.Context())
+	zoneStatus, err := s.seedsStore.ListZoneFileStatus(r.Context())
 	if err != nil {
 		s.serverError(w, "list zone files", err)
 		return
 	}
-	cadence, err := s.store.GetZoneCadenceSeconds(r.Context())
+	cadence, err := s.seedsStore.GetZoneCadenceSeconds(r.Context())
 	if err != nil {
 		s.serverError(w, "get zone cadence", err)
 		return
@@ -445,9 +502,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	// An additive card degrades alone so the screen it sits on still serves (ADR-0168 §1, #1339).
 	census, censusErr := s.custodyCensus(r.Context())
-	data := map[string]any{
-		"Title": "Scope", "NavActive": "scope",
-		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
+	data := pageData(acct, "Scope", "scope", map[string]any{
 		"Seeds": seeds, "AddressCap": s.addressCap(r.Context()),
 		"NameTree":     nameTree,
 		"CoverageMsgs": coverageMessages(probers),
@@ -467,7 +522,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ProposalError": f.proposalError,
 		"ExclPreview":   f.exclPreview,
 		"SeedConfirm":   f.seedConfirm,
-	}
+	})
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
 	}
@@ -596,13 +651,6 @@ func seedAnchor(scope string) string {
 		}
 	}
 	return strings.TrimRight(b.String(), "-")
-}
-
-func seedCreateError(err error, noun string) string {
-	if isUniqueViolation(err) {
-		return "That " + noun + " is already declared."
-	}
-	return "Could not declare the scope."
 }
 
 const maxZoneUpload = 8 << 20
@@ -763,7 +811,7 @@ func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipa
 		return &zoneErrorView{File: name, Reason: fmt.Sprintf(
 			"the zone's apex %s is outside every declared name scope — declare it as a name scope first, or upload the zone for a scope you hold.", apex)}
 	}
-	if _, err := s.store.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
+	if _, err := s.seedsStore.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
 		SeedID:     seedID,
 		SuppliedAt: pgtype.Timestamptz{Time: now, Valid: true},
 		Content:    string(content),
@@ -804,7 +852,7 @@ func zoneApex(content string) string {
 }
 
 func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
-	rows, err := s.store.ListSeeds(r.Context())
+	rows, err := s.seedsStore.ListSeeds(r.Context())
 	if err != nil {
 		return 0, false
 	}
@@ -820,32 +868,30 @@ func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
 	return 0, false
 }
 
+// Beyond ten years the zone scan never dispatches, and the seconds overflow (#1667).
+
+const maxZoneIntervalDays = 3650
+
 func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := strings.TrimSpace(r.FormValue("interval_days"))
 	days, err := strconv.Atoi(raw)
-	if err != nil || days < 1 {
+	if errors.Is(err, strconv.ErrRange) || days > maxZoneIntervalDays {
 		s.flashScopeBack(w, r, seedsForms{
-			zoneIntervalError: "Enter a re-supply interval of at least one day.",
+			zoneIntervalError: "Enter a re-supply interval between 1 and 3,650 days.",
 			zoneIntervalDays:  raw,
 		})
 		return
 	}
-	if err := s.store.SetZoneCadenceSeconds(r.Context(), int64(days)*86400); err != nil {
+	if err != nil || days < 1 {
+		s.flashScopeBack(w, r, seedsForms{
+			zoneIntervalError: "Enter a re-supply interval between 1 and 3,650 days.",
+			zoneIntervalDays:  raw,
+		})
+		return
+	}
+	if err := s.seedsStore.SetZoneCadenceSeconds(r.Context(), int64(days)*86400); err != nil {
 		s.serverError(w, "set zone cadence", err)
 		return
 	}
 	s.backToScope(w, r)
-}
-
-func (s *server) isNameSeed(r *http.Request, id int64) bool {
-	rows, err := s.store.ListSeeds(r.Context())
-	if err != nil {
-		return false
-	}
-	for _, row := range rows {
-		if row.ID == id && row.Kind == "name" {
-			return true
-		}
-	}
-	return false
 }

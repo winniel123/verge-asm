@@ -1,13 +1,23 @@
+---
+number: 217
+title: "the recording-side scope gate gates a denoted dimension alone, and only the edge-fanout facet-less arm fails closed"
+slug: the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1323
+pr: 1322
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 150}
+  - {kind: rests-on, adr: 129}
+  - {kind: sibling, adr: 126}
+---
+
 # ADR-0217: the recording-side scope gate gates a denoted dimension alone, and only the edge-fanout facet-less arm fails closed
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1323 ADR gaps: internal/queue (queue, cttail, withdrawal, hot, ctverify, scopegate)](https://github.com/winniel123/verge-asm/issues/1323), gap 7
-- **PR that deleted the comment:** [#1322](https://github.com/winniel123/verge-asm/pull/1322)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0150](./0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md), which rules that a `Batch` scope field names a measurable dimension and ships a list. It is why the gate can read one union shape across every kind, and why an `edge-fanout` job's recorded scope always denotes addresses
-- **Rests on:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) and its [#954](https://github.com/winniel123/verge-asm/issues/954) amendment, which make the fan-out a **membership-deciding** probe rather than a six-part facet. That is why one arm fails closed and the rest do not
 - **Rests on:** [ADR-0201](./0201-a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering.md), which rules that the dispatched scope, the leaf, the recorded scope and this gate agree on one key **name** and one address **rendering**. It rules whether a denotation is read at all, and its two failure modes land on opposite sides of this ADR. A **spelling** disagreement leaves the denotation present and drops a legitimate line, which is ADR-0201's stated fault. A **key-name** disagreement leaves the denotation absent, and §1 below then opens the gate. §5 states that consequence
+- **Rests on:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) and its [#954](https://github.com/winniel123/verge-asm/issues/954) amendment, which make the fan-out a **membership-deciding** probe rather than a six-part facet. That is why one arm fails closed and the rest do not
 - **Sibling of, and not ruled by:** [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md). Its limb 3 keeps the prober transcript **before** this gate, so a dropped line survives as evidence. It rules the corpus. It does not rule what the gate drops
 
 ## Context
@@ -91,10 +101,10 @@ The failure directions are not symmetric, and that is the whole of the argument.
 - **Over-rejection destroys a measurement the estate paid for, and it is silent.** A dropped line
   writes one log entry (`scopegate.go:128`) and no durable record. The span it would have continued
   goes stale, and the operator reads a `Gap` caused by the recorder rather than by the estate.
-- **Under-rejection admits a line whose subject the job did not name.** It is the hazard #773 exists
-  for, and it is bounded by everything downstream: the membership fold still tests every survivor,
-  the `Custody` gate still refuses an unowned address, and the prober transcript still holds the
-  pre-gate bytes (ADR-0126 limb 3).
+- **Under-rejection admits a line whose subject the job did not name.** It is the hazard #773
+  (deleted, HTTP 410) exists for. Everything downstream bounds it: the membership fold still tests
+  every survivor, the `Custody` gate still refuses an unowned address, and the prober transcript
+  still holds the pre-gate bytes (ADR-0126 limb 3).
 
 A silent loss of true measurement is worse than a bounded admission of an unauthorised one.
 
@@ -181,7 +191,8 @@ spelling. The silent one is a change to the key name, and it is the one this lim
   not fail the job. ADR-0001 chooses the stack and the runtime and rules nothing about it. §4 rules
   it, and the replacement is in the same manifest.
 - **The dead `#773` citation is out of scope.** `scopegate.go` carries it four times and the issue
-  number does not resolve. #1323 excludes repairing it, and it needs its own record.
+  number does not resolve. #1323 excludes repairing it, and it needs its own record. #1462 and
+  PR #1511 repaired the code sites, and #1509 is the record for the Markdown sites.
 - **[`CONTEXT.md`](../../CONTEXT.md) gains nothing.** The gate mints no subject and moves no domain
   term. It decides which lines become observations.
 

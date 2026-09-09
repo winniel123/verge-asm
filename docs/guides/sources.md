@@ -40,19 +40,20 @@ what an org-name search is allowed to *suggest*.
 
 Every catalogued entry ships under a **consent tier** — release-authored data, not a
 per-install setting. It names *which door* the reading goes through, never who walked
-through it. v1 uses two tiers:
+through it. v1 uses three tiers:
 
 | Tier | Meaning | Ships |
 | --- | --- | --- |
-| **`unencumbered`** | No terms bar the operator from this source, so the project runs it without you having to say so. | **on** by default |
+| **`unencumbered`** | No terms bar the operator from this source, so the project runs it without you having to say so. | **on** by default, unless the entry ships off for a reason other than consent |
 | **`operator-accepted`** | The project could not clear the source's terms on your behalf and refuses to read them for a stranger. **You** accept the terms and bear the reading. | **off** — you enable it |
+| **`operator-credentialed`** | The source needs an API key of your own. The project holds no key for you, so the tier depends on your credential and not on your reading. | **off** — you supply the key |
 
 `operator-accepted` is your reading of the terms, **not** a certification that you
-comply — the project simply declines to make that call for you. The model reserves a
-third tier, `operator-credentialed` (a source needing your own API key), but **no v1
-source uses it**.
+comply — the project simply declines to make that call for you. One v1 entry is
+`operator-credentialed`: **Cert Spotter**, which reads certificate transparency under a
+key you set on the worker.
 
-A third disposition is not a tier at all: some entries are **barred**. They are excluded
+A fourth disposition is not a tier at all: some entries are **barred**. They are excluded
 on their terms and non-toggleable. They carry no consent tier, because the project does
 not run them for anyone.
 
@@ -60,15 +61,27 @@ not run them for anyone.
 
 ## The v1 catalogue
 
-Ten entries ship. What each is, what it discovers, and its consent tier:
+The catalogue holds 11 entries: 4 sources and 7 proposers. Each table gives what an
+entry is, what it discovers, and its consent tier.
 
 ### Sources (observe and admit)
 
 | Entry | Discovers | Tier | Ships |
 | --- | --- | --- | --- |
 | **crt.sh** | `Name`s from certificate-transparency SAN lists | `unencumbered` | **on** (see caveat below) |
+| **CT drift tail** (logs-direct) | `Name`s from new certificate issuance, for names you already know | `unencumbered` | **off** — it reads every new certificate in the logs |
+| **Cert Spotter** (operator key) | `Name`s from certificate-transparency SAN lists, bulk by name | `operator-credentialed` | **off** — you set `VERGE_CERTSPOTTER_TOKEN` on the worker |
 | **HackerTarget** | — | — | **barred** — excluded on terms |
-| **Cert Spotter** (unauthenticated) | — | — | **barred** — excluded on terms |
+
+**crt.sh** ships on because it is `unencumbered`. The **CT drift tail** is `unencumbered`
+too, and it ships **off**. The tail reads every new certificate across the CT logs to keep
+the few that match your estate. That costs more than the crt.sh poll. Enable the tail when
+you want same-shard drift detection. **Cert Spotter** ships off because it is
+`operator-credentialed`. Set `VERGE_CERTSPOTTER_TOKEN` on the worker, and it replaces
+crt.sh as the active bulk CT source. Its authenticated tier clears the consent bar
+([ADR-0003](../adr/0003-third-party-source-consent-bar.md)). The unauthenticated tier
+stays excluded on terms, and the catalogue holds no entry for it. **HackerTarget** is
+barred and runs for nobody.
 
 ### Proposers (org-name search → address-scope proposals)
 
@@ -82,9 +95,26 @@ Ten entries ship. What each is, what it discovers, and its consent tier:
 | **APNIC registry** | APNIC region | `operator-accepted` | **catalogued — no runner** (#241) |
 | **LACNIC registry** | Latin America | `operator-accepted` | **catalogued — no runner** (#241) |
 
-The three keyless proposer paths ship on because they are `unencumbered`. The four registry
-paths are `operator-accepted` **by tier**, but **no `proposer.Source` runner ships for them
-yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not
+**ARIN** ships on because it is `unencumbered`. The two CAIDA paths are `unencumbered`
+too, and they ship on as well. Their CAIDA half reads
+`https://api.data.caida.org/as2org/v1/search/?name=<org>`, which is a keyless org-name
+search CAIDA publishes. Each record carries an `opaqueId`, and that id joins field 8 of
+the RIR's extended delegated-stats file. Both halves stay keyless, so the tier does not
+move. The search is scored, so it answers with records from other regions and with near
+names. A record is read only when its `source` names this proposer's RIR and its
+`orgName` holds your query. A failed request, an envelope this release does not
+recognise, and an organisation CAIDA holds under no `opaqueId` each return an error.
+None of the three returns an empty result, so a failed request never reads as an absence
+of holders
+([ADR-0227](../adr/0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md),
+[#1616](https://github.com/winniel123/verge-asm/issues/1616)). The earlier path was
+`/as2org/v1/org2ids` on `api.caida.org`. That host does not resolve, no published CAIDA
+endpoint serves that path, and both are retired
+([ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md),
+[#1519](https://github.com/winniel123/verge-asm/issues/1519)). A barred entry states its
+own reason on the `/sources` modal, so *excluded on terms* is no longer the only thing a
+bar can say. The four registry paths are `operator-accepted` **by tier**, but **no
+`proposer.Source` runner ships for them yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not
 yet executing** (the #241 mechanism): non-toggleable, offering **no consent dialog**, and
 off for everyone until a runner lands. At that point they return to *ship off — accept the
 terms*.
@@ -111,6 +141,38 @@ per-toggle history and carries no actor or timestamp of its own**. It is **dated
 `Batch` whose recorded source set it moved**, which is where the audit trail lives. So
 "when did this source change" is answered by the batch record, not by a log line on the
 toggle.
+
+---
+
+## What a proposer's last lookup did
+
+Each proposer row on `/sources` states the outcome of the last lookup this install ran
+against it. A row reads one of three things.
+
+- **never attempted** — no lookup on this install queried this proposer.
+- **last attempt succeeded**, with the instant of that attempt.
+- **last attempt failed**, with the instant. A second consecutive failure adds the
+  count of failures in a row.
+
+**Only a lookup you run writes this record.** Nothing queries a source on a schedule. A
+scheduled query would send a request to a third party for a source you never enabled, and
+nobody authorised that. So a proposer you never enable stays at *never attempted*, and
+*never attempted* never reads as healthy.
+
+**The record states no verdict.** It gives the outcome, the instant, and the count.
+Nobody picked a threshold for a `healthy / degraded / dead` word. Such a word states a
+conclusion about the world from a record of our own requests. You draw the conclusion.
+
+**The record never changes a source's enablement.** A proposer that fails every lookup
+stays enabled until you disable it. A third party's outage may not narrow your coverage
+without your act
+([ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md)).
+
+**The record survives a restart.** It is per install, and it is separate from the toggle.
+The toggle carries your consent. This record carries what the software did.
+
+The admitting sources — crt.sh and the CT drift tail — carry no such reading. ADR-0223
+does not rule on them.
 
 ---
 
@@ -196,9 +258,10 @@ proposers** — RIPEstat, RIPE Database, APNIC registry, LACNIC registry. Each i
 `operator-accepted` by tier but ships with **no `proposer.Source` runner**. So it is
 catalogued-yet-inert: rendered in the third *not run for anyone* bucket, **non-toggleable**,
 with **no consent dialog offered**. It stays that way until a real runner lands and returns
-it to *ship off — accept the terms* (the same reversal crt.sh made). The three keyless
-proposer paths (ARIN, AFRINIC, APNIC via CAIDA) execute today. The four registry paths do
-not.
+it to *ship off — accept the terms* (the same reversal crt.sh made). This is not the state
+the two CAIDA paths are in. They **have** a runner, they stay toggleable, and they ship on.
+All three keyless proposer paths — **ARIN**, **AFRINIC** and **APNIC** — execute today. The
+four registry paths have no runner at all.
 
 ### RIR proposers propose address scopes, not subdomains
 

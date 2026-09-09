@@ -1,9 +1,16 @@
-# ADR-0100: A copy of a monotonic source is kept honest by the act that grows it, not by a clock
+---
+number: 100
+title: "A copy of a monotonic source is kept honest by the act that grows it, not by a clock"
+slug: a-copy-of-a-monotonic-source-is-kept-honest-by-the-act-that-grows-it
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 179
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#179 Does curated-table-watch.md's §1.1 need a re-sync step when the source register grows?](https://github.com/winniel123/verge-asm/issues/179)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0100: A copy of a monotonic source is kept honest by the act that grows it, not by a clock
 
 ## Context
 

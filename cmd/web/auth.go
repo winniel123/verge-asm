@@ -33,6 +33,81 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
+type loginStore interface {
+	CountAccounts(ctx context.Context) (int64, error)
+	CreateAccount(ctx context.Context, arg db.CreateAccountParams) (db.Account, error)
+	CreateSession(ctx context.Context, arg db.CreateSessionParams) (db.Session, error)
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
+	SetTOTPLastStep(ctx context.Context, arg db.SetTOTPLastStepParams) (int64, error)
+}
+
+type totpEnrollStore interface {
+	ConfirmTOTP(ctx context.Context, id int64) error
+	ConsumeRecoveryCode(ctx context.Context, arg db.ConsumeRecoveryCodeParams) error
+	CreateRecoveryCode(ctx context.Context, arg db.CreateRecoveryCodeParams) error
+	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]db.ListUnusedRecoveryCodeHashesRow, error)
+	SetTOTPSecret(ctx context.Context, arg db.SetTOTPSecretParams) error
+}
+
+type passwordStore interface {
+	ConsumePasswordReset(ctx context.Context, arg db.ConsumePasswordResetParams) error
+	CreatePasswordReset(ctx context.Context, arg db.CreatePasswordResetParams) (db.PasswordReset, error)
+	DeleteSpentPasswordResets(ctx context.Context, before pgtype.Timestamptz) error
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
+	GetPasswordResetByHash(ctx context.Context, tokenHash string) (db.PasswordReset, error)
+	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
+	RevokeOtherSessionsForAccount(ctx context.Context, arg db.RevokeOtherSessionsForAccountParams) error
+	UpdatePassword(ctx context.Context, arg db.UpdatePasswordParams) error
+}
+
+type inviteAcceptStore interface {
+	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) (int64, error)
+	DeleteAccount(ctx context.Context, id int64) error
+	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
+}
+
+type sessionStore interface {
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetSessionByTokenHash(ctx context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error)
+	ListSessionsForAccount(ctx context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error)
+	RevokeOtherSessionsForAccount(ctx context.Context, arg db.RevokeOtherSessionsForAccountParams) error
+	RevokeSession(ctx context.Context, arg db.RevokeSessionParams) error
+	TouchSession(ctx context.Context, arg db.TouchSessionParams) error
+}
+
+type personalTokenStore interface {
+	CreatePersonalToken(ctx context.Context, arg db.CreatePersonalTokenParams) (db.PersonalToken, error)
+	DeletePersonalToken(ctx context.Context, arg db.DeletePersonalTokenParams) error
+	ListPersonalTokens(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error)
+}
+
+type profileStore interface {
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	ListEnabledSSOProviders(ctx context.Context) ([]db.ListEnabledSSOProvidersRow, error)
+	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]db.ListSSOIdentitiesForAccountRow, error)
+	ListSessionsForAccount(ctx context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error)
+}
+
+type dashboardStore interface {
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+}
+
+type chromeStore interface {
+	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
+}
+
 const (
 	sessionCookie = "verge_session"
 	pendingCookie = "verge_totp_pending"
@@ -57,20 +132,20 @@ func (s *server) currentAccount(r *http.Request) (db.Account, bool) {
 	}
 	// A pre-registry cookie carries an empty token, so it resolves no row (ADR-0117).
 	ctx := r.Context()
-	row, err := s.store.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
+	row, err := s.sessionStore.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
 		TokenHash: hashToken(sess.Token),
 		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	})
 	if err != nil {
 		return db.Account{}, false
 	}
-	acct, err := s.store.GetAccountByID(ctx, row.AccountID)
+	acct, err := s.sessionStore.GetAccountByID(ctx, row.AccountID)
 	if err != nil {
 		return db.Account{}, false
 	}
 	// Touching on every request would amplify one write per request onto a busy session.
 	if s.now().Sub(row.LastSeenAt.Time) > time.Minute {
-		if err := s.store.TouchSession(ctx, db.TouchSessionParams{
+		if err := s.sessionStore.TouchSession(ctx, db.TouchSessionParams{
 			ID:         row.ID,
 			LastSeenAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 		}); err != nil {
@@ -157,7 +232,7 @@ func (s *server) setupClosed(r *http.Request) bool {
 	if s.setupToken == "" {
 		return true
 	}
-	n, err := s.store.CountAccounts(r.Context())
+	n, err := s.loginStore.CountAccounts(r.Context())
 	if err != nil {
 		log.Printf("web: setup: count accounts: %v", err)
 		return true
@@ -260,7 +335,7 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	acct, err := s.store.GetAccountByUsername(r.Context(), username)
+	acct, err := s.loginStore.GetAccountByUsername(r.Context(), username)
 	if err != nil {
 		auth.CheckPassword(dummyHash, password)
 		s.loginLimiter.fail(acctKey, ipKey)
@@ -294,7 +369,7 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	acct, err := s.store.GetAccountByID(r.Context(), sess.AccountID)
+	acct, err := s.loginStore.GetAccountByID(r.Context(), sess.AccountID)
 	if err != nil || !acct.TotpEnabled || !acct.TotpSecret.Valid {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -325,7 +400,7 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	step, totpOK := auth.VerifyTOTPStep(secret, code, s.now())
 	// Two concurrent logins on one code must not both win (RFC 6238 §5.2, #339).
 	if totpOK {
-		n, serr := s.store.SetTOTPLastStep(r.Context(), db.SetTOTPLastStepParams{
+		n, serr := s.loginStore.SetTOTPLastStep(r.Context(), db.SetTOTPLastStepParams{
 			ID: acct.ID, TotpLastStep: pgtype.Int8{Int64: step, Valid: true},
 		})
 		if serr != nil {
@@ -355,21 +430,21 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 
 const lockoutMessage = "Too many attempts. Try again in a few minutes."
 
-func loginAccountKey(username string) string { return "acct:" + strings.ToLower(username) }
+func loginAccountKey(username string) string { return acctKeyPrefix + strings.ToLower(username) }
 
 func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented string) bool {
 	presented = normalizeRecoveryCode(presented)
 	if presented == "" {
 		return false
 	}
-	rows, err := s.store.ListUnusedRecoveryCodeHashes(r.Context(), accountID)
+	rows, err := s.totpEnrollStore.ListUnusedRecoveryCodeHashes(r.Context(), accountID)
 	if err != nil {
 		log.Printf("web: login: list recovery codes: %v", err)
 		return false
 	}
 	for _, row := range rows {
 		if auth.CheckPassword(row.CodeHash, presented) {
-			if err := s.store.ConsumeRecoveryCode(r.Context(), db.ConsumeRecoveryCodeParams{
+			if err := s.totpEnrollStore.ConsumeRecoveryCode(r.Context(), db.ConsumeRecoveryCodeParams{
 				ID: row.ID, UsedAt: s.obsAsOf(),
 			}); err != nil {
 				log.Printf("web: login: consume recovery code: %v", err)
@@ -398,14 +473,14 @@ func (s *server) revokeCurrentSession(r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	row, err := s.store.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
+	row, err := s.sessionStore.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
 		TokenHash: hashToken(sess.Token),
 		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	})
 	if err != nil {
 		return
 	}
-	if err := s.store.RevokeSession(ctx, db.RevokeSessionParams{
+	if err := s.sessionStore.RevokeSession(ctx, db.RevokeSessionParams{
 		ID:        row.ID,
 		AccountID: row.AccountID,
 		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
@@ -423,7 +498,7 @@ func (s *server) currentSessionID(r *http.Request) (int64, bool) {
 	if err != nil {
 		return 0, false
 	}
-	row, err := s.store.GetSessionByTokenHash(r.Context(), db.GetSessionByTokenHashParams{
+	row, err := s.sessionStore.GetSessionByTokenHash(r.Context(), db.GetSessionByTokenHashParams{
 		TokenHash: hashToken(sess.Token),
 		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	})
@@ -439,7 +514,7 @@ func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64)
 		s.serverError(w, "mint session token", err)
 		return
 	}
-	if _, err := s.store.CreateSession(r.Context(), db.CreateSessionParams{
+	if _, err := s.loginStore.CreateSession(r.Context(), db.CreateSessionParams{
 		AccountID: id,
 		TokenHash: hash,
 		UserAgent: r.UserAgent(),
@@ -544,7 +619,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 	var vantages []dashVantageView
 	// The vestigial class column is never read; the chip is derived per read (#709).
-	if rows, verr := s.store.ListVantages(ctx); verr == nil {
+	if rows, verr := s.dashboardStore.ListVantages(ctx); verr == nil {
 		for _, v := range rows {
 			vantages = append(vantages, dashVantageView{
 				Name: v.Name, Class: string(vantageFactsClass(v.DialledAddr, v.Egress, covered)),
@@ -557,7 +632,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	var unavailable []string
-	if rows, uerr := s.store.ListUnavailableVantages(ctx); uerr == nil {
+	if rows, uerr := s.dashboardStore.ListUnavailableVantages(ctx); uerr == nil {
 		for _, v := range rows {
 			unavailable = append(unavailable, v.Name)
 		}
@@ -566,7 +641,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	names, hasNames := 0, false
-	if rows, nerr := s.store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
+	if rows, nerr := s.dashboardStore.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); nerr == nil {
 		names, hasNames = len(rows), true
@@ -576,7 +651,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	services, hasServices := 0, false
 	var walked []walkedAddr
-	if rows, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+	if rows, serr := s.dashboardStore.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); serr == nil {
 		services, hasServices = len(rows), true
@@ -587,7 +662,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	nameScopes, addrScopes, hasScopes := 0, 0, false
 	var seedRows []db.ListSeedsRow
-	if rows, serr := s.store.ListSeeds(ctx); serr == nil {
+	if rows, serr := s.dashboardStore.ListSeeds(ctx); serr == nil {
 		seedRows = rows
 		for _, sd := range rows {
 			if sd.Kind == "address" {
@@ -668,13 +743,13 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		}
 	}
 	zoneUploaded := false
-	if rows, zerr := s.store.ListZoneFileStatus(ctx); zerr == nil {
+	if rows, zerr := s.dashboardStore.ListZoneFileStatus(ctx); zerr == nil {
 		zoneUploaded = len(rows) > 0
 	} else {
 		log.Printf("web: dashboard: list zone file status: %v", zerr)
 	}
 	scanDispatched := false
-	if rows, derr := s.store.ListDispatchProgress(ctx, scansHistoryLimit); derr == nil {
+	if rows, derr := s.dashboardStore.ListDispatchProgress(ctx, scansHistoryLimit); derr == nil {
 		scanDispatched = len(rows) > 0
 	} else {
 		log.Printf("web: dashboard: list dispatch progress: %v", derr)
@@ -709,13 +784,13 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 			HasDelta: deltas.Known, Change: deltas.AssetsWatched.Change(), Tone: "neutral"},
 		{Label: "Exposed services", Value: statValue(exposed, hasExposed), Caption: "reachable from the internet",
 			HasDelta: deltas.Known, Change: deltas.Exposed.Change(), Tone: statTone(deltas.Exposed.Change(), true)},
-		{Label: "Certs expiring ≤30d", Value: statValue(certsExpiring, hasCerts), Caption: "expiring within 30 days",
+		{Label: "Certs expiring", Value: statValue(certsExpiring, hasCerts), Caption: "inside the last third of validity",
 			HasDelta: deltas.Known, Change: deltas.CertsExpiring.Change(), Tone: statTone(deltas.CertsExpiring.Change(), true)},
 	}
 
 	var coverageMeters []coverageMeterView
 	if hasScopes {
-		zones, zerr := s.store.ListZoneDeclarations(ctx)
+		zones, zerr := s.dashboardStore.ListZoneDeclarations(ctx)
 		if zerr != nil {
 			zones = nil
 		}
@@ -729,7 +804,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	scanDetail := ""
 	if len(active) > 0 {
-		if rows, derr := s.store.ListDispatchProgress(ctx, scansHistoryLimit); derr == nil {
+		if rows, derr := s.dashboardStore.ListDispatchProgress(ctx, scansHistoryLimit); derr == nil {
 			queued := 0
 			for _, row := range rows {
 				if dv := toDispatchView(row); dv.Active {
@@ -744,10 +819,8 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	probeDismissed := r.URL.Query().Get("probe") == "dismissed"
 
-	data := map[string]any{
-		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "dashboard",
-		"Scanning":  len(active) > 0,
+	data := pageData(acct, "Dashboard", "dashboard", map[string]any{
+		"Scanning": len(active) > 0,
 
 		"EmptyEstate":   emptyEstate,
 		"FirstRunSteps": steps,
@@ -770,7 +843,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 		"Deltas":    deltas,
 		"HasDeltas": deltas.Known,
-	}
+	})
 	if hasOpenSignals && openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}
@@ -897,7 +970,12 @@ func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Acco
 }
 
 func (s *server) totpEnrollForm(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.beginTOTPEnroll(w, r, acct)
+	// Lax cookies ride a cross-site top-level GET, so this GET writes nothing (#1666).
+	if acct.TotpEnabled && !s.devMode {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	s.render(w, r, "totp-enroll-confirm", s.signinData(map[string]any{"Title": "Two-factor"}))
 }
 
 func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -923,7 +1001,7 @@ func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "encrypt totp secret", err)
 		return
 	}
-	if err := s.store.SetTOTPSecret(r.Context(), db.SetTOTPSecretParams{
+	if err := s.totpEnrollStore.SetTOTPSecret(r.Context(), db.SetTOTPSecretParams{
 		ID: acct.ID, TotpSecret: pgtype.Text{String: enc, Valid: true},
 	}); err != nil {
 		s.serverError(w, "store totp secret", err)
@@ -948,7 +1026,7 @@ func totpEnrollData(username, secret, errMsg string) map[string]any {
 }
 
 func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	fresh, err := s.store.GetAccountByID(r.Context(), acct.ID)
+	fresh, err := s.totpEnrollStore.GetAccountByID(r.Context(), acct.ID)
 	if err != nil || !fresh.TotpSecret.Valid {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -965,7 +1043,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 			return
 		}
 	}
-	if err := s.store.ConfirmTOTP(r.Context(), acct.ID); err != nil {
+	if err := s.totpEnrollStore.ConfirmTOTP(r.Context(), acct.ID); err != nil {
 		s.serverError(w, "confirm totp", err)
 		return
 	}
@@ -977,12 +1055,12 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "generate recovery codes", err)
 		return
 	}
-	if err := s.store.DeleteRecoveryCodesForAccount(r.Context(), acct.ID); err != nil {
+	if err := s.totpEnrollStore.DeleteRecoveryCodesForAccount(r.Context(), acct.ID); err != nil {
 		s.serverError(w, "clear recovery codes", err)
 		return
 	}
 	for _, h := range hashes {
-		if err := s.store.CreateRecoveryCode(r.Context(), db.CreateRecoveryCodeParams{
+		if err := s.totpEnrollStore.CreateRecoveryCode(r.Context(), db.CreateRecoveryCodeParams{
 			AccountID: acct.ID, CodeHash: h,
 		}); err != nil {
 			s.serverError(w, "store recovery code", err)
@@ -998,10 +1076,21 @@ func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
-	if acct, err := s.store.GetAccountByUsername(r.Context(), username); err == nil {
+	// The reset request is the third pre-auth credential path, so it takes the login bound (#1651).
+	acctKey, ipKey := loginAccountKey(username), s.loginIPKey(r)
+	if s.loginLimiter.locked(acctKey, ipKey) {
+		s.render(w, r, "forgot-sent", s.signinData(map[string]any{"Title": "Reset password"}))
+		return
+	}
+	// Every request counts, known account or not, so the count itself enumerates nothing.
+	s.loginLimiter.fail(acctKey, ipKey)
+	if err := s.passwordStore.DeleteSpentPasswordResets(r.Context(), pgtype.Timestamptz{Time: s.now(), Valid: true}); err != nil {
+		log.Printf("web: forgot: purge spent resets: %v", err)
+	}
+	if acct, err := s.passwordStore.GetAccountByUsername(r.Context(), username); err == nil {
 		if plaintext, hash, terr := newOpaqueToken(); terr != nil {
 			log.Printf("web: forgot: mint reset token: %v", terr)
-		} else if pr, cerr := s.store.CreatePasswordReset(r.Context(), db.CreatePasswordResetParams{
+		} else if pr, cerr := s.passwordStore.CreatePasswordReset(r.Context(), db.CreatePasswordResetParams{
 			AccountID: acct.ID, TokenHash: hash,
 			ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(s.resetTTL), Valid: true},
 		}); cerr != nil {
@@ -1054,15 +1143,15 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, "reset: hash password", err)
 		return
 	}
-	if err := s.store.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: pr.AccountID, PasswordHash: hash}); err != nil {
+	if err := s.passwordStore.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: pr.AccountID, PasswordHash: hash}); err != nil {
 		s.serverError(w, "reset: update password", err)
 		return
 	}
-	if err := s.store.ConsumePasswordReset(r.Context(), db.ConsumePasswordResetParams{ID: pr.ID, ConsumedAt: s.obsAsOf()}); err != nil {
+	if err := s.passwordStore.ConsumePasswordReset(r.Context(), db.ConsumePasswordResetParams{ID: pr.ID, ConsumedAt: s.obsAsOf()}); err != nil {
 		log.Printf("web: reset: consume token: %v", err)
 	}
 	// A reset presumes the old password is lost, so every session goes (ADR-0117).
-	if err := s.store.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
+	if err := s.passwordStore.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
 		AccountID: pr.AccountID,
 		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err != nil {
@@ -1076,7 +1165,7 @@ func (s *server) lookupReset(r *http.Request, token string) (db.PasswordReset, b
 	if token == "" {
 		return db.PasswordReset{}, false
 	}
-	pr, err := s.store.GetPasswordResetByHash(r.Context(), hashToken(token))
+	pr, err := s.passwordStore.GetPasswordResetByHash(r.Context(), hashToken(token))
 	if err != nil {
 		return db.PasswordReset{}, false
 	}
@@ -1123,10 +1212,20 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 		fail(createError(err))
 		return
 	}
-	if err := s.store.ConsumeInvite(r.Context(), db.ConsumeInviteParams{
+	rows, err := s.inviteAcceptStore.ConsumeInvite(r.Context(), db.ConsumeInviteParams{
 		ID: inv.ID, ConsumedAt: s.obsAsOf(), AcceptedAccountID: pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		log.Printf("web: invite: consume token: %v", err)
+	})
+	if err != nil || rows == 0 {
+		// bcrypt sits between the read and the consume, so a parallel accept can win it (#1650).
+		if derr := s.inviteAcceptStore.DeleteAccount(r.Context(), acct.ID); derr != nil {
+			log.Printf("web: invite: remove account %d after a lost consume: %v", acct.ID, derr)
+		}
+		if err != nil {
+			s.serverError(w, "consume invite", err)
+			return
+		}
+		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
+		return
 	}
 	// No session is minted here, so a bare invite token never yields privileged state.
 	http.Redirect(w, r, "/login?invited=1", http.StatusSeeOther)
@@ -1136,7 +1235,7 @@ func (s *server) lookupInvite(r *http.Request, token string) (db.Invite, bool) {
 	if token == "" {
 		return db.Invite{}, false
 	}
-	inv, err := s.store.GetInviteByTokenHash(r.Context(), hashToken(token))
+	inv, err := s.inviteAcceptStore.GetInviteByTokenHash(r.Context(), hashToken(token))
 	if err != nil {
 		return db.Invite{}, false
 	}
@@ -1319,7 +1418,7 @@ func (s *server) failProfile(w http.ResponseWriter, r *http.Request, st profileS
 
 func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.Account, st profileState) {
 	// The passed account is a stale copy; TOTP enrolment in this session mutates the row.
-	if fresh, err := s.store.GetAccountByID(r.Context(), acct.ID); err == nil {
+	if fresh, err := s.profileStore.GetAccountByID(r.Context(), acct.ID); err == nil {
 		acct = fresh
 	}
 
@@ -1344,7 +1443,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 
 	curSessionID, haveCurSession := s.currentSessionID(r)
 	var sessions []profileSessionView
-	if rows, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+	if rows, err := s.profileStore.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
 		AccountID: acct.ID,
 		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err == nil {
@@ -1362,7 +1461,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	apiEnabled := false
-	if cfg, err := s.store.GetInstanceConfig(r.Context()); err == nil {
+	if cfg, err := s.profileStore.GetInstanceConfig(r.Context()); err == nil {
 		apiEnabled = cfg.ApiEnabled
 	} else {
 		log.Printf("web: profile: instance config: %v", err)
@@ -1381,10 +1480,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
-	data := map[string]any{
-		"Title": "Profile", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "",
-
+	data := pageData(acct, "Profile", "", map[string]any{
 		"Initials":    initials(acct.Username),
 		"Username":    acct.Username,
 		"Role":        acct.Role,
@@ -1413,12 +1509,12 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"RevokeErr":     st.revokeErr,
 		"EndSession":    st.endSession,
 		"SignOutOthers": st.signOutOthers,
-	}
+	})
 	s.render(w, r, "profile", data)
 }
 
 func (s *server) listPersonalTokensCreatedAsc(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error) {
-	rows, err := s.store.ListPersonalTokens(ctx, accountID)
+	rows, err := s.personalTokenStore.ListPersonalTokens(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -1460,7 +1556,7 @@ type profileLinkView struct {
 }
 
 func (s *server) profileSSOIdentities(r *http.Request, accountID int64) ([]profileIdentityView, map[int64]bool, bool) {
-	rows, err := s.store.ListSSOIdentitiesForAccount(r.Context(), accountID)
+	rows, err := s.profileStore.ListSSOIdentitiesForAccount(r.Context(), accountID)
 	if err != nil {
 		log.Printf("web: profile: list sso identities: %v", err)
 		return nil, map[int64]bool{}, false
@@ -1478,7 +1574,7 @@ func (s *server) profileSSOIdentities(r *http.Request, accountID int64) ([]profi
 }
 
 func (s *server) profileLinkableProviders(r *http.Request, linked map[int64]bool) []profileLinkView {
-	rows, err := s.store.ListEnabledSSOProviders(r.Context())
+	rows, err := s.profileStore.ListEnabledSSOProviders(r.Context())
 	if err != nil {
 		log.Printf("web: profile: list enabled sso providers: %v", err)
 		return nil
@@ -1497,7 +1593,7 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 	current := r.FormValue("current_password")
 	next := r.FormValue("new_password")
 
-	fresh, err := s.store.GetAccountByID(r.Context(), acct.ID)
+	fresh, err := s.passwordStore.GetAccountByID(r.Context(), acct.ID)
 	if err != nil {
 		s.serverError(w, "profile: read account", err)
 		return
@@ -1515,13 +1611,14 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "profile: hash password", err)
 		return
 	}
-	if err := s.store.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: acct.ID, PasswordHash: hash}); err != nil {
+	if err := s.passwordStore.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: acct.ID, PasswordHash: hash}); err != nil {
 		s.serverError(w, "profile: update password", err)
 		return
 	}
 	// A changed password kills every other session, so a stolen old one is dead (ADR-0117, #408).
+	desc := "Every other session was signed out."
 	if curID, ok := s.currentSessionID(r); ok {
-		if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
+		if err := s.passwordStore.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
 			AccountID: acct.ID,
 			ID:        curID,
 			RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
@@ -1531,8 +1628,9 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 	} else {
 		// Revoking with no exception would sign the caller out of the tab they just changed.
 		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
+		desc = "Other sessions were left in place."
 	}
-	s.toastRedirect(w, r, profilePath, "ok", "Password changed", "Other sessions keep working until they expire.")
+	s.toastRedirect(w, r, profilePath, "ok", "Password changed", desc)
 }
 
 func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -1550,7 +1648,7 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "profile: mint token", err)
 		return
 	}
-	if _, err := s.store.CreatePersonalToken(r.Context(), db.CreatePersonalTokenParams{
+	if _, err := s.personalTokenStore.CreatePersonalToken(r.Context(), db.CreatePersonalTokenParams{
 		AccountID: acct.ID, Name: name, Prefix: prefix, TokenHash: hash,
 	}); err != nil {
 		if isUniqueViolation(err) {
@@ -1572,7 +1670,7 @@ func (s *server) revealMintedToken(w http.ResponseWriter, r *http.Request, acct 
 func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, _ := strconv.ParseInt(r.FormValue("id"), 10, 64)
 
-	rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID)
+	rows, err := s.personalTokenStore.ListPersonalTokens(r.Context(), acct.ID)
 	if err != nil {
 		s.serverError(w, "profile: list tokens", err)
 		return
@@ -1588,7 +1686,7 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
-	if err := s.store.DeletePersonalToken(r.Context(), db.DeletePersonalTokenParams{ID: id, AccountID: acct.ID}); err != nil {
+	if err := s.personalTokenStore.DeletePersonalToken(r.Context(), db.DeletePersonalTokenParams{ID: id, AccountID: acct.ID}); err != nil {
 		s.serverError(w, "profile: revoke token", err)
 		return
 	}
@@ -1609,7 +1707,7 @@ func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct d
 	}
 	curID, haveCur := s.currentSessionID(r)
 	device := ""
-	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+	if sess, err := s.sessionStore.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
 		AccountID: acct.ID,
 		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err == nil {
@@ -1621,7 +1719,7 @@ func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct d
 		}
 	}
 	// The account_id predicate is what stops a posted id ending another account's session.
-	if err := s.store.RevokeSession(r.Context(), db.RevokeSessionParams{
+	if err := s.sessionStore.RevokeSession(r.Context(), db.RevokeSessionParams{
 		ID:        id,
 		AccountID: acct.ID,
 		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
@@ -1644,7 +1742,7 @@ func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, ac
 		return
 	}
 	ended := 0
-	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+	if sess, err := s.sessionStore.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
 		AccountID: acct.ID,
 		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err == nil {
@@ -1654,7 +1752,7 @@ func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, ac
 			}
 		}
 	}
-	if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
+	if err := s.sessionStore.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
 		AccountID: acct.ID,
 		ID:        curID,
 		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
@@ -1770,7 +1868,7 @@ func (s *server) createAccountRow(r *http.Request, username, role, password stri
 	if err != nil {
 		return db.Account{}, err
 	}
-	return s.store.CreateAccount(r.Context(), db.CreateAccountParams{
+	return s.loginStore.CreateAccount(r.Context(), db.CreateAccountParams{
 		Username: username, Role: role, PasswordHash: hash,
 	})
 }
@@ -1830,7 +1928,8 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	if !ok {
 		return
 	}
-	if _, isChrome := m["IsAdmin"]; !isChrome {
+	// IsAdmin is an authorization datum, so it never routes the shell (#1358).
+	if inShell, _ := m[shellKey].(bool); !inShell {
 		return
 	}
 	navActive, _ := m["NavActive"].(string)
@@ -1856,7 +1955,7 @@ func (s *server) injectChrome(data any, r *http.Request) {
 
 	unread, hasUnread := m["Unread"].(int64)
 	if !hasUnread && hasAcct {
-		n, err := s.store.CountUnreadMessages(ctx, acct.ID)
+		n, err := s.chromeStore.CountUnreadMessages(ctx, acct.ID)
 		if err != nil {
 			log.Printf("web: unread count: %v", err)
 		}

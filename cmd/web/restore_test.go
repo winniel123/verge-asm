@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -66,6 +67,32 @@ func TestPreflightArchiveRejectsUnknownTable(t *testing.T) {
 		strconv.Itoa(backupFormatVersion) + `,"schema_version":23000,"created_at":"2026-08-26T12:00:00Z","tables":["pg_catalog_pg_proc"]}` + "\n"
 	if _, err := preflightArchive(strings.NewReader(manifest)); err != errRestoreUnknownTbl {
 		t.Fatalf("preflightArchive on unknown table: err = %v, want errRestoreUnknownTbl", err)
+	}
+}
+
+func TestApplyRestoreRefusesForgedManifestTable(t *testing.T) {
+	manifest := `{"type":"manifest","format":"` + backupFormat + `","version":` +
+		strconv.Itoa(backupFormatVersion) + `,"schema_version":23000,"created_at":"2026-08-26T12:00:00Z","tables":["goose_db_version"]}` + "\n"
+
+	// A dropped gate panics on the nil pool rather than returning (ADR-0174 §6).
+	if err := (&server{}).applyRestore(context.Background(), []byte(manifest)); err != errRestoreUnknownTbl {
+		t.Fatalf("applyRestore on a forged manifest table: err = %v, want errRestoreUnknownTbl", err)
+	}
+}
+
+func TestApplyRestoreRefusesForgedRowTable(t *testing.T) {
+	var buf bytes.Buffer
+	buf.Write(buildTestArchive(t, 23000, []string{`{"subject_key":"a.example.com","closed_at":null}`}))
+	if err := writeBackupRow(&buf, "session", json.RawMessage(`{"id":1}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Preflight reads no non-span row line, so only the row gate refuses this (ADR-0174 §3).
+	if _, err := preflightArchive(bytes.NewReader(buf.Bytes())); err != nil {
+		t.Fatalf("preflightArchive: %v, want the manifest gate to pass this archive", err)
+	}
+	if err := (&server{}).applyRestore(context.Background(), buf.Bytes()); err != errRestoreUnknownTbl {
+		t.Fatalf("applyRestore on a forged row table: err = %v, want errRestoreUnknownTbl", err)
 	}
 }
 
@@ -314,5 +341,47 @@ func TestRestoreErrorMessages(t *testing.T) {
 	}
 	if restoreErrorMessage("../../etc/passwd") != "" {
 		t.Error("an unknown restore-error code reflected text; want empty")
+	}
+}
+
+func TestRestoreStageExpiresAfterTTL(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	srv := newServer(f, testKey, "", func() time.Time { return now })
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+
+	srv.stashRestore(admin.ID, &restoreStaging{file: "backup.ndjson", archive: []byte("{}")})
+	now = now.Add(restoreStageTTL - time.Second)
+	if srv.stagedRestore(admin.ID) == nil {
+		t.Fatal("a stage inside the TTL was dropped")
+	}
+
+	now = now.Add(2 * time.Second)
+	resp := postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"restore"}})
+	resp.Body.Close()
+	if got := pendingSettingsFlash(t, srv).restoreError; got != restoreErrorMessage("expired") {
+		t.Fatalf("apply after the TTL: flashed restoreError = %q, want the expired line", got)
+	}
+	if srv.stagedRestore(admin.ID) != nil {
+		t.Fatal("an expired stage is still held")
+	}
+}
+
+func TestRestorePreflightEvictsThePreviousStage(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	srv := newServer(f, testKey, "", fixedClock())
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+
+	srv.stashRestore(admin.ID, &restoreStaging{file: "old.ndjson", archive: []byte("{}")})
+	resp := postForm(t, ac, ts.URL+"/settings/restore/preflight", url.Values{})
+	resp.Body.Close()
+	if srv.stagedRestore(admin.ID) != nil {
+		t.Fatal("a new pre-flight left the previous archive staged")
 	}
 }

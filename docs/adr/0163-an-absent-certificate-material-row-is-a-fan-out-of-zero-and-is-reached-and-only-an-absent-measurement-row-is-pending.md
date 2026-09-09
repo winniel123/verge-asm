@@ -1,10 +1,20 @@
+---
+number: 163
+title: "An absent certificate-material row is a fan-out of zero and is reached, and only an absent measurement row is pending"
+slug: an-absent-certificate-material-row-is-a-fan-out-of-zero-and-is-reached-and-only-an-absent-measurement-row-is-pending
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1389
+pr: 1388
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 129}
+  - {kind: rests-on, adr: 129}
+---
+
 # ADR-0163: An absent certificate-material row is a fan-out of zero and is reached, and only an absent measurement row is pending
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1389 ADR gaps: db/queries (3/4)](https://github.com/winniel123/verge-asm/issues/1389), gap 2
-- **PR that deleted the comment:** [#1388](https://github.com/winniel123/verge-asm/pull/1388)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Bounds:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md)'s #954 amendment, at the absence rule's own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 - **Rests on:** ADR-0129's #954 amendment, which rules hold-then-open on the custody-extension population, and its #955 amendment, which fixes the threshold at an absolute count of 100
 

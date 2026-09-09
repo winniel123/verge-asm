@@ -1,9 +1,16 @@
-# ADR-0029: An alert fires on a leg, never on a state — and only the internet leg alerts
+---
+number: 29
+title: "An alert fires on a leg, never on a state — and only the internet leg alerts"
+slug: an-alert-fires-on-a-leg
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 58
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#58 On a one-vantage-class install there is no Exposure — which bare Reach transitions wake someone?](https://github.com/winniel123/verge-asm/issues/58)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0029: An alert fires on a leg, never on a state — and only the internet leg alerts
 
 ## Context
 

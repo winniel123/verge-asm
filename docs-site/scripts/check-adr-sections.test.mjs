@@ -4,11 +4,15 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  ADR_FILE,
+  FENCE,
   annotationLine,
   buildAdrIndex,
   checkFile,
   findCitations,
+  headings,
   isTextFile,
+  numberedHeadings,
   numberedSections,
   readErrorLine,
   summaryMarkdown,
@@ -218,11 +222,33 @@ test("a citation to an ADR that is not on disk is unresolvable", () => {
   });
 });
 
-test("a named section carries no number, so it is out of this check", () => {
+test("a section named by word is a violation, since only a number resolves", () => {
   withRepo({ "docs/adr/0129-a-title.md": ADR_WITH_SECTIONS }, (root) => {
     const index = buildAdrIndex(root);
-    assert.deepEqual(checkFile("docs/spec/x.md", "ADR-0129 §Context says so.", index), []);
+    const found = checkFile("docs/spec/x.md", "ADR-0129 §Context says so.", index);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].rule, "section-by-name");
+    assert.equal(found[0].text, "ADR-0129 §Context");
+    assert.match(found[0].message, /names a heading by word/);
   });
+});
+
+test("a linked citation names a section by word too", () => {
+  withRepo({ "docs/adr/0129-a-title.md": ADR_WITH_SECTIONS }, (root) => {
+    const index = buildAdrIndex(root);
+    const md = "see [ADR-0129](./0129-a.md) §Rationale for why";
+    const found = checkFile("docs/adr/0194-x.md", md, index);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].rule, "section-by-name");
+  });
+});
+
+test("a section by word inside a code span is a specimen, not a citation", () => {
+  assert.deepEqual(findCitations("the 52 `ADR-0129 §n` pointers", { markdown: true }), []);
+});
+
+test("a lone § after an ADR is not a citation", () => {
+  assert.deepEqual(findCitations("ADR-0129 § below", { markdown: false }), []);
 });
 
 // The pre-repair text of the sites #1455 repaired, so a pass proves the check would have caught it
@@ -304,4 +330,168 @@ test("the summary counts by rule, most frequent first", () => {
   ]);
   const rows = summary.split("\n").filter((l) => l.startsWith("| ") && !l.startsWith("| Rule"));
   assert.deepEqual(rows.slice(1), ["| unnumbered-adr | 2 |", "| section-out-of-range | 1 |"]);
+});
+
+test("a numbered heading reports its number, line, and level", () => {
+  assert.deepEqual(numberedHeadings(ADR_WITH_SECTIONS), [
+    { number: "1", line: 7, level: 3 },
+    { number: "2", line: 9, level: 3 },
+    { number: "2.1", line: 11, level: 4 },
+  ]);
+});
+
+test("a numbered heading inside a fence has no line", () => {
+  const md = ["## Decision", "", "```md", "### 1. Not a heading here", "```", ""].join("\n");
+  assert.deepEqual(numberedHeadings(md), []);
+});
+
+test("the Set wrapper keeps the numbers of the heading list", () => {
+  const md = "## 3 Rationale\n### 3.1) sub\n";
+  assert.deepEqual(numberedHeadings(md).map((h) => h.number), ["3", "3.1"]);
+  assert.deepEqual([...numberedSections(md)], ["3", "3.1"]);
+});
+
+test("the ADR-file pattern and the fence rule are the exported ones", () => {
+  assert.ok(ADR_FILE.test("0129-a-title.md"));
+  assert.ok(ADR_FILE.test("12345-a-title.md"));
+  assert.equal(ADR_FILE.test("129-a-title.md"), false);
+  assert.equal(ADR_FILE.test("0129-a-title.txt"), false);
+  assert.ok(FENCE.test("```go"));
+  assert.ok(FENCE.test("   ~~~"));
+  assert.equal(FENCE.test("    ```"), false);
+});
+
+test("the index carries each heading's line and level beside the section set", () => {
+  withRepo({ "docs/adr/0129-a-title.md": ADR_WITH_SECTIONS }, (root) => {
+    const entry = buildAdrIndex(root).get("0129");
+    assert.equal(entry.file, "docs/adr/0129-a-title.md");
+    assert.deepEqual([...entry.sections], ["1", "2", "2.1"]);
+    assert.deepEqual(entry.headings[2], { number: "2.1", line: 11, level: 4 });
+  });
+});
+
+test("a five-digit ADR is indexed under its filename prefix", () => {
+  withRepo({ "docs/adr/12345-a-title.md": ADR_WITH_SECTIONS }, (root) => {
+    const index = buildAdrIndex(root);
+    assert.ok(index.has("12345"));
+    assert.deepEqual(checkFile("internal/x/y.go", "// r (ADR-12345 §2.1)", index), []);
+  });
+});
+
+test("a five-digit citation to a missing file is unresolvable, not silent", () => {
+  withRepo({ "docs/adr/0129-a-title.md": ADR_WITH_SECTIONS }, (root) => {
+    const index = buildAdrIndex(root);
+    const found = checkFile("internal/x/y.go", "// r (ADR-12345 §1)", index);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].rule, "unresolvable-adr");
+    assert.equal(found[0].adr, "12345");
+  });
+});
+
+test("a legacy amendment citation is found with its issue and no section", () => {
+  const found = findCitations("// a veto (ADR-0129 #944).", { markdown: false });
+  assert.deepEqual(found, [{ line: 1, adr: "0129", issue: "944", text: "ADR-0129 #944" }]);
+});
+
+test("a legacy amendment citation wraps like any other", () => {
+  const found = findCitations("(ADR-0129\n#944)", { markdown: false });
+  assert.deepEqual(found, [{ line: 1, adr: "0129", issue: "944", text: "ADR-0129 #944" }]);
+});
+
+test("an issue beside the ADR, after a comma, is not an amendment citation", () => {
+  assert.deepEqual(findCitations("(ADR-0227, #1634)", { markdown: false }), []);
+  assert.deepEqual(findCitations("(ADR-0227 §2, #1634)", { markdown: false }), [
+    { line: 1, adr: "0227", section: "2", text: "ADR-0227 §2" },
+  ]);
+});
+
+test("an amendment citation followed by a section is the issue-section form alone", () => {
+  const found = findCitations("(ADR-0126 #1321 §3)", { markdown: false });
+  assert.equal(found.length, 1);
+  assert.equal(found[0].section, "3");
+});
+
+test("a legacy amendment citation is accepted at 227 and below", () => {
+  withRepo(
+    {
+      "docs/adr/0129-a-title.md": ADR_WITH_SECTIONS,
+      "docs/adr/0227-a-title.md": ADR_WITHOUT_SECTIONS,
+    },
+    (root) => {
+      const index = buildAdrIndex(root);
+      assert.deepEqual(checkFile("cmd/web/x.go", "// r (ADR-0129 #944)", index), []);
+      assert.deepEqual(checkFile("cmd/web/x.go", "// r (ADR-0227 #1634)", index), []);
+    },
+  );
+});
+
+test("a legacy amendment citation fails above 227", () => {
+  withRepo(
+    {
+      "docs/adr/0228-a-title.md": ADR_WITH_SECTIONS,
+      "docs/adr/1646-a-title.md": ADR_WITH_SECTIONS,
+    },
+    (root) => {
+      const index = buildAdrIndex(root);
+      for (const text of ["// r (ADR-0228 #1700)", "// r (ADR-1646 #1646)"]) {
+        const found = checkFile("cmd/web/x.go", text, index);
+        assert.equal(found.length, 1, text);
+        assert.equal(found[0].rule, "amendment-above-legacy");
+        assert.match(found[0].message, /in-file amendment/);
+      }
+    },
+  );
+});
+
+test("a legacy amendment citation to a missing ADR is unresolvable first", () => {
+  withRepo({ "docs/adr/0129-a-title.md": ADR_WITH_SECTIONS }, (root) => {
+    const index = buildAdrIndex(root);
+    const found = checkFile("cmd/web/x.go", "// r (ADR-0999 #12)", index);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].rule, "unresolvable-adr");
+  });
+});
+
+// The pre-repair text of the four sites #1735 repaired, so a pass proves the check catches the form
+const REPAIRED_BY_1735 = [
+  ["docs/adr/0194-x.md", "ADR-0011 §Rationale says why the two values must stay", "0011"],
+  ["docs/adr/0196-x.md", "ADR-0148 §Context states this for `http-exchange`", "0148"],
+  ["docs/adr/0209-x.md", "ADR-0143 §Consequences found the same", "0143"],
+  ["docs/guides/reports.md", "map of your attack surface (ADR-0039 §Context), and", "0039"],
+];
+
+for (const [file, text, adr] of REPAIRED_BY_1735) {
+  test(`#1735: ${file} carried a §Name citation of ADR-${adr}`, () => {
+    withRepo({ [`docs/adr/${adr}-a-title.md`]: ADR_WITHOUT_SECTIONS }, (root) => {
+      const found = checkFile(file, text, buildAdrIndex(root));
+      assert.equal(found.length, 1);
+      assert.equal(found[0].rule, "section-by-name");
+    });
+  });
+}
+
+test("every ATX heading is listed with its level, title, and line", () => {
+  assert.deepEqual(headings(ADR_WITH_SECTIONS).slice(0, 3), [
+    { level: 1, number: null, title: "ADR-0129: A title", line: 1 },
+    { level: 2, number: null, title: "Context", line: 3 },
+    { level: 2, number: null, title: "Decision", line: 5 },
+  ]);
+  assert.deepEqual(headings(ADR_WITH_SECTIONS)[5], { level: 4, number: "2.1", title: "A subsection", line: 11 });
+});
+
+test("a heading inside a fence is not listed, and an H1 never carries a number", () => {
+  const md = ["# 3 things", "", "```", "## 1. fenced", "```", "## 4.", ""].join("\n");
+  assert.deepEqual(headings(md), [
+    { level: 1, number: null, title: "3 things", line: 1 },
+    { level: 2, number: null, title: "4.", line: 6 },
+  ]);
+});
+
+test("the numbered list is the heading list filtered to numbered ones", () => {
+  assert.deepEqual(
+    numberedHeadings(ADR_WITH_SECTIONS),
+    headings(ADR_WITH_SECTIONS)
+      .filter((h) => h.number !== null)
+      .map(({ number, line, level }) => ({ number, line, level })),
+  );
 });

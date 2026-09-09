@@ -49,8 +49,9 @@ defaults:
     working-directory: docs-site
 
 jobs:
-  # Build + gates. Runs on every trigger (PRs included). Every step here is blocking: a
-  # non-zero exit fails the job. The job is not among the 7 required status checks in the
+  # Build + gates. Runs on every trigger (PRs included). Every step here is blocking — a
+  # non-zero exit fails the job — except the advisory `astro check` step, which carries
+  # continue-on-error (#1569). The job is not among the 7 required status checks in the
   # `main` ruleset, so a red run does not block a merge (#1395).
   build:
     runs-on: ubuntu-latest
@@ -89,6 +90,17 @@ jobs:
       # Build every version (main + each v* tag) into docs-site/dist.
       - name: Build site
         run: npm run build
+
+      # ADVISORY — the one non-blocking step in this job. `astro check` typechecks what
+      # `npm run build` transpiles past: PR #1508 left the required `VersionOption.ref`
+      # unassigned and shipped `blob/undefined/` links (#1569). The 3-error backlog its
+      # first run reported is now cleared, so promotion is a maintainer call: drop
+      # continue-on-error once the count has held at 0 over a few merges. Blocking here
+      # also stops the deploy job that `needs: build`. #1568 raises the same cautions
+      # for `staticcheck` on the Go side.
+      - name: Astro typecheck (advisory)
+        continue-on-error: true
+        run: npm run check
 
       - name: Broken-link gate tests
         run: node --test scripts/check-links.test.mjs
@@ -139,4 +151,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

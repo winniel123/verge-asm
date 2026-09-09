@@ -15,6 +15,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
+type scanTriggerStore interface {
+	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListScans(ctx context.Context) ([]db.Scan, error)
+}
+
 type scanTrigger interface {
 	Trigger(ctx context.Context, kind string) (int, queue.SkipReason, error)
 }
@@ -41,7 +47,7 @@ func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutc
 	ctx := r.Context()
 	kind := r.FormValue("kind")
 
-	sc, err := s.store.GetScanByKind(ctx, kind)
+	sc, err := s.scanTriggerStore.GetScanByKind(ctx, kind)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return triggerOutcome{"danger", "That scan is not one this deployment runs",
 			"Nothing was dispatched."}, true
@@ -122,7 +128,7 @@ func (s *server) finishOnboarding(w http.ResponseWriter, r *http.Request, acct d
 }
 
 func (s *server) activeDispatchKinds(ctx context.Context) (map[string]bool, error) {
-	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
+	rows, err := s.scanTriggerStore.ListDispatchProgress(ctx, scansHistoryLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +152,7 @@ func (s *server) chromeScanRunning(ctx context.Context) bool {
 }
 
 func (s *server) buildTriggerPanel(ctx context.Context, active map[string]bool) (triggerPanel, error) {
-	scans, err := s.store.ListScans(ctx)
+	scans, err := s.scanTriggerStore.ListScans(ctx)
 	if err != nil {
 		return triggerPanel{}, err
 	}

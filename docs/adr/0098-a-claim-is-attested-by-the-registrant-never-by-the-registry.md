@@ -1,9 +1,16 @@
-# ADR-0098: A claim is attested by the registrant, never by the registry
+---
+number: 98
+title: "A claim is attested by the registrant, never by the registry"
+slug: a-claim-is-attested-by-the-registrant-never-by-the-registry
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 178
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#178 Can an IANA registry service description alone carry a claim, or does the attestation gate need more?](https://github.com/winniel123/verge-asm/issues/178)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0098: A claim is attested by the registrant, never by the registry
 
 ## Context
 

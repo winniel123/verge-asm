@@ -257,7 +257,7 @@ Per-stream **store** caps (distinct from the 64 MiB memory guard):
 
 | Stream | Store cap | Rationale |
 | --- | --- | --- |
-| **stdout** | **4 MiB** | Holds a small/typical job whole; a ceiling job (~25 MB) keeps ~2 MiB head + ~2 MiB tail + marker. The cap is honest, not lossy — transcript stdout mostly re-states the Observation corpus; its unique value is the small pre-#773-gate delta (§2.3, §5.1). |
+| **stdout** | **4 MiB** | Holds a small/typical job whole; a ceiling job (~25 MB) keeps ~2 MiB head + ~2 MiB tail + marker. The cap is honest, not lossy — transcript stdout mostly re-states the Observation corpus; its unique value is the small delta captured before the ADR-0217 scope re-gate (§2.3, §5.1). |
 | **stderr** | **256 KiB** | Normally empty; a panic/stack trace is tiny. Generous headroom at near-zero disk cost. |
 | **sent-scope (stdin)** | **64 KiB** | Comfortably fits the 1024-address job spec (~15 KB); truncate-marks a pathological scope. |
 
@@ -324,7 +324,7 @@ All three are stored verbatim, sit behind the same admin gate (§5.2), and are e
 1. **stderr** — may carry credentials or tokens on a crash.
 2. **the sent scope (stdin)** — carries the exact `JobSpec`, which can hold credentials for
    credentialed sources.
-3. **pre-gate stdout** — the prober transcript captures stdout **before** the #773 scope re-gate
+3. **pre-gate stdout** — the prober transcript captures stdout **before** the ADR-0217 scope re-gate
    (`complete`'s `parseAuthorizedScope` gate, `worker.go`), so it can hold lines for subjects the
    Observation corpus dropped, including out-of-scope bytes a compromised prober injects
    (`internal/queue/scopegate.go`). Kept verbatim, because it is the **most valuable evidence**

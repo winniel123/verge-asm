@@ -226,15 +226,16 @@ func (w *Worker) WithRouter(router VantageRouter) *Worker {
 	return w
 }
 
+// A dead LISTEN connection fails at once, so the loop waits this long to re-acquire (#1655).
+
+const listenRetryDelay = 5 * time.Second
+
 func (w *Worker) Run(ctx context.Context) error {
-	conn, err := w.pool.Acquire(ctx)
+	conn, err := w.listen(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Release()
-	if _, err := conn.Exec(ctx, "LISTEN "+notifyChannel); err != nil {
-		return err
-	}
+	defer func() { conn.Release() }()
 
 	for {
 		if err := w.drain(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -244,11 +245,44 @@ func (w *Worker) Run(ctx context.Context) error {
 		waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		_, err := conn.Conn().WaitForNotification(waitCtx)
 		cancel()
-		if err != nil {
-			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
-				return ctx.Err()
-			}
+		if err == nil || errors.Is(err, context.DeadlineExceeded) {
+			continue
 		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		// pgx closes the conn on a read error, so every later wait fails at once (#1655).
+		w.log.Printf("worker: listen: %v; reconnecting in %s", err, listenRetryDelay)
+		conn.Release()
+		if err := sleepCtx(ctx, listenRetryDelay); err != nil {
+			return err
+		}
+		if conn, err = w.listen(ctx); err != nil {
+			return err
+		}
+	}
+}
+
+func (w *Worker) listen(ctx context.Context) (*pgxpool.Conn, error) {
+	conn, err := w.pool.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec(ctx, "LISTEN "+notifyChannel); err != nil {
+		conn.Release()
+		return nil, err
+	}
+	return conn, nil
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
 	}
 }
 
@@ -367,8 +401,23 @@ func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 	return nil
 }
 
+func (w *Worker) renewJobLease(ctx context.Context, jobID int64) error {
+	// The reaper reads a committed claimed_at, so the renewal never rides the job tx (#1709).
+	n, err := w.q.RenewJobLease(ctx, jobID)
+	if err != nil {
+		return fmt.Errorf("renew job lease: %w", err)
+	}
+	if n == 0 {
+		return errJobCanceled
+	}
+	return nil
+}
+
 func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries) error) error {
-	err := w.inTx(ctx, fn)
+	return w.discardCanceled(jobID, w.inTx(ctx, fn))
+}
+
+func (w *Worker) discardCanceled(jobID int64, err error) error {
 	// The cancellation recorded the job's terminal state, so nothing more is owed (ADR-0164 §3).
 	if errors.Is(err, errJobCanceled) {
 		w.log.Printf("worker: job %d canceled mid-flight; uncommitted work discarded", jobID)

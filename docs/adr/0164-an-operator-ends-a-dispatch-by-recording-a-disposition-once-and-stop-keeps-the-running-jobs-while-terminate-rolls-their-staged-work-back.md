@@ -1,13 +1,22 @@
+---
+number: 164
+title: "An operator ends a Dispatch by recording a disposition once, and stop keeps the running jobs while terminate rolls their staged work back"
+slug: an-operator-ends-a-dispatch-by-recording-a-disposition-once-and-stop-keeps-the-running-jobs-while-terminate-rolls-their-staged-work-back
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1353
+pr: 1352
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 165}
+  - {kind: rests-on, adr: 5}
+  - {kind: bounds, adr: 199}
+---
+
 # ADR-0164: An operator ends a Dispatch by recording a disposition once, and stop keeps the running jobs while terminate rolls their staged work back
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1353 ADR gaps: cmd/web/scans.go](https://github.com/winniel123/verge-asm/issues/1353)
-- **PR that deleted the comments:** [#1352](https://github.com/winniel123/verge-asm/pull/1352)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Read with:** [ADR-0165](./0165-a-recorded-dispatch-disposition-overrides-the-live-status-derivation-and-the-run-pages-status-word-is-one-token-that-styles-and-labels-the-badge.md), which rules the read side. This ADR rules the write side
 - **Bounds:** [`raw-job-output.md`](../spec/raw-job-output.md) §2.4, at §2.4's own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
-- **Rests on:** [ADR-0005](./0005-scan-execution-model.md), which fixes one queue job as one `Batch` and commits the job outcome with its observations. It rules the natural life of a `Dispatch` and never rules ending one
 
 ## Context
 
@@ -213,3 +222,67 @@ about **how** it was ended.
   bare `fanned-out` guard.
 - **A third disposition still needs this ADR and a migration.** A fourth token must say which
   transitions reach it, not only that it exists.
+
+## Amendment — [#1523](https://github.com/winniel123/verge-asm/issues/1523): §1 counts four tokens, the cadence-lag gate mints the fourth, and the reader's test names the two operator dispositions
+
+> **`dispatch.status` holds four tokens, and two of them stay operator-minted.** Migration
+> [`25000_dispatch_skipped_status.sql`](../../db/migrations/25000_dispatch_skipped_status.sql)
+> widened `dispatch_status_check` to `'fanned-out'`, `'stopped'`, `'terminated'` and `'skipped'`.
+> The ADR-0137 §4 cadence-lag gate mints `'skipped'`, and no operator mints it. A reader who wants
+> to know whether an operator ended a run asks whether the status is `'stopped'` or `'terminated'`.
+> That reader no longer asks whether the status differs from `'fanned-out'`.
+
+**Both halves of §1 moved under [#1120](https://github.com/winniel123/verge-asm/issues/1120), which
+[PR #1515](https://github.com/winniel123/verge-asm/pull/1515) closed.**
+
+- **The count.** §1 says *"`dispatch.status` holds three tokens."* Migration 25000 carries the
+  widened `CHECK`, so the count is four.
+- **The reader's test.** §1 says *"a reader ... asks whether the status is still `fanned-out`."* A
+  cadence-lag skip fails that test, and no operator ended it. The test admits a false positive.
+
+**The corrected test names the two operator tokens rather than the complement of one machine token.**
+The complement of `'fanned-out'` held exactly the operator dispositions while three tokens existed.
+It stopped holding them the moment a fourth token arrived.
+
+**`'skipped'` is not a third disposition.** Three grounds, and each one is independent.
+
+- **No person is in the write path.** `gateHotTick` in
+  [`internal/queue/hotlag.go`](../../internal/queue/hotlag.go) writes the token inside the
+  dispatcher. Every disposition this ADR rules arrives from a handler in
+  [`cmd/web/scans.go`](../../cmd/web/scans.go), behind the admin gate limb 5 fixes.
+- **The token records the absence of a run, not the end of one.** The tick claimed its window so
+  that nothing else could claim it, and the gate enqueued no job.
+- **A skip cancels nothing.** Limbs 2 and 3 price a stop and a terminate by the jobs each act
+  cancels. A skipped tick holds no job to cancel.
+
+**`SetDispatchStatus`'s guard refuses `'skipped'` over a disposition by construction.** The query is
+`status = 'fanned-out' OR (status = 'stopped' AND $2 = 'terminated')`. Two properties follow from
+it, and neither one needs a new clause.
+
+1. **No write puts `'skipped'` over a recorded disposition.** The second branch admits `'terminated'`
+   alone as `$2`. A `Dispatch` that already reads `'stopped'` or `'terminated'` refuses `'skipped'`.
+2. **No write puts a disposition over `'skipped'`.** Neither branch names `'skipped'` as a source
+   status. A skipped tick never gains a disposition afterwards.
+
+**Under that guard, `fanned-out → skipped` is the only edge into the fourth token, and no edge leaves it.** The
+#1421 amendment closes with *"A fourth token must say which transitions reach it, not only that it
+exists."* The sentence above is that statement. The fourth token is no disposition, so limb 4's
+once-only write takes no change.
+
+**No code reads the old test, so this is a framing defect and not a live bug.** No production Go file
+compares a `dispatch.status` against `'fanned-out'`. `dispatchOutcome` in `cmd/web/scans.go` switches
+on `'stopped'`, `'terminated'` and `'skipped'` by name, and answers the empty string for every other
+value. The sentence is still the one a future reader would act on.
+
+**Consequences.**
+
+- §1's first sentence and its last sentence move. The rest of §1 stands, including *"`fanned-out` is
+  what the fan-out writes and what a natural run keeps to the end."*
+- Limbs 2, 3, 4 and 5 take no change, and neither does the #1421 amendment.
+- The Decision block's *"A disposition is written once over `fanned-out`"* still reads correctly,
+  because `'skipped'` is no disposition and that sentence does not reach it.
+- **This amendment reopens nothing in ADR-0137 §4.** Three rulings stand there untouched. §4 arms
+  the gate, bounds it to `hot`, and refuses to arm it when an operator disables the
+  stale-`running` reaper.
+- **A fifth token would need this ADR again.** It must say which transitions reach it and which
+  transitions leave it, and whether an operator or the dispatcher mints it.

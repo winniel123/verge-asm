@@ -1,9 +1,16 @@
-# A clock-reading rule bounds its evidence in the subject's own units
+---
+number: 43
+title: "A clock-reading rule bounds its evidence in the subject's own units"
+slug: a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 77
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#77 Is `certificate`'s currency bound still safe for the clock class, now that six-day certificates are generally available?](https://github.com/winniel123/verge-asm/issues/77)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# A clock-reading rule bounds its evidence in the subject's own units
 
 ## Context
 

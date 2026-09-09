@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -10,6 +11,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -423,6 +428,43 @@ func TestTOTPReEnableBlockedWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestTOTPEnrollGETDoesNotRerollSecret(t *testing.T) {
+	f := newFakeStore()
+	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/account/totp/enroll", http.StatusOK)
+	if !strings.Contains(page, `action="/account/totp/enable"`) {
+		t.Fatalf("enrol confirm page has no form posting to /account/totp/enable; body: %s", page)
+	}
+	if got, _ := f.GetAccountByID(t.Context(), acct.ID); got.TotpSecret.Valid {
+		t.Fatal("GET /account/totp/enroll stored a TOTP secret before the operator confirmed")
+	}
+
+	body(t, postForm(t, ac, base+"/account/totp/enable", nil))
+	before, _ := f.GetAccountByID(t.Context(), acct.ID)
+	if !before.TotpSecret.Valid {
+		t.Fatal("POST /account/totp/enable stored no secret")
+	}
+
+	getBody(t, ac, base+"/account/totp/enroll", http.StatusOK)
+	after, _ := f.GetAccountByID(t.Context(), acct.ID)
+	if after.TotpSecret.String != before.TotpSecret.String {
+		t.Fatal("GET /account/totp/enroll re-rolled an in-progress enrolment secret")
+	}
+
+	enableTOTP(t, f, acct.ID)
+	resp, err := ac.Get(base + "/account/totp/enroll")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/" {
+		t.Fatalf("enrol confirm on an enrolled account: status=%d loc=%q, want 303 to /", resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
 func TestPasswordTooLongRejected(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -458,4 +500,74 @@ func TestNoForwardAuthHeaderTrusted(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("forward-auth header was trusted: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+func (f *fakeStore) CountAccounts(context.Context) (int64, error) {
+	return int64(len(f.accounts)), nil
+}
+
+func (f *fakeStore) CreateAccount(_ context.Context, arg db.CreateAccountParams) (db.Account, error) {
+	if _, taken := f.byName[arg.Username]; taken {
+		return db.Account{}, &pgconn.PgError{Code: "23505", Message: "duplicate key"}
+	}
+	acct := db.Account{
+		ID: f.nextID, Username: arg.Username, Role: arg.Role, PasswordHash: arg.PasswordHash,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.accounts[acct.ID] = acct
+	f.byName[acct.Username] = acct.ID
+	f.nextID++
+	return acct, nil
+}
+
+func (f *fakeStore) SetTOTPSecret(_ context.Context, arg db.SetTOTPSecretParams) error {
+	acct, ok := f.accounts[arg.ID]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	acct.TotpSecret = arg.TotpSecret
+	acct.TotpEnabled = false
+	f.accounts[arg.ID] = acct
+	return nil
+}
+
+func (f *fakeStore) ConfirmTOTP(_ context.Context, id int64) error {
+	acct, ok := f.accounts[id]
+	if !ok || !acct.TotpSecret.Valid {
+		return pgx.ErrNoRows
+	}
+	acct.TotpEnabled = true
+	f.accounts[id] = acct
+	return nil
+}
+
+func (f *fakeStore) SetTOTPLastStep(_ context.Context, arg db.SetTOTPLastStepParams) (int64, error) {
+	f.acctMu.Lock()
+	defer f.acctMu.Unlock()
+	acct, ok := f.accounts[arg.ID]
+	if !ok {
+		return 0, pgx.ErrNoRows
+	}
+	if acct.TotpLastStep.Valid && acct.TotpLastStep.Int64 >= arg.TotpLastStep.Int64 {
+		return 0, nil
+	}
+	acct.TotpLastStep = arg.TotpLastStep
+	f.accounts[arg.ID] = acct
+	return 1, nil
+}
+
+func (f *fakeStore) ListSSOIdentitiesForAccount(_ context.Context, accountID int64) ([]db.ListSSOIdentitiesForAccountRow, error) {
+	out := []db.ListSSOIdentitiesForAccountRow{}
+	for k := len(f.ssoIdentities) - 1; k >= 0; k-- {
+		i := f.ssoIdentities[k]
+		if i.accountID != accountID {
+			continue
+		}
+		out = append(out, db.ListSSOIdentitiesForAccountRow{
+			ID: i.id, ProviderID: i.providerID,
+			ProviderSlug: f.ssoSlugForID(i.providerID), ProviderName: f.ssoNameForID(i.providerID),
+			DisplayName: i.displayName, CreatedAt: pgtype.Timestamptz{Time: i.createdAt, Valid: true},
+		})
+	}
+	return out, nil
 }

@@ -16,6 +16,24 @@ import (
 	"github.com/winniel123/verge-asm/internal/queue"
 )
 
+type scansStore interface {
+	CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ListActiveDispatchProgress(ctx context.Context) ([]db.ListActiveDispatchProgressRow, error)
+	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
+	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]db.ListConcludedDispatchProgressRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
+	ListScans(ctx context.Context) ([]db.Scan, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
+	SetDispatchStatus(ctx context.Context, arg db.SetDispatchStatusParams) error
+}
+
 // The queue corpus is Operational, so no read on this page reaches the comparison path (ADR-0041).
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail.tmpl"))
@@ -73,6 +91,7 @@ type jobView struct {
 	MaxAttempts int32
 	Retrying    bool
 	Superseded  bool
+	Reaped      bool
 	Vantage     string
 	Batch       string
 }
@@ -83,17 +102,17 @@ func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
-	if seeds, serr := s.store.ListSeeds(ctx); serr == nil {
-		if optedIn, oerr := s.store.ListColdScopeSeedIds(ctx); oerr == nil {
+	if seeds, serr := s.scansStore.ListSeeds(ctx); serr == nil {
+		if optedIn, oerr := s.scansStore.ListColdScopeSeedIds(ctx); oerr == nil {
 			data["ColdScopes"] = toColdScopeViews(toSeedViews(seeds), optedIn)
 			data["ColdEnabled"] = len(optedIn) > 0
 		}
 	}
 	data["ColdError"] = f.coldError
 
-	if cfg, cerr := s.store.GetInstanceConfig(ctx); cerr == nil {
-		if scans, serr := s.store.ListScans(ctx); serr == nil {
-			if accounts, aerr := s.store.ListAccounts(ctx); aerr == nil {
+	if cfg, cerr := s.scansStore.GetInstanceConfig(ctx); cerr == nil {
+		if scans, serr := s.scansStore.ListScans(ctx); serr == nil {
+			if accounts, aerr := s.scansStore.ListAccounts(ctx); aerr == nil {
 				view := toAddressCapView(cfg, scans, accounts)
 				data["CapControl"] = view
 				capValue := strconv.FormatInt(view.Cap, 10)
@@ -106,7 +125,7 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	}
 	data["CapError"] = f.capError
 
-	activeRows, err := s.store.ListActiveDispatchProgress(ctx)
+	activeRows, err := s.scansStore.ListActiveDispatchProgress(ctx)
 	if err != nil {
 		return err
 	}
@@ -116,7 +135,7 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	for _, row := range inFlight {
 		dv := toDispatchView(row)
 		activeKinds[row.ScanKind] = true
-		jobs, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: row.DispatchID, Valid: true})
+		jobs, err := s.scansStore.ListJobsForDispatch(ctx, pgtype.Int8{Int64: row.DispatchID, Valid: true})
 		if err != nil {
 			return err
 		}
@@ -127,7 +146,7 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	data["Active"] = active
 
 	// The two reads are complements, so a Dispatch is listed once (scans-monitor-bounding §3).
-	historyRows, err := s.store.ListConcludedDispatchProgress(ctx, scansHistoryLimit+1)
+	historyRows, err := s.scansStore.ListConcludedDispatchProgress(ctx, scansHistoryLimit+1)
 	if err != nil {
 		return err
 	}
@@ -231,7 +250,7 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 		s.concludedFlash(w, r, acct, "There was nothing in flight to stop.")
 		return
 	}
-	rows, err := s.store.ListActiveDispatchProgress(r.Context())
+	rows, err := s.scansStore.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "stop scan: list dispatches", err)
 		return
@@ -243,12 +262,12 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
 	// ClaimJob selects state='ready', so a cancelled job leaves the claimable set (ADR-0164 §2).
-	n, err := s.store.CancelReadyJobsForDispatch(r.Context(), pid)
+	n, err := s.scansStore.CancelReadyJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "stop scan: cancel pending jobs", err)
 		return
 	}
-	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "stopped"}); err != nil {
+	if err := s.scansStore.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "stopped"}); err != nil {
 		s.serverError(w, "stop scan: record status", err)
 		return
 	}
@@ -263,7 +282,7 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		s.concludedFlash(w, r, acct, "There was nothing in flight to terminate.")
 		return
 	}
-	rows, err := s.store.ListActiveDispatchProgress(r.Context())
+	rows, err := s.scansStore.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "terminate scan: list dispatches", err)
 		return
@@ -274,13 +293,13 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
 	// No committed observation is deleted, so a terminate discards only staged work (ADR-0164 §3).
-	n, err := s.store.CancelActiveJobsForDispatch(r.Context(), pid)
+	n, err := s.scansStore.CancelActiveJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "terminate scan: cancel jobs", err)
 		return
 	}
 	// Only a stop escalates; every other recorded disposition stands (ADR-0164 §4, #1421).
-	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "terminated"}); err != nil {
+	if err := s.scansStore.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "terminated"}); err != nil {
 		s.serverError(w, "terminate scan: record status", err)
 		return
 	}
@@ -369,14 +388,14 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	}
 
 	// Run detail resolves off the monitor's two reads, so every listed row has a run page (#962).
-	activeRows, err := s.store.ListActiveDispatchProgress(r.Context())
+	activeRows, err := s.scansStore.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "run detail: list dispatches", err)
 		return
 	}
 	found, ok := findDispatchRow(activeProgressRows(activeRows), id)
 	if !ok {
-		historyRows, herr := s.store.ListConcludedDispatchProgress(r.Context(), scansHistoryLimit)
+		historyRows, herr := s.scansStore.ListConcludedDispatchProgress(r.Context(), scansHistoryLimit)
 		if herr != nil {
 			s.serverError(w, "run detail: list dispatches", herr)
 			return
@@ -389,21 +408,19 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	}
 
 	dv := toDispatchView(found)
-	jobRows, err := s.store.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: id, Valid: true})
+	jobRows, err := s.scansStore.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: id, Valid: true})
 	if err != nil {
 		s.serverError(w, "run detail: list jobs", err)
 		return
 	}
 
 	view := s.buildRunView(r, dv, jobRows)
-	s.render(w, r, "run", map[string]any{
-		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "drift",
-		"Refresh":   runRefresh(view.Status),
+	s.render(w, r, "run", pageData(acct, "batch "+view.Title, "drift", map[string]any{
+		"Refresh": runRefresh(view.Status),
 		// rundetail.tmpl reads StreamHref at root scope, so attribute and script emit together.
 		"StreamHref": view.StreamHref,
 		"Run":        view,
-	})
+	}))
 }
 
 func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.ListJobsForDispatchRow) runView {
@@ -443,7 +460,7 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 	}
 
 	v.Params = []runKV{{K: "Profile", V: dv.ScanKind}}
-	if sc, err := s.store.GetScanByKind(r.Context(), dv.ScanKind); err == nil {
+	if sc, err := s.scansStore.GetScanByKind(r.Context(), dv.ScanKind); err == nil {
 		v.Params = append(v.Params, runKV{K: "Cadence", V: cadenceLabel(sc.CadenceSeconds)})
 	}
 	if dv.DispatchedAt != "" {
@@ -505,7 +522,7 @@ type runStreamResp struct {
 }
 
 func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam string) (state, events []runStreamLine, done bool, err error) {
-	jobRows, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: dispatchID, Valid: true})
+	jobRows, err := s.scansStore.ListJobsForDispatch(ctx, pgtype.Int8{Int64: dispatchID, Valid: true})
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -683,7 +700,7 @@ func linkRunLog(v *runView, bareHref string) {
 func runStages(jobs []jobView) []runStage {
 	var order []string
 	idx := map[string]int{}
-	type agg struct{ total, done, dead, inflight int }
+	type agg struct{ total, done, dead, reaped, inflight int }
 	var aggs []agg
 	for _, j := range jobs {
 		if j.Superseded {
@@ -701,7 +718,11 @@ func runStages(jobs []jobView) []runStage {
 		case "done":
 			aggs[i].done++
 		case "dead":
-			aggs[i].dead++
+			if j.Reaped {
+				aggs[i].reaped++
+			} else {
+				aggs[i].dead++
+			}
 		case "ready", "running":
 			aggs[i].inflight++
 		}
@@ -712,6 +733,9 @@ func runStages(jobs []jobView) []runStage {
 		detail := fmt.Sprintf("%d of %d done", a.done, a.total)
 		if a.dead > 0 {
 			detail += fmt.Sprintf(" · %d dead-lettered", a.dead)
+		}
+		if a.reaped > 0 {
+			detail += fmt.Sprintf(" · %d reaped", a.reaped)
 		}
 		stages = append(stages, runStage{
 			Num:     i + 1,
@@ -823,7 +847,7 @@ func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) ru
 	if len(batchIDs) == 0 {
 		return runOutcome{Concluded: false}
 	}
-	driftRows, err := s.store.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
+	driftRows, err := s.scansStore.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
 		// A run's batch can be older than any period, so the zero instant excludes none by age.
 		Since: pgtype.Timestamptz{Time: time.Time{}, Valid: true}, MaxEvents: driftFeedLimit,
 	})
@@ -831,7 +855,7 @@ func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) ru
 		log.Printf("web: run detail: outcome join: list drift events: %v", err)
 		return runOutcome{Concluded: false}
 	}
-	signals, err := s.store.ListSignalInstances(ctx)
+	signals, err := s.scansStore.ListSignalInstances(ctx)
 	if err != nil {
 		log.Printf("web: run detail: outcome join: list signal instances: %v", err)
 		return runOutcome{Concluded: false}
@@ -958,7 +982,7 @@ func (s *server) scanSchedule(ctx context.Context) scanScheduleView {
 	var v scanScheduleView
 
 	// The read is newest-first, so the first row with a real created_at is the latest fan-out.
-	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
+	if rows, err := s.scansStore.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
 		log.Printf("web: dashboard: scan schedule: list dispatches: %v", err)
 	} else {
 		for _, r := range rows {
@@ -978,7 +1002,7 @@ func (s *server) scanSchedule(ctx context.Context) scanScheduleView {
 		}
 	}
 
-	if scans, err := s.store.ListScans(ctx); err != nil {
+	if scans, err := s.scansStore.ListScans(ctx); err != nil {
 		log.Printf("web: dashboard: scan schedule: list scans: %v", err)
 	} else {
 		var best time.Time
@@ -1040,6 +1064,8 @@ func toJobView(j db.ListJobsForDispatchRow) jobView {
 		MaxAttempts: j.MaxAttempts,
 		Superseded:  j.State == "retried",
 		Retrying:    j.Attempt > 1 && (j.State == "ready" || j.State == "running"),
+		// A dead job with no Batch is a reaped worker, not exhausted retries (ADR-0169 §2).
+		Reaped: j.State == "dead" && !j.BatchID.Valid,
 	}
 	if j.VantageName.Valid {
 		v.Vantage = j.VantageName.String

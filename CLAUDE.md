@@ -55,11 +55,19 @@ This rule holds even when the next ticket looks small or looks blocked on nothin
 
 At the end of a wayfinder or implementation session, open a PR and make sure the branch is up-to-date with `main`. A human squashes and merges the PR.
 
+### Writing an ADR
+
+An ADR records one decision that passes three tests. It is hard to reverse. A reader without context would ask why. The session chose it over a named alternative. When one fails, write no ADR. Keep the reason in code, and put the rest in the PR body.
+
+Only a human opens the issue that becomes an ADR, and its number is the ADR's number. A deleted comment that passes the three tests earns a decision proposal block in the PR body, never an issue. Under orchestration only the orchestrator writes an ADR, one PR at a time.
+
+An ADR PR adds one file: YAML front matter, a Decision block under 150 words, a proof. A fresh-context subagent runs the `adr-review` skill, and the required `adr-review` check holds the merge. A later ADR changes an earlier one through a relation, and the tool writes the marker. Never hand-edit a marker. See `docs/spec/adr-governance.md`.
+
 ## Landing PRs on `main`
 
 `main` is protected by an active repository RULESET, not classic branch protection. `gh api repos/.../branches/main/protection` returns a misleading 404. Check `gh api repos/winniel123/verge-asm/rulesets` instead. No direct pushes. Every change goes through a PR.
 
-7 required status checks must pass before merge: `test`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`.
+12 required status checks must pass before merge. They are `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, `adr-review`, and commentlint's `lint`. `citations`, `adr-sections`, and `lint` joined on 2026-09-07 as Lane A of the ADR-drift repair. `adr-review` joined on 2026-09-08 (#1740).
 
 - `gosec` and `govulncheck` BLOCK. `govulncheck` fails on any reachable advisory. `gosec` runs `-exclude-generated -severity high -confidence high`.
 - `test` runs `go vet` and `go test`.
@@ -69,6 +77,20 @@ At the end of a wayfinder or implementation session, open a PR and make sure the
 `go.mod` pins `go 1.26.8`. `.go-version` and the Dockerfile base digest also pin 1.26.8. `.go-version` is the source of truth: every `setup-go` step reads it through `go-version-file`, and `scripts/check-go-pins.sh` runs inside the `test` job to hold the three pins together. The old CI `GO_VERSION` env key is gone (#1247). Do not use 1.27-only features. Do NOT add a `toolchain` directive equal to the `go` line — it breaks CI's `-mod=readonly` build.
 
 New goose migrations race on their number. The `compose` CI job boots the real `web` binary, which runs `goose.Up`; a duplicate goose version panics the binary and `compose` fails at "wait for a healthy stack" (look for `panic: goose: duplicate version NNNNN`). CI tests your branch merged with `main`. Before pushing, `git fetch origin main` and number your migration above `origin/main`'s current max in `db/migrations/` (they increment by ~100).
+
+New ADRs race on their number in the same way, and no check catches it. `docs/adr/` numbers sequentially, and every branch cuts from `origin/main`. Two concurrent branches read the same max and claim the same next number. A fetch of `origin/main` cannot reveal the clash, because neither ADR has merged. The first merge wins and the second conflicts on the file.
+
+Before you write an ADR, read the number every open PR already claims:
+
+```sh
+gh pr list --state open --json number --jq '.[].number' \
+  | xargs -I{} gh pr diff {} --name-only \
+  | grep '^docs/adr/'
+```
+
+Number above `origin/main`'s current max AND above every number that command prints. State the number in your PR title or body, so a sibling session sees it without reading a diff.
+
+On 2026-09-07 four concurrent sessions each authored ADR-0222 (#1614, #1617, #1618, #1622). Three branches then rewrote every citation of their own number. One of the three also needed a `sqlc` regeneration, because the citation sat in a SQL comment that `sqlc` lifts into `internal/db`.
 
 ## Local dev environment
 

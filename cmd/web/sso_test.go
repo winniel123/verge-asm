@@ -7,6 +7,12 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 type fakeSSOFlow struct {
@@ -200,6 +206,12 @@ func TestSSOCallbackStillRequiresTOTP(t *testing.T) {
 	page := body(t, r2)
 	if !strings.Contains(page, "Two-factor check") {
 		t.Errorf("a TOTP-enrolled account should land on the two-factor step after SSO; body: %s", page)
+	}
+	if !strings.Contains(page, `<span class="mono">alice</span>`) {
+		t.Errorf("the SSO two-factor step should name the account like the password path does; body: %s", page)
+	}
+	if strings.Contains(page, "<span>Verge ASM </span>") {
+		t.Errorf("the SSO two-factor step rendered an empty footer version; body: %s", page)
 	}
 	r3, _ := c.Get(base + "/")
 	r3.Body.Close()
@@ -619,4 +631,67 @@ func TestSettingsSSORequiresAdmin(t *testing.T) {
 	if len(f.ssoProviders) != 0 {
 		t.Errorf("viewer created an SSO provider despite the admin gate")
 	}
+}
+
+func (f *fakeStore) GetSSOProviderForAuth(_ context.Context, slug string) (db.GetSSOProviderForAuthRow, error) {
+	for _, p := range f.ssoProviders {
+		if p.slug == slug && p.enabled {
+			return db.GetSSOProviderForAuthRow{
+				ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
+				ClientSecret: pgtype.Text{String: p.secret, Valid: p.hasSecret},
+			}, nil
+		}
+	}
+	return db.GetSSOProviderForAuthRow{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) InsertSSOIdentity(_ context.Context, arg db.InsertSSOIdentityParams) error {
+	for _, i := range f.ssoIdentities {
+		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
+			return &pgconn.PgError{Code: "23505", Message: "duplicate sso identity"}
+		}
+		if i.providerID == arg.ProviderID && i.accountID == arg.AccountID {
+			return &pgconn.PgError{Code: "23505", Message: "duplicate provider link for account"}
+		}
+	}
+	f.ssoIdentNextID++
+	f.ssoIdentities = append(f.ssoIdentities, fakeSSOIdentity{
+		id: f.ssoIdentNextID, providerID: arg.ProviderID, accountID: arg.AccountID,
+		sub: arg.Sub, displayName: arg.DisplayName, createdAt: obsClock,
+	})
+	return nil
+}
+
+func (f *fakeStore) GetAccountBySSOIdentity(_ context.Context, arg db.GetAccountBySSOIdentityParams) (db.Account, error) {
+	for _, i := range f.ssoIdentities {
+		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
+			if a, ok := f.accounts[i.accountID]; ok {
+				return a, nil
+			}
+		}
+	}
+	return db.Account{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) GetSSOIdentityBySub(_ context.Context, arg db.GetSSOIdentityBySubParams) (db.GetSSOIdentityBySubRow, error) {
+	for _, i := range f.ssoIdentities {
+		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
+			return db.GetSSOIdentityBySubRow{ID: i.id, AccountID: i.accountID, DisplayName: i.displayName}, nil
+		}
+	}
+	return db.GetSSOIdentityBySubRow{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) DeleteSSOIdentityForAccount(_ context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error) {
+	var kept []fakeSSOIdentity
+	var removed int64
+	for _, i := range f.ssoIdentities {
+		if i.id == arg.ID && i.accountID == arg.AccountID {
+			removed++
+			continue
+		}
+		kept = append(kept, i)
+	}
+	f.ssoIdentities = kept
+	return removed, nil
 }

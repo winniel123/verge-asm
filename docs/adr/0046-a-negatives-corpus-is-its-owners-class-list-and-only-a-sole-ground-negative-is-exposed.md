@@ -1,9 +1,16 @@
-# ADR-0046: A negative's corpus is its owner's class list, and only a sole-ground negative is exposed
+---
+number: 46
+title: "A negative's corpus is its owner's class list, and only a sole-ground negative is exposed"
+slug: a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 79
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#79 Which curated-table negatives were established over specifications alone, and does ADR-0040 reopen any?](https://github.com/winniel123/verge-asm/issues/79)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0046: A negative's corpus is its owner's class list, and only a sole-ground negative is exposed
 
 ## Context
 

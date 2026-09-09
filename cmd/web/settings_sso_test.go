@@ -1,0 +1,114 @@
+package main
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
+)
+
+func (f *fakeStore) InsertSSOProvider(_ context.Context, arg db.InsertSSOProviderParams) (int64, error) {
+	for _, p := range f.ssoProviders {
+		if p.slug == arg.Slug {
+			return 0, &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
+		}
+	}
+	f.ssoNextID++
+	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
+		id: f.ssoNextID, slug: arg.Slug, name: arg.Name, issuer: arg.Issuer,
+		clientID: arg.ClientID, secret: arg.ClientSecret.String, hasSecret: arg.ClientSecret.Valid,
+		enabled: arg.Enabled, createdBy: arg.CreatedBy,
+		createdAt: obsClock,
+	})
+	return f.ssoNextID, nil
+}
+
+func (f *fakeStore) ListSSOProviders(context.Context) ([]db.ListSSOProvidersRow, error) {
+	out := []db.ListSSOProvidersRow{}
+	for i := len(f.ssoProviders) - 1; i >= 0; i-- {
+		p := f.ssoProviders[i]
+		out = append(out, db.ListSSOProvidersRow{
+			ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
+			Enabled: p.enabled, HasSecret: p.hasSecret,
+			CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
+			CreatedByUsername: f.usernameForID(p.createdBy),
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProviderParams) (int64, error) {
+	for i := range f.ssoProviders {
+		if f.ssoProviders[i].id != arg.ID {
+			continue
+		}
+		for _, p := range f.ssoProviders {
+			if p.id != arg.ID && p.slug == arg.Slug {
+				return 0, &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
+			}
+		}
+		f.ssoProviders[i].slug = arg.Slug
+		f.ssoProviders[i].name = arg.Name
+		f.ssoProviders[i].issuer = arg.Issuer
+		f.ssoProviders[i].clientID = arg.ClientID
+		f.ssoProviders[i].enabled = arg.Enabled
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProviderSecretParams) error {
+	for i := range f.ssoProviders {
+		if f.ssoProviders[i].id == arg.ID {
+			f.ssoProviders[i].secret = arg.ClientSecret.String
+			f.ssoProviders[i].hasSecret = arg.ClientSecret.Valid
+			return nil
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
+	kept := f.ssoProviders[:0]
+	for _, p := range f.ssoProviders {
+		if p.id != id {
+			kept = append(kept, p)
+		}
+	}
+	f.ssoProviders = kept
+	var keptIdents []fakeSSOIdentity
+	for _, i := range f.ssoIdentities {
+		if i.providerID != id {
+			keptIdents = append(keptIdents, i)
+		}
+	}
+	f.ssoIdentities = keptIdents
+	return nil
+}
+
+func (f *fakeStore) ListSSOBindings(_ context.Context) ([]db.ListSSOBindingsRow, error) {
+	out := []db.ListSSOBindingsRow{}
+	for k := len(f.ssoIdentities) - 1; k >= 0; k-- {
+		i := f.ssoIdentities[k]
+		out = append(out, db.ListSSOBindingsRow{
+			ID: i.id, ProviderID: i.providerID,
+			ProviderSlug: f.ssoSlugForID(i.providerID), ProviderName: f.ssoNameForID(i.providerID),
+			AccountID: i.accountID, AccountUsername: f.usernameForID(i.accountID),
+			DisplayName: i.displayName, CreatedAt: pgtype.Timestamptz{Time: i.createdAt, Valid: true},
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) DeleteSSOIdentity(_ context.Context, id int64) error {
+	var kept []fakeSSOIdentity
+	for _, i := range f.ssoIdentities {
+		if i.id != id {
+			kept = append(kept, i)
+		}
+	}
+	f.ssoIdentities = kept
+	return nil
+}

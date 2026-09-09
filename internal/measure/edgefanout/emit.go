@@ -31,7 +31,7 @@ func DecodeValue(raw json.RawMessage) (Value, error) {
 }
 
 func Emit(batch string, target netip.AddrPort, res Result) wire.Observation {
-	// No facet and no subject: this leaf decides membership and opens no timeline (ADR-0129 §6).
+	// No facet and no subject: this leaf decides membership and opens no timeline (ADR-0129 #954).
 	return wire.Observation{
 		Batch:   batch,
 		Kind:    Kind,

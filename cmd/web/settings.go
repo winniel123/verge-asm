@@ -23,6 +23,53 @@ import (
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
+type teamAdminStore interface {
+	CountAdmins(ctx context.Context) (int64, error)
+	CreateInvite(ctx context.Context, arg db.CreateInviteParams) (db.Invite, error)
+	DeleteAccount(ctx context.Context, id int64) error
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ResetAccountTOTP(ctx context.Context, id int64) error
+	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
+	UpdateAccountRole(ctx context.Context, arg db.UpdateAccountRoleParams) error
+}
+
+type adminSessionStore interface {
+	ListAllActiveSessions(ctx context.Context, expiresAt pgtype.Timestamptz) ([]db.ListAllActiveSessionsRow, error)
+	RevokeSessionByIDForAdmin(ctx context.Context, arg db.RevokeSessionByIDForAdminParams) error
+}
+
+type channelsStore interface {
+	CreateChannel(ctx context.Context, arg db.CreateChannelParams) (int64, error)
+	DeleteChannel(ctx context.Context, id int64) error
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	SetChannelSecret(ctx context.Context, arg db.SetChannelSecretParams) error
+	UpdateChannel(ctx context.Context, arg db.UpdateChannelParams) error
+}
+
+type instanceSettingsStore interface {
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	GetInstanceHealth(ctx context.Context) (db.GetInstanceHealthRow, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	SetAPIEnabled(ctx context.Context, arg db.SetAPIEnabledParams) error
+	SetSeedAddressCap(ctx context.Context, arg db.SetSeedAddressCapParams) error
+	SetUpdateCheckEnabled(ctx context.Context, arg db.SetUpdateCheckEnabledParams) error
+}
+
+type deliverySettingsStore interface {
+	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
+	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
+	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
+}
+
+type apertureSettingsStore interface {
+	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error)
+}
+
 // Every mutation this screen hosts is an authenticated admin act (docs/spec/v1-spec.md §4.3).
 
 // The secret is write-only and never rendered again (CONTEXT.md "Channel").
@@ -110,6 +157,7 @@ type vantageRow struct {
 	Endpoint     string
 	Latency      string
 	Unverified   bool
+	Observed     bool
 	Avail        string
 }
 
@@ -326,7 +374,7 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "mint invite token", err)
 		return
 	}
-	if _, err := s.store.CreateInvite(r.Context(), db.CreateInviteParams{
+	if _, err := s.teamAdminStore.CreateInvite(r.Context(), db.CreateInviteParams{
 		TokenHash: hash, Role: role,
 		InvitedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 		ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(inviteTTL), Valid: true},
@@ -363,13 +411,13 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 		fail("Role must be admin or viewer.")
 		return
 	}
-	target, err := s.store.GetAccountByID(r.Context(), id)
+	target, err := s.teamAdminStore.GetAccountByID(r.Context(), id)
 	if err != nil {
 		fail("That account could not be found.")
 		return
 	}
 	if target.Role == roleAdmin && role == roleViewer {
-		n, err := s.store.CountAdmins(r.Context())
+		n, err := s.teamAdminStore.CountAdmins(r.Context())
 		if err != nil {
 			s.serverError(w, "count admins", err)
 			return
@@ -379,7 +427,7 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 			return
 		}
 	}
-	if err := s.store.UpdateAccountRole(r.Context(), db.UpdateAccountRoleParams{ID: id, Role: role}); err != nil {
+	if err := s.teamAdminStore.UpdateAccountRole(r.Context(), db.UpdateAccountRoleParams{ID: id, Role: role}); err != nil {
 		s.serverError(w, "update account role", err)
 		return
 	}
@@ -392,7 +440,7 @@ func (s *server) reenrollAccount(w http.ResponseWriter, r *http.Request, acct db
 		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
 		return
 	}
-	if err := s.store.ResetAccountTOTP(r.Context(), id); err != nil {
+	if err := s.teamAdminStore.ResetAccountTOTP(r.Context(), id); err != nil {
 		s.serverError(w, "reset account totp", err)
 		return
 	}
@@ -413,7 +461,7 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		s.failSettings(w, r, settingsForms{section: "team", teamError: "You cannot remove your own account."})
 		return
 	}
-	target, err := s.store.GetAccountByID(r.Context(), id)
+	target, err := s.teamAdminStore.GetAccountByID(r.Context(), id)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
 		return
@@ -423,7 +471,7 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	if target.Role == roleAdmin {
-		n, err := s.store.CountAdmins(r.Context())
+		n, err := s.teamAdminStore.CountAdmins(r.Context())
 		if err != nil {
 			s.serverError(w, "count admins", err)
 			return
@@ -434,7 +482,7 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 	// Attributed acts pin their author with created_by (docs/guides/accounts.md).
-	if err := s.store.DeleteAccount(r.Context(), id); err != nil {
+	if err := s.teamAdminStore.DeleteAccount(r.Context(), id); err != nil {
 		if isForeignKeyViolation(err) {
 			reopen(target.Username + " has declared scopes, channels, or other attributed acts and cannot be removed — reassign or keep the account.")
 			return
@@ -464,7 +512,7 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		fail("Choose at least one routing class.")
 		return
 	}
-	if _, err := s.store.CreateChannel(r.Context(), db.CreateChannelParams{
+	if _, err := s.channelsStore.CreateChannel(r.Context(), db.CreateChannelParams{
 		Url: normURL, Secret: optionalSecret(r.FormValue("secret")),
 		RouteDrift: drift, RouteCoverage: coverage, RouteClock: clock,
 		Enabled: true, CreatedBy: acct.ID,
@@ -495,7 +543,7 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		fail("Choose at least one routing class.")
 		return
 	}
-	if err := s.store.UpdateChannel(r.Context(), db.UpdateChannelParams{
+	if err := s.channelsStore.UpdateChannel(r.Context(), db.UpdateChannelParams{
 		ID: id, Url: normURL, RouteDrift: drift, RouteCoverage: coverage,
 		RouteClock: clock, Enabled: r.FormValue("enabled") != "",
 	}); err != nil {
@@ -504,12 +552,12 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	switch {
 	case r.FormValue("clear_secret") != "":
-		if err := s.store.SetChannelSecret(r.Context(), db.SetChannelSecretParams{ID: id}); err != nil {
+		if err := s.channelsStore.SetChannelSecret(r.Context(), db.SetChannelSecretParams{ID: id}); err != nil {
 			s.serverError(w, "clear channel secret", err)
 			return
 		}
 	case strings.TrimSpace(r.FormValue("secret")) != "":
-		if err := s.store.SetChannelSecret(r.Context(), db.SetChannelSecretParams{
+		if err := s.channelsStore.SetChannelSecret(r.Context(), db.SetChannelSecretParams{
 			ID: id, Secret: pgtype.Text{String: r.FormValue("secret"), Valid: true},
 		}); err != nil {
 			s.serverError(w, "set channel secret", err)
@@ -525,7 +573,7 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.failSettings(w, r, settingsForms{section: "channels", chanError: "That channel could not be found."})
 		return
 	}
-	if err := s.store.DeleteChannel(r.Context(), id); err != nil {
+	if err := s.channelsStore.DeleteChannel(r.Context(), id); err != nil {
 		s.serverError(w, "delete channel", err)
 		return
 	}
@@ -561,7 +609,7 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		fail("Transcript retention must be a whole number of days, zero or more.")
 		return
 	}
-	tightest, err := s.store.TightestEnabledScanCadenceSeconds(r.Context())
+	tightest, err := s.deliverySettingsStore.TightestEnabledScanCadenceSeconds(r.Context())
 	if err != nil {
 		s.serverError(w, "tightest scan cadence", err)
 		return
@@ -575,7 +623,7 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		fail(fmt.Sprintf("Dispatch retention must be at least %d cadences of the slowest enabled Scan, or 0 to leave it unbounded.", retention.FloorCadences))
 		return
 	}
-	if err := s.store.UpdateRetentionSettings(r.Context(), db.UpdateRetentionSettingsParams{
+	if err := s.deliverySettingsStore.UpdateRetentionSettings(r.Context(), db.UpdateRetentionSettingsParams{
 		ObservationCurrencyDays: obs, DispatchCadenceMultiple: disp,
 		TranscriptCurrencyDays: trans,
 		UpdatedBy:              pgtype.Int8{Int64: acct.ID, Valid: true},
@@ -598,7 +646,7 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 		})
 		return
 	}
-	if err := s.store.SetSeedAddressCap(r.Context(), db.SetSeedAddressCapParams{
+	if err := s.instanceSettingsStore.SetSeedAddressCap(r.Context(), db.SetSeedAddressCapParams{
 		SeedAddressCap:          n,
 		SeedAddressCapUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
@@ -614,10 +662,9 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		active = tabForSection(f.section)
 	}
 
-	data := map[string]any{
-		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "settings", "Tab": active,
-	}
+	data := pageData(acct, "Settings", "settings", map[string]any{
+		"Tab": active,
+	})
 	if f.notice != "" {
 		data["Notice"] = f.notice
 	}
@@ -661,8 +708,17 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	s.renderStatus(w, r, http.StatusOK, "settings", data)
 }
 
+func vantageRowsInclude(rows []db.ListVantagesRow, id int64) bool {
+	for _, v := range rows {
+		if v.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[string]any) error {
-	rows, err := s.store.ListVantages(r.Context())
+	rows, err := s.instanceSettingsStore.ListVantages(r.Context())
 	if err != nil {
 		return err
 	}
@@ -674,12 +730,13 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 	data["ResolverError"] = f.resolverError
 	data["ResolverID"] = f.resolverID
 	data["ResolverValue"] = f.resolverValue
+	data["ResolverUnmatched"] = f.resolverError != "" && !vantageRowsInclude(rows, f.resolverID)
 	out := make([]vantageRow, 0, len(rows))
 	for _, v := range rows {
 		vr := vantageRow{
 			ID: v.ID, Name: v.Name, Class: v.Class, Availability: v.Availability.String,
 			Resolver: v.Resolver, Endpoint: endpointString(v.Host.String, v.Port.Int32),
-			Latency: vantageLatencyLabel(v.LatencyMs),
+			Latency: vantageLatencyLabel(v.LatencyMs), Observed: v.Observed,
 		}
 		if vr.Availability == "" {
 			vr.Availability = "pending"
@@ -693,7 +750,7 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 }
 
 func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[string]any) error {
-	channels, err := s.store.ListChannels(r.Context())
+	channels, err := s.channelsStore.ListChannels(r.Context())
 	if err != nil {
 		return err
 	}
@@ -735,18 +792,18 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	ctx := r.Context()
 
 	var deliveries []deliveryView
-	if outcomes, derr := s.store.ListDeliveryOutcomes(ctx); derr == nil {
+	if outcomes, derr := s.deliverySettingsStore.ListDeliveryOutcomes(ctx); derr == nil {
 		for _, o := range outcomes {
 			deliveries = append(deliveries, toDeliveryView(o))
 		}
 	}
 	data["Deliveries"] = deliveries
 
-	accounts, err := s.store.ListAccounts(ctx)
+	accounts, err := s.deliverySettingsStore.ListAccounts(ctx)
 	if err != nil {
 		return err
 	}
-	ret, err := s.store.GetRetentionSettings(ctx)
+	ret, err := s.deliverySettingsStore.GetRetentionSettings(ctx)
 	if err != nil {
 		return err
 	}
@@ -759,14 +816,14 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 }
 
 func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
-	cfg, err := s.store.GetInstanceConfig(r.Context())
+	cfg, err := s.instanceSettingsStore.GetInstanceConfig(r.Context())
 	if err != nil {
 		return err
 	}
 	api := map[string]any{"Enabled": cfg.ApiEnabled}
 	if cfg.ApiEnabled {
 		if cfg.ApiUpdatedBy.Valid {
-			if accounts, aerr := s.store.ListAccounts(r.Context()); aerr == nil {
+			if accounts, aerr := s.instanceSettingsStore.ListAccounts(r.Context()); aerr == nil {
 				for _, a := range accounts {
 					if a.ID == cfg.ApiUpdatedBy.Int64 {
 						api["By"] = a.Username
@@ -785,7 +842,7 @@ func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
 
 func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
-	editRows, err := s.store.ListVergeCoreFrequencyEditsWithAuthor(ctx)
+	editRows, err := s.apertureSettingsStore.ListVergeCoreFrequencyEditsWithAuthor(ctx)
 	if err != nil {
 		return err
 	}
@@ -824,7 +881,7 @@ func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[
 }
 
 func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
-	accounts, err := s.store.ListAccounts(r.Context())
+	accounts, err := s.teamAdminStore.ListAccounts(r.Context())
 	if err != nil {
 		return err
 	}
@@ -883,7 +940,7 @@ func (s *server) fillAuditSection(_ *http.Request, data map[string]any) error {
 
 func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[string]any) error {
 	now := s.now()
-	rows, err := s.store.ListAllActiveSessions(r.Context(), pgtype.Timestamptz{Time: now, Valid: true})
+	rows, err := s.adminSessionStore.ListAllActiveSessions(r.Context(), pgtype.Timestamptz{Time: now, Valid: true})
 	if err != nil {
 		return err
 	}
@@ -943,7 +1000,7 @@ func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db
 		return
 	}
 	// Deliberately not owner-scoped: this ends any account's session, unlike Profile's (#407).
-	if err := s.store.RevokeSessionByIDForAdmin(r.Context(), db.RevokeSessionByIDForAdminParams{
+	if err := s.adminSessionStore.RevokeSessionByIDForAdmin(r.Context(), db.RevokeSessionByIDForAdminParams{
 		ID: id, RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err != nil {
 		s.serverError(w, "admin revoke session", err)
@@ -961,7 +1018,7 @@ func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, _
 		s.backToSection(w, r, "sessions")
 		return
 	}
-	target, err := s.store.GetAccountByID(r.Context(), id)
+	target, err := s.teamAdminStore.GetAccountByID(r.Context(), id)
 	if err != nil {
 		s.backToSection(w, r, "sessions")
 		return
@@ -973,7 +1030,7 @@ func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, _
 		})
 		return
 	}
-	if err := s.store.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
+	if err := s.teamAdminStore.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
 		AccountID: id, RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err != nil {
 		s.serverError(w, "admin revoke account sessions", err)
@@ -1042,7 +1099,7 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		"PgDetail":   "",
 	}
 
-	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err == nil {
+	if rows, err := s.instanceSettingsStore.ListDispatchProgress(ctx, scansHistoryLimit); err == nil {
 		var waiting int64
 		for _, row := range rows {
 			waiting += row.Ready + row.Running
@@ -1057,7 +1114,7 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		inst["DiskPct"] = int(used * 100 / total) // #nosec G115 -- used<=total (guarded in diskUsage), so the percentage is 0..100
 	}
 
-	if h, err := s.store.GetInstanceHealth(ctx); err == nil {
+	if h, err := s.instanceSettingsStore.GetInstanceHealth(ctx); err == nil {
 		inst["PgLabel"] = pgLabel(h.ServerVersion)
 		inst["PgDetail"] = humanBytes(h.DbSizeBytes)
 	} else {
@@ -1065,7 +1122,7 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 	}
 
 	var fleet []map[string]any
-	if rows, err := s.store.ListVantages(r.Context()); err == nil {
+	if rows, err := s.instanceSettingsStore.ListVantages(r.Context()); err == nil {
 		for _, v := range rows {
 			avail := v.Availability.String
 			if avail == "" {
@@ -1084,7 +1141,7 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		inst["Migrations"] = map[string]any{"Pending": pending}
 	}
 
-	if cfg, err := s.store.GetInstanceConfig(ctx); err == nil {
+	if cfg, err := s.instanceSettingsStore.GetInstanceConfig(ctx); err == nil {
 		release := map[string]any{
 			"CheckEnabled": cfg.UpdateCheckEnabled,
 			"Steps":        updateHostSteps,
@@ -1189,7 +1246,7 @@ func migrationVersion(name string) (int64, bool) {
 func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// While off the worker dispatches no check, so an air-gapped install stays silent (ADR-0124).
 	enabled := r.FormValue("enabled") == "true"
-	if err := s.store.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
+	if err := s.instanceSettingsStore.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
 		UpdateCheckEnabled:   enabled,
 		UpdateCheckUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
@@ -1202,7 +1259,7 @@ func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct 
 func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// The surface is read-only always: there is no write half a flip could enable (ADR-0123).
 	enabled := r.FormValue("enabled") == "true"
-	if err := s.store.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
+	if err := s.instanceSettingsStore.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
 		ApiEnabled:   enabled,
 		ApiUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {

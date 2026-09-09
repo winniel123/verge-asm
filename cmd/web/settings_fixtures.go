@@ -411,10 +411,7 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 	q := r.URL.Query()
 	tab := validTab(q.Get("tab"))
 
-	data := map[string]any{
-		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "settings", "Tab": tab,
-	}
+	data := pageData(acct, "Settings", "settings", map[string]any{"Tab": tab})
 
 	switch tab {
 	case "scans":

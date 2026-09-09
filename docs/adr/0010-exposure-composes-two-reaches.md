@@ -1,9 +1,16 @@
-# ADR-0010: Exposure composes two Reaches, and a rule reads a leg rather than a state
+---
+number: 10
+title: "Exposure composes two Reaches, and a rule reads a leg rather than a state"
+slug: exposure-composes-two-reaches
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 32
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#32 Does sensitive-port-exposed fire on edge-only as well as exposed?](https://github.com/winniel123/verge-asm/issues/32)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0010: Exposure composes two Reaches, and a rule reads a leg rather than a state
 
 ## Context
 

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -59,10 +60,28 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	base := NetConnector{Timeout: time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond}
-	paced := &pacedConnector{inner: base, pacer: NewPacer(scope.Profile), now: time.Now, sleep: time.Sleep}
-	hs := NetHandshaker{Timeout: time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond}
-	return RunExchange(context.Background(), paced, hs, blanketdiscrim.CryptoPorts{}, spec.Batch, scope, w)
+	timeout := time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond
+	realm := custody.ParseRealm(spec.Realm)
+	c, h := pacedPair(scope.Profile,
+		NetConnector{Timeout: timeout, realm: realm},
+		NetHandshaker{Timeout: timeout, Params: DefaultHandshakeParams(), realm: realm},
+		time.Now, sleepCtx)
+	return RunExchange(context.Background(), c, h, blanketdiscrim.CryptoPorts{}, spec.Batch, scope, w)
+}
+
+func pacedPair(profile SafetyProfile, c Connector, h Handshaker, now func() time.Time, sleep func(context.Context, time.Duration)) (Connector, Handshaker) {
+	// A handshake opens its own connection, so both paths spend one budget (ADR-0137 §1, #1585).
+	gate := paceGate{pacer: NewPacer(profile), now: now, sleep: sleep}
+	return &pacedConnector{gate: gate, inner: c}, &pacedHandshaker{gate: gate, inner: h}
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+	case <-t.C:
+	}
 }
 
 func RunWithConnector(ctx context.Context, c Connector, batch string, scope Scope, w io.Writer) error {
@@ -74,22 +93,44 @@ func RunWithConnector(ctx context.Context, c Connector, batch string, scope Scop
 	return writeNDJSON(w, out)
 }
 
-type pacedConnector struct {
-	inner Connector
+type paceGate struct {
 	pacer *Pacer
 	now   func() time.Time
-	sleep func(time.Duration)
+	sleep func(context.Context, time.Duration)
+}
+
+func (g paceGate) wait(ctx context.Context, host netip.Addr) {
+	due := g.pacer.Next(host, g.now())
+	if wait := due.Sub(g.now()); wait > 0 {
+		g.sleep(ctx, wait)
+	}
+}
+
+type pacedConnector struct {
+	gate  paceGate
+	inner Connector
 }
 
 func (p *pacedConnector) Connect(ctx context.Context, target netip.AddrPort) ConnResult {
-	due := p.pacer.Next(target.Addr(), p.now())
-	if wait := due.Sub(p.now()); wait > 0 {
-		p.sleep(wait)
-	}
+	p.gate.wait(ctx, target.Addr())
 	// The back-off moves when an attempt starts and never how long it may run (ADR-0021).
 	res := p.inner.Connect(ctx, target)
 	if res == ConnTimedOut {
-		p.pacer.Signal(target.Addr(), StressTimeout)
+		p.gate.pacer.Signal(target.Addr(), StressTimeout)
+	}
+	return res
+}
+
+type pacedHandshaker struct {
+	gate  paceGate
+	inner Handshaker
+}
+
+func (p *pacedHandshaker) Handshake(ctx context.Context, target netip.AddrPort, serverName string) HandshakeResult {
+	p.gate.wait(ctx, target.Addr())
+	res := p.inner.Handshake(ctx, target, serverName)
+	if res.TimedOut {
+		p.gate.pacer.Signal(target.Addr(), StressTimeout)
 	}
 	return res
 }

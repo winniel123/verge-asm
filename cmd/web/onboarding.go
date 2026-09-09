@@ -187,12 +187,7 @@ func (s *server) renderOnboard(w http.ResponseWriter, r *http.Request, acct db.A
 		{"K": "Channel", "V": channelSummary},
 	}
 
-	data := map[string]any{
-		"Title":     "Set up this workspace",
-		"Account":   acct,
-		"IsAdmin":   acct.Role == roleAdmin,
-		"NavActive": "",
-
+	data := pageData(acct, "Set up this workspace", "", map[string]any{
 		"Step":      v.Step,
 		"StepNum":   v.Step + 1,
 		"StepTotal": len(onboardStepTitles),
@@ -212,6 +207,6 @@ func (s *server) renderOnboard(w http.ResponseWriter, r *http.Request, acct db.A
 
 		"Review": review,
 		"Kind":   onboardingScanKind(v.Profile),
-	}
+	})
 	s.render(w, r, "onboarding", data)
 }

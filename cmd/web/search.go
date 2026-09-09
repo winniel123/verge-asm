@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"net/http"
@@ -15,6 +16,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type searchStore interface {
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/search.tmpl"))
 
@@ -140,16 +147,14 @@ func searchMatch(text, q string) bool {
 }
 
 func searchRenderMap(acct db.Account, q string, total int, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
-	return map[string]any{
-		"Title": "Search results", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "",
-		"Query":     q,
-		"Total":     total,
-		"Assets":    assets,
-		"Signals":   signals,
-		"Batches":   batches,
-		"Docs":      docs,
-	}
+	return pageData(acct, "Search results", "", map[string]any{
+		"Query":   q,
+		"Total":   total,
+		"Assets":  assets,
+		"Signals": signals,
+		"Batches": batches,
+		"Docs":    docs,
+	})
 }
 
 func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -189,12 +194,14 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	}
 
 	var assets []searchAsset
-	if rows, err := s.store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
+	exactHit := false
+	if rows, err := s.searchStore.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
 		Search: q, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err != nil {
 		log.Printf("web: search: list name subjects: %v", err)
 	} else {
 		for _, row := range rows {
+			exactHit = exactHit || row.SubjectKey == q
 			sev := assetSev[row.SubjectKey]
 			assets = append(assets, searchAsset{
 				NameSegs: searchSegs(row.SubjectKey, q),
@@ -205,9 +212,26 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 			})
 		}
 	}
+	if q != "" && !exactHit {
+		// A withdrawn Name is reached by its exact key alone, never a substring (ADR-0072).
+		if rows, err := s.searchStore.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{
+			SubjectKind: "name", SubjectKey: q,
+		}); err != nil {
+			log.Printf("web: search: list spans for %q: %v", q, err)
+		} else if allSpansClosed(rows) {
+			sev := assetSev[q]
+			assets = append(assets, searchAsset{
+				NameSegs: searchSegs(q, q),
+				Type:     "withdrawn name",
+				Severity: sev,
+				SevLabel: sevLabel(sev),
+				Href:     "/asset/" + url.PathEscape(q),
+			})
+		}
+	}
 
 	var batches []searchBatch
-	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
+	if rows, err := s.searchStore.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
 		log.Printf("web: search: list dispatch progress: %v", err)
 	} else {
 		for _, row := range rows {

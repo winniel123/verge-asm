@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"html/template"
@@ -19,7 +20,23 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
+	"github.com/winniel123/verge-asm/internal/signalfacts"
 )
+
+type subjectsStore interface {
+	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
+	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
+	FindNameCitingAddress(ctx context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error)
+	FindNameSeedByID(ctx context.Context, seedID int64) (db.FindNameSeedByIDRow, error)
+	GetEndpointSubject(ctx context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error)
+	GetNameCitation(ctx context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error)
+	GetNameSubject(ctx context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error)
+	GetServiceSubject(ctx context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error)
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
+	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
+	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/asset.tmpl"))
 
@@ -115,19 +132,12 @@ type subjectRule struct {
 	Verdict  signal.Outcome
 }
 
-type subjectPageData struct {
-	Name               string
-	Withdrawn          bool
-	Resolution         string
-	Addresses          []string
-	Citation           []citationHop
-	CitationTerminated bool
-	Timelines          []timelineView
-}
-
 type timelineView struct {
 	Facet         string
 	Discriminator string
+	VantageID     int64
+	Vantage       string
+	Source        string
 	Label         string
 	Current       *spanView
 	Closed        []spanView
@@ -170,20 +180,9 @@ func decodeReachability(raw []byte) reachabilityValue {
 	return v
 }
 
-type httpIdentityValue struct {
-	Outcome          string `json:"outcome"`
-	Status           int    `json:"status"`
-	Server           string `json:"server"`
-	Title            string `json:"title"`
-	WWWAuthenticate  string `json:"www_authenticate"`
-	RedirectLocation string `json:"redirect_location"`
-}
+type httpIdentityValue = signalfacts.HTTPIdentityValue
 
-func decodeHTTPIdentity(raw []byte) httpIdentityValue {
-	var v httpIdentityValue
-	_ = json.Unmarshal(raw, &v)
-	return v
-}
+func decodeHTTPIdentity(raw []byte) httpIdentityValue { return signalfacts.DecodeHTTPIdentity(raw) }
 
 func httpIdentityLabel(v httpIdentityValue) string {
 	if v.Outcome == httpexchange.OutcomeNoHTTPResponse {
@@ -218,7 +217,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 			return
 		}
 	}
-	subject, err := s.store.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
+	subject, err := s.subjectsStore.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -258,11 +257,9 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
-	s.render(w, r, "endpoint", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Endpoint":  data,
-	})
+	s.render(w, r, "endpoint", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Endpoint": data,
+	}))
 }
 
 func endpointStatusLabel(v httpIdentityValue) string {
@@ -285,7 +282,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	hops = append(hops, citationHop{Label: "On service · Service", Value: service})
 
 	cited := false
-	if citing, err := s.store.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+	if citing, err := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
 		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err == nil {
 		detail := ""
@@ -297,7 +294,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	}
 
 	if parsed, perr := netip.ParseAddr(addr); perr == nil {
-		if seed, err := s.store.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+		if seed, err := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
 			scope := ""
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
@@ -331,7 +328,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 			return
 		}
 	}
-	subject, err := s.store.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
+	subject, err := s.subjectsStore.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -372,11 +369,9 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	data.Signals = s.assetSignals(r, subject.SubjectKey)
 
-	s.render(w, r, "service", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Service":   data,
-	})
+	s.render(w, r, "service", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Service": data,
+	}))
 }
 
 func serviceCopyKey(addr, port, transport string) string {
@@ -421,7 +416,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	}
 
 	cited := false
-	if citing, err := s.store.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+	if citing, err := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
 		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err == nil {
 		detail := ""
@@ -437,7 +432,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	}
 
 	if parsed, perr := netip.ParseAddr(addr); perr == nil {
-		if seed, err := s.store.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+		if seed, err := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
 			scope := ""
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
@@ -567,30 +562,6 @@ const (
 	hopKindObservation = "observation"
 )
 
-func nameCitationHop(cit db.GetNameCitationRow) citationHop {
-	batch := " Scan · batch #" + strconv.FormatInt(cit.BatchID, 10)
-	if cit.HopKind == hopKindAdmission {
-		detail := "source " + cit.Source
-		if cit.ObservedAt.Valid {
-			detail = "admitted " + cit.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + " · " + detail
-		}
-		return citationHop{
-			Label:  "Admitted by · certificate transparency",
-			Value:  "certificate transparency · " + cit.ScanKind + batch,
-			Detail: detail,
-		}
-	}
-	detail := "source " + cit.Source
-	if cit.ObservedAt.Valid {
-		detail = "first measured " + cit.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + " · " + detail
-	}
-	return citationHop{
-		Label:  "Introduced by · observation",
-		Value:  "resolution-walk · " + cit.ScanKind + batch,
-		Detail: detail,
-	}
-}
-
 type nameSeedTerm struct {
 	NameDomain        pgtype.Text
 	CreatedAt         pgtype.Timestamptz
@@ -600,52 +571,17 @@ type nameSeedTerm struct {
 func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetNameCitationRow, citErr error) (nameSeedTerm, bool) {
 	// An admission's Seed is read by id, never by a longer-suffix scope (ADR-0107, #256).
 	if citErr == nil && cit.HopKind == hopKindAdmission && cit.SeedID.Valid {
-		seed, err := s.store.FindNameSeedByID(r.Context(), cit.SeedID.Int64)
+		seed, err := s.subjectsStore.FindNameSeedByID(r.Context(), cit.SeedID.Int64)
 		if err != nil {
 			return nameSeedTerm{}, false
 		}
 		return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
 	}
-	seed, err := s.store.FindCoveringNameSeed(r.Context(), key)
+	seed, err := s.subjectsStore.FindCoveringNameSeed(r.Context(), key)
 	if err != nil {
 		return nameSeedTerm{}, false
 	}
 	return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
-}
-
-func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool) {
-	hops := []citationHop{{
-		Label: "Subject · Name", Value: key,
-	}}
-
-	terminated := false
-	cit, citErr := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
-		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	})
-	if citErr == nil {
-		hops = append(hops, nameCitationHop(cit))
-	}
-
-	if seed, ok := s.terminatingNameSeed(r, key, cit, citErr); ok {
-		detail := ""
-		if seed.CreatedByUsername != "" {
-			detail = "declared by " + seed.CreatedByUsername
-		}
-		if seed.CreatedAt.Valid {
-			if detail != "" {
-				detail += " · "
-			}
-			detail += seed.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
-		}
-		hops = append(hops, citationHop{
-			Label:  "Declared · Seed",
-			Value:  "name scope " + seed.NameDomain.String,
-			Detail: detail,
-		})
-		terminated = true
-	}
-
-	return hops, terminated
 }
 
 const spanTimeFmt = "2006-01-02 15:04 UTC"
@@ -653,7 +589,7 @@ const spanTimeFmt = "2006-01-02 15:04 UTC"
 const spanFullFmt = "2006-01-02T15:04Z07:00"
 
 func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineView {
-	rows, err := s.store.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
+	rows, err := s.subjectsStore.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
 		SubjectKind: kind, SubjectKey: key,
 	})
 	if err != nil || len(rows) == 0 {
@@ -683,7 +619,13 @@ func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineVie
 }
 
 func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow) timelineView {
-	tv := timelineView{Facet: facet, Discriminator: discriminator, Label: timelineLabel(facet, discriminator)}
+	tv := timelineView{Facet: facet, Discriminator: discriminator}
+	if len(rows) > 0 {
+		tv.VantageID = rows[0].VantageID.Int64
+		tv.Vantage = vantageDisplayName(rows[0].VantageID, rows[0].VantageName)
+		tv.Source = rows[0].Source
+	}
+	tv.Label = timelineLabel(facet, discriminator, tv.Vantage, tv.Source)
 
 	spans := make([]drift.Span, 0, len(rows))
 	for _, row := range rows {
@@ -723,7 +665,29 @@ func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow
 	return tv
 }
 
-func timelineLabel(facet, discriminator string) string {
+func vantageDisplayName(id pgtype.Int8, name pgtype.Text) string {
+	switch {
+	case !id.Valid:
+		return ""
+	case name.Valid && name.String != "":
+		return name.String
+	}
+	return "vantage " + strconv.FormatInt(id.Int64, 10)
+}
+
+func timelineLabel(facet, discriminator, vantage, source string) string {
+	label := facetLabel(facet, discriminator)
+	// Two timelines on one facet must not read alike (ADR-0080, #170).
+	if vantage != "" {
+		label += " · " + vantage
+	}
+	if source != "" {
+		label += " · " + source
+	}
+	return label
+}
+
+func facetLabel(facet, discriminator string) string {
 	if discriminator != "" {
 		return facet + " · " + discriminator
 	}
@@ -771,19 +735,9 @@ func valueLabel(facet string, raw []byte, isGap bool) string {
 	}
 }
 
-type tlsAcceptanceValue struct {
-	Outcome  string `json:"outcome"`
-	Versions []struct {
-		Version string   `json:"version"`
-		Ciphers []string `json:"ciphers"`
-	} `json:"versions"`
-}
+type tlsAcceptanceValue = signalfacts.TLSAcceptanceValue
 
-func decodeTLSAcceptance(raw []byte) tlsAcceptanceValue {
-	var v tlsAcceptanceValue
-	_ = json.Unmarshal(raw, &v)
-	return v
-}
+func decodeTLSAcceptance(raw []byte) tlsAcceptanceValue { return signalfacts.DecodeTLSAcceptance(raw) }
 
 func spanDetails(facet string, raw []byte, isGap bool) []spanDetail {
 	// An operator reads a subject's actual records here rather than a count alone (#240).
@@ -938,10 +892,14 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	key := r.PathValue("key")
-	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
+	subject, err := s.subjectsStore.GetNameSubject(r.Context(), db.GetNameSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
+		if s.withdrawnName(r.Context(), key) {
+			s.renderWithdrawnAsset(w, r, acct, key)
+			return
+		}
 		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
@@ -969,15 +927,50 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Exposure = assetHeaderExposure(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
-	s.render(w, r, "asset", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Asset":     data,
+	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Asset": data,
+	}))
+}
+
+func (s *server) withdrawnName(ctx context.Context, key string) bool {
+	rows, err := s.subjectsStore.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{
+		SubjectKind: "name", SubjectKey: key,
 	})
+	if err != nil {
+		return false
+	}
+	return allSpansClosed(rows)
+}
+
+func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
+	if len(rows) == 0 {
+		return false
+	}
+	for _, row := range rows {
+		if !row.ClosedAt.Valid {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, acct db.Account, key string) {
+	// A withdrawn Name has no current value, so only closed timelines render (ADR-0072).
+	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
+	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
+	data.Signals = s.assetSignals(r, key)
+	data.Severity = assetHeaderSeverity(data.Signals)
+	data.SevLabel = sevLabel(data.Severity)
+	data.Exposure = assetHeaderExposure(nil)
+	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
+
+	s.render(w, r, "asset", pageData(acct, key, "inventory", map[string]any{
+		"Asset": data,
+	}))
 }
 
 func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string) {
-	cit, citErr := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
+	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if seed, ok := s.terminatingNameSeed(r, key, cit, citErr); ok {
@@ -1016,7 +1009,7 @@ func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) []as
 		}
 		rows = append(rows, assetDNSRow{Type: t, Value: a})
 	}
-	dnsRows, err := s.store.ListNameDNSRecords(r.Context(), db.ListNameDNSRecordsParams{
+	dnsRows, err := s.subjectsStore.ListNameDNSRecords(r.Context(), db.ListNameDNSRecordsParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err == nil {
@@ -1044,7 +1037,7 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 	for _, a := range addresses {
 		addrSet[a] = true
 	}
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.subjectsStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		return nil
 	}
@@ -1116,7 +1109,7 @@ type certificateLeafValue struct {
 }
 
 func (s *server) assetCertificate(r *http.Request, key string, addresses []string) *assetCert {
-	rows, err := s.store.ListEndpointCertificates(r.Context(), db.ListEndpointCertificatesParams{
+	rows, err := s.subjectsStore.ListEndpointCertificates(r.Context(), db.ListEndpointCertificatesParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
@@ -1255,7 +1248,7 @@ func assetDrift(timelines []timelineView) []assetDriftEvent {
 		out = append(out, assetDriftEvent{
 			Change:  change,
 			Family:  driftFamily(change),
-			Subject: tl.Label,
+			Subject: facetLabel(tl.Facet, tl.Discriminator),
 			Detail:  detail,
 			Time:    when,
 		})

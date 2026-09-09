@@ -1,12 +1,20 @@
+---
+number: 149
+title: "a consumer takes the data-layer interface it calls, and the seam, not the package, is the unit"
+slug: a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1272
+pr: 1271
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 1}
+---
+
 # ADR-0149: a consumer takes the data-layer interface it calls, and the seam, not the package, is the unit
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1272 ADR gaps: internal/release (sweep 4/14)](https://github.com/winniel123/verge-asm/issues/1272), gap 3
-- **PR that deleted the comment:** [#1271](https://github.com/winniel123/verge-asm/pull/1271)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Sibling of, and not ruled by:** [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md). That ADR rules the **network** seam and says in §5 that a network interface stays with its consumer. This ADR rules the **data** seam. The two share a shape and neither contains the other
-- **Rests on:** [ADR-0001](./0001-stack-and-runtime.md), which chooses `sqlc` and `pgx` over an ORM. It picks the generator and says nothing about how wide a consumer's slice of the generated surface is
 
 ## Context
 
@@ -153,7 +161,19 @@ its own ticket.
 
 - **`cmd/web/handlers.go`'s `store` is a known violation and is not fixed here.** It ships as its own
   ticket: split it at the handler group, drop the `apiAuthStore` type assertion for a typed
-  parameter, and shrink `fakeStore` to match. **This ADR changes no Go code.**
+  parameter, and ~~shrink `fakeStore` to match~~. **The third clause is withdrawn.** Read the #1620
+  amendment below. **This ADR changes no Go code.**
+
+  > **Amended 2026-09-07 by [#1620](https://github.com/winniel123/verge-asm/issues/1620) — the third
+  > clause is withdrawn, and no shrink ticket follows it.** The first two clauses landed, in
+  > [#1595](https://github.com/winniel123/verge-asm/pull/1595) and
+  > [#1561](https://github.com/winniel123/verge-asm/pull/1561). The third asks for a shrink the
+  > measurement says is not there: at `main` `270cc61` the composite names **177** queries, every one
+  > of them has a production call site, and **0** of `fakeStore`'s **209** declarations can be
+  > deleted. Read alone and in the present tense, *"shrink `fakeStore` to match"* would send a
+  > session to build it, which is the state
+  > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) marks at
+  > the superseded sentence.
 - **Seventeen consumers are already compliant.** Closing this gap costs them nothing.
 - **A new consumer has a document to be held to at review.** Before this, a reviewer asking for a
   narrow store was stating a preference and the console was the counter-example on hand.
@@ -181,3 +201,84 @@ its own ticket.
 | **A `commentlint` or `go vet` check that fails a data-layer interface above N methods** | Not decidable from the declaration. `custodyCensusStore`'s nine methods are all called and a three-method interface under a consumer that calls one is a violation. A threshold check passes the second and fires on the first, which trains reviewers to suppress it |
 | **A section on [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md)** | That ADR's subject is the network seam, and its Decision is about a caller supplying a runtime adapter. The data-layer question is not adapter substitution — `*db.Queries` is the only implementation in production — but reach. Filing it there would put a rule about blast radius inside a document about injection |
 | **A clause on [ADR-0001](./0001-stack-and-runtime.md)** | ADR-0001 chooses `sqlc` and `pgx` over an ORM. It rules the generator, and interface width is a property of the consumers, none of which it names |
+
+## Amendment — [#1620](https://github.com/winniel123/verge-asm/issues/1620), 2026-09-07: `fakeStore`'s method count is the seam's true width, so no shrink is opened
+
+The Consequences bullet above priced three clauses into one follow-up ticket. Two landed. The third
+is withdrawn here, on a measurement rather than on cost.
+
+### What landed, and what does not
+
+| Clause | State |
+| --- | --- |
+| Split `store` at the handler group | **Landed**, in [#1595](https://github.com/winniel123/verge-asm/pull/1595). `server` holds one store field per group. `cmd/web/handlers.go` declares 54 group interfaces, and `store` embeds all 54 and names no query of its own |
+| Drop the `apiAuthStore` type assertion for a typed parameter | **Landed**, in [#1561](https://github.com/winniel123/verge-asm/pull/1561). The assertion, its fail-closed branch and its log line are deleted. No runtime type assertion remains at a store field |
+| Shrink `fakeStore` to match | **Withdrawn.** The count cannot move, and the section below is the measurement |
+
+### The measurement, at `main` `270cc61`
+
+An AST union over the 54 embeds of `type store interface` gives the interface figures. That union
+resolves the four `internal/queue` interfaces `cmd/web` embeds across the package line. An
+instrumented run of the `cmd/web` suite gives the reach figures. That run records each `fakeStore`
+method it invokes.
+
+| Quantity | Measured |
+| --- | --- |
+| Queries the composite `store` names | **177** |
+| Of those, with no production call site | **0** |
+| `func (f *fakeStore)` declarations | **209** — the 177 composite methods, 2 further exported query methods, and 30 unexported fixture helpers |
+| Declarations the suite invokes | **206** of 209 |
+| Declarations the suite never invokes | **3** — `GetInstanceHealth`, `SetLastBackup` and `SetUpdateCheckEnabled`. All three sit in the composite, so the build needs all three |
+| Declarations that are deletable | **0** |
+
+Eight of the 177 have their call site in `internal/queue` and not in `cmd/web`. `cmd/web` embeds
+`queue.EdgeFanoutStore`, `queue.AddressExclusionStore`, `queue.SeedWithdrawalPreviewStore` and
+`queue.NameSeedWithdrawalPreviewStore`. It then hands its own group field to the helper that reads
+them (`cmd/web/addressscopecensus.go`, `cmd/web/custodycensus.go`, `cmd/web/seeds.go` and
+`cmd/web/vantageclass.go`). That is §2's reuse-by-embedding rule at work, and not a widening.
+
+The Context section and §4 cite **178** for the pre-split `store`. The composite names 177 today.
+Neither figure counts methods declared on `store` itself, which is now zero.
+
+### The ruling: the fake is not fat, and 177 is the true width of the seam the tests drive
+
+**§1 offers no shrink, because it removes a method that no reachable call site invokes, and there is
+no such method.** All 177 are reached. The rule's own subtraction returns nothing.
+
+**§3 measures at the value that is supplied, and the value supplied at the test seam is a whole
+mux.** 466 test functions in `cmd/web` reach the console through `start`, `startAt` or a `startWith*`
+sibling, and each of those helpers builds the real mux with `newServer(...).handler()`. A mux serves
+every route, so the value handed to it must satisfy every route's group. 177 is what those routes
+read. Measured at the seam the tests drive, the fake is the correct width.
+
+**The available shrink was the per-group split at the direct sites, and
+[#1621](https://github.com/winniel123/verge-asm/pull/1621) took it.** That PR moved 23 of the 45
+`newServer` lines in the test files to `&server{<group>: f}`. 33 construction sites now state one
+group's reach instead of the composite's. `cmd/web/handlers_test.go` fell from 2,892 lines to 1,428
+lines. Across that change the fake still declares **209** methods. That is the settling measurement.
+The split ran, and the per-site reach narrowed. The method count did not move. The widest seam sets
+that count, and the number of sites never does.
+
+**Each remaining route out costs more than the three methods it could buy.**
+
+| Route | Cost |
+| --- | --- |
+| Rewrite the end-to-end tests, so each constructs a narrow `server` | [#1573](https://github.com/winniel123/verge-asm/issues/1573) forbids a test rewritten to accommodate a narrowing, and this reaches 466 test functions |
+| Give each group its own narrow fake at the direct sites | [#1596](https://github.com/winniel123/verge-asm/issues/1596) forbids a change to a test's fixtures, and `newFakeStore()` is a fixture |
+| Embed `db.Querier` in `fakeStore`, so an unwritten method falls through to a nil interface | Buys exactly the 3 unreached methods, and trades a compile error for a run-time panic. It is the fail-open shape [#1561](https://github.com/winniel123/verge-asm/pull/1561) deleted |
+
+**So no shrink ticket follows this ADR.** A method count on a hand-written fake is not evidence of a
+wide seam, and this ADR never claimed it was. §1 rules the interface. The interface measures 177 with
+0 dead. The fake mirrors that number, and a mirror is what a fake is.
+
+### What this amendment does not withdraw
+
+- **§4 stands whole.** `cmd/web`'s `store` is still a defect under this rule, on the ground that the
+  aggregate matches no unit that exists. The split at the handler group answered that ground. The
+  fake's size was never the ground.
+- **The rule for a new consumer is unchanged.** A consumer declares the interface naming the queries
+  the code behind its seam calls. This amendment rules on one fake's method count, and reaches
+  nothing else.
+- **No count becomes a gate.** The Consequences bullet on enforcement already says a count is not a
+  gate. This amendment is an instance of it. 177 methods behind a mux is correct. A nine-method
+  interface under a consumer that calls three is still wrong.

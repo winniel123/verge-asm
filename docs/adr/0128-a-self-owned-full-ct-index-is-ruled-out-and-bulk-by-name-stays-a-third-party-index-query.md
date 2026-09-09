@@ -1,9 +1,17 @@
+---
+number: 128
+title: "A self-owned full CT name-index is ruled out — bulk-by-name stays a third-party index query"
+slug: a-self-owned-full-ct-index-is-ruled-out-and-bulk-by-name-stays-a-third-party-index-query
+date: 2026-08-31
+status: accepted
+source: grilling
+ticket: [934, 927]
+map: 925
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0128: A self-owned full CT name-index is ruled out — bulk-by-name stays a third-party index query
 
-- **Status:** Accepted
-- **Date:** 2026-08-31
-- **Ticket:** [#934 Write the ADR](https://github.com/winniel123/verge-asm/issues/934); decision from [#927 Decide the deployment model](https://github.com/winniel123/verge-asm/issues/927)
-- **Map:** [#925 Replace crt.sh and Cert Spotter with verge-asm's own full CT index (spec)](https://github.com/winniel123/verge-asm/issues/925)
 - **Research:** [`docs/research/ct-own-index-feasibility-2026-08.md`](../research/ct-own-index-feasibility-2026-08.md) ([#926](https://github.com/winniel123/verge-asm/issues/926))
 - **Upholds:** [`docs/spec/ct-source-replacement.md`](../spec/ct-source-replacement.md). This ADR does **not** supersede that spec; it confirms it.
 

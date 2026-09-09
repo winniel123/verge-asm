@@ -1,12 +1,24 @@
+---
+number: 145
+title: "`design-system/` is the shared home and source of truth for UI assets, and a session edits it in the repo"
+slug: design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1269
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 110}
+  - {kind: rests-on, adr: 58}
+  - {kind: supersedes, adr: 109}
+  - {kind: supersedes, adr: 116}
+---
+
 # ADR-0145: `design-system/` is the shared home and source of truth for UI assets, and a session edits it in the repo
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1269 ADR gaps: design-system, cmd/prober and the measure corpora](https://github.com/winniel123/verge-asm/issues/1269) §1
 - **Found by:** [#1163 chore(comments): sweep the Go tail 2/14](https://github.com/winniel123/verge-asm/issues/1163)
 - **States the standing rule that** [ADR-0109](./0109-design-system-components-are-authored-in-claude-design-and-imported.md) and [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md) carry only in a **Superseded** status line. Both remain superseded and neither is revived.
 - **Amends one bullet of:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md), whose withdrawn component-authoring bullet now cites this ADR. ADR-0110's verbatim-port ruling and its IA-spec ruling are untouched and stand.
-- **Rests on:** [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) (a superseded mechanism is withdrawn at the site that specifies it)
 
 ## Context
 

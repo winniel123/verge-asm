@@ -1,9 +1,19 @@
-# ADR-0064: A message names what moved — and what moved is read from the fold, never from the rule
+---
+number: 64
+title: "A message names what moved — and what moved is read from the fold, never from the rule"
+slug: a-message-names-what-moved-and-where-nothing-moved-it-says-so
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 120
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 183}
+  - {kind: bounds, adr: 184}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#120 Can one vocabulary carry all four message causes — and what does a seven-figure count read as?](https://github.com/winniel123/verge-asm/issues/120)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0064: A message names what moved — and what moved is read from the fold, never from the rule
 
 ## Context
 

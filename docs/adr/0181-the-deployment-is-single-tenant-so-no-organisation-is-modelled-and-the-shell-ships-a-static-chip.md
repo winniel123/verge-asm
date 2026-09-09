@@ -1,14 +1,23 @@
+---
+number: 181
+title: "the deployment is single-tenant, so no `Organisation` is modelled and the shell ships a static chip"
+slug: the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1334
+pr: 1337
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 1}
+  - {kind: rests-on, adr: 167, clause: "3"}
+  - {kind: amends, adr: 110}
+---
+
 # ADR-0181: the deployment is single-tenant, so no `Organisation` is modelled and the shell ships a static chip
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1334 ADR gaps: cmd/web/auth.go](https://github.com/winniel123/verge-asm/issues/1334), gap 2
-- **Sweep PR that deleted the comment:** [#1337](https://github.com/winniel123/verge-asm/pull/1337)
-- **Rests on:** [ADR-0001](./0001-stack-and-runtime.md), whose Context (line 10) carries *"an AGPL-3.0, self-hosted, single-tenant web application"* as the premise the stack was chosen against. It states the deployment shape and rules nothing about the domain or the console
 - **Rests on:** [`docs/spec/v1-spec.md`](../spec/v1-spec.md) §1 (lines 26 and 48), which states the product fact — *"**Single-tenant, self-hosted** via `docker compose`. No multi-tenancy, billing, or hosted infrastructure"* — and defers hosted multi-tenant SaaS *"outside the map's destination outright"* (line 753). **This ADR does not restate that. It rules what §1 leaves open: what the domain holds, what the shell renders, and what a later tenancy change would actually cost**
-- **Rests on:** [ADR-0167](./0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md) §3, under which the `devMode` chip and the production chip are two paths by licence, not by accident
 - **Not bound by:** [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md), the citation both deleted comments carried. It rules that an operator dial carries no author. The string `org` appears in it **zero times**
-- **Narrows:** [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md) Decision, line 41, which enumerates *"org switcher"* inside the shell spec
 
 ## Context
 

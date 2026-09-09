@@ -63,7 +63,7 @@ export function Dashboard({ onRunScan, onAddTarget, onOpenSignals, scanning }) {
             { label: "Critical", value: "3", delta: "\u22121", deltaTone: "good", caption: "1 withdrawn today" },
             { label: "Assets watched", value: "1,284", delta: "+12", caption: "8 domains \u00b7 3 ranges" },
             { label: "Exposed services", value: "216", delta: "+4", deltaTone: "bad", caption: "across 62 IPs" },
-            { label: "Certs expiring \u226430d", value: "9", delta: "\u22122", deltaTone: "good", caption: "next: 2026-08-29" },
+            { label: "Certs expiring", value: "9", delta: "\u22122", deltaTone: "good", caption: "next: 2026-08-29" },
           ].map((s, i) => (
             <div key={s.label} style={{ padding: "20px 24px", borderLeft: i ? "1px solid var(--row-sep)" : "none" }}>
               <Stat {...s} />

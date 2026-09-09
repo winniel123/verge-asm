@@ -1,16 +1,27 @@
+---
+number: 206
+title: "A fan-out over an empty population is a legible zero-job dispatch, and it fabricates no `Batch`"
+slug: a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1320
+pr: 1324
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 5}
+  - {kind: rests-on, adr: 129}
+  - {kind: rests-on, adr: 106}
+  - {kind: sibling, adr: 108}
+  - {kind: sibling, adr: 163}
+  - {kind: rests-on, adr: 208}
+---
+
 # ADR-0206: A fan-out over an empty population is a legible zero-job dispatch, and it fabricates no `Batch`
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1320 ADR gaps: internal/queue (#1200, sweep 6/7)](https://github.com/winniel123/verge-asm/issues/1320), gap 1
-- **PR that deleted the comment:** [#1324](https://github.com/winniel123/verge-asm/pull/1324)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0005](./0005-scan-execution-model.md), which fixes one `Dispatch` per `(Scan, scheduled tick)` and rules that a `Batch` is one queue job's outcome. This ADR takes both and rules what the tick records when the fan-out builds no job
 - **Generalises:** [ADR-0129](./0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md)'s #954 amendment, which states the shape for the `edge-fanout` `Scan` alone — *"no extension means an empty scope and no probe, a legible empty-scope state"*. It rules one population and says nothing about the other eight
-- **Generalises:** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), which states it for the `ct` `Scan` and names `zone`'s parallel — *"the same legible zero-job state `zone` has when no file is supplied"*. It rules a source toggle, not a fan-out in general
 - **Sibling of, and not ruled by:** [ADR-0108](./0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md). That ADR rules the dead-lettered `Batch` whose recorded scope is empty. That is the failure path, where a `Batch` exists. This ADR rules the success path, where no job and therefore no `Batch` exists. §4 states the difference
 - **Sibling of, and not ruled by:** [ADR-0163](./0163-an-absent-certificate-material-row-is-a-fan-out-of-zero-and-is-reached-and-only-an-absent-measurement-row-is-pending.md). That ADR rules a **fan-out of zero** over one edge's SAN set, inside the `Custody` derivation. This ADR rules a **fan-out of zero jobs** by the dispatcher. The two share a phrase and no subject
-- **Depends on:** [ADR-0208](./0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md). An empty population is a legible success only where the population is honestly empty. While the queue re-parses a rendered subject key, a key-form change empties every population at once and this ADR would rule that outage a healthy tick. That ADR removes the parse and so removes the composition
 
 ## Context
 
@@ -208,3 +219,46 @@ path one, which is §3's fabrication. The union of the two is therefore refused 
 | **Leave the record on the dispatcher's log line alone** | ADR-0108 already refused this shape: a state legible only to someone reading the server log is indistinguishable, on every operator surface, from a clean empty result. The `dispatch` row is what makes it readable, and the log line rides beside it |
 | **State the rule once more on each `Scan`'s own ADR** | Nine sites for one sentence, and the ninth arrives with the tenth `Scan`. ADR-0129 and ADR-0106 each did this honestly for their own population and neither could bind the others, which is the gap this ADR closes |
 | **Merge this with the dead-lettered `Batch`'s empty-scope rule into one ADR about emptiness** | The two rules move in opposite directions — one requires a `Batch`, the other forbids one — and they are triggered by opposite conditions. A single document would have to state both and then spend its length keeping them apart, and a reader who took the wrong half would either delete the failure record or fabricate a success one |
+
+## Amendment — [#1523](https://github.com/winniel123/verge-asm/issues/1523): the `empty` rejection stands, and its ground does not reach the `skipped` status that shipped
+
+> **A second `dispatch` status for an empty population is still refused, and `'skipped'` is a
+> different token on a different ground.** The Alternatives table refuses `empty` because the
+> `LEFT JOIN` the three progress queries use already derives the job count. A skip is no count. It
+> is the **cause** of a zero-job tick, and no join derives a cause.
+
+**What shipped.** [#1120](https://github.com/winniel123/verge-asm/issues/1120), closed by
+[PR #1515](https://github.com/winniel123/verge-asm/pull/1515), added a fourth `dispatch.status`
+token. Migration
+[`25000_dispatch_skipped_status.sql`](../../db/migrations/25000_dispatch_skipped_status.sql) widened
+`dispatch_status_check` to `'fanned-out'`, `'stopped'`, `'terminated'` and `'skipped'`. The
+ADR-0137 §4 cadence-lag gate writes the new token.
+
+**The rejection's ground holds for `empty`, and this amendment confirms the row.**
+`ListDispatchProgress`, `ListActiveDispatchProgress` and `ListConcludedDispatchProgress` in
+[`db/queries/dispatch.sql`](../../db/queries/dispatch.sql) each count a `Dispatch`'s jobs through
+the same `LEFT JOIN`. An empty population reads as zero on all three. A status token for that same
+fact would hold one count in two places, and the two places could disagree. §1 and §2 keep the
+zero-job dispatch legible without one.
+
+**The same ground does not reach `'skipped'`, because a cause is not a count.** A skipped tick and
+an honestly empty tick both hold zero jobs. The `LEFT JOIN` answers zero for each, so the join
+cannot tell them apart. That indistinguishability is the whole of #1120. The token carries **why**
+the tick enqueued nothing, and a count carries no why.
+
+**The table and §5 now agree.** The third bullet of §5 already names *"A hot tick skipped by the
+cadence-lag gate"* as a third case. Its ground differs, and that bullet hands the case to
+ADR-0137 §4. The table's row refuses a status for the empty population alone. Read the row inside
+that bound.
+
+**Consequences.**
+
+- **§1, §2, §3 and §4 take no change.** A fan-out over an empty population still claims its tick,
+  still records `'fanned-out'`, still enqueues no job and still fabricates no `Batch`.
+- **The consequence *"This ADR changes no Go code and no SQL"* still holds of this ADR.** Migration
+  25000 shipped under #1120 and under its own ground, not under this document.
+- **This amendment reopens nothing in ADR-0137 §4.** Three rulings stand there untouched. §4 arms
+  the gate, bounds it to `hot`, and refuses to arm it when an operator disables the
+  stale-`running` reaper.
+- **A tenth `Scan` still inherits §1 unchanged.** Its empty population records `'fanned-out'`. Only
+  the cadence-lag gate mints `'skipped'`, and ADR-0137 §4 bounds that gate to `hot`.

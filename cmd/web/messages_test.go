@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -81,9 +82,10 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 	census, _ := message.NewCensus(
 		message.CensusEntry{Kind: "facet", Key: "certificate"},
 		message.CensusEntry{Kind: "facet", Key: "http-identity"},
+		message.CensusEntry{Kind: message.KindRule, Key: "sensitive-port-reached-from-internet", Detail: "3306/tcp"},
 	).Marshal()
 	putMessage(t, f, message.CauseDrift, "service", "198.51.100.1:443/tcp",
-		"198.51.100.1:443/tcp reached from the internet · 2 facets opened beneath it", census)
+		"198.51.100.1:443/tcp reached from the internet · 2 facets opened beneath it · 1 rule opened at fired: sensitive-port-reached-from-internet (3306/tcp)", census)
 	putMessage(t, f, message.CauseAperture, "seed", "198.51.100.0/24",
 		"198.51.100.0/24 narrowed · 198.51.100.128/25 excluded · 128 subjects withdrawn · 17,920 timelines taken out of the estate", nil)
 
@@ -96,6 +98,8 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 		"128 subjects withdrawn",
 		"/subjects/service?key=198.51.100.1%3A443%2Ftcp",
 		"certificate", "http-identity",
+		// A rule entry renders after the facet entries and names its port.
+		`href="/signals?q=sensitive-port-reached-from-internet"`, "3306/tcp",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("message panel missing %q\nbody: %s", want, page)
@@ -169,6 +173,29 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 	}
 }
 
+func TestUnknownMessageIDIsNotAFault(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	putMessage(t, f, message.CauseDrift, "name", "a.example.com", "a.example.com entered the estate · 1 timeline opened beneath it", nil)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := postForm(t, ac, base+"/messages/read", url.Values{"id": {"999999999"}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("mark read of an unknown id: status = %d, want 303", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	body := getBody(t, ac, base+"/inbox?id=999999999", http.StatusOK)
+	if !strings.Contains(body, "a.example.com") {
+		t.Errorf("the inbox should still list the known message\nbody: %s", body)
+	}
+	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 1 {
+		t.Errorf("unread after an unknown id = %d, want 1", n)
+	}
+}
+
 func TestMarkAllReadIsPerAccount(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -217,4 +244,53 @@ func TestNarrowingPreviewWiredUp(t *testing.T) {
 	if !strings.Contains(page, "Nothing is withdrawn") {
 		t.Errorf("a non-firing name exclusion should say nothing is withdrawn\nbody: %s", page)
 	}
+}
+
+func (f *fakeStore) ListReadMessageIDs(_ context.Context, accountID int64) ([]int64, error) {
+	set := f.readMarks(accountID)
+	out := make([]int64, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+type fakeFKViolation struct{}
+
+func (fakeFKViolation) Error() string {
+	return "insert or update on table \"message_read\" violates foreign key constraint"
+}
+func (fakeFKViolation) SQLState() string { return "23503" }
+
+func (f *fakeStore) MarkMessageRead(_ context.Context, arg db.MarkMessageReadParams) error {
+	known := false
+	for _, m := range f.messages {
+		if m.ID == arg.MessageID {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return fakeFKViolation{}
+	}
+	set := f.readMarks(arg.AccountID)
+	if !set[arg.MessageID] {
+		set[arg.MessageID] = true
+	}
+	return nil
+}
+
+func (f *fakeStore) MarkAllMessagesRead(_ context.Context, arg db.MarkAllMessagesReadParams) error {
+	set := f.readMarks(arg.AccountID)
+	for _, m := range f.messages {
+		if !set[m.ID] {
+			set[m.ID] = true
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) MarkMessageUnread(_ context.Context, arg db.MarkMessageUnreadParams) error {
+	delete(f.readMarks(arg.AccountID), arg.MessageID)
+	return nil
 }

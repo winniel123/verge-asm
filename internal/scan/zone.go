@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -146,7 +147,7 @@ func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 		set := rrsets[key]
 		data, err := json.Marshal(zoneValue{RRs: set.rrs})
 		if err != nil {
-			// A string slice always marshals, so this arm is the spec's defensive surface (§1.3).
+			// A string slice always marshals, so this arm is defensive (raw-job-output.md §1.3).
 			skipped = append(skipped, set.name+" "+set.qtype)
 			continue
 		}
@@ -235,6 +236,10 @@ func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 		fields = fields[1:]
 	}
 	p.lastOwner = owner
+	// A wildcard names a set, and a high-bit octet has two readings (ADR-0060, ADR-0055).
+	if !subjectOwner(owner) {
+		return parsedRecord{}, parseSkipped
+	}
 
 	for len(fields) > 0 {
 		f := fields[0]
@@ -268,12 +273,24 @@ func (p *zoneParser) resolveName(raw string) string {
 		return trimDot(p.origin)
 	}
 	if strings.HasSuffix(raw, ".") {
-		return trimDot(strings.ToLower(raw))
+		return trimDot(seed.FoldASCII(raw))
 	}
 	if p.origin == "" {
-		return strings.ToLower(raw)
+		return seed.FoldASCII(raw)
 	}
-	return trimDot(strings.ToLower(raw) + "." + p.origin)
+	return trimDot(seed.FoldASCII(raw) + "." + p.origin)
+}
+
+func subjectOwner(name string) bool {
+	if name == "*" || strings.HasPrefix(name, "*.") {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		if name[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 func logicalLines(content string) []string {
@@ -335,7 +352,7 @@ func isTTL(f string) bool {
 }
 
 func fqdn(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
+	name = seed.FoldASCII(strings.TrimSpace(name))
 	if name == "" {
 		return ""
 	}

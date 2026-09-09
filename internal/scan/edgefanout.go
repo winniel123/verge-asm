@@ -1,6 +1,6 @@
 // A no-SNI handshake reads what an edge serves a client that names nothing (ADR-0129 §6).
 // It carries no consent dial: the probing gate is already total over a covered `Address` (#988).
-// It has no vantage dimension — vantage-varying fan-out is anycast, out of v1 (§5).
+// It has no vantage dimension — vantage-varying fan-out is anycast, out of v1 (ADR-0129 #954).
 package scan
 
 import (

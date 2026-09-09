@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/scan"
 )
 
 func TestGetEntriesURL(t *testing.T) {
@@ -51,5 +53,68 @@ func TestCTHTTPCause(t *testing.T) {
 	transport := ctHTTPCause(errors.New("dial tcp: connection refused"), 0, "get-entries")
 	if got := redactCause(transport); got != "measurement failed" {
 		t.Fatalf("transport error not redacted: %q", got)
+	}
+}
+
+func TestCTTileCauseDeadLettersAnUnsupportedEntryTypeAtOnce(t *testing.T) {
+	unknown := append(make([]byte, 8), 0x00, 0x09)
+	_, perr := scan.ParseDataTile(unknown)
+	if perr == nil {
+		t.Fatal("want a parse error for an unknown tiled entry type")
+	}
+	cause, permanent := ctTileCause(perr)
+	if !permanent {
+		t.Fatalf("an unsupported entry type must dead-letter at once, not retry: %v", perr)
+	}
+	if got := redactCause(cause); !strings.HasPrefix(got, "cannot read this log") || !strings.Contains(got, "9") {
+		t.Fatalf("cause = %q, want a verbatim 'cannot read this log' naming type 9", got)
+	}
+
+	truncated := append(make([]byte, 8), 0x00, 0x00, 0xff, 0xff, 0xff)
+	_, terr := scan.ParseDataTile(truncated)
+	if terr == nil {
+		t.Fatal("want a parse error for a truncated tile leaf")
+	}
+	if cause, permanent := ctTileCause(terr); permanent || cause != terr {
+		t.Fatalf("a truncated tile stays on the retry path, got permanent=%v cause=%v", permanent, cause)
+	}
+}
+
+func TestCTTailWindowSeedsAFreshLogAtItsHead(t *testing.T) {
+	cases := []struct {
+		name               string
+		hasCursor          bool
+		cursor, treeSize   int64
+		wantStart, wantEnd int64
+	}{
+		{"no cursor reads nothing and lands at the head", false, 0, 1_000_000_000, 1_000_000_000, 1_000_000_000},
+		{"a cursor reads the forward delta", true, 100, 300, 100, 300},
+		{"a far-behind cursor reads one bounded window", true, 100, 1_000_000_000, 100, 100 + maxEntriesPerPoll},
+		{"a cursor at the head reads nothing", true, 300, 300, 300, 300},
+	}
+	for _, c := range cases {
+		start, end := ctTailWindow(c.hasCursor, c.cursor, c.treeSize)
+		if start != c.wantStart || end != c.wantEnd {
+			t.Errorf("%s: ctTailWindow(%v, %d, %d) = [%d, %d), want [%d, %d)", c.name, c.hasCursor, c.cursor, c.treeSize, start, end, c.wantStart, c.wantEnd)
+		}
+	}
+}
+
+func TestCTTailShrunkReadsAHeadBelowTheCursor(t *testing.T) {
+	cases := []struct {
+		name             string
+		hasCursor        bool
+		cursor, treeSize int64
+		want             bool
+	}{
+		{"no cursor can never shrink", false, 0, 5, false},
+		{"head below the cursor is a shrink", true, 500, 2, true},
+		{"head at the cursor is not", true, 500, 500, false},
+		{"head past the cursor is not", true, 500, 900, false},
+	}
+	for _, c := range cases {
+		if got := ctTailShrunk(c.hasCursor, c.cursor, c.treeSize); got != c.want {
+			t.Errorf("%s: ctTailShrunk(%v, %d, %d) = %v, want %v", c.name, c.hasCursor, c.cursor, c.treeSize, got, c.want)
+		}
 	}
 }

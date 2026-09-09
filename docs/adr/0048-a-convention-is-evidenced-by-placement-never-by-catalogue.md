@@ -1,9 +1,16 @@
-# ADR-0048: A convention is evidenced by placement, never by catalogue
+---
+number: 48
+title: "A convention is evidenced by placement, never by catalogue"
+slug: a-convention-is-evidenced-by-placement-never-by-catalogue
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 82
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#82 §2.4's determinacy gate has no evidence standard — what may establish that a convention is contested?](https://github.com/winniel123/verge-asm/issues/82)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0048: A convention is evidenced by placement, never by catalogue
 
 ## Context
 

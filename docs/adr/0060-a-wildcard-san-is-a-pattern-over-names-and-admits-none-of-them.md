@@ -1,10 +1,22 @@
+---
+number: 60
+title: "A wildcard SAN is a pattern over names and admits none of them"
+slug: a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 99
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 55}
+---
+
 # ADR-0060: A wildcard SAN is a pattern over names and admits none of them
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#99 Does a certificate's wildcard SAN admit a `Name`, and what is the subject if it does?](https://github.com/winniel123/verge-asm/issues/99)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0055](./0055-a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds.md)'s named residue
+> **Amended** by [ADR-0052: A declaration refusal names a route and never takes it](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md), 2026-08-15. <!-- adr-marker amends 52 -->
+
+> **Amended** by [ADR-0062: A wildcard's synthesis is a fact about the `Name` it was probed under, and it is a facet of its own](./0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md), 2026-08-14. <!-- adr-marker amends 62 -->
 
 ## Context
 

@@ -66,12 +66,13 @@ live AS (
 latest AS (
     SELECT DISTINCT ON (o.subject_key)
         o.subject_key AS subject_key,
-        o.value       AS value
+        o.value       AS value,
+        o.observed_at AS observed_at
     FROM live o
     WHERE o.subject_kind = 'endpoint' AND o.facet = 'certificate'
     ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
 )
-SELECT subject_key, value
+SELECT subject_key, value, observed_at
 FROM latest
 ORDER BY subject_key
 `
@@ -82,8 +83,9 @@ type ListEndpointCertificatesParams struct {
 }
 
 type ListEndpointCertificatesRow struct {
-	SubjectKey string `json:"subject_key"`
-	Value      []byte `json:"value"`
+	SubjectKey string             `json:"subject_key"`
+	Value      []byte             `json:"value"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
 }
 
 func (q *Queries) ListEndpointCertificates(ctx context.Context, arg ListEndpointCertificatesParams) ([]ListEndpointCertificatesRow, error) {
@@ -95,7 +97,7 @@ func (q *Queries) ListEndpointCertificates(ctx context.Context, arg ListEndpoint
 	items := []ListEndpointCertificatesRow{}
 	for rows.Next() {
 		var i ListEndpointCertificatesRow
-		if err := rows.Scan(&i.SubjectKey, &i.Value); err != nil {
+		if err := rows.Scan(&i.SubjectKey, &i.Value, &i.ObservedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -301,6 +303,69 @@ func (q *Queries) ListServiceReachabilitySpansByClass(ctx context.Context) ([]Li
 	items := []ListServiceReachabilitySpansByClassRow{}
 	for rows.Next() {
 		var i ListServiceReachabilitySpansByClassRow
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.VantageID,
+			&i.Value,
+			&i.IsGap,
+			&i.OpenedAt,
+			&i.ID,
+			&i.Host,
+			&i.Egress,
+			&i.DialledAddr,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listServiceReachabilitySpansByClassForServices = `-- name: ListServiceReachabilitySpansByClassForServices :many
+SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
+    sp.subject_key AS subject_key,
+    sp.vantage_id  AS vantage_id,
+    sp.value       AS value,
+    sp.is_gap      AS is_gap,
+    sp.opened_at   AS opened_at,
+    sp.id          AS id,
+    v.host         AS host,
+    v.egress       AS egress,
+    v.dialled_addr AS dialled_addr
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.subject_key = ANY($1::text[])
+  AND sp.closed_at IS NULL
+ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC
+`
+
+type ListServiceReachabilitySpansByClassForServicesRow struct {
+	SubjectKey  string             `json:"subject_key"`
+	VantageID   pgtype.Int8        `json:"vantage_id"`
+	Value       []byte             `json:"value"`
+	IsGap       bool               `json:"is_gap"`
+	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
+	ID          int64              `json:"id"`
+	Host        pgtype.Text        `json:"host"`
+	Egress      pgtype.Text        `json:"egress"`
+	DialledAddr pgtype.Text        `json:"dialled_addr"`
+}
+
+// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0226 §1, #1609).
+func (q *Queries) ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]ListServiceReachabilitySpansByClassForServicesRow, error) {
+	rows, err := q.db.Query(ctx, listServiceReachabilitySpansByClassForServices, serviceKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceReachabilitySpansByClassForServicesRow{}
+	for rows.Next() {
+		var i ListServiceReachabilitySpansByClassForServicesRow
 		if err := rows.Scan(
 			&i.SubjectKey,
 			&i.VantageID,

@@ -92,7 +92,7 @@ the boundary.
 | `prototypes/` | Disposable mock source. About 640 comment lines. It ships in no binary and it is not maintained. |
 | `.html` | A comment's bytes are output bytes, so ruling 15 is unsatisfiable. 19 of 19 lexable files fail byte-exact comparison under both delete strategies. |
 | `.astro` | It needs `@astrojs/compiler`, which the repo does not install. Installing it would cross the two build lanes `docs-site/package.json` keeps apart. |
-| Authoring the ADRs the sweep surfaces | §8.10 triages the backlog and stops there. |
+| Authoring the ADRs the sweep surfaces | §8.4 records a proposal and stops there. |
 | Any product behaviour change | This effort deletes comments and adds a lint tool. Nothing else. |
 
 Two qualifications on the `db/migrations` exclusion:
@@ -115,7 +115,7 @@ Neither `.html` nor `.astro` ships in the binary. `designfs.go` embeds only `tem
 | **Skeleton** | The token stream a file yields with every comment removed and every protected directive kept. §5.1 defines it. |
 | **Residue** | The blocks the mechanical pass declines. An agent judges each one. |
 | **Keeps ledger** | The table in a sweep PR body listing every surviving and rewritten comment. §4.9 defines it. |
-| **ADR gap** | A decision stated only in a comment the sweep is about to delete. §8.1 defines it. |
+| **ADR gap** | A decision stated only in a comment a PR deletes or compresses. §8.1 defines it. §8.4 says how it is recorded. |
 
 ---
 
@@ -534,7 +534,9 @@ it. Then either keep the naming, or rewrite each surviving sibling to name the d
 is a defect the sweep creates, not one it finds. `internal/scan/ctreliability.go` and
 `cttail_test.go:234` left four `§` references pointing at nothing, and #1190 repaired both.
 `transcript.go`, `cttail.go` and `ctverify.go` held 15 bare `§n` references with one naming block
-each, and every survivor now names the document in full.
+each. **"Every survivor now names the document in full" did not hold, and #1489 measured it.** On
+`bf49660` those three files carried **29** bare `§n` lines between them, and `transcript.go` named
+no document anywhere. The last subsection of §4.7 rules that population.
 
 **A file may carry a bare `§n` family with no naming block anywhere in it.** The fix above assumes
 one block names the document and its siblings free-ride. "Keep the naming block" is then
@@ -668,6 +670,16 @@ A surviving comment takes this form:
 ```
 // <reason clause> (ADR-nnnn §x.y, #nnn)
 ```
+
+**The citation takes two forms, and neither is a fallback for the other.** It names its document
+inline, as above. Or it carries a bare `§n` that a naming line resolves. That naming line sits in
+the same comment block, the same file or the same package. §4.7 rules the second form and states
+the discharge ladder that clears it.
+
+**The second form exists because the cap and the inline form cannot both hold.** Constraint 4 caps
+the physical line at 100 columns. A document name costs 8 columns at the tree's shortest token and
+22 at its longest. The shortest token overruns 100 columns at 43 of the 65 remaining bare sites.
+The document each site's own file names overruns it at 50 of the 65 (#1574).
 
 Four constraints bind **each line**:
 
@@ -874,9 +886,10 @@ presumed wrong.** The form at the head of this section reads `§x.y` as the prim
 `#nnn` as an optional extra. That inverts the truth for such an ADR. #1368's brief had to instruct
 its own reader to take the `#nnn` as naming the amendment, and a brief is not where a rule lives.
 `ADR-0129` states its live rules in amendments named `#944`, `#954`, `#955` and `#956`. A `§n`
-citation to it is wrong until the section is read, and four merged ones were (§4.7, **#1368**). Its
-sections **do** carry numbers, so a grep clears none of the four. The form takes `ADR-nnnn #nnn`
-here: `(ADR-0129 #944)`. Read it as naming the amendment, not as naming an issue beside the ADR.
+citation to it is wrong until the section is read, and nine merged ones were (§4.7, **#1368**,
+**#1490**). Its sections **do** carry numbers, so a grep clears none of the nine. The form takes
+`ADR-nnnn #nnn` here: `(ADR-0129 #944)`. Read it as naming the amendment, not as naming an issue
+beside the ADR.
 
 **The mechanical form of the same rule is stronger, because it needs no reader.**
 **91 of the repo's 218 ADRs number no `###` heading at all**, measured 2026-09-05. Against one of
@@ -995,7 +1008,7 @@ placement 2 will not fit, not the default for a field. #1190 found placement 2 b
 notably `CTSource.DisplayName`, where placement 3 would have put two blank lines inside a four-line
 interface.
 
-**A wide interface inverts that preference.** `cmd/web/handlers.go`'s `store` declares 178 methods,
+**A wide interface inverts that preference.** `cmd/web/handlers.go`'s `store` names 177 queries,
 and only a handful leave trailing room inside §4.4's 100-column cap, so placement 3 is the
 default there and placement 2 the exception (#1203). The narrow-interface reading above is right for
 its case and the wide-interface reading for its own. Measure the trailing room before you choose.
@@ -1138,9 +1151,9 @@ Ruling 9 exists so a sweep never stalls. It does not exist to destroy reasons. A
 retries because the upstream 502s on cold start") is a fact about the world. It is not an
 undocumented decision. Deleting it to satisfy a citation format inverts the rule's purpose.
 
-**A follow-up issue opens only where the comment asserts a decision** — a rule someone chose that
-ought to be an ADR. A hazard, a cost note, or an external constraint survives silently and opens
-nothing. §8.2 narrows the trigger further with two more gates.
+**A decision proposal block is written only where the comment asserts a decision.** A decision is a
+rule someone chose. A hazard, a cost note, or an external constraint survives silently and earns no
+block. §8.2 adds two gates. §8.4 gives the block. No PR opens an issue for a gap.
 
 **A survivor may not cite a document that does not exist.** Repair has purchase only where a live
 document states the rule, so "prefer repair to deletion" is too broad. Three dangling families are
@@ -1307,7 +1320,29 @@ when. Delete the marker rather than keep an unreadable date.
 HTTP 410 at `internal/seed/seed.go:24` and `:39`, in two survivors a sweep kept (#1227). **410 is
 not 404**, so a check written against "the issue does not exist" can miss it, and `gh` reports the
 deletion rather than a miss. #1227 correctly left its own survivor uncited rather than repairing to
-it. Recorded here, not repaired.
+it. Recorded here, not repaired. #1462 and PR #1511 later repaired every code site in the #740-#774
+batch, and #1509 repaired the Markdown sites under the rule below.
+
+**A Markdown citation to a deleted issue takes one of three arms** (#1509). The arm follows what the
+number does in its sentence. `commentlint` reads no Markdown and `doclint` reads no `#nnn`, so
+nothing mechanical enforces this rule. The grep in #1509 is the acceptance test.
+
+1. **A rule source takes a live-authority swap.** The sentence cites the number as the source of a
+   rule, or uses it to label a mechanism ("the #773 re-gate"). Replace it with the ADR that states
+   the rule, and read that ADR's body first. `#773` is ADR-0217, `#743` is ADR-0079, `#740` is
+   ADR-0053. The label becomes "the ADR-0217 re-gate". A `Rests on:` header takes this arm, and it
+   never hyperlinks an HTTP 410 URL.
+2. **Historical narrative keeps a bare mention, marked once.** The number records what happened
+   rather than what rules ("the hazard #773 exists for"). Keep it unlinked. Mark it at its first
+   mention in that document, in ADR-0159's form: "#773 (deleted, HTTP 410)". Later mentions in the
+   same document stay bare. Stripping the narrative would erase the decision record.
+3. **A time marker goes.** The paragraph above rules it: a change dated against a record nobody can
+   read dates nothing. A "pre-#nnn-gate" phrase names the gate rather than a date, so it takes
+   arm 1.
+
+A measured finding that already states the deletion, such as the `#774` paragraph above, is arm 2
+and needs no further mark. `CHANGELOG.md` sits outside this rule. A release note records the merged
+PR title verbatim.
 
 **The issue API is necessary and not sufficient.** A `#nnn` whose issue was deleted returns
 HTTP 410 and is invisible offline. `(#738)` on `trustedProxies` is one, and nothing under `docs/`
@@ -1341,7 +1376,7 @@ cross-reference.** `docs/spec/ct-source-replacement.md:180` says "(runtime failo
 inherits the source's error, and the result passes every check the agent then runs.
 
 **A wrong citation is worse than a dead one**, because it survives a file-existence check.
-Seventeen instances are measured. An earlier version of this line said nine and the table already
+Twenty-five instances are measured. An earlier version of this line said nine and the table already
 held ten.
 
 | Citation | What the named section states | What the rule needs |
@@ -1363,8 +1398,17 @@ held ten.
 | `(ADR-0083, §3.5)` on `internal/vergecore/vergecore.go` | ADR-0083 numbers no headings | `ADR-0083` states it whole. The §3.5 was `v1-spec.md` §3.5 (#1455) |
 | `(ADR-0053, spec §2.4)` in `cmd/worker/main.go` | "spec" names no file | `ct-source-replacement.md` §2.4, "Operator key location — worker-only" (#1455) |
 | `(ADR-0126, #1321 §3)` in `internal/queue/transcript.go` | A `§n` on an issue number | `ADR-0126`, whose scope clause states it and cites #1321 §3 itself (#1455) |
+| `(ADR-0129 §6)` at five sites, each stating a membership rule | §6 rules how the SAN bundle is collected, and rules no membership | The `#954` amendment (#1490) |
+| `(§3)` four times and `(§1.1)` in `internal/queue/crtsh.go` | The file names `passive-discovery-sources.md`, whose §3 is "DNS" and whose §1.1 is a source list | `ct-source-replacement.md` §3 and `raw-job-output.md` §1.1 (#1489) |
+| `(§3.2)`, `(§3.3)`, `(§2.1)` and `(§2.1.1)` in `internal/scan/ctverify.go` | The file names `ct-source-replacement.md`. It numbers no §3.2, §3.3 or §2.1.1, and its §2.1 is "Two sources, one Scan" | **RFC 6962**, which the same file writes in full at four other sites (#1489) |
+| `(§4.4)` twice in `internal/scan/ctverify.go` | "Cadence — a measured bar, and opt-in" | `ADR-0214` §2, "No log signature is checked" (#1489) |
+| `(§4.2)` once and `(§4.3)` twice in `internal/scan/cttail.go` | Scan shape and cursor, and the log-set | **C2SP** and **static-ct-api**. One was reduced to an uncited reason (#1489) |
+| `(§7)` on `internal/scan/ctreliability.go` | §7 is the schema summary | `ct-source-replacement.md` §3, whose own `(§7)` pointer the comment copied (#1489) |
+| `(§5)` on `internal/scan/edgefanout.go:3` | "v1 ships fan-out alone" | The `#954` amendment, whose own `(§5)` pointer the comment copied (#1489) |
+| `(§1.3)` on `internal/scan/zone.go` | The file names `v1 spec §3.4`, and `v1-spec.md` numbers no §1.3 | `raw-job-output.md` §1.3, "The Zone variant" (#1489) |
 
-**The last three share one shape, and the check below now catches two of them.** Each pairs a real
+**Three rows share one shape, and the check below now catches two of them.** They are
+`(ADR-0083, §3.5)`, `(ADR-0053, spec §2.4)` and `(ADR-0126, #1321 §3)`. Each pairs a real
 `ADR-nnnn` with a `§n` that belongs to some other document, or to no document. **The comma is the
 shape this defect actually takes.** The separator now accepts an optional comma or semicolon, plus
 at most one space (#1437). `(ADR-0083, §3.5)` lands as `unnumbered-adr`, and `(ADR-0126, #1321 §3)`
@@ -1393,6 +1437,28 @@ token then appeared in `pure_test.go:64` and twice in `crtsh_test.go`, both owne
 **Wrong citations cluster, so a repair checks every citation to that document in that file.** #1328
 was opened for two citations and its file held three. `edgefanout.go:268` cites `ADR-0129 §6` where
 the rule is #956, and only a sweep of every `ADR-0129` reference in the file found it.
+
+**`ADR-0129 §6` is a miscitation target, and #1490 ruled it.** Seven comments cite it. Two are
+right, because §6 rules that collection is CT plus an active no-SNI handshake:
+`internal/scan/edgefanout.go:1` and `internal/measure/edgefanout/leaf.go:83`. The other five each
+state a **membership** rule, and §6 states none. The row above names a citation at a site, and it
+never condemns `§6` everywhere.
+
+**The cause is structural, so it produced five citations rather than five slips.** ADR-0129 numbers
+`### 1.` to `### 6.` under `## Decision`, then writes **23 unnumbered `###` headings** inside four
+amendments. An author who wants a membership ruling finds no number and takes the nearest one.
+**The repair needed no renumber and no new form.** §4.4's `(ADR-nnnn #issue)` form reaches every one
+of those 23 headings, because each sits inside a named amendment. #1490 re-cited all five to
+`(ADR-0129 #954)`, whose heading *"The measurement is membership-deciding, not a facet"* states the
+rule. It left the two correct citations alone.
+
+**Two other repairs were weighed and refused, and both refusals are evidence.** Numbering ADR-0129's
+23 headings was refused: the ADR writes a **bare `§7` ten times**, for a custody-extension census
+panel that is no section of ADR-0129. A renumber starting at 7 turns all ten into self-references to
+a section that rules something else, which is test 1's own failure shape. It also re-aims a reader
+across the 52 `ADR-0129 §n` pointers in 21 tracked files. Re-pointing the five to `ADR-0188` was
+refused on reading it. ADR-0188 holds no occurrence of "membership", "facet" or "timeline", and
+ADR-0188 §4 hands the population back — *"ADR-0129 and its #956 amendment rule the population."*
 
 **`ADR-0134 §5` is a cluster too, not a one-off.** The table records one instance in
 `internal/queue` and a second in `cmd/web/scope_withdrawal_preview_test.go` (#1223). Read it beside
@@ -1428,7 +1494,7 @@ comments give. `c90112e` wrote the citation and **#1166 kept it through the swee
 one.
 
 **Check that a survivor's citation resolves before the PR opens.** The ratchet does not provide this
-check. **Seven defects have reached `main` in merged sweep output, and a repair campaign in batch
+check. **Eight defects have reached `main` in merged sweep output, and a repair campaign in batch
 seventeen cleared six of them.** A sweep that runs seventeen batches lands about one defect a batch,
 so read this as a rate rather than as a closed list.
 
@@ -1441,18 +1507,19 @@ so read this as a rate rather than as a closed list.
 | `internal/custody/census.go:5` and `scopecensus.go:7`, `:35` cite `ADR-0129 §5`, which rules "v1 ships fan-out alone" | #1187, PR #1309 | **Repaired.** #1368, PR #1440. `census.go` names the `#944` amendment and both `scopecensus.go` lines name `#956`. |
 | `internal/auth/key.go:15` and `password.go:3` cite `v1 spec §4.3` for the session-key custody rule | Inherited, kept by #1166, PR #1284 | **Repaired.** #1376, PR #1440. Both now cite `ADR-0053`, which states it. |
 | `docs/adr/0195` cited `ADR-0129 §5` for the display-only rule, and `docs/adr/0163` recorded the three code-side instances as untouched | The `adr-gap` sessions of batch seventeen | Open. **#1441**. Both sites are repaired in the working tree and neither is merged. |
+| `ADR-0129 §6` cited for a membership rule at five sites, in `cmd/prober`, `internal/custody` and `internal/measure/edgefanout` | Batches 2 and 8, PRs #1268 and #1278, and one carried through #1466's column trim in PR #1488 | **Repaired.** #1490. All five name the `#954` amendment. |
 
 Do not repair an open one under a sweep ticket.
 
-**Six of the seven name `ADR-0129`, `ADR-0053` or `ADR-0081` as the wrong citation**, so a survivor
-citing any of the three deserves a second read.
+**Seven of the eight name `ADR-0129`, `ADR-0053` or `ADR-0081` as the wrong citation**, so a
+survivor citing any of the three deserves a second read.
 
-**The seventh defect did not come from a sweep, and that is the finding.** Every other row was
+**The #1441 defect did not come from a sweep, and that is the finding.** Every other row was
 authored by a sweep agent compressing a block. This one was authored by an ADR-recording session
-under §8.10, which copied `ADR-0129 §5` into a new ADR while **#1368** stood open against the same
-citation in code. **A defect ledger this section keeps does not reach the sessions that write ADRs.**
-Read this row as evidence that the citation tests in this section bind every author, not the sweep
-alone.
+under the triage route §8.4 retires. It copied `ADR-0129 §5` into a new ADR while **#1368** stood
+open against the same citation in code. **A defect ledger this section keeps does not reach the
+sessions that write ADRs.** Read this row as evidence that the citation tests in this section bind
+every author, not the sweep alone.
 
 #### A `§n` citation needs a numbered heading in the target
 
@@ -1506,8 +1573,8 @@ the `ADR-nnnn` keeps both pointers and breaks the adjacency the check reads (#14
 
 **The `adr-sections` job in `.github/workflows/doclint.yml` runs the check.** #1465 cleared the 108
 and wired it, in that order. The job is **not advisory** — it carries no `continue-on-error` and goes
-red on a violation — and it is **not required**: `main`'s ruleset requires no job in that workflow,
-so a red run blocks no merge. Promotion is #1263. It runs `npm run test:adr-sections` first, then
+red on a violation — and since 2026-09-07 it is **required**: `main`'s ruleset names `adr-sections`
+and `citations`, so a red run blocks the merge. It runs `npm run test:adr-sections` first, then
 `npm run check:adr-sections -- --github`, so a violation lands as an inline annotation.
 
 **The check refuses its own test file.** `check-adr-sections.test.mjs` holds specimen citations. A
@@ -1518,6 +1585,169 @@ stays checked, including the checker itself.
 **The semantic half stays a reader's job.** The check proves that `§n` exists. It cannot ask whether
 `§n` states the rule the comment claims. #1437 records why: entailment needs a reader who understands
 both texts. So the check narrows the failure and never closes it.
+
+#### A bare `§n` names no document, and a naming line is what discharges it
+
+**A bare `§n` is a citation defect, and a naming block in the same file does not always clear it.**
+#1489 measured **91 bare `(§n)` occurrences across 83 comment lines** in `cmd/` and `internal/`, on
+`bf49660`. It read them as three tiers, and took *"a named sibling sits in the same file"* as the
+strong case. **The sibling is the trap.** A file may name one document and carry a `§n` that belongs
+to a second. The reader then resolves the citation **falsely** rather than not at all. That is
+test 1's failure shape, sitting inside the file rather than inside the target.
+
+**Three files carry that shape, and #1489 repaired 15 sites in them.**
+
+- `internal/queue/crtsh.go` names `passive-discovery-sources.md` in its own comments. Four of its
+  bare `§3` sites are `ct-source-replacement.md` §3, the reliability bar. The named document's §3 is
+  "DNS". Its bare `§1.1` is `raw-job-output.md` §1.1, and the named document numbers no §1.1.
+- `internal/scan/ctverify.go` names `ct-source-replacement.md` §5 in its package doc. Four of its
+  bare sites are **RFC 6962** sections, and the same file already wrote `RFC 6962` in full
+  elsewhere. Two more cite `§4.4` for the no-log-signature rule, which `ADR-0214` §2 states.
+- `internal/scan/cttail.go` names the same document. Three of its bare sites are **C2SP** and
+  **static-ct-api** facts. The named document states none of them, and §4.2 and §4.3 rule other
+  things.
+
+**§4.5's "keep the naming" is therefore not a general repair, and this narrows it.** That rule
+offers two outcomes when a delete would orphan a document reference. Keeping the naming block is
+sound only where every bare `§n` in the file belongs to the named document. **Read them all before
+you take that option.** Two of the five files this SPEC names for that treatment fail the condition.
+They are `cttail.go` and `ctverify.go`. A third, `transcript.go`, had no naming block to keep.
+
+**A repair at the site does not fit, and #1489 measured the figure.** 65 lines remain after the
+repairs above. The median line measures 95 columns, and 55 of the 65 reach 84 or more. #1466's
+column campaign trimmed this population **to** the cap. A document name now costs a reason-clause
+rewrite at nearly every site. #1489 refused 59 rewrites, on this section's own ground: a citation
+format may not destroy a reason.
+
+**#1489 reported "six of 65", and that figure is one point on a range.** The count turns on which
+document name it prices. The token `ct-source-replacement` costs 22 columns with its separator, and
+6 of the 65 lines take it inside 100 columns. The tree's shortest legal token is `v1 spec` at 8
+columns, and 22 of the 65 take that. Priced at the document each site's own file names, 15 fit and
+50 do not. **The shortfall therefore runs from 43 lines to 59, and never below 43.** Every figure in
+this subsection re-measures on `baa3762` (#1574).
+
+**One naming line per file or per package fits, and #1489 wrote five.**
+`internal/wire/transcript.go` held five bare `§n` and named nothing. Its `§1.2` site now names
+`raw-job-output.md`, so the file carries a naming line. `cmd/commentlint` and
+`internal/commentlint/{rule,screen,surface}` gained a package doc each.
+
+**Tier 3 is ruled: the rule binds `internal/commentlint` too.** Its 19 bare `§n` occurrences, in
+18 lines, all resolve against `docs/spec/comment-policy.md`. The package implements this SPEC and
+cites no second document by `§n`. That is not enough, because a package name is an identifier.
+§4.4 rule 2 already refuses an identifier as a citation. The discharge is a naming line. Four
+package docs reach all 19 sites. The column cap binds 15 of the 18 lines, so a site-level repair was
+never available.
+
+**The abbreviated forms stand, and normalising them would not answer the reader's grep.** The tree
+writes `v1 spec §n` 46 times and `v1-spec §n` 10 times. It writes `raw-job-output §n` 10 times,
+`measurement-offers §n` 6 times and `passive-discovery §n` twice. A full `<basename>.md §n` stands
+at 67 sites. **The short form is the majority for three of those four documents.** Each token names
+one file. Read a space as a hyphen, and it matches exactly one basename under `docs/spec/` and
+`docs/research/`. A filename glob resolves it. A content `grep -r` does not: `measurement-offers`
+hits 33 files under `docs/`, and `v1 spec` hits 135. `passive-discovery`
+is the one worth naming, and the full basename does **not** repair it. The file sits at
+`docs/research/passive-discovery-sources.md`. A reader who greps `docs/spec/` first finds nothing
+under either form. Normalising three sites out of 74 would deepen the split rather than close it.
+
+**66 bare occurrences remain, in 65 comment lines.** A `git grep` of `(§` reads 72 across 71 lines,
+and 6 of those sit in a string literal rather than a comment (#1574). §4.4 already rules that a
+literal holding a comment marker is not a comment. The six are
+`internal/vergecore/vergecore_test.go` at `:8`, `:11`, `:14`, `:17` and `:20`, plus
+`internal/commentlint/screen/screen_test.go:50`. Each of the 66 has a naming line in its own file or
+package to resolve against, except the site below. That is a resolvable pointer and not a verified
+one. §4.7's four tests still run per site. A site-level repair of the 66 is a reason-clause
+campaign, and the ruling below closes that route rather than scheduling it.
+
+**One site resolves nowhere.** `internal/seed/seed.go:17` cites `§5.3` for `DefaultAddressCap`, and
+its package names `v1 spec §3.2`. `v1-spec.md` §5.3 is "Messages and notification". A grep for
+`1024` across `docs/spec/`, `docs/research/passive-discovery-sources.md` and `CONTEXT.md` returns no
+address cap. The reason stands uncited under route 3, and this paragraph records the gap.
+
+**A second site reaches no section that states its rule.** `internal/seed/exclusion.go:15` cites
+`§3.2, §6.4` for *not mine is a different claim from not there*. Its package names `v1 spec §3.2`.
+`passive-discovery-sources.md` numbers no §6.4, so only `v1-spec.md` numbers both. `v1-spec.md` §3.2
+is "Seeds & aperture". Its §6.4 lists *managing exclusions* as a Seeds-view job. Neither states the
+name-shape rule. #1489 left the citation untouched and records the reading here.
+
+**Ruling: the naming line is a first-class citation form, and never a fallback.** A bare `§n` is
+legal where a naming line resolves it, and where every bare `§n` under that naming line belongs to
+the named document. §4.4 carries the form. This subsection carries the ladder and the ledger.
+#1574 ruled it.
+
+**A naming line writes a document name immediately before a `§n`.** The string
+`ct-source-replacement.md §4` is one, and so is `v1 spec §3.3`. **A package identifier is not one.**
+That answers #1489's ground for refusing tier 3 rather than reversing it. Rule 2 of §4.4 refuses an
+identifier as a citation, and this ruling never makes an identifier the resolver. The four package
+doc comments in `internal/commentlint` write `comment-policy.md` in prose. The package name
+discharges nothing.
+
+**The discharge ladder. The first rung that answers wins.**
+
+| Rung | Scope | What it asks |
+| --- | --- | --- |
+| 1 | The comment block holding the citation | It names exactly one document |
+| 2 | The file | Its comments name exactly one document |
+| 3 | The package | Its comments name exactly one document |
+| 4 | The candidates the scope names | Exactly one of them numbers the cited `§n` |
+
+**Rung 1 outranks rung 2 because a wrapped naming line is one block.** The package doc of
+`internal/measure/wildcarddiscrim/leaf.go` opens on `v1 spec §3.3`, and it carries a bare `§7` and a
+bare `§3.6`. A later block in the same file names `golden-corpus.md §8`, so the file names two
+documents and rung 2 cannot answer. The block answers.
+
+**Rung 4 is the sibling trap's mechanical half.** This section already rules that a `§n` citation
+needs a numbered heading in the target. Where a scope names two documents and only one numbers the
+cited section, that check settles the citation without a reader. Where both number it, the ladder
+ends and the site lands in the ledger below.
+
+**The ledger, measured on `baa3762`.** 66 bare `(§n)` occurrences sit in 65 comment lines under
+`cmd/` and `internal/`.
+
+| Rung | Occurrences |
+| --- | ---: |
+| 1 — the comment block names one document | 6 |
+| 2 — the file names one document | 38 |
+| 3 — the package names one document | 13 |
+| 4 — one candidate numbers the cited `§n` | 7 |
+| No rung answers, and the two below record it | 2 |
+| **Total** | **66** |
+
+**64 of the 66 are discharged permanently, and this ledger closes them.** Do not reopen the
+population as a sweep. A later count that reads 65 lines reads these same discharged sites, and it
+owes no repair.
+
+**Two sites reach no rung, and reading settles both.** `internal/delivery` names
+`notification-channels.md` and `v1 spec` alike, and both documents number the cited sections.
+
+- `internal/delivery/delivery.go:113` cites `§3.2` for *no bearer header is ever set*.
+  `notification-channels.md` §3.2 is "Authentication", and it states **"No bearer header, ever."**
+  `v1-spec.md` §3.2 is "Seeds & aperture", which rules nothing about a header.
+- `internal/delivery/runner.go:55` cites `§4` for a refused 3xx. `notification-channels.md` §4
+  rules any 3xx **Failed**, and its table row gives this comment's own reason in the same words.
+  `v1-spec.md` §4 is "Architecture".
+
+**Neither takes a repair at the site, and the arithmetic says why.** The line `delivery.go:113`
+measures 80 columns, and the short token `notification-channels` costs 22 more, for a total of 102
+columns. The line `runner.go:55` measures 99 columns, so no name of any length fits. **This
+paragraph is the naming line for both.** Cite it rather than reopening the two comments.
+
+**Three other routes were rejected, and each falls on its own ground.**
+
+**Raising the cap fails on its own arithmetic.** Every one of the 65 lines takes `v1 spec` at a
+ceiling of 108 columns. 21 of them cite `ct-source-replacement`, which needs 122. A ceiling of 122
+caps nothing. The number would also reprice the whole tree rather than the 65. #1466 repaired 367 Go
+blocks plus 19 more by trimming **to** 100 columns. #1481 closed a non-Go tail of nine, and #1482's
+`column-over-cap` gates that work. A raise hands every one of those lines its columns back.
+
+**A cap that binds only an uncited line fails the same way.** The cap is arithmetic over a physical
+line and needs no intent (§4.4). That is why it reaches `step-narration` and `prose-other`. A
+name-conditional cap makes the class read intent, which ruling 12 withholds from every judgment
+rule.
+
+**Shortening the 59 reason clauses cuts reason rather than slack.** The median line measures 95
+columns, and a `ct-source-replacement` site needs 17 columns out of a clause the rubric already caps
+at 25 words. #1466 trimmed these same lines once, to 100 columns. A second pass has no slack left to
+take, and this section forbids a citation format that destroys a reason.
 
 ### 4.8 The `package-doc` cap
 
@@ -1562,8 +1792,8 @@ authoritative, so the lines die on gate A with no `false` row. That ticket refus
 verdicts systematically. Prefer the cheaper verdict where both reach the same deletion, because a
 `false` row asserts something extra about the world.
 
-The ledger carries a second table, the gaps table (§8.6). A ticket that finds no ADR gap states
-`ADR gaps: none` (§8.7).
+The ledger carries the decision proposal blocks (§8.4). A PR that finds no ADR gap states
+`ADR gaps: none`.
 
 The volume is manageable. The salvage population is about 1,729 declaration blocks tree-wide, so a
 per-package slice yields a ledger of tens. §7.1 sizes the cap against that.
@@ -2196,9 +2426,9 @@ lex-failure count on its own line.** The exit code already separates the two, an
 not re-merge them.
 
 **The summary's first line is fixed text.** It reads *"Comment lint (SPEC docs/spec/comment-policy.md
-§6.7). A violation fails this job."* It names the failure and claims no more than that. `main`'s
-ruleset does not require the `commentlint / lint` check, so a red `lint` job blocks no merge (#1263).
-A summary that called the check required would be false.
+§6.7). A violation fails this job."* It names the failure and claims no more than that. Since
+2026-09-07 `main`'s ruleset requires the `lint` check, so a red `lint` job blocks the merge (#1263).
+The summary text predates that and stays as written, because it is still true.
 
 **`verify` fails closed.** Any changed in-scope file that does not lex fails the job. Any changed
 `.html` or `.astro` file fails the job, because a sweep PR touching one is a scoping error. The
@@ -2239,9 +2469,10 @@ place. This is a mild departure from `doclint.yml`, which is one file and one jo
   `contains(github.event.pull_request.labels.*.name, 'sweep:comments')`. **No `continue-on-error`.**
   It runs `verify --base`.
 
-**`lint` fails, and it blocks no merge. The two words are not the same word.** Ruling 5 made the job
-advisory, and #1435 retired that stance in two moves. It deleted `continue-on-error` from the job,
-and it fixed the `--github` exit path §6.7 records. A violation now turns the `lint` check red.
+**`lint` fails, and since 2026-09-07 it blocks the merge. The two words are not the same word.**
+Ruling 5 made the job advisory, and #1435 retired that stance in two moves. It deleted
+`continue-on-error` from the job, and it fixed the `--github` exit path §6.7 records. A violation
+turns the `lint` check red, and the ruleset write of 2026-09-07 made that red a blocked merge.
 
 **A red check is not a blocked merge here.** `main`'s ruleset lists 7 required status checks, and
 `commentlint / lint` is not one of them. GitHub lets a pull request merge over a failing check the
@@ -2296,8 +2527,8 @@ repository-settings change.
 silent on every other PR. This gives ruling 15 teeth without a settings change, and it is stronger
 than "a human remembered to look".
 
-Promotion to a required check is deferred. §10 parks it beside the same write for `commentlint lint`,
-which fails its job today and gates no merge (§6.9, #1263).
+Promotion to a required check landed on 2026-09-07, in the same ruleset write that promoted
+`commentlint lint` (§6.9, #1263).
 
 ---
 
@@ -2322,8 +2553,11 @@ Four stages. **Each stage blocks the next.**
 **Stage A. Prerequisites.** In this order:
 
 1. The `commentlint` binary (§6). `strip` must exist before stage B runs.
-2. The `commentlint.yml` workflow (§6.9), the `sweep:comments` label (§6.10), and the `adr-gap` label
-   (§8.9). A sweep PR cannot carry ruling 15 without the workflow.
+2. The `commentlint.yml` workflow (§6.9), the `sweep:comments` label (§6.10), and the `adr-gap`
+   label. A sweep PR cannot carry ruling 15 without the workflow.
+
+   The `adr-gap` label, and the issue container §8.4 to §8.10 once described, are retired. §8.4
+   states the replacement.
 3. The `CLAUDE.md` amendment (§9). A sweep session is itself an agent. It reads `CLAUDE.md` every
    session and the SPEC almost never, so the amended rule must be in `CLAUDE.md` before the first
    sweep.
@@ -2348,7 +2582,8 @@ misfires, it misfires once.
 2. **D2. SQL** (`db/queries` only). One homogeneous shape, the sqlc `-- name:` block, so it is nearly
    a second mechanical class. **The §5.5 cross-check is a precondition of the first D2 ticket.**
 3. **D3. Web assets** (`.mjs`, `.ts`, `.jsx`, `.tmpl`, `.css`). Smallest and least load-bearing.
-4. **D4. The ADR-gap triage** (§8.10). It blocks on every other stage-D ticket.
+4. **D4. The ADR-gap triage** (retired with its container, §8.4). It blocks on every other stage-D
+   ticket.
 
 `strip` is Go-only in v1, so families D2 and D3 are 100% judgment with `verify` as the only automated
 gate.
@@ -2597,7 +2832,8 @@ A sweep ticket is done when **seven** conditions hold:
 
 1. `commentlint verify` **ran** on the PR and is green.
 2. `commentlint lint` reports zero flags on the ticket's files.
-3. The PR body carries a keeps ledger (§4.9) and a gaps table (§8.6).
+3. The PR body carries a keeps ledger (§4.9) and the decision proposal blocks, or `ADR gaps: none`
+   (§8.4).
 4. Every survivor's citation was checked to resolve, **including one the sweep inherited rather
    than wrote**.
 5. `gofmt -l` ran on the ticket's own file set, and the PR body names every formatting hunk the
@@ -2749,10 +2985,11 @@ now covers the cap.
 citation must pass, and the measured false resolves. Neither a file-existence check nor a bare token
 grep is enough. **The check needs the issue API**, because a deleted `#nnn` returns HTTP 410 and
 nothing under `docs/` distinguishes it from a live one. It also needs the issue **title**, because a
-design-collision id's number resolves to an unrelated live issue. **Seven defects have reached
+design-collision id's number resolves to an unrelated live issue. **Eight defects have reached
 `main` in merged sweep output across seventeen batches. One is a repair that went to the wrong
-document, one the sweep inherited rather than wrote, and one came from an ADR-recording session
-rather than from a sweep.** §4.7 tables them.
+document. One the sweep inherited rather than wrote. One came from an ADR-recording session
+rather than from a sweep. One is an unnumbered stretch of the cited ADR, and it produced five
+citations at once.** §4.7 tables them.
 
 **A citation repair re-runs §4.4's length check.** A repair lengthens the line, and the
 100-column cap binds after `gofmt`. Two of #1328's three repairs measured 110 and 103 runes
@@ -2790,15 +3027,15 @@ sweep is about to delete the only statement of it.
 
 `CONTEXT.md` already spends "candidate" on four unrelated measurement concepts, so "salvage
 candidate" would collide with the ubiquitous language. "ADR gap" names the defect, not the process.
-It also reads correctly in both directions. An agent files a record against a gap, and the gap
-closes when an ADR lands.
+It also reads correctly in both directions. An agent writes a proposal against a gap. The gap closes
+when a human ratifies the proposal or refuses it.
 
 **The term is not added to `CONTEXT.md`.** `CONTEXT.md` is the product domain glossary. This is a
 repo-hygiene process term, so this SPEC defines it.
 
 ### 8.2 The trigger
 
-A block opens an ADR gap only when **all three** gates hold.
+A block earns a decision proposal only when **all three** gates hold.
 
 | Gate | Test |
 | --- | --- |
@@ -2821,7 +3058,10 @@ dies honestly on gate A. **The uncited rule is the one most likely to be genuine
 was stated five times, uncited, inside one function, and nothing in the citation machinery fired on
 it. Ask the three gates of every rule you delete, not only of every citation you cannot repair.
 
-**Gate C means the eight `cmd/web` test tickets expect §8.7's zero case.** A `_test.go` block is
+The paragraphs below record the 2026-09 sweep. Read `adr-gap` issue there as the retired container
+(§8.4).
+
+**Gate C means the eight `cmd/web` test tickets expect §8.4's zero case.** A `_test.go` block is
 disqualified before gate A is reached, so a test ticket filing no `adr-gap` issue is the normal
 outcome. #1219 filed none. A reviewer reading eight consecutive test PRs with no gap issue should
 not read that as eight lazy sweeps.
@@ -2902,124 +3142,42 @@ shell must read the in-flight flag — not `chromeScanRunning`'s degrade directi
 comment stated (#1215). Shape 3 above is the same failure inside the ADR corpus. **Read the source's
 body before you let it suppress.**
 
-### 8.4 The container
+### 8.4 The record
 
-**One `adr-gap` issue per sweep ticket.** It lists every gap that ticket found. The backlog is bounded
-at about 30 issues.
+**A gap is recorded as a decision proposal block in the PR body. No issue opens.** The block is
+defined once, in `docs/spec/adr-governance.md`, Terms. It holds five fields: Thesis, Site,
+Alternative, Reversal, Proof. It ends with one unticked checkbox, "Ratified".
 
-Three alternatives are refused:
+The comment itself survives in code, in the §4.4 form, with no citation. The block records that a
+rule may deserve an ADR. It does not remove the rule from the code.
 
-1. **One issue per gap block** gives 250 to 340 issues, which is the problem this protocol prevents.
-2. **One issue per distinct rule** is the right unit and is not buildable. Up to 4 parallel sweep
-   PRs run across roughly 30 independent sessions. No session can see another's gaps, so dedup at
-   capture time is guesswork.
-3. **A single whole-sweep issue, or an appended file such as `docs/adr/gaps.md`**, puts every
-   parallel PR on one shared write target. For a file that is a merge conflict, and §7.5 forbids
-   hand-resolving one, so a conflict costs a re-run of the whole ticket.
+Two stages decide a gap, and different readers run them.
 
-Dedup moves to triage, where the whole population is visible at once (§8.10).
+| Stage | Reader | Test | Outcome |
+| --- | --- | --- | --- |
+| Detect | The agent | §8.2 gates A, B, C | A block in the PR body |
+| Ratify | The human reviewer | The three-part test in `CLAUDE.md` | A ticked box, or a refusal |
 
-### 8.5 The record's fields
+Under orchestration, the orchestrator writes the block from the subagent's proposal. The human still
+ratifies.
 
-Each entry in the issue holds **five** fields.
+**Only a human opens the issue.** At review, the human opens one issue per ticked block. Its title is
+the Thesis. Its body is the block. Its label is `ready-for-agent`. It is never a sub-issue of a map,
+because an open unassigned child sits on the frontier forever. Its number becomes the ADR's number.
+The ADR is a separate PR, written after this PR merges, under the governance SPEC's review gate.
 
-| Field | Content |
-| --- | --- |
-| Rule | The rule in one sentence, in the agent's own words. |
-| Symbol | The enclosing declaration's name. |
-| Location | `file:line`, read at deletion time. |
-| Text | The deleted comment, verbatim. |
-| PR | The sweep PR's number. |
+An unticked block at merge is a refusal. It leaves no record beyond the merged PR body. An agent may
+not open the issue. The old route let agents file 43 issues that became 80 ADRs in two days.
 
-**Issue title:** `ADR gaps: <sweep ticket scope>`, for example `ADR gaps: internal/queue`.
+**No cap on blocks per PR.** The PR body states the count in one line, so an outlier is visible.
 
-**The PR number replaces the commit SHA.** The commit that deletes the comment does not exist when
-the agent writes the record. Squash-only merges in `CONTRIBUTING.md` then rewrite every SHA an agent
-could record. A `git log -S` against a dead SHA finds nothing. The PR number survives the squash and
-reaches the diff, the keeps ledger, and the review conversation.
+**A PR that finds no gap states `ADR gaps: none`** in its keeps ledger (§4.9). Silence cannot
+separate "applied and found none" from "never applied".
 
-**The Rule field is the one downstream work depends on.** §8.10 dedups by comparing rules, not texts.
-`internal/queue/reaper.go`, `internal/retention/observation.go` and
-`internal/retention/transcript.go` state one worker-loop error rule, uncited, in three wordings. A
-triager comparing verbatim texts sees it three times. A triager comparing rule sentences sees it
-once.
+**The `adr-gap` label is retired.** It stays on its 43 closed issues as a historic marker. No new
+issue carries it.
 
-**The record keeps the verbatim text as well as the locator.** A locator alone bets that a future
-author will chase it. Citations already rot here: the standing fact is 88 distinct ADRs cited
-against 133 on disk.
-
-A free-text "why it looked ADR-worthy" field is refused. The `adr-gap` label already asserts that, and
-no downstream step reads it.
-
-### 8.6 The PR body's gaps table
-
-**Every sweep PR body carries a gaps table: rule sentence and `file:line` only.** The other three
-fields stay in the issue.
-
-The verbatim deleted text is already in front of the reviewer, as a deletion in the diff under
-review. Reproducing it in the PR body is noise at the moment attention is scarcest. In the issue it
-is not noise, because the issue outlives the diff and a future ADR author has no diff open.
-
-The table is what lets the reviewer dismiss a batch in one comment without leaving the PR. **The
-agent files. The human ratifies at review.**
-
-### 8.7 The zero case
-
-**A sweep ticket that finds no gaps files no issue, and its keeps ledger states `ADR gaps: none`.**
-
-Silence cannot separate two cases: the agent applied the trigger and found none, or the agent never
-applied the trigger. Across about 30 sessions that difference is the whole integrity of ruling 9
-itself. The explicit line costs one line and is the only evidence the reviewer gets.
-
-**An empty issue is refused.** It pollutes the backlog §8.10 must read.
-
-**A ticket body may say otherwise, and this section wins.** Every open sweep ticket body carried an
-unconditional "open one `adr-gap` issue for this ticket" in step 7, written before this section
-existed. #1201 and #1209 both reached zero gaps, both resolved the conflict this way, and both named
-it in the PR body. The bodies are amended. Where any instruction outside this SPEC asks for an empty
-issue, refuse it and say so in the PR body.
-
-### 8.8 An `adr-gap` issue is never a sub-issue of a map
-
-**Do not link an `adr-gap` issue as a sub-issue of the wayfinder map or the implementation map.** It
-carries `Found by #<sweep ticket>` in its body. §8.10's ticket finds the backlog by label.
-
-This is a prohibition, not an omission. `docs/agents/issue-tracker.md` defines the frontier as the
-map's open sub-issues, minus those with an open blocker or an assignee. An `adr-gap` issue is open,
-unblocked and unassigned by construction. Linking it as a sub-issue therefore puts **every gap record
-on the implementation frontier permanently**, and a later `/implement` session picks one up as its
-ticket. The map also never closes. A map closes when every child closes, and a gap closes only when
-someone writes an ADR. §1.4 excludes that work.
-
-A sweep agent reaches for "child issue of the map" by pattern. This is the trap that needs saying.
-
-### 8.9 Labels
-
-**On filing: `adr-gap` plus `needs-triage`.** On disposal: remove `needs-triage`, then apply either
-`ready-for-human` or `wontfix`.
-
-`adr-gap` is new and must be created in stage A (§7.2). The rest is the canonical vocabulary in
-`docs/agents/triage-labels.md`. A gap record is ordinary triage input, so it needs one new noun, not a
-new vocabulary. A `sec:*`-style family is refused: that pattern earns its shape from a category axis,
-and ADR gaps have one category.
-
-### 8.10 Disposal
-
-**The last ticket of stage D triages the whole `adr-gap` backlog** (§7.2, D4). It is an
-implementation-map ticket, so it has an owner and a scheduled moment. It does four things:
-
-1. Read every open `adr-gap` issue by label.
-2. Dedup by **rule sentence**, not by text. Collapse duplicates into one surviving record that lists
-   every location.
-3. Close the noise and the duplicates, labelled `wontfix` or as duplicates.
-4. Label each survivor `ready-for-human` and remove `needs-triage`.
-
-The ticket is done at a triaged, deduplicated, `ready-for-human` backlog. **Authoring the ADRs stays
-out of scope** (§1.4).
-
-Per-PR triage is refused for two reasons. It cannot dedup, because a reviewer sees one PR. And it asks
-a reviewer to judge ADR-worthiness while reviewing a deletion diff. A stated cadence with no ticket
-rots.
+**This rule binds any PR that deletes a comment passing the three gates.** A sweep is one case.
 
 ---
 
@@ -3136,11 +3294,9 @@ stands on the other half of the trade: the cap is a sweep-time repair discipline
 
 ## 10. Not yet specified
 
-- **Promotion of `commentlint` to a required status check.** #1435 already made `lint` fail on a
-  violation, so the advisory half of this question is closed (§6.9). What remains is the settings
-  write: whether `lint`, `verify`, or both join the 7 required checks. #1263 holds that write. A red
-  `lint` blocks no merge until it lands. Promoting `verify` would drop the `sweep:comments` label
-  gate (§6.11). The sweep's false-positive rate still governs the timing.
+- **Promotion of `commentlint` to a required status check.** Settled on 2026-09-07. `lint` joined
+  the required checks beside `citations` and `adr-sections`. `verify` did not, because promoting it
+  would drop the `sweep:comments` label gate (§6.11). A red `lint` now blocks the merge.
 - **Whether tooling generates the keeps ledger.** §4.9 fixes the requirement. Whether `commentlint`
   emits a ledger skeleton, or the sweep agent writes it by hand, is an implementation choice. The
   implement effort decides it.

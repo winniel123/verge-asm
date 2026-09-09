@@ -1,19 +1,22 @@
+---
+number: 185
+title: "a severity is the operator-facing grade, so it composes into no version vector and is not a fifth part of a rule"
+slug: a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1301
+pr: 1302
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 24}
+  - {kind: rests-on, adr: 8}
+  - {kind: rests-on, adr: 21}
+  - {kind: sibling, adr: 151}
+---
+
 # ADR-0185: a severity is the operator-facing grade, so it composes into no version vector and is not a fifth part of a rule
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1301 ADR gaps: internal/signal](https://github.com/winniel123/verge-asm/issues/1301), gap 1
-- **PR that deleted the comment:** [#1302](https://github.com/winniel123/verge-asm/pull/1302)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Withdraws a clause of:** [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md). Its
-  second guard reads *"a domain may cite only evidence the rule declares, and everything a rule
-  declares composes into its version vector"*. The second half is withdrawn here and replaced. The
-  first half stands, and so does the four-part count in the same ADR's Decision table
-- **Rests on:** [ADR-0008](./0008-derivation-versions-move-on-content.md), whose Decision table fixes
-  what moves a version — *"an **output-affecting change only** — never because a release shipped"* —
-  and [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md), which states the same test
-  from the other side: a part is a leaf *"exactly where its output can move while the world does
-  not"*, and *"the vector is what decides comparability"*
 - **Bounded by:** [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md).
   Its live remnant rules that a signal carries a five-level severity assigned per rule, and
   [`CONTEXT.md`](../../CONTEXT.md)'s `Signal` entry restates it and adds that the transition owns

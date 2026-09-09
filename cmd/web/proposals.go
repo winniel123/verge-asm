@@ -16,25 +16,43 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
+type proposalsStore interface {
+	ConfirmProposal(ctx context.Context, arg db.ConfirmProposalParams) (int64, error)
+	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
+	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
+	CreateProposal(ctx context.Context, arg db.CreateProposalParams) (db.Proposal, error)
+	CreateProposerLookup(ctx context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error)
+	DeclineProposal(ctx context.Context, id int64) (int64, error)
+	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
+	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	ListPendingProposals(ctx context.Context) ([]db.ListPendingProposalsRow, error)
+	RecordSourceAttempt(ctx context.Context, arg db.RecordSourceAttemptParams) (db.SourceHealth, error)
+}
+
 type proposalRow struct {
-	ID     int64
-	Value  string
-	Kind   string
-	Source string
+	ID      int64
+	Value   string
+	Kind    string
+	Source  string
+	OverCap bool
+	Refusal string
 }
 
 func flattenProposals(lookups []proposalLookupView) []proposalRow {
 	var out []proposalRow
 	for _, l := range lookups {
 		for _, p := range l.Proposals {
-			out = append(out, proposalRow{ID: p.ID, Value: p.Scope, Kind: "range", Source: p.Source})
+			out = append(out, proposalRow{
+				ID: p.ID, Value: p.Scope, Kind: "range", Source: p.Source,
+				OverCap: p.OverCap, Refusal: p.Refusal,
+			})
 		}
 	}
 	return out
 }
 
 type proposerRunner interface {
-	Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]proposer.Candidate, error)
+	Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]proposer.Candidate, []proposer.Attempt, error)
 }
 
 type proposalView struct {
@@ -44,6 +62,8 @@ type proposalView struct {
 	RecordLabel string
 	OrgName     string
 	AddrCount   string
+	OverCap     bool
+	Refusal     string
 }
 
 type proposalLookupView struct {
@@ -85,7 +105,7 @@ func overCapProposalNotice(p netip.Prefix, cap int) string {
 	)
 }
 
-func toProposalLookups(rows []db.ListPendingProposalsRow) []proposalLookupView {
+func toProposalLookups(rows []db.ListPendingProposalsRow, addrCap int) []proposalLookupView {
 	var out []proposalLookupView
 	byLookup := map[int64]int{}
 	for _, row := range rows {
@@ -101,22 +121,50 @@ func toProposalLookups(rows []db.ListPendingProposalsRow) []proposalLookupView {
 			idx = len(out) - 1
 			byLookup[row.LookupID] = idx
 		}
-		out[idx].Proposals = append(out[idx].Proposals, proposalView{
+		v := proposalView{
 			ID: row.ID, Scope: row.AddressCidr.String(), Source: row.SourceSlug,
 			RecordLabel: recordLabel(row.RecordKind), OrgName: row.OrgName,
 			AddrCount: humanCount(row.AddressCidr),
-		})
+		}
+		// A confirm is a declaration, so the cap refuses before the click (ADR-0052, #1713).
+		if !seed.WithinCap(row.AddressCidr, addrCap) {
+			v.OverCap = true
+			v.Refusal = overCapProposalNotice(row.AddressCidr, addrCap)
+		}
+		out[idx].Proposals = append(out[idx].Proposals, v)
 		out[idx].Count = len(out[idx].Proposals)
 	}
 	return out
 }
 
 func (s *server) proposalLookups(ctx context.Context) ([]proposalLookupView, error) {
-	rows, err := s.store.ListPendingProposals(ctx)
+	rows, err := s.proposalsStore.ListPendingProposals(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return toProposalLookups(rows), nil
+	return toProposalLookups(rows, s.addressCap(ctx)), nil
+}
+
+func excludeCandidates(cands []proposer.Candidate, excl []*netip.Prefix) []proposer.Candidate {
+	var out []proposer.Candidate
+	for _, c := range cands {
+		scope := c.Scope.Masked()
+		skip := false
+		for _, e := range excl {
+			if e == nil {
+				continue
+			}
+			// A decline claims its prefix, so a wider candidate is still offered (ADR-0012, #1714).
+			if e.Bits() <= scope.Bits() && e.Contains(scope.Addr()) {
+				skip = true
+				break
+			}
+		}
+		if !skip {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -136,10 +184,19 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 
-	cands, perr := s.proposals().Propose(r.Context(), query, enabled)
+	cands, attempts, perr := s.proposals().Propose(r.Context(), query, enabled)
+	// The write precedes every return, so a lookup that finds nothing still records (ADR-0223 §4).
+	s.recordProposerAttempts(r.Context(), attempts)
 	if perr != nil {
 		log.Printf("web: proposer lookup %q: %v", logSafe(query), perr) // #nosec G706 (sanitized via logSafe)
 	}
+	excl, err := s.proposalsStore.ListAddressExclusionCidrs(r.Context())
+	if err != nil {
+		s.serverError(w, "list address exclusions", err)
+		return
+	}
+	// Excluded candidates drop before the miss check, so all-excluded is a miss (#1714).
+	cands = excludeCandidates(cands, excl)
 	if len(cands) == 0 {
 		msg := "No candidate scopes matched that name."
 		if perr != nil {
@@ -149,7 +206,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 
-	lookup, err := s.store.CreateProposerLookup(r.Context(), db.CreateProposerLookupParams{
+	lookup, err := s.proposalsStore.CreateProposerLookup(r.Context(), db.CreateProposerLookupParams{
 		Query: query, CreatedBy: acct.ID,
 	})
 	if err != nil {
@@ -157,7 +214,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	for _, c := range cands {
-		if _, err := s.store.CreateProposal(r.Context(), db.CreateProposalParams{
+		if _, err := s.proposalsStore.CreateProposal(r.Context(), db.CreateProposalParams{
 			LookupID: lookup.ID, SourceSlug: c.SourceSlug, RecordKind: c.RecordKind,
 			AddressCidr: c.Scope, OrgName: c.OrgName,
 		}); err != nil {
@@ -182,7 +239,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	p, err := s.store.GetPendingProposal(r.Context(), id)
+	p, err := s.proposalsStore.GetPendingProposal(r.Context(), id)
 	if err != nil {
 		s.backToScope(w, r)
 		return
@@ -196,7 +253,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 
 	// A cidr column rejects host bits, so masking gives an org range dispatch parity (#755).
 	cidr := p.AddressCidr.Masked()
-	sd, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
+	sd, err := s.proposalsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 		AddressCidr: &cidr, CreatedBy: acct.ID,
 	})
 	if err != nil {
@@ -207,7 +264,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "create seed from proposal", err)
 		return
 	}
-	if _, err := s.store.ConfirmProposal(r.Context(), db.ConfirmProposalParams{
+	if _, err := s.proposalsStore.ConfirmProposal(r.Context(), db.ConfirmProposalParams{
 		ID: id, ConfirmedSeedID: pgtype.Int8{Int64: sd.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "confirm proposal", err)
@@ -236,17 +293,17 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 		if err != nil {
 			continue
 		}
-		p, gerr := s.store.GetPendingProposal(r.Context(), id)
+		p, gerr := s.proposalsStore.GetPendingProposal(r.Context(), id)
 		if gerr != nil {
 			continue
 		}
-		if _, err := s.store.DeclineProposal(r.Context(), id); err != nil {
+		if _, err := s.proposalsStore.DeclineProposal(r.Context(), id); err != nil {
 			s.serverError(w, "decline proposal", err)
 			return
 		}
 		cidr := p.AddressCidr
 		// A decline records an exclusion, so the same range is not proposed again (ADR-0012).
-		if _, err := s.store.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
+		if _, err := s.proposalsStore.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
 			AddressCidr: &cidr, CreatedBy: acct.ID,
 		}); err != nil && !isUniqueViolation(err) {
 			s.serverError(w, "record declined proposal as exclusion", err)

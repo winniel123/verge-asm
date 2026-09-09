@@ -1,14 +1,19 @@
-# ADR-0194: a `zone` observation's value is the zone file's own rdata, never a re-resolution or a resolver normalisation, and only its key is canonicalised
+---
+number: 194
+title: "a `zone` observation's value is the zone file's own rdata, never a re-resolution or a resolver normalisation, and only its key is canonicalised"
+slug: a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1308
+pr: 1307
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 7}
+  - {kind: rests-on, adr: 11}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gap 7
-- **PR that deleted the comment:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0007](./0007-drift-is-a-timeline-of-spans.md), which keys a timeline **per source** and rules that a source conflict is *reported, never resolved*. It is why two timelines exist on `dns-record` at all. It does not say what either of them carries
-- **Rests on:** [ADR-0011](./0011-a-facet-is-six-parts.md), whose Rationale names the operator's zone file against our resolver as *the only two-source facet in v1*, and splits the fold into a **decoder per `(facet, source)`** and a **canonicaliser per facet**. It rules the shape of the fold. It does not rule what the zone decoder may put into it, and §4 below shows the shipped decoder does not satisfy it
-- **Bounded by:** [ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md), which rules that *"a rule may read which names a zone contains. It may not read what records it holds for them."* It bounds what a **signal rule** may do with these values. It does not say whether the values exist or what they hold
-- **Bounded by:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md), which fixes DNS presentation format as the corpus's input medium — *"a row is written the way a zone file or `dig` output is written"*. It rules the golden corpus, not this observation
+# ADR-0194: a `zone` observation's value is the zone file's own rdata, never a re-resolution or a resolver normalisation, and only its key is canonicalised
 
 ## Context
 
@@ -142,7 +147,7 @@ domain name preserves its denotation — DNS names are case-insensitive. Rewriti
 ### 3. The comparison is the whole point, and normalising one side destroys it
 
 ADR-0007 keys the timeline per source *"so a zone file cannot keep a dead name alive"* and rules a
-source conflict **reported, never resolved**. ADR-0011 §Rationale says why the two values must stay
+source conflict **reported, never resolved**. ADR-0011 says why the two values must stay
 distinct: one canonicaliser over both shapes would mean *"fixing the zone-file parser moves its
 version and `Break`s every `dns-record` timeline in the estate — including the ones our own resolver
 produced, which nothing touched."*

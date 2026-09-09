@@ -1,13 +1,17 @@
 package resolutionwalk
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -23,6 +27,27 @@ type NetPeer struct {
 }
 
 var netResolver = net.DefaultResolver
+
+const (
+	ednsOptionCookie uint16           = 10
+	rcodeBadCookie   dnsmessage.RCode = 23
+)
+
+var cookieSecret = func() []byte {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("resolutionwalk: cookie secret: " + err.Error())
+	}
+	return b
+}()
+
+func clientCookie(server string) []byte {
+	// RFC 7873 §4.1 keys the client cookie to the server so one server sees one cookie.
+	h := sha256.New()
+	h.Write(cookieSecret)
+	h.Write([]byte(server))
+	return h.Sum(nil)[:8]
+}
 
 func (p NetPeer) exchangeTimeout() time.Duration {
 	if p.Timeout > 0 {
@@ -45,8 +70,12 @@ func (p NetPeer) Exchange(q Query) Msg {
 	}
 	server = withDefaultPort(server)
 
+	var cookie []byte
+	if q.EDNS && q.Cookie {
+		cookie = clientCookie(server)
+	}
 	// A build error is our own bug, not the network's, so it is never Unreachable (ADR-0108).
-	msgBytes, err := buildQuery(q)
+	msgBytes, err := buildQuery(q, cookie)
 	if err != nil {
 		return Msg{}
 	}
@@ -65,16 +94,79 @@ func (p NetPeer) Exchange(q Query) Msg {
 		dialer = custodyDialer()
 	}
 
-	var resp []byte
-	if q.Transport == TCP {
-		resp, err = exchangeTCP(ctx, dialer, server, msgBytes)
-	} else {
-		resp, err = exchangeUDP(ctx, dialer, server, msgBytes)
-	}
+	resp, err := send(ctx, dialer, q.Transport, server, msgBytes)
 	if err != nil {
 		return Msg{Unreachable: true}
 	}
+	// One retry with the server cookie keeps BADCOOKIE out of the walk (ADR-0030 §7, #1660).
+	if serverCookie, bad := badCookie(resp, cookie); bad {
+		msgBytes, err = buildQuery(q, slices.Concat(cookie, serverCookie))
+		if err != nil {
+			return Msg{}
+		}
+		resp, err = send(ctx, dialer, q.Transport, server, msgBytes)
+		if err != nil {
+			return Msg{Unreachable: true}
+		}
+	}
 	return parseResponse(resp)
+}
+
+func send(ctx context.Context, d net.Dialer, t Transport, server string, msg []byte) ([]byte, error) {
+	if t == TCP {
+		return exchangeTCP(ctx, d, server, msg)
+	}
+	return exchangeUDP(ctx, d, server, msg)
+}
+
+func badCookie(raw, clientCookie []byte) ([]byte, bool) {
+	if len(clientCookie) == 0 {
+		return nil, false
+	}
+	var p dnsmessage.Parser
+	hdr, err := p.Start(raw)
+	if err != nil {
+		return nil, false
+	}
+	if err := p.SkipAllQuestions(); err != nil {
+		return nil, false
+	}
+	if err := p.SkipAllAnswers(); err != nil {
+		return nil, false
+	}
+	if err := p.SkipAllAuthorities(); err != nil {
+		return nil, false
+	}
+	for {
+		rh, err := p.AdditionalHeader()
+		if err != nil {
+			return nil, false
+		}
+		if rh.Type != dnsmessage.TypeOPT {
+			if err := p.SkipAdditional(); err != nil {
+				return nil, false
+			}
+			continue
+		}
+		if rh.ExtendedRCode(hdr.RCode) != rcodeBadCookie {
+			return nil, false
+		}
+		opt, err := p.OPTResource()
+		if err != nil {
+			return nil, false
+		}
+		for _, o := range opt.Options {
+			if o.Code != ednsOptionCookie || len(o.Data) <= len(clientCookie) {
+				continue
+			}
+			// Only a BADCOOKIE that echoes our own client cookie earns the retry (RFC 7873 §5.3).
+			if !bytes.Equal(o.Data[:len(clientCookie)], clientCookie) {
+				return nil, false
+			}
+			return o.Data[len(clientCookie):], true
+		}
+		return nil, false
+	}
 }
 
 func withDefaultPort(server string) string {
@@ -106,7 +198,7 @@ func walkServerReachable(ctx context.Context, server string) bool {
 	return true
 }
 
-func buildQuery(q Query) ([]byte, error) {
+func buildQuery(q Query, cookie []byte) ([]byte, error) {
 	name, err := dnsmessage.NewName(fqdn(q.Name))
 	if err != nil {
 		return nil, err
@@ -138,7 +230,11 @@ func buildQuery(q Query) ([]byte, error) {
 		if err := rh.SetEDNS0(1232, dnsmessage.RCodeSuccess, false); err != nil {
 			return nil, err
 		}
-		if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
+		var opt dnsmessage.OPTResource
+		if len(cookie) > 0 {
+			opt.Options = []dnsmessage.Option{{Code: ednsOptionCookie, Data: cookie}}
+		}
+		if err := b.OPTResource(rh, opt); err != nil {
 			return nil, err
 		}
 	}

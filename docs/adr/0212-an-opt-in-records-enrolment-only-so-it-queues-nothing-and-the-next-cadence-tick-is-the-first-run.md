@@ -1,12 +1,20 @@
+---
+number: 212
+title: "an opt-in records enrolment only, so it queues nothing and fires nothing, and the tier's next cadence tick is its first run"
+slug: an-opt-in-records-enrolment-only-so-it-queues-nothing-and-the-next-cadence-tick-is-the-first-run
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1321
+pr: 1327
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 44}
+---
+
 # ADR-0212: an opt-in records enrolment only, so it queues nothing and fires nothing, and the tier's next cadence tick is its first run
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1321 ADR gaps: internal/queue (#1199)](https://github.com/winniel123/verge-asm/issues/1321), gap 6
-- **PR that deleted the comment:** [#1327](https://github.com/winniel123/verge-asm/pull/1327)
-- **Rests on:** [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md), which rules that opt-in is **per `Seed` scope**, that the cold `Scan` ships **configured and disabled**, and which refuses *"Fire the sweep at `Seed` declaration"* in its rejected alternatives. It rules the **declaration** act and the granularity. It does not rule the **opt-in** act. This ADR extends its reach to that act and withdraws nothing it says
 - **Rests on:** [`v1-spec.md`](../spec/v1-spec.md) §3.4, whose cold row states the tier *"never runs unasked, including at onboarding"*. It rules the **unasked** case. The opt-in is the ask, and §3.4 does not say what the ask does. This ADR extends its reach to the ask and withdraws nothing it says
-- **Bounded by:** [ADR-0005](./0005-scan-execution-model.md), which rules that a manual run dispatches an existing `Scan`. §5 states that a manual dispatch after an opt-in is a second operator act, and is not a consequence of the opt-in
 - **Corrects:** the deleted comment's own wording. It claimed the cadence tick is *the sole firing*, and §5 measures that this is false
 
 ## Context

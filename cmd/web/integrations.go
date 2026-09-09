@@ -19,6 +19,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+type integrationsStore interface {
+	DeleteIntegrationState(ctx context.Context, slug string) error
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
+	GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error)
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
+	SetIntegrationChannel(ctx context.Context, arg db.SetIntegrationChannelParams) error
+	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
+}
+
 const integrationsEnabled = true
 
 // An integration is neither a delivery channel nor a discovery source (CONTEXT.md).
@@ -168,7 +178,7 @@ func tileState(storeState string) string {
 }
 
 func (s *server) fillIntegrationsSection(r *http.Request, data map[string]any) error {
-	rows, err := s.store.ListIntegrationStates(r.Context())
+	rows, err := s.integrationsStore.ListIntegrationStates(r.Context())
 	if err != nil {
 		return err
 	}
@@ -228,7 +238,7 @@ func (s *server) fillIntegrationsSection(r *http.Request, data map[string]any) e
 
 func (s *server) integrationChannelOptions(ctx context.Context) []integrationChannelOption {
 	opts := []integrationChannelOption{{Value: "", Label: "Not connected", Hint: "no delivery target"}}
-	channels, err := s.store.ListChannels(ctx)
+	channels, err := s.integrationsStore.ListChannels(ctx)
 	if err != nil {
 		log.Printf("web: integrations: list channels for delivery select: %v", err)
 		return opts
@@ -257,7 +267,7 @@ func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct
 		return
 	}
 	// The upsert writes state alone, so a re-install keeps the bound Channel (ADR-0162 §1).
-	if _, err := s.store.UpsertIntegrationState(r.Context(), db.UpsertIntegrationStateParams{
+	if _, err := s.integrationsStore.UpsertIntegrationState(r.Context(), db.UpsertIntegrationStateParams{
 		Slug: id, State: integrationInstalled,
 	}); err != nil {
 		s.serverError(w, "install integration", err)
@@ -273,7 +283,7 @@ func (s *server) removeIntegration(w http.ResponseWriter, r *http.Request, acct 
 		http.Error(w, "unknown integration", http.StatusBadRequest)
 		return
 	}
-	if err := s.store.DeleteIntegrationState(r.Context(), id); err != nil {
+	if err := s.integrationsStore.DeleteIntegrationState(r.Context(), id); err != nil {
 		s.serverError(w, "remove integration", err)
 		return
 	}
@@ -310,7 +320,7 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 		binding = pgtype.Int8{Int64: chID, Valid: true}
 	}
 
-	if err := s.store.SetIntegrationChannel(r.Context(), db.SetIntegrationChannelParams{
+	if err := s.integrationsStore.SetIntegrationChannel(r.Context(), db.SetIntegrationChannelParams{
 		Slug: id, ChannelID: binding,
 	}); err != nil {
 		s.serverError(w, "bind integration channel", err)
@@ -320,7 +330,7 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 }
 
 func (s *server) channelExists(ctx context.Context, id int64) (bool, error) {
-	channels, err := s.store.ListChannels(ctx)
+	channels, err := s.integrationsStore.ListChannels(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -341,7 +351,7 @@ func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db
 	}
 	dest := "/settings?tab=integrations&view=" + url.QueryEscape(id)
 
-	binding, err := s.store.GetIntegrationChannel(r.Context(), id)
+	binding, err := s.integrationsStore.GetIntegrationChannel(r.Context(), id)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		s.serverError(w, "test integration: read binding", err)
 		return
@@ -352,7 +362,7 @@ func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	ch, err := s.store.GetChannelForDelivery(r.Context(), binding.Int64)
+	ch, err := s.integrationsStore.GetChannelForDelivery(r.Context(), binding.Int64)
 	if err != nil {
 		s.toastRedirectBack(w, r, dest, "danger", "Test message not sent",
 			"The bound delivery channel is unavailable — reconnect a channel and try again.")

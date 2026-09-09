@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/drift"
 )
 
 func getBody(t *testing.T, c *http.Client, url string, wantStatus int) string {
@@ -494,4 +499,216 @@ func TestSubjectsRequiresLogin(t *testing.T) {
 		t.Fatalf("unauthenticated /subjects: status=%d location=%q, want redirect to /login",
 			resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
+	type tlkey struct {
+		facet, discriminator, source string
+		vantage                      pgtype.Int8
+	}
+	order := []tlkey{}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != arg.SubjectKind || o.SubjectKey != arg.SubjectKey {
+			continue
+		}
+		k := tlkey{facet: o.Facet, discriminator: o.Discriminator, source: o.Source, vantage: o.VantageID}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+		}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+
+	sort.Slice(order, func(i, j int) bool {
+		if order[i].facet != order[j].facet {
+			return order[i].facet < order[j].facet
+		}
+		if order[i].discriminator != order[j].discriminator {
+			return order[i].discriminator < order[j].discriminator
+		}
+		if order[i].vantage.Int64 != order[j].vantage.Int64 {
+			return order[i].vantage.Int64 < order[j].vantage.Int64
+		}
+		return order[i].source < order[j].source
+	})
+
+	rows := []db.ListSpansForSubjectRow{}
+	var id int64
+	for _, k := range order {
+		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
+		key := drift.TimelineKey{
+			SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range f.foldWithClosure(key, byKey[k]) {
+			id++
+			row := db.ListSpansForSubjectRow{
+				ID: id, SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
+				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+				VantageID: k.vantage, VantageName: f.vantageName(k.vantage),
+				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
+				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+			}
+			if !s.Open() {
+				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
+			}
+			if s.Reason != "" {
+				row.ClosureReason = pgtype.Text{String: string(s.Reason), Valid: true}
+			}
+			rows = append(rows, row)
+		}
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) vantageName(id pgtype.Int8) pgtype.Text {
+	if !id.Valid {
+		return pgtype.Text{}
+	}
+	for _, v := range f.vantages {
+		if v.ID == id.Int64 {
+			return pgtype.Text{String: v.Name, Valid: true}
+		}
+	}
+	return pgtype.Text{}
+}
+
+func (f *fakeStore) GetServiceSubject(_ context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error) {
+	key := arg.SubjectKey
+	o, ok := f.latestReachabilityByService(f.liveObservations(arg.AsOf.Time))[key]
+	if !ok {
+		return db.GetServiceSubjectRow{}, pgx.ErrNoRows
+	}
+	return db.GetServiceSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
+}
+
+func (f *fakeStore) GetEndpointSubject(_ context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error) {
+	key := arg.SubjectKey
+	o, ok := f.latestHTTPIdentityByEndpoint(f.liveObservations(arg.AsOf.Time))[key]
+	if !ok {
+		return db.GetEndpointSubjectRow{}, pgx.ErrNoRows
+	}
+	return db.GetEndpointSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
+}
+
+func (f *fakeStore) FindNameCitingAddress(_ context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error) {
+	address := arg.Address
+	var best *db.FindNameCitingAddressRow
+	for name, o := range f.latestResolutionByName(f.liveObservations(arg.AsOf.Time)) {
+		if fakeResolutionOutcome(o.Value) != "Resolved" {
+			continue
+		}
+		var v struct {
+			Addresses []string `json:"addresses"`
+		}
+		_ = json.Unmarshal(o.Value, &v)
+		for _, a := range v.Addresses {
+			if a == address {
+				cand := db.FindNameCitingAddressRow{SubjectKey: name, ObservedAt: o.ObservedAt}
+				if best == nil || cand.ObservedAt.Time.Before(best.ObservedAt.Time) {
+					best = &cand
+				}
+			}
+		}
+	}
+	if best == nil {
+		return db.FindNameCitingAddressRow{}, pgx.ErrNoRows
+	}
+	return *best, nil
+}
+
+func (f *fakeStore) GetNameSubject(_ context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error) {
+	key := arg.SubjectKey
+	o, ok := f.latestResolutionByName(f.liveObservations(arg.AsOf.Time))[key]
+	if !ok {
+		return db.GetNameSubjectRow{}, pgx.ErrNoRows
+	}
+	return db.GetNameSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
+}
+
+func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error) {
+	key := arg.SubjectKey
+
+	var admission *db.AdmittedName
+	for i := range f.admitted {
+		a := &f.admitted[i]
+		if a.Name != key {
+			continue
+		}
+		if admission == nil || a.ID > admission.ID {
+			admission = a
+		}
+	}
+	if admission != nil {
+		scanID, scanKind := f.scanFor(admission.BatchID)
+		return db.GetNameCitationRow{
+			ObservedAt: admission.CreatedAt, Source: admission.Source,
+			BatchID: admission.BatchID, ScanID: scanID, ScanKind: scanKind,
+			// The schema makes admitted_name.seed_id NOT NULL, so only a seedless row is invalid.
+			SeedID:  pgtype.Int8{Int64: admission.SeedID, Valid: admission.SeedID != 0},
+			HopKind: hopKindAdmission,
+		}, nil
+	}
+
+	live := f.liveObservations(arg.AsOf.Time)
+	var best *db.Observation
+	for i := range live {
+		o := &live[i]
+		if o.SubjectKind != "name" || o.Facet != "resolution" || o.SubjectKey != key {
+			continue
+		}
+		if best == nil || o.ObservedAt.Time.Before(best.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(best.ObservedAt.Time) && o.ID < best.ID) {
+			best = o
+		}
+	}
+	if best == nil {
+		return db.GetNameCitationRow{}, pgx.ErrNoRows
+	}
+	scanID, scanKind := f.scanFor(best.BatchID)
+	return db.GetNameCitationRow{
+		ObservedAt: best.ObservedAt, Source: best.Source,
+		VantageID: best.VantageID, BatchID: best.BatchID, ScanID: scanID, ScanKind: scanKind,
+		HopKind: hopKindObservation,
+	}, nil
+}
+
+func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.FindCoveringNameSeedRow, error) {
+	var best *db.Seed
+	for i := range f.seeds {
+		s := &f.seeds[i]
+		if s.Kind != "name" || !s.NameDomain.Valid {
+			continue
+		}
+		d := s.NameDomain.String
+		if name == d || strings.HasSuffix(name, "."+d) {
+			if best == nil || len(d) > len(best.NameDomain.String) {
+				best = s
+			}
+		}
+	}
+	if best == nil {
+		return db.FindCoveringNameSeedRow{}, pgx.ErrNoRows
+	}
+	return db.FindCoveringNameSeedRow{
+		ID: best.ID, NameDomain: best.NameDomain, CreatedAt: best.CreatedAt,
+		CreatedByUsername: f.accounts[best.CreatedBy].Username,
+	}, nil
+}
+
+func (f *fakeStore) FindNameSeedByID(_ context.Context, seedID int64) (db.FindNameSeedByIDRow, error) {
+	for i := range f.seeds {
+		s := &f.seeds[i]
+		if s.Kind != "name" || s.ID != seedID {
+			continue
+		}
+		return db.FindNameSeedByIDRow{
+			ID: s.ID, NameDomain: s.NameDomain, CreatedAt: s.CreatedAt,
+			CreatedByUsername: f.accounts[s.CreatedBy].Username,
+		}, nil
+	}
+	return db.FindNameSeedByIDRow{}, pgx.ErrNoRows
 }

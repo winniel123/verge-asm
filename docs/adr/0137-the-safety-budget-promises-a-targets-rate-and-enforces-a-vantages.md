@@ -1,10 +1,17 @@
+---
+number: 137
+title: "The safety budget promises a target's rate and enforces a vantage's, and the gap is disclosed"
+slug: the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages
+date: 2026-09-02
+status: accepted
+source: fix
+ticket: 1107
+proof: {none: "predates the governance SPEC"}
+---
+
 # ADR-0137: The safety budget promises a target's rate and enforces a vantage's, and the gap is disclosed
 
-- **Status:** Accepted
-- **Date:** 2026-09-02
-- **Ticket:** [#1107 Move the active-scan safety budget into Postgres so it survives scaling the worker](https://github.com/winniel123/verge-asm/issues/1107)
 - **Follows:** [#1092](https://github.com/winniel123/verge-asm/issues/1092), which found that the limiter is per prober process, and [#1105](https://github.com/winniel123/verge-asm/issues/1105), which recorded the gap in prose without closing it
-- **Constrained by:** [ADR-0005](./0005-scan-execution-model.md) (one address per batch, and the intra-job coordination claim this ADR corrects), [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md) (a cost the operator chose is priced, not gated)
 - **Relates to:** [#1106](https://github.com/winniel123/verge-asm/issues/1106), which holds the ADR-0005 amendment this ADR supplies the corrected unit for
 
 ## Context
@@ -194,3 +201,112 @@ already the corpus's word for a window that did not run.
 **Rename the Go field only, holding the JSON tag to protect the corpus lock.** Rejected. It keeps a
 name known to be wrong on every `Batch` we will ever record, to avoid a version bump that costs one
 lock file and two test assertions.
+
+## Amendment — [#1116](https://github.com/winniel123/verge-asm/issues/1116): §6's falsifier fired, so the grant closes unbuilt and the prohibition becomes permanent
+
+§6 blocked the grant on a wall-clock measurement. It also named the condition that would kill the
+grant. [#1115](https://github.com/winniel123/verge-asm/issues/1115) took that measurement.
+`docs/research/hot-scan-wall-clock-and-emitted-rate.md` holds it. PR #1562 lands that file from
+branch `docs/1115-hot-scan-wallclock-measurement`. This amendment rules on it.
+
+**#1116 closes the grant unbuilt.** `--scale worker=N` stays forbidden. It stays forbidden
+permanently, and no longer only until the grant lands.
+
+### The measured ground
+
+Four figures decide this. Each one comes from the rig that note describes.
+
+| Figure | Value | Status |
+| --- | --- | --- |
+| One worker, 1024 addresses, refusing estate | 56 min 32 s, 3.9% of the cadence | measured |
+| The same scan, silently dropping estate | 20 h 39 min, 86% of the cadence | extrapolated from one measured address |
+| Four probers at one target that declared 50 conn/s | 200 conn/s | measured |
+| Eight probers at one vantage that declared 200 pkt/s | 400 SYN/s | measured |
+
+**§6's falsifier fires.** One worker fits the daily cadence at the default address-scope cap. It
+fits in both estate classes the note measured.
+
+Those four rows are the measured ground. Every section below them is reasoning over the rows. The
+note's §10 lists what nobody measured, and a second vantage sits on that list.
+
+### The grant's domain is a band, and the near bound is a defect
+
+An operator scales only where one worker misses the cadence. The grant guards only an operator who
+scales. So the grant's whole domain is a band of scope sizes.
+
+The band ends at about **124,000 addresses per vantage per day**. That figure is arithmetic over a
+measured 139-connect address and the declared per-vantage ceiling of 200 packets a second. Above it
+no worker count fits the cadence without breaking the declared budget, so scaling answers nothing.
+
+The band starts where one worker stops fitting. Against a dropping estate that point sits near
+**1,190 addresses**, just above the default cap of 1024. That is §6's first qualification. It
+reports a defect and not a property.
+
+### The defect under the thin case
+
+`SafetyProfile` declares `per_host_concurrency` of 20. Every `Batch` records it. No code reads it.
+`RunExchange` probes targets in a serial loop, so the in-flight count is always 1.
+[#1572](https://github.com/winniel123/verge-asm/issues/1572) files both halves of that defect. It
+carries the untruthful `Batch` record and the serial exchange separately.
+
+A dropping address costs 72 s across 24 sequential timeouts today. At the declared concurrency of
+20 it costs about 3.6 s. Concurrency governs the in-flight count, and the pacer still spaces
+attempts at 20 ms. So the fix buys about twenty times the drain rate and spends none of the
+undertaking.
+
+The grant buys at most four times the drain rate. It buys that by consuming per-vantage headroom
+the profile already declared. The cheaper fix is also the more honest one, because it retires a
+declared parameter the `Batch` records and the code ignores. It comes first.
+
+Building the grant before that fix would add a second declared parameter beside a first one that
+still binds nothing. §5 refused a wrong name on a durable `Batch` for the same reason.
+
+### Why the emitted-rate figures do not compel the grant
+
+The N-prober figures are the strongest evidence for the grant. They measure what scaling costs.
+They do not measure whether anybody needs to scale.
+
+Two mechanisms answer them. A prohibition refuses the second worker. A grant permits the second
+worker and bounds it. The prohibition already sits in the running guide, and it costs nothing while
+one worker fits. [#1108](https://github.com/winniel123/verge-asm/issues/1108) rules that the
+prohibition keeps covering every job kind, including the kinds that emit no packets. PR #1554
+carries that ruling and was open on the date of this amendment. So nothing in the estate wants a
+second worker today.
+
+The grant costs a `Version` bump, a `JobSpec` field, a Postgres reservation, a `Batch` field, and a
+fail-closed path in the prober.
+
+### The `Version` bump this ticket was told to share is already spent
+
+§6's ticket required the grant to share [#1107](https://github.com/winniel123/verge-asm/issues/1107)'s
+bump. #1107 landed, and the leaf now reads `connect-outcome/v2`. A grant would therefore cost a
+second bump to v3, a corpus re-bless, and two test assertions. The ticket's own economy no longer
+holds.
+
+### What would reopen the grant
+
+A later session should reopen it on any one of these. The list runs from the cheapest route to the
+dearest.
+
+1. **A second `Vantage`.** Job count is addresses times vantages. Two vantages at the default cap
+   over a dropping estate need 172% of the cadence. This route needs no cap change at all.
+2. **A raised address cap over a dropping estate.** ADR-0127 prices a raised cap and never gates
+   it. The measured cliff sits near 1,190 addresses. §4's recorded `hot` skips are the signal.
+3. **[#1572](https://github.com/winniel123/verge-asm/issues/1572) lands and a real estate still
+   misses its cadence.** The cheap fix is spent by then, and the grant becomes the next mechanism.
+   A ticket carries this trigger, so a later session can watch it.
+4. **A reason to scale that is not cadence.** #1108 refuses one today. A reversal puts a second
+   worker on the measurement queue, and the N-prober figures then apply at once.
+
+### What does not reopen it
+
+A scope above 124,000 addresses per vantage does not reopen the grant. There the declared budget
+binds the estate rather than the process count. The operator cuts the scope or declares more
+vantages.
+
+### The residual hazard, recorded and not filed
+
+The single-instance rule lives in prose. No code refuses a second worker. An operator who ignores
+the running guide gets the measured rate multiplication and a `Batch` that records the declared
+figure. This amendment records that hazard. It files no ticket for it, and no other ticket carries
+it.

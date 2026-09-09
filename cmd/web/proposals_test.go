@@ -9,8 +9,13 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
+	"sort"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -19,17 +24,18 @@ import (
 
 type fakeProposer struct {
 	candidates  []proposer.Candidate
+	attempts    []proposer.Attempt
 	err         error
 	lastQuery   string
 	lastEnabled map[string]bool
 	calls       int
 }
 
-func (p *fakeProposer) Propose(_ context.Context, org string, enabled map[string]bool) ([]proposer.Candidate, error) {
+func (p *fakeProposer) Propose(_ context.Context, org string, enabled map[string]bool) ([]proposer.Candidate, []proposer.Attempt, error) {
 	p.calls++
 	p.lastQuery = org
 	p.lastEnabled = enabled
-	return p.candidates, p.err
+	return p.candidates, p.attempts, p.err
 }
 
 func startWithProposer(t *testing.T, f *fakeStore, p proposerRunner) string {
@@ -304,8 +310,28 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	if fp.lastEnabled["arin"] {
 		t.Errorf("arin was passed as enabled after being toggled off: %v", fp.lastEnabled)
 	}
-	if !fp.lastEnabled[proposer.SlugAFRINIC] || !fp.lastEnabled[proposer.SlugAPNIC] {
-		t.Errorf("default-on keyless proposers not enabled: %v", fp.lastEnabled)
+	for _, slug := range []string{proposer.SlugAFRINIC, proposer.SlugAPNIC} {
+		if !fp.lastEnabled[slug] {
+			t.Errorf("%s ships on and was not toggled off, but was passed as disabled: %v", slug, fp.lastEnabled)
+		}
+	}
+
+	for _, slug := range []string{"arin", proposer.SlugAFRINIC, proposer.SlugAPNIC} {
+		if _, err := f.UpsertSourceState(context.Background(), db.UpsertSourceStateParams{
+			Slug: slug, Enabled: true,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lookup(t, ac, base, "Example").Body.Close()
+
+	if !fp.lastEnabled["arin"] {
+		t.Errorf("arin was not passed as enabled after being toggled on: %v", fp.lastEnabled)
+	}
+	for _, slug := range []string{proposer.SlugAFRINIC, proposer.SlugAPNIC} {
+		if !fp.lastEnabled[slug] {
+			t.Errorf("%s was toggled on and was still passed as disabled: %v", slug, fp.lastEnabled)
+		}
 	}
 }
 
@@ -423,5 +449,184 @@ func TestViewerCannotLookupConfirmOrDecline(t *testing.T) {
 	}
 	if strings.Contains(page, `action="/proposals/confirm"`) {
 		t.Errorf("confirm control shown to a viewer; body: %s", page)
+	}
+}
+
+func (f *fakeStore) CreateProposerLookup(_ context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error) {
+	l := db.ProposerLookup{
+		ID: f.lookupNextID, Query: arg.Query, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.lookups = append(f.lookups, l)
+	f.lookupNextID++
+	return l, nil
+}
+
+func (f *fakeStore) CreateProposal(_ context.Context, arg db.CreateProposalParams) (db.Proposal, error) {
+	p := db.Proposal{
+		ID: f.proposalNext, LookupID: arg.LookupID, SourceSlug: arg.SourceSlug,
+		RecordKind: arg.RecordKind, AddressCidr: arg.AddressCidr, OrgName: arg.OrgName,
+		Status:    "pending",
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.proposals = append(f.proposals, p)
+	f.proposalNext++
+	return p, nil
+}
+
+func (f *fakeStore) ListPendingProposals(context.Context) ([]db.ListPendingProposalsRow, error) {
+	if f.pendingPropsErr != nil {
+		return nil, f.pendingPropsErr
+	}
+	lookupByID := map[int64]db.ProposerLookup{}
+	for _, l := range f.lookups {
+		lookupByID[l.ID] = l
+	}
+	rows := []db.ListPendingProposalsRow{}
+	for _, p := range f.proposals {
+		if p.Status != "pending" {
+			continue
+		}
+		l := lookupByID[p.LookupID]
+		rows = append(rows, db.ListPendingProposalsRow{
+			ID: p.ID, LookupID: p.LookupID, SourceSlug: p.SourceSlug,
+			RecordKind: p.RecordKind, AddressCidr: p.AddressCidr, OrgName: p.OrgName,
+			LookupQuery: l.Query, LookupAt: l.CreatedAt, LookupBy: f.accounts[l.CreatedBy].Username,
+		})
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].LookupID != rows[j].LookupID {
+			return rows[i].LookupID > rows[j].LookupID
+		}
+		return rows[i].ID < rows[j].ID
+	})
+	return rows, nil
+}
+
+func (f *fakeStore) GetPendingProposal(_ context.Context, id int64) (db.Proposal, error) {
+	for _, p := range f.proposals {
+		if p.ID == id && p.Status == "pending" {
+			return p, nil
+		}
+	}
+	return db.Proposal{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) ConfirmProposal(_ context.Context, arg db.ConfirmProposalParams) (int64, error) {
+	for i, p := range f.proposals {
+		if p.ID == arg.ID && p.Status == "pending" {
+			f.proposals[i].Status = "confirmed"
+			f.proposals[i].ConfirmedSeedID = arg.ConfirmedSeedID
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
+func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) {
+	for i, p := range f.proposals {
+		if p.ID == id && p.Status == "pending" {
+			f.proposals[i].Status = "declined"
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
+func TestOverCapProposalRowRendersRefusalAndNoConfirm(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	fp := &fakeProposer{candidates: append(twoCandidates(), proposer.Candidate{
+		SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
+		Scope: netip.MustParsePrefix("10.0.0.0/8"), OrgName: "Big Holder",
+	})}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	page := seedsBody(t, ac, base)
+	for _, want := range []string{"10.0.0.0/8", "over your cap", "Settings · Scans", "decline", "Decline selected"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("over-cap row missing %q; body: %s", want, page)
+		}
+	}
+	if got := strings.Count(page, `action="/proposals/confirm"`); got != 2 {
+		t.Errorf("confirm forms = %d, want 2 (one per in-cap row; the over-cap row carries none)", got)
+	}
+	if got := strings.Count(page, `name="ids"`); got != 3 {
+		t.Errorf("decline checkboxes = %d, want 3 (bulk decline stays open to the over-cap row)", got)
+	}
+
+	f.instanceConfig.SeedAddressCap = 16777216
+	page = seedsBody(t, ac, base)
+	if strings.Contains(page, "over your cap") {
+		t.Errorf("a raised cap still renders the refusal; body: %s", page)
+	}
+	if got := strings.Count(page, `action="/proposals/confirm"`); got != 3 {
+		t.Errorf("confirm forms after a raised cap = %d, want 3", got)
+	}
+}
+
+func pendingProposals(f *fakeStore) int {
+	n := 0
+	for _, p := range f.proposals {
+		if p.Status == "pending" {
+			n++
+		}
+	}
+	return n
+}
+
+func TestLookupDoesNotRefileADeclinedScope(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	fp := &fakeProposer{candidates: twoCandidates()}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	var ids []string
+	for _, p := range f.proposals {
+		ids = append(ids, itoa(p.ID))
+	}
+	postForm(t, ac, base+"/proposals/decline", url.Values{"ids": ids}).Body.Close()
+	if pendingProposals(f) != 0 {
+		t.Fatalf("decline left %d pending", pendingProposals(f))
+	}
+
+	page := refusalPage(t, ac, base, lookup(t, ac, base, "Example"))
+	if pendingProposals(f) != 0 {
+		t.Errorf("a second lookup re-filed %d declined scopes as pending", pendingProposals(f))
+	}
+	if !strings.Contains(page, "No candidate scopes matched that name.") {
+		t.Errorf("an all-excluded lookup did not read as a miss; body: %s", page)
+	}
+	if strings.Contains(page, "could not be completed") {
+		t.Errorf("an all-excluded lookup read as a backend failure; body: %s", page)
+	}
+}
+
+func TestLookupSkipsCandidateInsideAnExclusionButOffersAWiderOne(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	for _, raw := range []string{"198.51.100.0/24", "203.0.113.0/25"} {
+		p := netip.MustParsePrefix(raw)
+		f.exclusions = append(f.exclusions, db.Exclusion{ID: f.exclNextID, Kind: "address", AddressCidr: &p, CreatedBy: 1})
+		f.exclNextID++
+	}
+	fp := &fakeProposer{candidates: twoCandidates()}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	resp := lookup(t, ac, base, "Example")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("lookup status=%d, want 303", resp.StatusCode)
+	}
+	if len(f.proposals) != 1 {
+		t.Fatalf("filed %d proposals, want 1: %+v", len(f.proposals), f.proposals)
+	}
+	if got := f.proposals[0].AddressCidr.String(); got != "203.0.113.0/24" {
+		t.Errorf("filed %s; want the candidate wider than its exclusion, 203.0.113.0/24", got)
 	}
 }

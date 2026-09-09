@@ -1,9 +1,16 @@
-# ADR-0035: A cryptographic primitive's owner is the body that specifies it — and a floor enforced by relying parties attests nothing about the primitive
+---
+number: 35
+title: "A cryptographic primitive's owner is the body that specifies it — and a floor enforced by relying parties attests nothing about the primitive"
+slug: a-cryptographic-primitives-owner-is-its-specifier
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 68
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#68 What is `certificate-weak-key-or-signature`'s table, and who owns a claim about the WebPKI?](https://github.com/winniel123/verge-asm/issues/68)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0035: A cryptographic primitive's owner is the body that specifies it — and a floor enforced by relying parties attests nothing about the primitive
 
 ## Context
 

@@ -1,9 +1,21 @@
+---
+number: 126
+title: "Verbatim job output is a fourth Operational corpus — the `Transcript` — retired by a duration dial that ships bounded, and it is the one corpus Postgres holds a secret for"
+slug: verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded
+date: 2026-08-29
+status: accepted
+source: grilling
+ticket: [839, 844, 871]
+map: 838
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 41}
+  - {kind: amends, adr: 53}
+  - {kind: bounds, adr: 210}
+---
+
 # ADR-0126: Verbatim job output is a fourth Operational corpus — the `Transcript` — retired by a duration dial that ships bounded, and it is the one corpus Postgres holds a secret for
 
-- **Status:** Accepted
-- **Date:** 2026-08-29 (drafted, [#839](https://github.com/winniel123/verge-asm/issues/839)) · finalised 2026-08-31 ([#871](https://github.com/winniel123/verge-asm/issues/871))
-- **Ticket:** [#839 Raw-output corpus + retention](https://github.com/winniel123/verge-asm/issues/839), finalised from the [#844](https://github.com/winniel123/verge-asm/issues/844) handoff spec ([`docs/spec/raw-job-output.md`](../spec/raw-job-output.md)) by [#871](https://github.com/winniel123/verge-asm/issues/871)
-- **Map:** [#838 Verbatim raw job output for operator debugging](https://github.com/winniel123/verge-asm/issues/838)
 - **Amends/reverses:** [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (the unbounded-default and the single-clock-corpus rulings, at the sites that state them) and [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) (its *"Postgres holds no secret"* clause, for this one corpus)
 
 ## Context
@@ -66,9 +78,9 @@ The redacted log vocabulary was closed precisely so that verbatim bytes never re
 
 1. **stderr** — may carry credentials or tokens on a crash.
 2. **the sent scope (stdin)** — carries the exact `JobSpec`, which can hold credentials for credentialed sources.
-3. **pre-gate stdout** — captured before the #773 scope re-gate, so it can hold lines for subjects the Observation corpus dropped, including out-of-scope bytes a compromised prober injects. It is kept verbatim, because it is the **most valuable evidence** for debugging a misbehaving or compromised prober; dropping it would defeat the corpus.
+3. **pre-gate stdout** — captured before the ADR-0217 scope re-gate, so it can hold lines for subjects the Observation corpus dropped, including out-of-scope bytes a compromised prober injects. It is kept verbatim, because it is the **most valuable evidence** for debugging a misbehaving or compromised prober; dropping it would defeat the corpus.
 
-**The obligation binds a credential, and not every value the corpus stores** ([#1321](https://github.com/winniel123/verge-asm/issues/1321) §3, scoped 2026-09-05). The three surfaces above are sealed because each may carry a credential. A stored value that cannot carry one is outside the obligation, and this corpus already holds such a value: the **CT request URL**, written plaintext on the outcome object by `encodeCTOutcome` (`internal/queue/transcript.go`). It is a public query against a public log, reconstructible by anyone who knows the subject, and both CT sources carry their credential in an HTTP header and never in the URL — `NewCertSpotterFetcher` sets `Authorization: Bearer` (`internal/queue/crtsh.go:73`), and crt.sh carries no credential at all. Sealing it would protect nothing, and it would cost two things that are real: a failed CT job stops being reproducible, and an operator cannot see what we asked for.
+**The obligation binds a credential, and not every value the corpus stores** ([#1321](https://github.com/winniel123/verge-asm/issues/1321) §3, scoped 2026-09-05). The three surfaces above are sealed because each may carry a credential. A stored value that cannot carry one is outside the obligation, and this corpus already holds such a value: the **CT request URL**, written plaintext on the outcome object by `encodeCTOutcome` (`internal/queue/transcript.go`). It is a public query against a public log, reconstructible by anyone who knows the subject, and both CT sources carry their credential in an HTTP header and never in the URL — `Fetch` sets `Authorization: Bearer` (`internal/queue/crtsh.go`), and crt.sh carries no credential at all. Sealing it would protect nothing, and it would cost two things that are real: a failed CT job stops being reproducible, and an operator cannot see what we asked for.
 
 This clause **does not reopen the ADR-0053 reversal it sits inside**. That reversal is what lets Postgres hold a sealed secret at all, and it stands exactly as written: the three surfaces are still sealed, the key still lives on a service volume and never enters Postgres, and the corpus is still excluded from every backup. The clause narrows only the *reach* of the obligation, never the posture that discharges it. The standing condition, so a later change can be tested against it: **a CT source that ever put a credential in a query string would fall back inside the obligation**, and its URL would then have to be sealed in a role column or not captured at all. The outcome object is not sealed, so any value placed there is stored in the clear by construction.
 

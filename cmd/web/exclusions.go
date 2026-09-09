@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -13,6 +15,14 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/seed"
 )
+
+type exclusionsStore interface {
+	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
+	CreateNameExclusion(ctx context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error)
+	DeleteExclusion(ctx context.Context, id int64) error
+	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
+	PreviewExclusionWithdrawal(ctx context.Context, arg db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error)
+}
 
 type exclusionView struct {
 	ID    int64
@@ -36,7 +46,7 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 			fail(err.Error())
 			return
 		}
-		if _, err := s.store.CreateNameExclusion(r.Context(), db.CreateNameExclusionParams{
+		if _, err := s.exclusionsStore.CreateNameExclusion(r.Context(), db.CreateNameExclusionParams{
 			Kind: kind, Name: pgtype.Text{String: name, Valid: true}, CreatedBy: acct.ID,
 		}); err != nil {
 			fail(exclusionCreateError(err, "name"))
@@ -48,7 +58,7 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 			fail(err.Error())
 			return
 		}
-		if _, err := s.store.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
+		if _, err := s.exclusionsStore.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
 			AddressCidr: &p, CreatedBy: acct.ID,
 		}); err != nil {
 			fail(exclusionCreateError(err, "address scope"))
@@ -81,13 +91,13 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 			return
 		}
 		scope := p.String()
-		if covering, err := s.store.FindCoveringAddressSeed(r.Context(), p.Addr()); err == nil && covering.AddressCidr != nil {
+		if covering, err := s.exclusionsStore.FindCoveringAddressSeed(r.Context(), p.Addr()); err == nil && covering.AddressCidr != nil {
 			scope = covering.AddressCidr.String()
 		} else if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			s.serverError(w, "find covering seed", err)
 			return
 		}
-		row, err := s.store.PreviewExclusionWithdrawal(r.Context(), db.PreviewExclusionWithdrawalParams{
+		row, err := s.exclusionsStore.PreviewExclusionWithdrawal(r.Context(), db.PreviewExclusionWithdrawalParams{
 			Cidr: p, Kind: "address",
 		})
 		if err != nil {
@@ -115,7 +125,7 @@ func (s *server) unexclude(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.flashScopeBack(w, r, seedsForms{exclError: "That exclusion could not be found."})
 		return
 	}
-	if err := s.store.DeleteExclusion(r.Context(), id); err != nil {
+	if err := s.exclusionsStore.DeleteExclusion(r.Context(), id); err != nil {
 		s.serverError(w, "delete exclusion", err)
 		return
 	}

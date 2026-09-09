@@ -1,10 +1,18 @@
-# ADR-0013: Custody is control, not title — and a name scope may extend it
+---
+number: 13
+title: "Custody is control, not title — and a name scope may extend it"
+slug: custody-is-control-and-extends-by-declaration
+date: 2026-08-13
+status: accepted
+source: grilling
+ticket: 40
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 2}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-13
-- **Ticket:** [#40 What is the right Seed primitive for a cloud-resident estate?](https://github.com/winniel123/verge-asm/issues/40)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Amends:** [ADR-0002](./0002-ownership-gates-probing.md)
+# ADR-0013: Custody is control, not title — and a name scope may extend it
 
 ## Context
 

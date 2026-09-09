@@ -24,7 +24,8 @@ type Querier interface {
 	CloseSpan(ctx context.Context, arg CloseSpanParams) error
 	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
-	ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) error
+	// The guard makes the consume atomic, so two accepts in flight cannot both win (#1650).
+	ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) (int64, error)
 	ConsumePasswordReset(ctx context.Context, arg ConsumePasswordResetParams) error
 	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
 	CountAccounts(ctx context.Context) (int64, error)
@@ -64,6 +65,8 @@ type Querier interface {
 	DeleteSSOIdentity(ctx context.Context, id int64) error
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
+	// Nothing else purges the table, so the request path bounds it to the live grants (#1651).
+	DeleteSpentPasswordResets(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
@@ -137,6 +140,8 @@ type Querier interface {
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
+	// The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
+	ListCitedAddressSpansForNames(ctx context.Context, names []string) ([]ListCitedAddressSpansForNamesRow, error)
 	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
 	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error)
@@ -164,6 +169,8 @@ type Querier interface {
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
 	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
+	// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
+	ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error)
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
 	ListPendingNameSeedWithdrawals(ctx context.Context) ([]ListPendingNameSeedWithdrawalsRow, error)
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
@@ -184,9 +191,14 @@ type Querier interface {
 	// The span corpus is already derived, so an as_of bound would hide settled state (ADR-0105).
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
 	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error)
+	// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0226 §1, #1609).
+	ListServiceReachabilitySpansByClassAtForServices(ctx context.Context, arg ListServiceReachabilitySpansByClassAtForServicesParams) ([]ListServiceReachabilitySpansByClassAtForServicesRow, error)
+	// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0226 §1, #1609).
+	ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]ListServiceReachabilitySpansByClassForServicesRow, error)
 	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
 	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
+	ListSourceHealth(ctx context.Context) ([]SourceHealth, error)
 	ListSourceStates(ctx context.Context) ([]SourceState, error)
 	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
 	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error)
@@ -217,6 +229,7 @@ type Querier interface {
 	MarkVantageAvailable(ctx context.Context, id int64) error
 	MarkVantageUnavailable(ctx context.Context, id int64) error
 	MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error
+	// The owner rides the batch's dns-record rows, so no leaf version moves (ADR-0151 §2, #1678).
 	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
 	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
 	NotifyJobProgress(ctx context.Context, payload string) error
@@ -232,6 +245,9 @@ type Querier interface {
 	// A dead worker is failure, not evidence: no Batch, no Availability move (ADR-0169 §1, #1391).
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
+	RecordSourceAttempt(ctx context.Context, arg RecordSourceAttemptParams) (SourceHealth, error)
+	// A ct-tail job outlives the stale threshold, so the owner renews off any transaction (#1709).
+	RenewJobLease(ctx context.Context, id int64) (int64, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
 	ResetAccountTOTP(ctx context.Context, id int64) error
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
@@ -259,7 +275,8 @@ type Querier interface {
 	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
 	SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
-	SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) error
+	// The resolver keys every timeline. Retention keeps span, not observation (ADR-0070, #1716).
+	SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) (int64, error)
 	// A non-positive interval is refused by the table's CHECK, not by this statement.
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)

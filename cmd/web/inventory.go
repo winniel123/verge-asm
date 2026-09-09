@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
@@ -14,6 +15,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
+
+type inventoryStore interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+}
 
 // An open span is a current member by construction, so no membership is re-derived (ADR-0082).
 
@@ -495,7 +500,7 @@ func applyInventoryFixtureCounts(groups []inventoryGroup, expand string) {
 }
 
 func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.inventoryStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
 		return
@@ -506,12 +511,10 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 	if s.devMode {
 		applyInventoryFixtureCounts(groups, r.URL.Query().Get("all"))
 	}
-	s.render(w, r, "inventory", map[string]any{
-		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Groups":    groups,
-		"HasData":   len(groups) > 0,
-	})
+	s.render(w, r, "inventory", pageData(acct, "Inventory", "inventory", map[string]any{
+		"Groups":  groups,
+		"HasData": len(groups) > 0,
+	}))
 }
 
 func (s *server) inventoryExport(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -524,7 +527,7 @@ func (s *server) inventoryExport(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.inventoryStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "inventory export: list all open spans", err)
 		return

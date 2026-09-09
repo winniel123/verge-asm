@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"sort"
 	"strconv"
@@ -17,13 +16,27 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
-	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
+	"github.com/winniel123/verge-asm/internal/estate"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
-	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
+	"github.com/winniel123/verge-asm/internal/signalfacts"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
+
+type signalsStore interface {
+	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
+	ListCurrentEndpointSubjects(ctx context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error)
+	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
+	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
+	ListNameResolutionsByClass(ctx context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error)
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	ListServiceTLSAcceptance(ctx context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error)
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
+	ListVantagesForDispatch(ctx context.Context) ([]db.ListVantagesForDispatchRow, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+	MintSignalInstances(ctx context.Context, arg db.MintSignalInstancesParams) error
+}
 
 // Only fired instances paint, as flat rows and never a per-rule census (docs/spec/v1-spec.md §6.5).
 
@@ -340,9 +353,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 	exportVals := filterVals()
 	exportHref := "/signals/export?" + exportVals.Encode()
 
-	s.render(w, r, "signals", map[string]any{
-		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":       "signals",
+	s.render(w, r, "signals", pageData(acct, "Signals", "signals", map[string]any{
 		"SignalCount":     len(open),
 		"Tab":             tab,
 		"OpenCount":       len(open),
@@ -373,7 +384,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		"Descope":         descope,
 		"AnnoError":       forms.annoError,
 		"AnnoReasonDraft": annoReasonDraft,
-	})
+	}))
 }
 
 func (s *server) enrichSignalDrawer(r *http.Request, row *signalRow) {
@@ -456,7 +467,7 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	annos, err := s.store.ListAnnotations(ctx)
+	annos, err := s.signalsStore.ListAnnotations(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -485,7 +496,7 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 		return nil, nil, nil, err
 	}
 
-	identRows, err := s.store.ListSignalInstances(ctx)
+	identRows, err := s.signalsStore.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -721,19 +732,19 @@ func annotationViews(annos []db.Annotation, population map[string]map[string]boo
 func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	ctx := r.Context()
 
-	resRows, err := s.store.ListNameResolutionsByClass(ctx, db.ListNameResolutionsByClassParams{
+	resRows, err := s.signalsStore.ListNameResolutionsByClass(ctx, db.ListNameResolutionsByClassParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, err
 	}
-	dnsRows, err := s.store.ListNameDNSRecords(ctx, db.ListNameDNSRecordsParams{
+	dnsRows, err := s.signalsStore.ListNameDNSRecords(ctx, db.ListNameDNSRecordsParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, err
 	}
-	zoneRows, err := s.store.ListZoneDeclarations(ctx)
+	zoneRows, err := s.signalsStore.ListZoneDeclarations(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -744,6 +755,11 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		return nil, err
 	}
 	byClass := collapseNameResolutions(resRows, covered)
+	vantages, err := s.signalsStore.ListVantagesForDispatch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	running := runningVantageClasses(vantages, covered)
 
 	cnameTarget := map[string]string{}
 	nsLame := map[string]bool{}
@@ -766,7 +782,7 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	}
 
 	declared := map[string]bool{}
-	var zoneDomains []string
+	var zoneDomains, delegated []string
 	for _, row := range zoneRows {
 		if !row.NameDomain.Valid {
 			continue
@@ -775,6 +791,9 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		zoneDomains = append(zoneDomains, domain)
 		for name := range signal.DeclaredNames(row.Content, domain) {
 			declared[name] = true
+		}
+		for cut := range signal.DelegatedSubzones(row.Content, domain) {
+			delegated = append(delegated, cut)
 		}
 	}
 
@@ -789,19 +808,20 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 
 	composed := map[string]composedResolution{}
 	for name := range names {
-		composed[name] = composeResolution(byClass[name], nsLame[name])
+		composed[name] = composeResolution(byClass[name], running, nsLame[name])
 	}
 
 	facts := make([]signal.NameFacts, 0, len(names))
 	for name := range names {
 		c := composed[name]
 		f := signal.NameFacts{
-			Name:           name,
-			InEstate:       c.inEstate,
-			Resolution:     c.outcome,
-			Addresses:      c.addresses,
-			ZoneDeclared:   declared[name],
-			InDeclaredZone: custody.WithinAnyZone(name, zoneDomains),
+			Name:              name,
+			InEstate:          c.inEstate,
+			Resolution:        c.outcome,
+			Addresses:         c.addresses,
+			ZoneDeclared:      declared[name],
+			InDeclaredZone:    custody.WithinAnyZone(name, zoneDomains),
+			BeneathDelegation: strictlyBeneathAny(name, delegated),
 		}
 		if target, ok := cnameTarget[name]; ok {
 			f.CNAMETarget = target
@@ -818,52 +838,58 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	return facts, nil
 }
 
+func strictlyBeneathAny(name string, cuts []string) bool {
+	for _, cut := range cuts {
+		if name != cut && custody.LabelSuffix(name, cut) {
+			return true
+		}
+	}
+	return false
+}
+
 type composedResolution struct {
 	outcome   string
 	addresses []string
 	inEstate  bool
 }
 
-func composeResolution(classes map[string]resolutionValue, lame bool) composedResolution {
-	// A false Resolved fabricates addresses while a false Shadowed only withholds one (CONTEXT.md).
-	if len(classes) == 0 {
-		return composedResolution{outcome: signal.Gap, inEstate: false}
+func composeResolution(classes map[string]resolutionValue, running []string, lame bool) composedResolution {
+	// Every running class must hold a value and agree; absence is a missing term (ADR-0080).
+	witnesses := make([]estate.ClassWitness, 0, len(running))
+	agreed, complete := "", len(running) > 0
+	for i, class := range running {
+		v, ok := classes[class]
+		w := estate.ClassWitness{Class: class}
+		if ok {
+			w.Outcomes = []string{v.Outcome}
+		} else {
+			complete = false
+		}
+		witnesses = append(witnesses, w)
+		if i == 0 {
+			agreed = v.Outcome
+		} else if v.Outcome != agreed {
+			complete = false
+		}
 	}
-	anyShadowed, anyResolved, anyNoData := false, false, false
-	allNameError := true
-	addrs := map[string]struct{}{}
-	for _, v := range classes {
-		switch v.Outcome {
-		case signal.Shadowed:
-			anyShadowed = true
-		case signal.Resolved:
-			anyResolved = true
-			for _, a := range v.Addresses {
+	// Membership reads the one fold the drift engine reads, so the two never disagree (ADR-0080).
+	out := composedResolution{inEstate: len(classes) > 0 && !estate.WithdrawnCrossClass(witnesses)}
+	if !complete {
+		out.outcome = signal.ResolutionNotEvaluable
+		return out
+	}
+	out.outcome = agreed
+	switch {
+	case agreed == signal.Resolved:
+		addrs := map[string]struct{}{}
+		for _, class := range running {
+			for _, a := range classes[class].Addresses {
 				addrs[a] = struct{}{}
 			}
-		case signal.NoData:
-			anyNoData = true
 		}
-		if v.Outcome != signal.NameError {
-			allNameError = false
-		}
-	}
-
-	out := composedResolution{inEstate: !allNameError}
-	switch {
-	case anyShadowed:
-		out.outcome = signal.Shadowed
-	case anyResolved:
-		out.outcome = signal.Resolved
 		out.addresses = sortedKeys(addrs)
-	case lame:
+	case lame && agreed != signal.Shadowed:
 		out.outcome = signal.Lame
-	case anyNoData:
-		out.outcome = signal.NoData
-	case allNameError:
-		out.outcome = signal.NameError
-	default:
-		out.outcome = signal.Gap
 	}
 	return out
 }
@@ -895,19 +921,19 @@ func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
 }
 
 func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[string]bool, error) {
-	rows, err := s.store.ListServiceReachabilitySpansByClass(r.Context())
+	rows, err := s.signalsStore.ListServiceReachabilitySpansByClass(r.Context())
 	if err != nil {
 		return nil, nil, err
 	}
-	tlsRows, err := s.store.ListServiceTLSAcceptance(r.Context(), db.ListServiceTLSAcceptanceParams{
+	tlsRows, err := s.signalsStore.ListServiceTLSAcceptance(r.Context(), db.ListServiceTLSAcceptanceParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	tlsBySubject := make(map[string]tlsAcceptanceValue, len(tlsRows))
+	tlsBySubject := make(map[string][]byte, len(tlsRows))
 	for _, row := range tlsRows {
-		tlsBySubject[row.SubjectKey] = decodeTLSAcceptance(row.Value)
+		tlsBySubject[row.SubjectKey] = row.Value
 	}
 	vc := vergecore.Default()
 
@@ -925,27 +951,20 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 	estateAddrs := map[string]bool{}
 	facts := make([]signal.ServiceFacts, 0, len(order))
 	for _, sub := range order {
-		f := signal.ServiceFacts{Subject: sub}
-		if pair, addr, ok := parseServicePair(sub); ok {
-			f.OnSensitiveList = pair.Transport == vergecore.TCP && vc.IsSensitive(pair)
+		if _, addr, ok := parseServicePair(sub); ok {
 			estateAddrs[addr] = true
 		}
+		var ev signalfacts.ServiceEvidence
 		// A blanket responder's reach is a Gap, so the rule damps at measurement (ADR-0104 §3).
 		if l, ok := byClass[sub]["internet"]; ok && !l.isGap && l.outcome != "" {
-			f.HasInternetReach = true
-			f.InternetReach = l.outcome
+			ev.HasInternetReach = true
+			ev.InternetReach = l.outcome
 		}
-		if tls, ok := tlsBySubject[sub]; ok && tls.Outcome == string(tlsacceptance.Enumerated) {
-			f.TLSHandshakeCompleted = true
-			f.TLSVersionsReadable = len(tls.Versions) > 0
-			for _, ver := range tls.Versions {
-				if ver.Version == tlsacceptance.TLS10 {
-					f.TLS10Accepted = true
-					break
-				}
-			}
+		if tls, ok := tlsBySubject[sub]; ok {
+			ev.HasTLSAcceptance = true
+			ev.TLSAcceptance = tls
 		}
-		facts = append(facts, f)
+		facts = append(facts, signalfacts.ServiceFactsFrom(sub, ev, vc))
 	}
 	sort.Slice(facts, func(i, j int) bool { return facts[i].Subject < facts[j].Subject })
 	return facts, estateAddrs, nil
@@ -953,26 +972,28 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 
 func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, estateAddrs map[string]bool) ([]signal.EndpointFacts, error) {
 	ctx := r.Context()
-	certRows, err := s.store.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
+	certRows, err := s.signalsStore.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, err
 	}
-	httpRows, err := s.store.ListCurrentEndpointSubjects(ctx, db.ListCurrentEndpointSubjectsParams{
+	httpRows, err := s.signalsStore.ListCurrentEndpointSubjects(ctx, db.ListCurrentEndpointSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	certVal := map[string]certificateValue{}
+	certVal := map[string][]byte{}
+	certSeen := map[string]time.Time{}
 	for _, row := range certRows {
-		certVal[row.SubjectKey] = decodeCertificate(row.Value)
+		certVal[row.SubjectKey] = row.Value
+		certSeen[row.SubjectKey] = row.ObservedAt.Time
 	}
-	httpID := map[string]httpIdentityValue{}
+	httpID := map[string][]byte{}
 	for _, row := range httpRows {
-		httpID[row.SubjectKey] = decodeHTTPIdentity(row.Value)
+		httpID[row.SubjectKey] = row.Value
 	}
 
 	nameSet := estateNameSet(names)
@@ -993,212 +1014,33 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 
 	facts := make([]signal.EndpointFacts, 0, len(subjects))
 	for sub := range subjects {
-		name, _ := splitEndpointName(sub)
-		f := signal.EndpointFacts{Subject: sub, HasName: name != ""}
+		var ev signalfacts.EndpointEvidence
 		if cv, ok := certVal[sub]; ok {
-			f.CertMeasured = true
-			f.CertOutcome = cv.Outcome
-			f.CertDetails = certDetailsFromValue(cv, s.now(), name)
+			ev.HasCertificate = true
+			ev.Certificate = cv
+			ev.CertObservedAt = certSeen[sub]
 		}
 		if id, ok := httpID[sub]; ok {
-			f.HTTPResponded = id.Outcome == httpexchange.OutcomeResponded
-			f.HTTPStatus = id.Status
-			f.RedirectLocation = id.RedirectLocation
-			if f.HTTPResponded && f.HTTPStatus >= 300 && f.HTTPStatus <= 399 && id.RedirectLocation != "" {
-				_, host := signal.RedirectTarget(id.RedirectLocation)
-				f.RedirectHostInEstate = inEstate(host)
-			}
+			ev.HasHTTPIdentity = true
+			ev.HTTPIdentity = id
 		}
-		facts = append(facts, f)
+		facts = append(facts, signalfacts.EndpointFactsFrom(sub, ev, s.now(), inEstate))
 	}
 	sort.Slice(facts, func(i, j int) bool { return facts[i].Subject < facts[j].Subject })
 	return facts, nil
 }
 
-type certificateValue struct {
-	Outcome    string      `json:"outcome"`
-	Chain      []string    `json:"chain"`
-	NotAfter   string      `json:"not_after"`
-	NotBefore  string      `json:"not_before"`
-	SANDNS     []string    `json:"san_dns"`
-	SANIP      []string    `json:"san_ip"`
-	ChainCerts []chainCert `json:"chain_certs"`
-}
+// The worker's census producers evaluate on the same derivation, so it lives there (ADR-0033 §3).
 
-// These mirror connectoutcome's per-link parsed facts, so a producer edit must land here too.
+type certificateValue = signalfacts.CertificateValue
 
-type chainCert struct {
-	Subject               string `json:"subject"`
-	Issuer                string `json:"issuer"`
-	SelfSignatureVerifies *bool  `json:"self_sig_verifies"`
-	KeyAlg                string `json:"key_alg"`
-	KeyBits               int    `json:"key_bits"`
-	KeyParamN             int    `json:"key_n_bits"`
-	SigDigest             string `json:"sig_digest"`
-}
-
-func decodeCertificate(raw []byte) certificateValue {
-	var v certificateValue
-	_ = json.Unmarshal(raw, &v)
-	return v
-}
-
-func certDetailsFromValue(v certificateValue, now time.Time, serverName string) *signal.CertDetails {
-	if v.Outcome != signal.CertPresented {
-		return nil
-	}
-	ref := now.UTC()
-	d := &signal.CertDetails{}
-
-	if v.NotAfter != "" {
-		if na, err := time.Parse(time.RFC3339, v.NotAfter); err == nil {
-			expired := !na.After(ref)
-			expiring := na.After(ref) && !na.After(ref.Add(certExpiryWindow))
-			d.Expired = &expired
-			d.Expiring = &expiring
-		}
-	}
-
-	if v.NotBefore != "" {
-		if nb, err := time.Parse(time.RFC3339, v.NotBefore); err == nil {
-			nyv := nb.After(ref)
-			d.NotYetValid = &nyv
-		}
-	}
-
-	// Under omitempty an empty san_dns is unreadable, so chain_certs is the read/unread witness.
-	if len(v.ChainCerts) > 0 {
-		if serverName != "" {
-			m := sanMatchesName(v.SANDNS, serverName)
-			d.SANMatchesName = &m
-		}
-		weak := weakKeyOrSignature(v.ChainCerts)
-		d.WeakKeyOrSignature = &weak
-		if c0 := v.ChainCerts[0]; c0.SelfSignatureVerifies != nil {
-			ss := selfSignedOf(c0.Subject, c0.Issuer, *c0.SelfSignatureVerifies)
-			d.SelfSigned = &ss
-		}
-	}
-	return d
-}
-
-func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
-	// Shared so the two rules cannot disagree.
-	// Byte-exact on the presented rendering. RFC 5280 name preparation is refused.
-	return subject == issuer && selfSigVerifies
-}
-
-func sanMatchesName(sanDNS []string, name string) bool {
-	// A wildcard SAN admits no Name yet matches one here: matching is not admitting (ADR-0060).
-	nameLabels := dnsLabels(name)
-	if len(nameLabels) == 0 {
-		return false
-	}
-	// Only dNSName SANs participate; RFC 6125 puts an iPAddress out of scope (ADR-0175 §3, #1342).
-	for _, entry := range sanDNS {
-		if sanEntryMatches(entry, nameLabels) {
-			return true
-		}
-	}
-	return false
-}
-
-func dnsLabels(name string) []string {
-	labels := strings.Split(name, ".")
-	if n := len(labels); n > 0 && labels[n-1] == "" {
-		labels = labels[:n-1]
-	}
-	if len(labels) == 1 && labels[0] == "" {
-		return nil
-	}
-	return labels
-}
-
-func sanEntryMatches(entry string, nameLabels []string) bool {
-	entryLabels := dnsLabels(entry)
-	if len(entryLabels) == 0 {
-		return false
-	}
-	stars := 0
-	for _, l := range entryLabels {
-		stars += strings.Count(l, "*")
-	}
-	if stars == 0 {
-		return labelsEqualFold(entryLabels, nameLabels)
-	}
-	// Same octets read as a pattern to one client and a literal to the next, so refuse (ADR-0060).
-	if stars != 1 || entryLabels[0] != "*" {
-		return false
-	}
-	if len(entryLabels) != len(nameLabels) {
-		return false
-	}
-	if nameLabels[0] == "" {
-		return false
-	}
-	return labelsEqualFold(entryLabels[1:], nameLabels[1:])
-}
-
-func labelsEqualFold(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !strings.EqualFold(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func weakKeyOrSignature(chain []chainCert) bool {
-	// A self-signed link skips the signature limb only (weak-key-and-signature.md §4.1).
-	weak := false
-	for _, c := range chain {
-		// An unnamed key algorithm is not weak, not unevaluable (weak-key-and-signature.md §4.2).
-		switch c.KeyAlg {
-		case "RSA":
-			if c.KeyBits < 2048 {
-				weak = true
-			}
-		case "ECDSA":
-			if c.KeyBits < 224 {
-				weak = true
-			}
-		case "DSA":
-			if c.KeyBits < 2048 || c.KeyParamN < 224 {
-				weak = true
-			}
-		}
-		selfSig := c.SelfSignatureVerifies != nil && *c.SelfSignatureVerifies
-		if !selfSignedOf(c.Subject, c.Issuer, selfSig) {
-			if c.SigDigest == "MD5" || c.SigDigest == "SHA-1" {
-				weak = true
-			}
-		}
-	}
-	return weak
-}
+func decodeCertificate(raw []byte) certificateValue { return signalfacts.DecodeCertificate(raw) }
 
 func parseServicePair(key string) (pair vergecore.Pair, addr string, ok bool) {
-	slash := strings.LastIndex(key, "/")
-	if slash < 0 {
-		return vergecore.Pair{}, "", false
-	}
-	hostPort, transport := key[:slash], key[slash+1:]
-	ap, err := netip.ParseAddrPort(hostPort)
-	if err != nil {
-		return vergecore.Pair{}, "", false
-	}
-	return vergecore.Pair{Port: ap.Port(), Transport: vergecore.Transport(transport)}, ap.Addr().String(), true
+	return signalfacts.ParseServicePair(key)
 }
 
-func splitEndpointName(key string) (name, service string) {
-	if at := strings.Index(key, "@"); at >= 0 {
-		return key[:at], key[at+1:]
-	}
-	return "", key
-}
+func splitEndpointName(key string) (name, service string) { return signalfacts.SplitEndpointName(key) }
 
 func estateNameSet(names []signal.NameFacts) map[string]bool {
 	// The redirect host arrives lowercased, so the zone's own spelling must not decide a match.
@@ -1241,7 +1083,7 @@ func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Ce
 
 	// A GET writes here, because a re-derivation cannot reconstruct a stable id or its first-seen.
 	if len(fired) > 0 {
-		if err := s.store.MintSignalInstances(ctx, db.MintSignalInstancesParams{
+		if err := s.signalsStore.MintSignalInstances(ctx, db.MintSignalInstancesParams{
 			SignalNames: names,
 			SubjectKeys: subjects,
 		}); err != nil {
@@ -1249,7 +1091,7 @@ func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Ce
 		}
 	}
 
-	rows, err := s.store.ListSignalInstances(ctx)
+	rows, err := s.signalsStore.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, err
 	}

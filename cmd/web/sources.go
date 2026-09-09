@@ -12,10 +12,26 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
+type sourcesStore interface {
+	CTLastBatchAdmitCount(ctx context.Context) (int64, error)
+	CTReliabilityWindow(ctx context.Context, arg db.CTReliabilityWindowParams) (db.CTReliabilityWindowRow, error)
+	CTTailLastBatch(ctx context.Context) (db.CTTailLastBatchRow, error)
+	CountCertificateMaterial(ctx context.Context) (int64, error)
+	ListSourceHealth(ctx context.Context) ([]db.SourceHealth, error)
+	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
+	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
+}
+
 const (
 	consentUnencumbered = "unencumbered"
 	consentAccepted     = "operator-accepted"
 	consentCredentialed = "operator-credentialed"
+)
+
+const (
+	barredOnTerms    = "excluded on terms"
+	barredNoRunner   = "no runner ships"
+	barredNoEndpoint = "endpoint does not answer"
 )
 
 type catalogSource struct {
@@ -27,6 +43,7 @@ type catalogSource struct {
 	Consent      string
 	DefaultOn    bool
 	Barred       bool
+	BarredReason string
 	NoRunner     bool // no runner ships, so it stays off and untoggleable (#241)
 	ShipNote     string
 
@@ -40,13 +57,13 @@ type catalogSource struct {
 
 var sourceCatalog = []catalogSource{
 	{
-		Slug: "crtsh", Name: "crt.sh",
+		Slug: scan.CrtshSource, Name: "crt.sh",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentUnencumbered,
 		DefaultOn: true,
 		ShipNote:  "Certificate transparency logs. Admits the Names a certificate's SAN list carries — authority: inferred — never a wildcard, and observes nothing (ADR-0027). Queried on the ct Scan's daily cadence, throttled to 5 req/min; a failed fetch admits nothing and never an absence.",
 	},
 	{
-		Slug: "ct-tail", Name: "CT drift tail (logs-direct)",
+		Slug: scan.CTTailSource, Name: "CT drift tail (logs-direct)",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentUnencumbered,
 		DefaultOn: false,
 		ShipNote:  "Certificate transparency, read directly and forward-only (spec §4). Watches new issuance for names you already know, admitting the same way crt.sh does (authority: inferred, ADR-0027). Ships OFF: the tail downloads every new certificate across the CT logs to keep the few that match your estate, so it is heavier than the crt.sh poll — enable it when you want same-shard drift detection. A failed poll admits nothing and never an absence.",
@@ -59,44 +76,44 @@ var sourceCatalog = []catalogSource{
 	{
 		Slug: "afrinic", Name: "AFRINIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
 		DefaultOn: true,
-		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats.",
+		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Covers Africa. The CAIDA half reads api.data.caida.org/as2org/v1/search/, a keyless org-name search. An ASN record carries an opaqueId, and that id joins field 8 of ftp.afrinic.net's extended delegated-stats file. An organisation record carries none, so each ASN it names is read once through as2org/v1/asns/ for its opaqueId. The search is scored, so it answers with other regions and with near names. A record is read only when its source is AFRINIC and its orgName holds your query. A failed request, an envelope this release does not recognise, and an org CAIDA holds under no opaqueId on either path each return an error and never an empty result (ADR-0227, #1616, #1634).",
 	},
 	{
 		Slug: "apnic-caida", Name: "APNIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
 		DefaultOn: true,
-		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats.",
+		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Covers Asia-Pacific. The CAIDA half reads api.data.caida.org/as2org/v1/search/, a keyless org-name search. An ASN record carries an opaqueId, and that id joins field 8 of ftp.apnic.net's extended delegated-stats file. An organisation record carries none, so each ASN it names is read once through as2org/v1/asns/ for its opaqueId. The search is scored, so it answers with other regions and with near names. A record is read only when its source is APNIC and its orgName holds your query. A failed request, an envelope this release does not recognise, and an org CAIDA holds under no opaqueId on either path each return an error and never an empty result (ADR-0227, #1616, #1634).",
 	},
 	{
-		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Whether you resell a service built on the source's data.", "Your own reading of whether writing prefixes to an inventory is re-packaging, and of the purpose list you are bound by."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "ripe-db", Name: "RIPE Database", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "ripe-db", Name: "RIPE Database", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Your own reading of whether inventorying your own estate is a permitted purpose."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "apnic-registry", Name: "APNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "apnic-registry", Name: "APNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Whether you hold, or will seek, the registry's approval.", "Your own reading of the retrieval-system clause's carve-out."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "lacnic-registry", Name: "LACNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "lacnic-registry", Name: "LACNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted, but its terms cannot be retrieved: when a runner lands, enabling it would accept a source whose terms nobody has been able to read.",
 		MayResolve:   nil,
 		Unresolvable: []string{"Nobody has been able to retrieve these terms."},
 	},
 	{
 		Slug: "hackertarget", Name: "HackerTarget",
-		Authority: "measured", Completeness: "corroborative", Barred: true,
+		Authority: "measured", Completeness: "corroborative", Barred: true, BarredReason: barredOnTerms,
 		ShipNote: "Excluded on terms. Its terms bar the software's inherent behaviour, which fails regardless of who the operator is — so no operator reading consents past it.",
 	},
 	{
-		Slug: "certspotter", Name: "Cert Spotter (operator key)",
+		Slug: scan.CertSpotterSource, Name: "Cert Spotter (operator key)",
 		Authority: "inferred", Completeness: "corroborative", Consent: consentCredentialed,
 		DefaultOn: false,
 		ShipNote:  "Certificate transparency, bulk-by-name — the operator-keyed primary (spec §2). Set VERGE_CERTSPOTTER_TOKEN on the worker to select it as the active ct source in place of crt.sh; absent the key, crt.sh runs. Admits the Names a certificate's SAN list carries — authority: inferred — never a wildcard, and observes nothing (ADR-0027), the same way crt.sh does. Its authenticated tier clears the consent bar (ADR-0003); the key is worker-only and web never reads it.",
@@ -122,6 +139,7 @@ type sourceView struct {
 	Enabled      bool
 	Toggleable   bool
 	NoRunner     bool
+	BarredReason string
 	ShipNote     string
 	ShowGroups   bool
 	MayResolve   []string
@@ -156,11 +174,29 @@ func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Ac
 }
 
 type sourceTierRow struct {
-	ID   string
-	Name string
-	Kind string
-	What string
-	On   bool
+	ID           string
+	Name         string
+	Kind         string
+	What         string
+	Reason       string
+	Consent      string
+	ConsentClass string
+	Health       string
+	HealthClass  string
+	On           bool
+}
+
+func consentBadgeClass(tier string) string {
+	switch tier {
+	case consentUnencumbered:
+		return "ok"
+	case consentCredentialed:
+		return "accent" // the authenticated tier clears the bar, so it is not a warning (ADR-0003)
+	case consentAccepted:
+		return "warn"
+	default:
+		return "neutral"
+	}
 }
 
 func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[string]any) error {
@@ -169,9 +205,20 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 		return err
 	}
 
+	health, err := s.sourceHealthIndex(r.Context())
+	if err != nil {
+		return err
+	}
+
 	var unencumbered, operatorAccepted, barred []sourceTierRow
 	for _, v := range views {
-		row := sourceTierRow{ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote, On: v.Enabled}
+		hv := health.view(v)
+		row := sourceTierRow{
+			ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote,
+			Reason: v.BarredReason, Consent: v.Consent, ConsentClass: consentBadgeClass(v.Consent),
+			Health: hv.Label, HealthClass: hv.Class,
+			On: v.Enabled,
+		}
 		switch {
 		case v.NoRunner:
 			barred = append(barred, row)
@@ -199,7 +246,7 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 		LatencyTarget: fmt.Sprintf("≤ %d s", scan.CTP95LatencyBarMS/1000),
 	}
 
-	names, err := s.store.CTLastBatchAdmitCount(r.Context())
+	names, err := s.sourcesStore.CTLastBatchAdmitCount(r.Context())
 	if err != nil {
 		return err
 	}
@@ -221,11 +268,11 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 			break
 		}
 	}
-	tail, err := s.store.CTTailLastBatch(r.Context())
+	tail, err := s.sourcesStore.CTTailLastBatch(r.Context())
 	if err != nil {
 		return err
 	}
-	captured, err := s.store.CountCertificateMaterial(r.Context())
+	captured, err := s.sourcesStore.CountCertificateMaterial(r.Context())
 	if err != nil {
 		return err
 	}
@@ -254,7 +301,7 @@ func consentTerms(c catalogSource) []string {
 }
 
 func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
-	states, err := s.store.ListSourceStates(r.Context())
+	states, err := s.sourcesStore.ListSourceStates(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -269,8 +316,8 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 		if o, ok := override[c.Slug]; ok {
 			enabled = o
 		}
-		if c.NoRunner {
-			enabled = false
+		if c.NoRunner || c.Barred {
+			enabled = false // a bar is authored, so it outranks a stale override (ADR-0223 §2)
 		}
 		kind := "source"
 		if c.IsProposer {
@@ -280,6 +327,7 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 			Slug: c.Slug, Name: c.Name, KindLabel: kind,
 			Authority: c.Authority, Completeness: c.Completeness, Consent: c.Consent,
 			Enabled: enabled, Toggleable: !c.Barred && !c.NoRunner, NoRunner: c.NoRunner,
+			BarredReason: c.BarredReason,
 			ShipNote:     c.ShipNote,
 			ShowGroups:   c.Consent == consentAccepted,
 			MayResolve:   c.MayResolve,
@@ -318,7 +366,7 @@ func (s *server) ctReliabilityViews(ctx context.Context) ([]ctReliabilityView, e
 	slugs := []string{scan.CrtshSource, scan.CertSpotterSource}
 	out := make([]ctReliabilityView, 0, len(slugs))
 	for _, slug := range slugs {
-		row, err := s.store.CTReliabilityWindow(ctx, db.CTReliabilityWindowParams{
+		row, err := s.sourcesStore.CTReliabilityWindow(ctx, db.CTReliabilityWindowParams{
 			Source:     slug,
 			SampleSize: scan.CTReliabilityWindowSize,
 		})
@@ -483,7 +531,7 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 		})
 		return
 	}
-	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
+	if _, err := s.sourcesStore.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
 		Slug: slug, Enabled: enabled,
 	}); err != nil {
 		s.serverError(w, "upsert source state", err)
@@ -512,7 +560,7 @@ func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, _ db.Ac
 		})
 		return
 	}
-	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
+	if _, err := s.sourcesStore.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
 		Slug: id, Enabled: enable,
 	}); err != nil {
 		s.serverError(w, "upsert source state", err)

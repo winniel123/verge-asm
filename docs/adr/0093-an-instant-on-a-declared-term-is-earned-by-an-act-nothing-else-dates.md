@@ -1,9 +1,16 @@
-# ADR-0093: An instant on a Declared term is earned by an act nothing else dates — and every Declared act but one is dated by what it moved
+---
+number: 93
+title: "An instant on a Declared term is earned by an act nothing else dates — and every Declared act but one is dated by what it moved"
+slug: an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 165
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#165 Is a declaration instant a field the Declared layer may carry at all?](https://github.com/winniel123/verge-asm/issues/165)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0093: An instant on a Declared term is earned by an act nothing else dates — and every Declared act but one is dated by what it moved
 
 ## Context
 

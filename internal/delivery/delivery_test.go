@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"net/url"
 	"strconv"
@@ -345,5 +347,84 @@ func TestDeliveryRefusesPrivateResolvedTarget(t *testing.T) {
 	}
 	if !fake.called {
 		t.Fatal("doer.Do was not called for a public-resolving host")
+	}
+}
+
+func TestGuardTargetAdmitsLoopbackAndRefusesMixedAnswers(t *testing.T) {
+	// Loopback is the one plaintext exception, tested over the resolved address (ADR-0039 §2).
+	res := fakeResolver{
+		"local.example":  {netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("::1")},
+		"mixed.example":  {netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("93.184.216.34")},
+		"rebind.example": {netip.MustParseAddr("::1"), netip.MustParseAddr("10.0.0.5")},
+		"hooks.example":  {netip.MustParseAddr("93.184.216.34")},
+	}
+	ctx := context.Background()
+
+	for _, target := range []string{
+		"http://127.0.0.1:9000/hook",
+		"http://[::1]:9000/hook",
+		"http://127.0.0.2:9000/hook",
+		"http://local.example:9000/hook",
+	} {
+		if err := guardTarget(ctx, res, target); err != nil {
+			t.Errorf("guardTarget(%q) = %v, want admitted (loopback)", target, err)
+		}
+	}
+	for _, target := range []string{
+		"http://mixed.example:9000/hook",
+		"http://rebind.example:9000/hook",
+		"http://10.0.0.5:9000/hook",
+		"http://[fe80::1]:9000/hook",
+		"https://169.254.169.254/",
+	} {
+		if err := guardTarget(ctx, res, target); err == nil {
+			t.Errorf("guardTarget(%q) = nil, want refusal", target)
+		}
+	}
+	if err := guardTarget(ctx, res, "https://hooks.example/hook"); err != nil {
+		t.Errorf("guardTarget(public name) = %v, want admitted", err)
+	}
+}
+
+func TestDialControlAdmitsLoopbackAndRefusesPrivate(t *testing.T) {
+	for _, addr := range []string{"127.0.0.1:9000", "[::1]:9000", "[::ffff:127.0.0.1]:9000"} {
+		if err := dialControl("tcp", addr, nil); err != nil {
+			t.Errorf("dialControl(%q) = %v, want admitted (loopback)", addr, err)
+		}
+	}
+	for _, addr := range []string{"10.0.0.5:443", "169.254.169.254:80", "[fd00::1]:443", "[::ffff:10.0.0.5]:443"} {
+		if err := dialControl("tcp", addr, nil); err == nil {
+			t.Errorf("dialControl(%q) = nil, want refusal", addr)
+		}
+	}
+	if err := dialControl("tcp", "93.184.216.34:443", nil); err != nil {
+		t.Errorf("dialControl(public) = %v, want admitted", err)
+	}
+}
+
+func TestSendSignedDeliversToLoopbackHTTP(t *testing.T) {
+	var got []byte
+	var gotSig string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ = io.ReadAll(r.Body)
+		gotSig = r.Header.Get(HeaderSignature)
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+
+	body := []byte(`{"headline":"loopback"}`)
+	secret := []byte("k")
+	status, err := SendSigned(context.Background(), NewHTTPDoer(), net.DefaultResolver, srv.URL+"/hook", body, secret, causeAt)
+	if err != nil {
+		t.Fatalf("SendSigned to %s: %v", srv.URL, err)
+	}
+	if status != http.StatusAccepted {
+		t.Errorf("status = %d, want 202 from the loopback receiver", status)
+	}
+	if string(got) != string(body) {
+		t.Errorf("receiver got body %q, want %q", got, body)
+	}
+	if want := sigScheme + Sign(secret, body, causeAt); gotSig != want {
+		t.Errorf("receiver got signature %q, want %q", gotSig, want)
 	}
 }

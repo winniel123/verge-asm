@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/winniel123/verge-asm/internal/db"
-	"github.com/winniel123/verge-asm/internal/retention"
 )
+
+type shellStore interface {
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListMessages(ctx context.Context) ([]db.Message, error)
+}
 
 type bellMessage struct {
 	Class    string
@@ -23,7 +26,7 @@ type bellMessage struct {
 }
 
 func (s *server) bellMessages(ctx context.Context, accountID int64, limit int) []bellMessage {
-	rows, err := s.store.ListMessages(ctx)
+	rows, err := s.shellStore.ListMessages(ctx)
 	if err != nil {
 		log.Printf("web: shell: list messages for bell: %v", err)
 		return nil
@@ -51,29 +54,6 @@ func (s *server) bellMessages(ctx context.Context, accountID int64, limit int) [
 		out = append(out, b)
 	}
 	return out
-}
-
-type paletteAsset struct {
-	Key  string
-	Href string
-}
-
-func (s *server) currentAssets(ctx context.Context, limit int) (top []paletteAsset, count int) {
-	rows, err := s.store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
-		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	})
-	if err != nil {
-		log.Printf("web: shell: list name subjects for palette: %v", err)
-		return nil, 0
-	}
-	top = make([]paletteAsset, 0, limit)
-	for _, row := range rows {
-		if len(top) >= limit {
-			break
-		}
-		top = append(top, paletteAsset{Key: row.SubjectKey, Href: "/asset/" + url.PathEscape(row.SubjectKey)})
-	}
-	return top, len(rows)
 }
 
 func accountInitials(name string) string {

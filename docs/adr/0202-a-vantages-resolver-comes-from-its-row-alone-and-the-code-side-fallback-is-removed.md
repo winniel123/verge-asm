@@ -1,15 +1,24 @@
+---
+number: 202
+title: "a Vantage's resolver comes from its row alone, and the code-side fallback is removed"
+slug: a-vantages-resolver-comes-from-its-row-alone-and-the-code-side-fallback-is-removed
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1319
+pr: 1318
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 70}
+  - {kind: rests-on, adr: 121}
+  - {kind: rests-on, adr: 103}
+  - {kind: sibling, adr: 36}
+  - {kind: rests-on, adr: 207}
+---
+
 # ADR-0202: a Vantage's resolver comes from its row alone, and the code-side fallback is removed
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1319 ADR gaps: internal/scan (2/3)](https://github.com/winniel123/verge-asm/issues/1319), gap 3
-- **PR that deleted the comment:** [#1318](https://github.com/winniel123/verge-asm/pull/1318)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0070](./0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md), which makes the resolver part of the `Vantage`'s identity rather than a prober default. A resolver the code chose belongs to no `Vantage`, so it cannot be part of one's identity
-- **Rests on:** [ADR-0121](./0121-the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard.md), which exempts the **operator-declared** recursive resolver from the SSRF and rebinding egress guard. The exemption is granted on the ground that an operator declared the address. A code-supplied address takes the exemption without the ground
-- **Rests on:** [ADR-0103](./0103-a-vantage-is-one-position-and-the-prober-is-optional-provisioning-detail.md), which makes a `Vantage` one position with the prober as optional detail. The shipped `local` row is the resolver-only case that ADR names
 - **Sibling of, and not ruled by:** [ADR-0036](./0036-a-shipped-default-is-the-configuration-that-takes-effect.md), which rules a **third party's** shipped default as evidence for a curated table. It does not govern a disagreement between our own migration and our own code
-- **Instance of:** [ADR-0207](./0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md). That ADR rules that a read assembling a probing target set drops a row it cannot fully name and never supplies the missing part. A `Vantage` with no resolver is exactly such a row, and §2's skip-and-record is that rule applied to the `dns` fan-out
 
 ## Context
 

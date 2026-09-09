@@ -1,14 +1,22 @@
+---
+number: 190
+title: "the CT log list is a build-time artefact pinned in the image, refreshing it is a release act, and the pinned snapshot carries no log public keys"
+slug: the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1308
+pr: 1307
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 139}
+  - {kind: rests-on, adr: 138}
+  - {kind: sibling, adr: 144}
+---
+
 # ADR-0190: the CT log list is a build-time artefact pinned in the image, refreshing it is a release act, and the pinned snapshot carries no log public keys
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gaps 2 and 3
-- **PR that deleted the comments:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Withdraws a clause of:** [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §4.3, whose first sentence says to *"follow logs from the live `log_list.json`"*. The clause is withdrawn at its own site under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). The rest of §4.3 — the `state` filter, the `temporal_interval` filter, the two mandatory client implementations, the `url` versus `monitoring_url` discriminator — is untouched and confirmed
-- **Rests on:** [ADR-0139](./0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md), whose §1 rules that a shipped artefact's origin is the image that carries it, because *"every read path hits the worker image's read-only filesystem. No path fetches a release asset, and no path reaches the network."* It rules the prober binary. This ADR applies the same shape to a data artefact
-- **Rests on:** [ADR-0138](./0138-a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow.md), whose §1 rules that the release pins every byte it builds and that *"this project cannot enforce pin-every-byte inside a third party."* It rules the build. This ADR rules a byte the build pins
-- **Bounded by:** [ADR-0003](./0003-third-party-source-consent-bar.md), which rules which third parties may be queried without the operator saying so, and makes that a property of the release rather than of a deployment. It rules the **source catalogue**. It does not rule which endpoints a source's own runner contacts, which is what the log list decides
 - **Sibling of, and not ruled by:** [ADR-0144](./0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md). It rules that the `verge-core` body is compiled in, over a spec clause that said the opposite, and it changed no Go code. The shape is the same and the artefact is different. Neither contains the other
 
 ## Context
@@ -316,10 +324,16 @@ every 300 seconds, forever, on an install that never takes a release.
   `TailLastRel` stops advancing and reads as an ever-older *last run*. It says the tail has not run.
   It does not say the log list expired.
 
-- **No surface reports the snapshot's version or age. That is a defect this ruling exposes, and it
+- **~~No surface reports the snapshot's version or age.~~ That is a defect this ruling exposes, and it
   ships as its own ticket.** The pin is correct and its staleness must be legible: the Sources page's
   CT card is the place, and `logList.Version` and `log_list_timestamp` are already parsed off the
   embedded bytes. A stale snapshot must be visible before it is empty, not after.
+
+  > **The struck sentence is DISCHARGED, 2026-09-06 by `0ab8f73` /
+  > [#1434](https://github.com/winniel123/verge-asm/issues/1434).** The Sources page's CT card now
+  > reports the snapshot's version and its age. The rest of the bullet stands, and the card obeys it.
+  > The [#1521](https://github.com/winniel123/verge-asm/issues/1521) amendment at the foot of this
+  > file records what shipped.
 - **Verification does not decay, and its exposure is different.** `AllLogs` applies no state or
   temporal filter, so all 48 entries stay available to the verifier for the life of the image. A
   certificate whose SCT names a log minted after the snapshot misses `FindLogByLogID`, and the
@@ -343,3 +357,59 @@ every 300 seconds, forever, on an install that never takes a release.
 | **Two ADRs, one per gap** | §6 measures the failure: the refresh procedure in §4 is a wrong instruction without §5's stripping step, so a maintainer holding one document does the wrong thing. Both rule the same 27,989 bytes |
 | **State it in [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §4.3 alone, with no ADR** | §4.3 is the site that is wrong. Correcting a spec sentence records what to do and not why, and ADR-0058's own Rationale is that the reasoning lives at the superseding site. Both edits happen; only one of them is a decision |
 | **Record it on [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md)** | ADR-0106 rules the bulk `ct` Scan over crt.sh. It predates the tail, names no log list, and reads no logs directly. §4.2 of the spec states the tail *"shares nothing with bulk `ct` except the CT theme"* |
+
+## Amendment — [#1521](https://github.com/winniel123/verge-asm/issues/1521): the snapshot's age reaches a surface, the cadence lives in the release pipeline, and a zero count still opens no `Gap`
+
+**The Decision does not move. §4, §5 and §7 stand as written. This ADR gains no reach.** The
+Consequences bullet above named a defect and named its ticket.
+[#1434](https://github.com/winniel123/verge-asm/issues/1434) closed on 2026-09-06 through
+[PR #1517](https://github.com/winniel123/verge-asm/pull/1517), commit `0ab8f73`. This amendment
+records what that work put on disk, and where one rule it needed now lives.
+
+**1. The Sources page's CT card reports four facts about the snapshot.** `CTLogListSnapshot` and
+`CTLogListSnapshotAt` (`internal/scan/cttail.go`) read them off the embedded bytes.
+`newCTCapabilities` (`cmd/web/sources.go`) hands them to the CT capabilities card in
+[`design-system/templates/settings.tmpl`](../../design-system/templates/settings.tmpl).
+
+- The pinned `log_list.json` version, under a *pinned log list* label.
+- The `log_list_timestamp` the snapshot carries, as a date, beside its age in words.
+- The count of logs `SelectTailLogs` selects today, under a *logs selectable today* label.
+- The date every log in the snapshot expires, which is the newest `end_exclusive`.
+
+A zero count earns an `expired` badge and a warn callout in place of the expiry note. The callout
+tells the operator that the tail selects zero logs, that no gap opens for it, and that a release
+refreshes the list. So a stale snapshot is legible before it empties, which is what the bullet above
+asked for.
+
+**2. The 180-day horizon, and the ground under it.**
+`TestShippedLogListOutlivesTheExpiryHorizon` (`internal/scan/cttail_test.go`) fails when the newest
+`end_exclusive` in the shipped snapshot falls within **180 days** of the build date. It runs in the
+required `test` check, so an ageing snapshot blocks a merge before it reaches an image.
+
+The horizon doubles the **90-day cadence floor** that item 3 names. A refresh that a quiet quarter
+misses therefore still has one full cycle before the gate fires. The test is what the project reads
+before it ships an image. The card is what an operator reads after.
+
+**3. The cadence lives in [`release-pipeline.md`](../spec/release-pipeline.md) §10.7, and this ADR
+still rules none.** §4 rules the refresh **procedure** — four steps, in order — and deliberately
+rules no cadence. That leaves the question of *how often* open, and #1434 needed an answer. §10.7 is
+that answer: refresh `internal/scan/log_list.json` on every release, and at minimum every 90 days.
+§10.4's release-prep checklist carries the line that points at it.
+
+The cadence is new ground rather than a reading of this ADR, so it sits in the SPEC and not here. It
+also licenses no runtime fetch. §7's refusal of the live-refresh path is untouched, and its grounds
+do not move.
+
+**4. A zero selectable count still opens no `Gap`, and the decision is
+[#1513](https://github.com/winniel123/verge-asm/issues/1513).** The Consequences above rule that
+silence correct, and #1517 changed nothing about it.
+[ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md)
+gives `ct-tail` no currency bound and no withdrawal power.
+[ADR-0206](./0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md)
+rules a fan-out over an empty population a legible zero-job dispatch. A zero-log tick has that exact
+shape.
+
+So the card states the zero, and nothing else does. #1434 read a `Gap` as the larger change, and split
+it into #1513. That issue asks whether a stale pin's empty population differs from an empty
+population the world produced. It changes ADR-0106's reach if the answer is yes, and a human decides
+it.

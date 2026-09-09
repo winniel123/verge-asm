@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -59,7 +60,7 @@ func TestComposeNameSeedWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 		nameCandidate(3, "api.example.com"),
 	}
 
-	spanIDs, receipts := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, nil)
+	spanIDs, receipts, _ := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, nil)
 
 	if len(spanIDs) != 3 {
 		t.Fatalf("every candidate timeline closes, got %v", spanIDs)
@@ -82,6 +83,29 @@ func TestComposeNameSeedWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 	}
 }
 
+func TestComposeNameSeedWithdrawalsNamesTheDepartedForTheUncitedRead(t *testing.T) {
+	// A descoped Name leaves its sole-cited Address behind unless the uncited
+	// closure hears of it, so the fold hands the departed Names on (#1706).
+	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
+	rows := []db.ListNameSeedWithdrawalCandidatesRow{
+		nameCandidate(1, "www.example.com"),
+		nameCandidate(2, "www.example.com"),
+		nameCandidate(3, "api.example.com"),
+		nameCandidate(4, "keep.example.com"),
+	}
+	in := membershipInputs{seeds: []db.ListSeedsRow{nameSeed("keep.example.com")}}
+
+	_, _, names := composeNameSeedWithdrawals(rows, pending, in, nil)
+
+	want := []string{"api.example.com", "www.example.com"}
+	if !slices.Equal(names, want) {
+		t.Fatalf("departed names = %v, want %v: one entry per Name, and the survivor left out", names, want)
+	}
+	if _, _, none := composeNameSeedWithdrawals(nil, pending, membershipInputs{}, nil); none != nil {
+		t.Errorf("no candidate names no departure, got %v", none)
+	}
+}
+
 func TestComposeNameSeedWithdrawalsStatesOneActPerScope(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{
 		nameTombstone(1, "example.com"),
@@ -93,7 +117,7 @@ func TestComposeNameSeedWithdrawalsStatesOneActPerScope(t *testing.T) {
 	}
 	rows = append(rows, nameCandidate(5, "a.example.net"))
 
-	_, receipts := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, nil)
+	_, receipts, _ := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, nil)
 
 	if len(receipts) != 2 {
 		t.Fatalf("one receipt per withdrawn scope, got %d: %+v", len(receipts), receipts)
@@ -114,7 +138,7 @@ func TestComposeNameSeedWithdrawalsLiveSeedSurvives(t *testing.T) {
 	}
 	in := membershipInputs{seeds: []db.ListSeedsRow{nameSeed("api.example.com")}}
 
-	spanIDs, receipts := composeNameSeedWithdrawals(rows, pending, in, nil)
+	spanIDs, receipts, _ := composeNameSeedWithdrawals(rows, pending, in, nil)
 
 	if len(spanIDs) != 1 || spanIDs[0] != 1 {
 		t.Fatalf("only the Name no live Seed declares leaves, got %v", spanIDs)
@@ -129,7 +153,7 @@ func TestComposeNameSeedWithdrawalsRedeclaredScopeClosesNothing(t *testing.T) {
 	rows := []db.ListNameSeedWithdrawalCandidatesRow{nameCandidate(1, "www.example.com")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{nameSeed("example.com")}}
 
-	spanIDs, receipts := composeNameSeedWithdrawals(rows, pending, in, nil)
+	spanIDs, receipts, _ := composeNameSeedWithdrawals(rows, pending, in, nil)
 
 	if len(spanIDs) != 0 {
 		t.Errorf("a re-declared scope withdraws nothing, got %v", spanIDs)
@@ -148,7 +172,7 @@ func TestComposeNameSeedWithdrawalsAdmittedNameSurvives(t *testing.T) {
 	}
 	admitted := []string{"API.example.com.", "mail.example.com"}
 
-	spanIDs, receipts := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, admitted)
+	spanIDs, receipts, _ := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, admitted)
 
 	if len(spanIDs) != 1 || spanIDs[0] != 1 {
 		t.Fatalf("only the unadmitted Name leaves, got %v", spanIDs)
@@ -165,7 +189,7 @@ func TestComposeNameSeedWithdrawalsDropsUnattributableRows(t *testing.T) {
 		nameCandidate(2, "www.elsewhere.test"),
 	}
 
-	spanIDs, receipts := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, nil)
+	spanIDs, receipts, _ := composeNameSeedWithdrawals(rows, pending, membershipInputs{}, nil)
 
 	if len(spanIDs) != 1 || spanIDs[0] != 1 {
 		t.Fatalf("only the attributable row closes, got %v", spanIDs)
@@ -178,7 +202,7 @@ func TestComposeNameSeedWithdrawalsDropsUnattributableRows(t *testing.T) {
 func TestComposeNameSeedWithdrawalsIsIdempotent(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
 
-	spanIDs, receipts := composeNameSeedWithdrawals(nil, pending, membershipInputs{}, nil)
+	spanIDs, receipts, _ := composeNameSeedWithdrawals(nil, pending, membershipInputs{}, nil)
 
 	if len(spanIDs) != 0 {
 		t.Errorf("a spent withdrawal closes nothing more, got %v", spanIDs)

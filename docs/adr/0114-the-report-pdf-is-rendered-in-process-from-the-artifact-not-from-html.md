@@ -1,8 +1,19 @@
+---
+number: 114
+title: "the report PDF is rendered in-process from the artifact, not from HTML by an external engine"
+slug: the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html
+date: 2026-08-23
+status: accepted
+source: fix
+ticket: 345
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 184}
+---
+
 # ADR-0114: the report PDF is rendered in-process from the artifact, not from HTML by an external engine
 
-- **Status:** Accepted
-- **Date:** 2026-08-23
-- **Ticket:** [#345 Report artifact: Download PDF button disabled — PDF export not implemented](https://github.com/winniel123/verge-asm/issues/345)
+> **Amended** by [ADR-0183: the severity ramp label is the one graded word the product draws, and the valence refusal does not reach it](./0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md), 2026-09-05. <!-- adr-marker amends 183 -->
 
 ## Context
 

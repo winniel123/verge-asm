@@ -6,26 +6,40 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = resolve(SCRIPT_DIR, "..", "..");
-const ADR_DIR = "docs/adr";
+export const ADR_DIR = "docs/adr";
 
-const ADR_FILE = /^(\d{4})-.+\.md$/;
-const FENCE = /^\s{0,3}(?:```|~~~)/;
-const NUMBERED_HEADING = /^#{2,6}\s+(\d+(?:\.\d+)*)[.)]?\s+\S/;
+// A new ADR takes its issue number, so the prefix outgrows four digits (adr-governance §3)
+export const ADR_FILE = /^(\d{4,})-.+\.md$/;
+export const FENCE = /^\s{0,3}(?:```|~~~)/;
+const ATX_HEADING = /^(#{1,6})\s+(\S.*?)\s*$/;
+// An H1 is the title, so "# 3 things" numbers nothing, and a number needs a title after it
+const NUMBERED_TITLE = /^(\d+(?:\.\d+)*)[.)]?\s+(\S.*)$/;
 
-// #1455's repairs wrote a comma, ADR-0038 a semicolon, and reports.md:253 wraps before its §3
-const SEPARATOR = "[,;]?(?:[ \\t\\u00a0]|\\n[ \\t]*)?";
-const SECTION = "\\u00a7(\\d+(?:\\.\\d+)*)";
+// ADR-0001 to ADR-0227 amended themselves in file, and a later ADR never does (adr-governance §3)
+export const LEGACY_MAX = 227;
+
+// reports.md:253 wraps before its §3, so a line break with indent is one blank
+const WRAP = "(?:[ \\t\\u00a0]|\\n[ \\t]*)";
+// #1455's repairs wrote a comma, and ADR-0038 a semicolon
+const SEPARATOR = `[,;]?${WRAP}?`;
+// A word after § is matched so it can fail: only a numbered heading resolves (adr-governance §9)
+const SECTION = "\\u00a7(\\d+(?:\\.\\d+)*|[A-Za-z][\\w-]*)";
 
 // A bare citation, the form CLAUDE.md fixes for a surviving comment.
-const BARE_CITATION = new RegExp(`ADR-(\\d{4})${SEPARATOR}${SECTION}`, "g");
+const BARE_CITATION = new RegExp(`ADR-(\\d{4,})${SEPARATOR}${SECTION}`, "g");
 // The same citation written as a Markdown link, the form an ADR cross-reference uses.
 const LINKED_CITATION = new RegExp(
-  `\\[ADR-(\\d{4})\\]\\([^)\\s]*\\)${SEPARATOR}${SECTION}`,
+  `\\[ADR-(\\d{4,})\\]\\([^)\\s]*\\)${SEPARATOR}${SECTION}`,
   "g",
 );
 // §4.4 puts the issue number after the section, so a section on the issue inverts it (#1455)
 const ISSUE_SECTION_CITATION = new RegExp(
-  `ADR-(\\d{4})${SEPARATOR}#(\\d+)[ \\t\\u00a0]?${SECTION}`,
+  `ADR-(\\d{4,})${SEPARATOR}#(\\d+)[ \\t\\u00a0]?${SECTION}`,
+  "g",
+);
+// A comma before the # names an issue beside the ADR, not an amendment (comment-policy §4.4)
+const AMENDMENT_CITATION = new RegExp(
+  `ADR-(\\d{4,})${WRAP}#(\\d+)(?!\\d)(?![ \\t\\u00a0]?\\u00a7)`,
   "g",
 );
 
@@ -55,19 +69,41 @@ const TEXT_BASENAMES = new Set(["Dockerfile", "Containerfile", "Makefile"]);
 // This one file's citations are all fixtures, and .mjs has no code span to quote them with (#1437).
 const SELF_TEST = "docs-site/scripts/check-adr-sections.test.mjs";
 
-export function numberedSections(markdown) {
-  const sections = new Set();
+export function headings(markdown) {
+  const found = [];
   let fenced = false;
-  for (const line of markdown.split(/\r?\n/)) {
+  markdown.split(/\r?\n/).forEach((line, i) => {
     if (FENCE.test(line)) {
       fenced = !fenced;
-      continue;
+      return;
     }
-    if (fenced) continue;
-    const m = NUMBERED_HEADING.exec(line);
-    if (m) sections.add(m[1]);
-  }
-  return sections;
+    if (fenced) return;
+    const m = ATX_HEADING.exec(line);
+    if (!m) return;
+    const level = m[1].length;
+    const numbered = level > 1 ? NUMBERED_TITLE.exec(m[2]) : null;
+    found.push({
+      level,
+      number: numbered ? numbered[1] : null,
+      title: numbered ? numbered[2] : m[2],
+      line: i + 1,
+    });
+  });
+  return found;
+}
+
+export function numberedHeadings(markdown) {
+  return headings(markdown)
+    .filter((h) => h.number !== null)
+    .map(({ number, line, level }) => ({ number, line, level }));
+}
+
+function sectionSet(headings) {
+  return new Set(headings.map((h) => h.number));
+}
+
+export function numberedSections(markdown) {
+  return sectionSet(numberedHeadings(markdown));
 }
 
 export function buildAdrIndex(repoRoot) {
@@ -82,8 +118,8 @@ export function buildAdrIndex(repoRoot) {
     const m = ADR_FILE.exec(name);
     if (!m) continue;
     const file = `${ADR_DIR}/${name}`;
-    const text = readFileSync(join(repoRoot, file), "utf8");
-    index.set(m[1], { file, sections: numberedSections(text) });
+    const headings = numberedHeadings(readFileSync(join(repoRoot, file), "utf8"));
+    index.set(m[1], { file, headings, sections: sectionSet(headings) });
   }
   return index;
 }
@@ -140,6 +176,16 @@ export function findCitations(text, { markdown }) {
       text: `ADR-${issue[1]}, #${issue[2]} §${issue[3]}`,
     });
   }
+  AMENDMENT_CITATION.lastIndex = 0;
+  let amendment;
+  while ((amendment = AMENDMENT_CITATION.exec(joined)) !== null) {
+    found.push({
+      line: lineOf(starts, amendment.index),
+      adr: amendment[1],
+      issue: amendment[2],
+      text: `ADR-${amendment[1]} #${amendment[2]}`,
+    });
+  }
   // An intervening token takes the section: in "ADR-0108, ADR-0180 §3" it is ADR-0180's (§4.7)
   for (const pattern of [LINKED_CITATION, BARE_CITATION]) {
     pattern.lastIndex = 0;
@@ -156,48 +202,77 @@ export function findCitations(text, { markdown }) {
   return found.sort((a, b) => a.line - b.line);
 }
 
+function violation(c, file, rule, message) {
+  return { ...c, file, rule, message };
+}
+
 export function checkFile(file, text, index) {
   const markdown = file.endsWith(".md");
   const violations = [];
   for (const c of findCitations(text, { markdown })) {
     const target = index.get(c.adr);
     if (!target) {
-      violations.push({
-        ...c,
-        file,
-        rule: "unresolvable-adr",
-        message: `${c.text} cites no ADR on disk`,
-      });
+      violations.push(violation(c, file, "unresolvable-adr", `${c.text} cites no ADR on disk`));
+      continue;
+    }
+    if (c.issue !== undefined && c.section !== undefined) {
+      violations.push(
+        violation(
+          c,
+          file,
+          "section-on-issue-number",
+          `${c.text} hangs a section on issue #${c.issue}, which §4.4's grammar does not allow`,
+        ),
+      );
       continue;
     }
     if (c.issue !== undefined) {
-      violations.push({
-        ...c,
-        file,
-        rule: "section-on-issue-number",
-        message:
-          `${c.text} hangs a section on issue #${c.issue}, ` +
-          `which §4.4's grammar does not allow`,
-      });
+      if (Number(c.adr) > LEGACY_MAX) {
+        const cap = `ADR-${String(LEGACY_MAX).padStart(4, "0")}`;
+        violations.push(
+          violation(
+            c,
+            file,
+            "amendment-above-legacy",
+            `${c.text} names an in-file amendment, and above ${cap} an ADR changes only ` +
+              "through a later ADR",
+          ),
+        );
+      }
+      continue;
+    }
+    if (!/^\d/.test(c.section)) {
+      violations.push(
+        violation(
+          c,
+          file,
+          "section-by-name",
+          `${c.text} names a heading by word, and only a numbered heading resolves`,
+        ),
+      );
       continue;
     }
     if (target.sections.size === 0) {
-      violations.push({
-        ...c,
-        file,
-        rule: "unnumbered-adr",
-        message: `${c.text} is wrong by construction: ${target.file} numbers no heading`,
-      });
+      violations.push(
+        violation(
+          c,
+          file,
+          "unnumbered-adr",
+          `${c.text} is wrong by construction: ${target.file} numbers no heading`,
+        ),
+      );
       continue;
     }
     if (!target.sections.has(c.section)) {
       const have = [...target.sections].join(", ");
-      violations.push({
-        ...c,
-        file,
-        rule: "section-out-of-range",
-        message: `${c.text} names no section of ${target.file}, which numbers ${have}`,
-      });
+      violations.push(
+        violation(
+          c,
+          file,
+          "section-out-of-range",
+          `${c.text} names no section of ${target.file}, which numbers ${have}`,
+        ),
+      );
     }
   }
   return violations;
@@ -244,7 +319,8 @@ export function readErrorLine(file, reason) {
 export function summaryMarkdown(fileCount, violations, readErrors = []) {
   const lines = ["## check:adr-sections", ""];
   lines.push(
-    "A `§n` citation resolves to a numbered heading (SPEC docs/spec/comment-policy.md §4.7).",
+    "A `§n` citation resolves to a numbered heading (SPEC docs/spec/comment-policy.md §4.7), " +
+      "and the citation grammar is SPEC docs/spec/adr-governance.md §9.",
   );
   lines.push("");
   lines.push(`**${fileCount} file(s) scanned, ${violations.length} violation(s).**`);

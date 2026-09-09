@@ -68,7 +68,7 @@ var Rows = []Row{
 		[]string{real},
 		ScriptPeer{Rules: []scriptRule{
 			{Name: real, Qtype: rw.QtypeA, Reply: noerror(rrA(real, "198.51.100.1"))},
-			{Under: parent, Shape: anyShape, Qtype: rw.QtypeA, Reply: nxdomain()},
+			{Under: parent, Shape: anyShape, Reply: nxdomain()},
 		}},
 		"nowc_license.ndjson"),
 
@@ -82,12 +82,23 @@ var Rows = []Row{
 		}},
 		"nowc_gap.ndjson"),
 
+	one([]string{"W3c/incomplete"},
+		"one of the ten control labels answers and the other nine time out — a single reply is not a completed control probe, so the name records a Gap rather than reading the one answer as a wildcard",
+		true,
+		[]string{real},
+		ScriptPeer{Rules: []scriptRule{
+			{Name: real, Qtype: rw.QtypeA, Reply: noerror(rrA(real, "198.51.100.1"))},
+			{Name: "ctla." + parent, Reply: noerror(rrA("l."+parent, "203.0.113.1"))},
+		}},
+		"partial_gap.ndjson"),
+
 	one([]string{"W1/Determinate", "W2/Shadowed", "W3d/shadowed-all", "W7.1/cites-nothing"},
 		"a determinate constant wildcard synthesises the same address for every control label and for a fictional name; the name coincides at the one determinate component and is Shadowed on resolution and on every dns-record discriminator, citing no address",
 		true,
 		[]string{ghost},
 		ScriptPeer{Rules: []scriptRule{
 			{Under: parent, Shape: anyShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.1"))},
+			{Under: parent, Shape: anyShape, Reply: nodata()},
 		}},
 		"det_shadowed.ndjson"),
 
@@ -98,6 +109,7 @@ var Rows = []Row{
 		ScriptPeer{Rules: []scriptRule{
 			{Name: real, Qtype: rw.QtypeA, Reply: noerror(rrA(real, "198.51.100.9"))},
 			{Under: parent, Shape: anyShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.1"))},
+			{Under: parent, Shape: anyShape, Reply: nodata()},
 		}},
 		"det_differs.ndjson"),
 
@@ -108,6 +120,7 @@ var Rows = []Row{
 		ScriptPeer{Rules: []scriptRule{
 			{Under: parent, Shape: randomShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.8"))},
 			{Under: parent, Shape: structuredShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.7"))},
+			{Under: parent, Shape: anyShape, Reply: nodata()},
 		}},
 		"indet_shadowed.ndjson"),
 
@@ -119,6 +132,7 @@ var Rows = []Row{
 			{Under: parent, Shape: anyShape, Qtype: rw.QtypeMX, Reply: noerror(rrMX("l."+parent, "mail.example.net"))},
 			{Under: parent, Shape: randomShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.8"))},
 			{Under: parent, Shape: structuredShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.7"))},
+			{Under: parent, Shape: anyShape, Reply: nodata()},
 		}},
 		"indet_only.ndjson"),
 
@@ -130,6 +144,7 @@ var Rows = []Row{
 			{Name: gone, Qtype: rw.QtypeA, Reply: nxdomain()},
 			{Under: parent, Shape: randomShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.8"))},
 			{Under: parent, Shape: structuredShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.7"))},
+			{Under: parent, Shape: anyShape, Reply: nodata()},
 		}},
 		"w6_suppress.ndjson"),
 
@@ -140,6 +155,7 @@ var Rows = []Row{
 		ScriptPeer{Rules: []scriptRule{
 			{Under: parent, Shape: randomShape, Qtype: rw.QtypeA, Reply: nodata()},
 			{Under: parent, Shape: structuredShape, Qtype: rw.QtypeA, Reply: noerror(rrA("l."+parent, "203.0.113.7"))},
+			{Under: parent, Shape: anyShape, Reply: nodata()},
 		}},
 		"w4_structured.ndjson"),
 }

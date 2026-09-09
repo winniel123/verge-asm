@@ -1,10 +1,19 @@
+---
+number: 136
+title: "`Topology` is a reading, not a census, so the graph caps rather than folds"
+slug: topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds
+date: 2026-09-02
+status: accepted
+source: fix
+ticket: 1090
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: sibling, adr: 105}
+  - {kind: rests-on, adr: 178}
+---
+
 # ADR-0136: `Topology` is a reading, not a census, so the graph caps rather than folds
 
-- **Status:** Accepted
-- **Date:** 2026-09-02
-- **Ticket:** [#1090 The graph is unreadable at scale: three unbounded columns, no aggregation, no level of detail](https://github.com/winniel123/verge-asm/issues/1090)
-- **Follows:** [ADR-0105](./0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md), which established that one corpus carries more than one projection and that a projection adds no store, observation, `Derivation` leaf or value
-- **Constrained by:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md) (a subject key is the thing denoted), [ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md) (a listing states no denominator), [ADR-0131](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md) (the console is server-rendered PRG)
 - **Relates to:** [#1089](https://github.com/winniel123/verge-asm/issues/1089), which framed the export and the minimap on the content bounds and gave the template `ContentW`/`ContentH`
 
 ## Context

@@ -1,21 +1,27 @@
+---
+number: 152
+title: "a golden corpus locks the hermetic fold and never the live adapter, so an adapter change is an uncovered move"
+slug: a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1298
+pr: 1297
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 21}
+  - {kind: rests-on, adr: 21}
+  - {kind: rests-on, adr: 8}
+  - {kind: sibling, adr: 142}
+  - {kind: sibling, adr: 140}
+---
+
 # ADR-0152: a golden corpus locks the hermetic fold and never the live adapter, so an adapter change is an uncovered move
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1298 ADR gaps: internal/measure/connectoutcome (1/2)](https://github.com/winniel123/verge-asm/issues/1298), gap 2
-- **PR that deleted the comment:** [#1297](https://github.com/winniel123/verge-asm/pull/1297)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Also stated, uncited, at two other leaves:**
   [`tlsacceptance/enumerate.go:100`](../../internal/measure/tlsacceptance/enumerate.go) and
   [`resolutionwalk/netpeer.go:40`](../../internal/measure/resolutionwalk/netpeer.go). One rule, three
   wordings, no record
-- **Rests on:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md), whose gate runs both
-  ways and whose third limb is the recorded uncovered move, and
-  [ADR-0008](./0008-derivation-versions-move-on-content.md), under which a version moves on content
-- **Adjacent:** [ADR-0142](./0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md)
-  (the corpus's own generated input) and
-  [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md)
-  (the adapter is a runtime parameter the caller passes)
 
 ## Context
 

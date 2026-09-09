@@ -13,10 +13,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
+type vantageClassStore interface {
+	queue.AddressExclusionStore
+
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+}
+
 // One binding serves batch gating and every render, so a second predicate is refused (#711).
 
 func (s *server) addressScopeCovered(ctx context.Context) (func(netip.Addr) bool, error) {
-	scopes, err := s.store.ListAddressScopeCidrs(ctx)
+	scopes, err := s.vantageClassStore.ListAddressScopeCidrs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +33,7 @@ func (s *server) addressScopeCovered(ctx context.Context) (func(netip.Addr) bool
 		}
 	}
 	// An excluded range is not the operator's, so a prober inside it may reclassify (ADR-0133 §4).
-	excluded, err := queue.ReadAddressExclusions(ctx, s.store)
+	excluded, err := queue.ReadAddressExclusions(ctx, s.vantageClassStore)
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +55,15 @@ func deriveVantageClasses(vantages []db.Vantage, covered func(netip.Addr) bool) 
 		out[v.ID] = vantageFactsClass(v.DialledAddr, v.Egress, covered)
 	}
 	return out
+}
+
+func runningVantageClasses(vantages []db.ListVantagesForDispatchRow, covered func(netip.Addr) bool) []string {
+	// An unavailable vantage still names its class; the gap reads not-evaluable (ADR-0080).
+	seen := map[string]struct{}{}
+	for _, v := range vantages {
+		seen[string(vantageFactsClass(v.DialledAddr, v.Egress, covered))] = struct{}{}
+	}
+	return sortedKeys(seen)
 }
 
 type reachLegRow struct {

@@ -11,12 +11,12 @@ import (
 func TestChromeScanPillLightsOnEveryView(t *testing.T) {
 	f := newFakeStore()
 	tick := time.Date(2026, 8, 16, 9, 30, 0, 0, time.UTC)
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scanTriggerStore: f}
 
 	f.dispatchProgress = []db.ListDispatchProgressRow{
 		progressRow(10, "hot", tick, 3, 1, 1, 1, 0, 0),
 	}
-	data := map[string]any{"IsAdmin": true, "NavActive": "signals"}
+	data := map[string]any{shellKey: true, "NavActive": "signals"}
 	srv.injectChrome(data, nil)
 	c, ok := data["Chrome"].(*chromeVM)
 	if !ok {
@@ -29,7 +29,7 @@ func TestChromeScanPillLightsOnEveryView(t *testing.T) {
 	f.dispatchProgress = []db.ListDispatchProgressRow{
 		progressRow(9, "dns", tick, 2, 0, 0, 2, 0, 0),
 	}
-	data = map[string]any{"IsAdmin": true, "NavActive": "signals"}
+	data = map[string]any{shellKey: true, "NavActive": "signals"}
 	srv.injectChrome(data, nil)
 	c = data["Chrome"].(*chromeVM)
 	if c.ScanRunning {
@@ -37,7 +37,7 @@ func TestChromeScanPillLightsOnEveryView(t *testing.T) {
 	}
 
 	f.dispatchProgress = nil
-	data = map[string]any{"IsAdmin": true, "NavActive": "dashboard", "Scanning": true}
+	data = map[string]any{shellKey: true, "NavActive": "dashboard", "Scanning": true}
 	srv.injectChrome(data, nil)
 	c = data["Chrome"].(*chromeVM)
 	if !c.ScanRunning {
@@ -48,7 +48,7 @@ func TestChromeScanPillLightsOnEveryView(t *testing.T) {
 func TestChromeScanRunning(t *testing.T) {
 	f := newFakeStore()
 	tick := time.Date(2026, 8, 16, 9, 30, 0, 0, time.UTC)
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scanTriggerStore: f}
 
 	if srv.chromeScanRunning(context.Background()) {
 		t.Errorf("no dispatches seeded but chromeScanRunning reports running")

@@ -42,6 +42,9 @@ func TestDefaultParamsAreTheSafetyTable(t *testing.T) {
 	if p.FollowRedirects {
 		t.Error("redirects must NOT be followed by default — the declared invariant")
 	}
+	if len(p.ALPN) != 2 || p.ALPN[0] != "h2" || p.ALPN[1] != "http/1.1" {
+		t.Errorf("ALPN = %v, want [h2 http/1.1] in that order (measurement-offers §3.1)", p.ALPN)
+	}
 }
 
 func TestParamsDigestMovesWithADeclaredParameter(t *testing.T) {
@@ -107,6 +110,9 @@ func TestTitleExtraction(t *testing.T) {
 		{"<title>  spaced\n  out </title>", "spaced out"},
 		{"no title here", ""},
 		{"<title>unterminated", ""},
+		{"\xe9\xe9\xe9\xe9\xe9\xe9\xe9\xe9\xe9\xe9<title>ab</title>", "ab"},
+		{"<!-- caf\xe9 -->\n<title>Accueil</title>", "Accueil"},
+		{"<title>\xe9t\xe9</title>", "\xe9t\xe9"},
 	}
 	for _, c := range cases {
 		if got := extractTitle([]byte(c.body)); got != c.want {

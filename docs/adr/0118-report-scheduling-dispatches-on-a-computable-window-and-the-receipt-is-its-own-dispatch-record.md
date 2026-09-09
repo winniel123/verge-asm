@@ -1,9 +1,16 @@
-# ADR-0118: report scheduling dispatches on a computable window, and the receipt is its own dispatch record
+---
+number: 118
+title: "report scheduling dispatches on a computable window, and the receipt is its own dispatch record"
+slug: report-scheduling-dispatches-on-a-computable-window-and-the-receipt-is-its-own-dispatch-record
+date: 2026-08-24
+status: accepted
+source: grilling
+ticket: 502
+map: 499
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-24
-- **Ticket:** [#502 On-cadence report dispatcher](https://github.com/winniel123/verge-asm/issues/502)
-- **Map:** [#499 report dispatch + delivery](https://github.com/winniel123/verge-asm/issues/499)
+# ADR-0118: report scheduling dispatches on a computable window, and the receipt is its own dispatch record
 
 ## Context
 
@@ -40,6 +47,8 @@ The open question was whether that needs a new `report_dispatch` table beside `r
 Three parts.
 
 ### 1. Cadence normalises to a closed window vocabulary — ADR-0091-clean
+
+> **Amended** by [ADR-0122: a report schedule's cadence is an operator-authored dispatch time, so it honours the clock — presets to the minute, Custom as real cron](./0122-a-report-schedules-cadence-is-a-dispatch-time-so-it-honours-the-clock.md), 2026-08-26. <!-- adr-marker amends 122 -->
 
 `report.CadenceWindow` ([internal/report/cadence.go](../../internal/report/cadence.go)) is the
 single source of truth that maps a cadence label to one of four coarse windows: **6h / daily /

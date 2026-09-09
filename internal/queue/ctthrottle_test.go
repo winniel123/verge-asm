@@ -46,7 +46,7 @@ func (f *countingFetcher) Fetch(ctx context.Context, url string) (int, []byte, e
 type noRowsDBTX struct{}
 
 func (noRowsDBTX) Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error) {
-	return pgconn.CommandTag{}, pgx.ErrNoRows
+	return pgconn.NewCommandTag("UPDATE 1"), nil
 }
 
 func (noRowsDBTX) Query(context.Context, string, ...interface{}) (pgx.Rows, error) {
@@ -59,9 +59,31 @@ type noRowsRow struct{}
 
 func (noRowsRow) Scan(...interface{}) error { return pgx.ErrNoRows }
 
+type cursorDBTX struct{ noRowsDBTX }
+
+func (cursorDBTX) QueryRow(context.Context, string, ...interface{}) pgx.Row { return cursorRow{} }
+
+type cursorRow struct{}
+
+func (cursorRow) Scan(dest ...interface{}) error {
+	for _, d := range dest {
+		switch p := d.(type) {
+		case *int64:
+			*p = 0
+		case *[]byte:
+			*p = nil
+		}
+	}
+	return nil
+}
+
 func tailWorker(f CTFetcher, t CTThrottle) *Worker {
+	return tailWorkerOn(noRowsDBTX{}, f, t)
+}
+
+func tailWorkerOn(dbtx db.DBTX, f CTFetcher, t CTThrottle) *Worker {
 	return &Worker{
-		q:              db.New(noRowsDBTX{}),
+		q:              db.New(dbtx),
 		log:            log.New(io.Discard, "", 0),
 		now:            time.Now,
 		ctTailFetcher:  f,
@@ -117,7 +139,8 @@ func TestCTTailReservesBeforeEveryFetch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &countingFetcher{inner: tc.fetch}
 			th := &slotThrottle{failAt: tc.failAt}
-			err := tailWorker(f, th).completeCTTail(context.Background(), db.ClaimJobRow{}, tailSpec(t, tc.lg))
+			// With a cursor the second fetch is reachable (#1654).
+			err := tailWorkerOn(cursorDBTX{}, f, th).completeCTTail(context.Background(), db.ClaimJobRow{}, tailSpec(t, tc.lg))
 			if !errors.Is(err, errSlotRefused) {
 				t.Fatalf("err = %v, want the refused reservation to surface", err)
 			}
@@ -252,5 +275,34 @@ func TestVerifyByFingerprintReservesBeforeFetch(t *testing.T) {
 	// The path has no production caller, so this is what keeps the gap from returning (#1117).
 	if f.calls != 0 {
 		t.Fatalf("VerifyByFingerprint fetched %d time(s) with no reservation granted, want 0", f.calls)
+	}
+}
+
+func TestCTTailFreshLogFetchesOnlyTheHead(t *testing.T) {
+	rfc := routeFetcher{routes: []route{
+		{sub: "get-sth", status: 200, body: sthBody(1_000_000, make([]byte, 32))},
+		{sub: "get-entries", status: 200, body: []byte("[]")},
+	}}
+	tiled := routeFetcher{routes: []route{
+		{sub: "checkpoint", status: 200, body: tiledCheckpoint(1_000_000)},
+		{sub: "tile/data", status: 200, body: nil},
+	}}
+	cases := []struct {
+		name  string
+		lg    scan.CTLog
+		fetch CTFetcher
+	}{
+		{"rfc", scan.CTLog{LogID: "a", URL: "https://rfc.example"}, rfc},
+		{"tiled", scan.CTLog{LogID: "b", URL: "https://tiled.example", Tiled: true}, tiled},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &countingFetcher{inner: tc.fetch}
+			th := &slotThrottle{failAt: 1 << 30}
+			_ = tailWorker(f, th).completeCTTail(context.Background(), db.ClaimJobRow{}, tailSpec(t, tc.lg))
+			if f.calls != 1 {
+				t.Fatalf("a log with no cursor fetched %d time(s), want 1: the signed head alone, never history", f.calls)
+			}
+		})
 	}
 }

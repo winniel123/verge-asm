@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -33,7 +34,7 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	base := NetExchanger{Params: scope.Params}
+	base := NetExchanger{Params: scope.Params, realm: custody.ParseRealm(spec.Realm)}
 	paced := &pacedExchanger{inner: base, pacer: NewPacer(scope.Params), now: time.Now, sleep: time.Sleep}
 	return RunWithExchanger(context.Background(), paced, spec.Batch, scope, w)
 }

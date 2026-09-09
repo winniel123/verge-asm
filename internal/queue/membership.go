@@ -36,6 +36,7 @@ func readMembershipInputs(ctx context.Context, qtx *db.Queries) (membershipInput
 }
 
 func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, obs []wire.Observation, in membershipInputs, deps *[]departure) error {
+	var departed []string
 	// Membership is re-decided only where fresh evidence arrived, never as a sweep (ADR-0198 §1).
 	for _, name := range observedResolutionNames(obs) {
 		// The value fold runs first, so this Name's resolution span is already open (ADR-0007).
@@ -53,6 +54,7 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 		if err := closeSubjectTimelines(ctx, qtx, open, observedAt, reason, batchID); err != nil {
 			return err
 		}
+		departed = append(departed, name)
 		if deps != nil {
 			*deps = append(*deps, departure{
 				SubjectKind: subjectKindName,
@@ -63,7 +65,127 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 			})
 		}
 	}
+	// The Name closure lands first, so the citer read omits the departed spans (ADR-0087).
+	return closeUncitedAddresses(ctx, qtx, batchID, observedAt, uncitedCiters(obs, departed), in, deps)
+}
+
+func uncitedCiters(obs []wire.Observation, departed []string) []string {
+	// A Gap closes the citing span without deciding the Name, so it must not de-cite (ADR-0006).
+	gapped := map[string]bool{}
+	for _, o := range obs {
+		if o.Facet == resolutionwalk.FacetResolution && isGapValue(o.Facet, o.Data) {
+			gapped[o.Subject] = true
+		}
+	}
+	seen := make(map[string]bool, len(departed))
+	out := append([]string(nil), departed...)
+	for _, name := range departed {
+		seen[name] = true
+	}
+	// A moved resolution leaves the pre-move Address in the Name's span history (ADR-0087).
+	for _, name := range observedResolutionNames(obs) {
+		if seen[name] || gapped[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	return out
+}
+
+type uncitedClosureStore interface {
+	ListCitedAddressSpansForNames(ctx context.Context, names []string) ([]db.ListCitedAddressSpansForNamesRow, error)
+	ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]db.ListOpenSpansBeneathAddressesRow, error)
+	spanCloser
+}
+
+type uncitedSubject struct {
+	kind, key string
+	spanIDs   []int64
+}
+
+func closeUncitedAddresses(ctx context.Context, q uncitedClosureStore, batchID int64, at time.Time, departed []string, in membershipInputs, deps *[]departure) error {
+	if len(departed) == 0 {
+		return nil
+	}
+	rows, err := q.ListCitedAddressSpansForNames(ctx, departed)
+	if err != nil {
+		return err
+	}
+	addresses := uncitedAddresses(rows, in.seeds)
+	if len(addresses) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(addresses))
+	for _, a := range addresses {
+		keys = append(keys, a.key)
+	}
+	beneath, err := q.ListOpenSpansBeneathAddresses(ctx, keys)
+	if err != nil {
+		return err
+	}
+	// A Service is an observation about its Address, so it leaves on the same ground (ADR-0087).
+	for _, s := range append(addresses, subjectsBeneath(beneath, keys)...) {
+		if err := closeSpansByID(ctx, q, s.spanIDs, at, drift.ReasonUncited, batchID); err != nil {
+			return err
+		}
+		if deps != nil {
+			*deps = append(*deps, departure{
+				SubjectKind: s.kind,
+				SubjectKey:  s.key,
+				Reason:      string(drift.ReasonUncited),
+				Timelines:   len(s.spanIDs),
+			})
+		}
+	}
 	return nil
+}
+
+func uncitedAddresses(rows []db.ListCitedAddressSpansForNamesRow, seeds []db.ListSeedsRow) []uncitedSubject {
+	var out []uncitedSubject
+	index := map[string]int{}
+	for _, row := range rows {
+		if i, seen := index[row.SubjectKey]; seen {
+			out[i].spanIDs = append(out[i].spanIDs, row.ID)
+			continue
+		}
+		addr, err := netip.ParseAddr(row.SubjectKey)
+		if err != nil {
+			continue
+		}
+		// seedDescoped is the withdrawal fold's ground; a Name departure never narrows a Seed.
+		if _, left := estate.AddressClosure(len(row.Citers) > 0, addressSeedCovered(addr, seeds), false); !left {
+			continue
+		}
+		index[row.SubjectKey] = len(out)
+		out = append(out, uncitedSubject{kind: subjectKindAddress, key: row.SubjectKey, spanIDs: []int64{row.ID}})
+	}
+	return out
+}
+
+func subjectsBeneath(rows []db.ListOpenSpansBeneathAddressesRow, addresses []string) []uncitedSubject {
+	under := make(map[netip.Addr]bool, len(addresses))
+	for _, a := range addresses {
+		if addr, err := netip.ParseAddr(a); err == nil {
+			under[addr] = true
+		}
+	}
+	var out []uncitedSubject
+	index := map[[2]string]int{}
+	for _, row := range rows {
+		addr, ok := subjectAddress(row.SubjectKind, row.SubjectKey)
+		if !ok || !under[addr] {
+			continue
+		}
+		k := [2]string{row.SubjectKind, row.SubjectKey}
+		if i, seen := index[k]; seen {
+			out[i].spanIDs = append(out[i].spanIDs, row.ID)
+			continue
+		}
+		index[k] = len(out)
+		out = append(out, uncitedSubject{kind: row.SubjectKind, key: row.SubjectKey, spanIDs: []int64{row.ID}})
+	}
+	return out
 }
 
 func coveringExclusionKey(name string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
@@ -183,9 +305,13 @@ func closeSubjectTimelines(ctx context.Context, qtx *db.Queries, open []db.ListO
 	return closeSpansByID(ctx, qtx, ids, at, reason, batchID)
 }
 
-func closeSpansByID(ctx context.Context, qtx *db.Queries, ids []int64, at time.Time, reason drift.ClosureReason, batchID int64) error {
+type spanCloser interface {
+	CloseSpan(ctx context.Context, arg db.CloseSpanParams) error
+}
+
+func closeSpansByID(ctx context.Context, q spanCloser, ids []int64, at time.Time, reason drift.ClosureReason, batchID int64) error {
 	for _, id := range ids {
-		if err := qtx.CloseSpan(ctx, db.CloseSpanParams{
+		if err := q.CloseSpan(ctx, db.CloseSpanParams{
 			ClosedAt:      tstz(at),
 			ClosureReason: pgText(string(reason)),
 			ClosedBatchID: pgInt8(batchID),
@@ -211,8 +337,13 @@ func subjectAddress(subjectKind, subjectKey string) (netip.Addr, bool) {
 	case subjectKindAddress:
 		addr, err := netip.ParseAddr(subjectKey)
 		return addr, err == nil
-	case subjectKindService, subjectKindEndpoint:
+	case subjectKindService:
 		addr, err := netip.ParseAddr(serviceAddress(subjectKey))
+		return addr, err == nil
+	case subjectKindEndpoint:
+		// An Endpoint key is `<name>@<service key>`, and no Name holds
+		// an `@` (connectoutcome.EndpointKey).
+		addr, err := netip.ParseAddr(serviceAddress(subjectKey[strings.LastIndex(subjectKey, "@")+1:]))
 		return addr, err == nil
 	default:
 		return netip.Addr{}, false

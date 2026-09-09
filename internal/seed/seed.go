@@ -16,10 +16,64 @@ import (
 
 const DefaultAddressCap = 1024 // applied at declaration and read by no rule (§5.3)
 
+// A refused declaration names a route and never takes it (ADR-0052).
+
+type WildcardError struct {
+	Input   string
+	Subtree string
+}
+
+func (e *WildcardError) Error() string {
+	if e.Subtree == "" {
+		return fmt.Sprintf("%q is a pattern over names, not a name — the object that does this job is a subtree exclusion", e.Input)
+	}
+	return fmt.Sprintf("%q is a pattern over names, not a name — the object that does this job is a subtree exclusion on %s", e.Input, e.Subtree)
+}
+
+type ULabelError struct {
+	Input string
+}
+
+func (e *ULabelError) Error() string {
+	// The A-label is never computed here: a refused value may not be rendered as advice (ADR-0052).
+	return fmt.Sprintf("%q is not a form the DNS carries — an internationalised label travels as an ASCII form beginning xn--, and your DNS provider shows that form beside the name", e.Input)
+}
+
+func FoldASCII(s string) string {
+	// Folding 0x41–0x5A alone is what DNS folds; strings.ToLower would fold U+0130 (ADR-0055).
+	b := []byte(s)
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + ('a' - 'A')
+		}
+	}
+	return string(b)
+}
+
+func hasHighBit(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return true
+		}
+	}
+	return false
+}
+
 func NormalizeDomain(input string) (string, error) {
-	d := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(input)), ".")
+	d := strings.TrimSuffix(FoldASCII(strings.TrimSpace(input)), ".")
 	if d == "" {
 		return "", fmt.Errorf("a domain is required")
+	}
+	// Only a leftmost label of exactly * is a wildcard (RFC 4592 §2.1.2); the rest fall to isLDH.
+	if d == "*" || strings.HasPrefix(d, "*.") {
+		sub := strings.TrimPrefix(d, "*.")
+		if !isLDH(sub) {
+			sub = ""
+		}
+		return "", &WildcardError{Input: input, Subtree: sub}
+	}
+	if hasHighBit(d) {
+		return "", &ULabelError{Input: input}
 	}
 	// Runs before publicsuffix, whose wildcard rule would pass crt.sh query injection.
 	if !isLDH(d) {

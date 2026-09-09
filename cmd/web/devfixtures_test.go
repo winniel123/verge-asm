@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 type fixtureDevPackage struct {
@@ -1419,7 +1417,7 @@ type fixtureSubjectService struct {
 		Version  int    `json:"version"`
 		Severity string `json:"severity"`
 		SevLabel string `json:"sev_label"`
-		Fired    bool   `json:"fired"`
+		Verdict  string `json:"verdict"`
 	} `json:"rules"`
 	Provenance []struct {
 		K string `json:"k"`
@@ -1461,7 +1459,7 @@ type fixtureSubjectEndpoint struct {
 		Version  int    `json:"version"`
 		Severity string `json:"severity"`
 		SevLabel string `json:"sev_label"`
-		Fired    bool   `json:"fired"`
+		Verdict  string `json:"verdict"`
 	} `json:"rules"`
 	Provenance []struct {
 		K string `json:"k"`
@@ -1499,7 +1497,7 @@ func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d 
 	}
 	for i, r := range a.Rules {
 		q := d.Rules[i]
-		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != (q.Verdict == signal.Fired) {
+		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Verdict != string(q.Verdict) {
 			t.Errorf("%s: rules[%d] drift: %+v vs %+v", name, i, r, q)
 		}
 	}
@@ -1604,7 +1602,7 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 	}
 	for i, r := range a.Rules {
 		q := d.Rules[i]
-		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != (q.Verdict == signal.Fired) {
+		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Verdict != string(q.Verdict) {
 			t.Errorf("endpoint rules[%d] drift: %+v vs %+v", i, r, q)
 		}
 	}
@@ -1733,6 +1731,55 @@ func TestUpdateHostStepsMatchDesignFixture(t *testing.T) {
 	for i, want := range steps {
 		if updateHostSteps[i] != want {
 			t.Errorf("step[%d] drift: fixtures.json = %q, updateHostSteps = %q", i, want, updateHostSteps[i])
+		}
+	}
+}
+
+type fixtureRunningRunPackage struct {
+	Settings struct {
+		Scans struct {
+			Active []struct {
+				ID   int64 `json:"id"`
+				Jobs []struct {
+					ID          int64  `json:"id"`
+					Kind        string `json:"kind"`
+					Vantage     string `json:"vantage"`
+					State       string `json:"state"`
+					Retrying    bool   `json:"retrying"`
+					Attempt     int32  `json:"attempt"`
+					MaxAttempts int32  `json:"max_attempts"`
+					Batch       string `json:"batch"`
+				} `json:"jobs"`
+			} `json:"active"`
+		} `json:"scans"`
+	} `json:"settings"`
+}
+
+func TestRunningRunJobsFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureRunningRunPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	if len(f.Settings.Scans.Active) == 0 {
+		t.Fatal("fixtures.json settings.scans.active is empty")
+	}
+	run := f.Settings.Scans.Active[0]
+
+	if got := itoa(run.ID); got != devRunningRunID {
+		t.Errorf("id drift: fixtures.json = %q, pinned = %q", got, devRunningRunID)
+	}
+	if len(run.Jobs) != len(devRunningRunJobs) {
+		t.Fatalf("jobs length drift: fixtures.json = %d, pinned = %d", len(run.Jobs), len(devRunningRunJobs))
+	}
+	for i, j := range run.Jobs {
+		p := devRunningRunJobs[i]
+		if j.ID != p.ID || j.Kind != p.Kind || j.Vantage != p.Vantage || j.State != p.State ||
+			j.Retrying != p.Retrying || j.Attempt != p.Attempt || j.MaxAttempts != p.MaxAttempts || j.Batch != p.Batch {
+			t.Errorf("job %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, j, p)
 		}
 	}
 }

@@ -71,7 +71,7 @@ func TestDeriveVantageClasses(t *testing.T) {
 
 func TestDerivedInternetClassLightsFlagshipRules(t *testing.T) {
 	const (
-		sensitiveSvc = "198.51.100.51:3389/tcp"
+		sensitiveSvc = "198.51.100.51:5900/tcp"
 		leakyName    = "leak.example.com"
 		leakyResol   = `{"outcome":"Resolved","addresses":["10.0.0.5"]}`
 	)
@@ -80,7 +80,7 @@ func TestDerivedInternetClassLightsFlagshipRules(t *testing.T) {
 	f.addClassReachability(t, sensitiveSvc, "internet", obsClock, `{"outcome":"reached"}`)
 	f.addClassResolution(t, leakyName, "internet", obsClock, leakyResol)
 
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{signalsStore: f, vantageClassStore: f, now: fixedClock()}
 	req := httptest.NewRequest(http.MethodGet, "/signals", nil)
 
 	svcFacts, _, err := srv.buildServiceFacts(req)
@@ -110,7 +110,7 @@ func TestDerivedInternetClassLightsFlagshipRules(t *testing.T) {
 	g := newFakeStore()
 	g.addClassReachability(t, sensitiveSvc, "internal", obsClock, `{"outcome":"reached"}`)
 	g.addClassResolution(t, leakyName, "internal", obsClock, leakyResol)
-	gsrv := newServer(g, testKey, "", fixedClock())
+	gsrv := &server{signalsStore: g, vantageClassStore: g, now: fixedClock()}
 	greq := httptest.NewRequest(http.MethodGet, "/signals", nil)
 
 	gsf := serviceFactsByKey(mustServiceFacts(t, gsrv, greq))[sensitiveSvc]
@@ -168,7 +168,7 @@ func TestAddressScopeCoveredNarrowsByAnAddressExclusion(t *testing.T) {
 	outside := netip.MustParseAddr("10.0.0.5")
 
 	f := newFakeStore()
-	s := newServer(f, testKey, "", fixedClock())
+	s := &server{vantageClassStore: f}
 
 	covered, err := s.addressScopeCovered(t.Context())
 	if err != nil {

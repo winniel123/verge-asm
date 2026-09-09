@@ -1,9 +1,18 @@
-# ADR-0104: An undiscriminated reach is a `Gap`, and a blanket responder is measured, never read off a list
+---
+number: 104
+title: "An undiscriminated reach is a `Gap`, and a blanket responder is measured, never read off a list"
+slug: an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed
+date: 2026-08-16
+status: accepted
+source: grilling
+ticket: 247
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 224}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-16
-- **Ticket:** [#247 CDN/anycast/proxy edges answer on all ports — overstated surface and false-positive sensitive-port signals](https://github.com/winniel123/verge-asm/issues/247)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0104: An undiscriminated reach is a `Gap`, and a blanket responder is measured, never read off a list
 
 ## Context
 

@@ -69,8 +69,9 @@ const (
 )
 
 type Resolution struct {
-	Outcome   Outcome  `json:"outcome"`
-	Addresses []string `json:"addresses,omitempty"`
+	Outcome   Outcome           `json:"outcome"`
+	Addresses []string          `json:"addresses,omitempty"`
+	Owners    map[string]string `json:"-"`
 }
 
 type NSStatus struct {
@@ -132,7 +133,7 @@ func Resolve(peer Peer, offers Offers, name string) Result {
 		for _, rr := range msg.Answer {
 			switch rr.Type {
 			case QtypeA, QtypeAAAA:
-				addrs.add(rr.Data)
+				addrs.add(rr.Data, rr.Name)
 			case QtypeCNAME:
 				sawCNAME = true
 			}
@@ -147,7 +148,8 @@ func Resolve(peer Peer, offers Offers, name string) Result {
 func decideResolution(addrs addrSet, nxAll, anyNoError, anyReached, sawCNAME bool) Resolution {
 	// Shadowed is wildcard-discrimination's outcome and never this leaf's (golden-corpus.md §1).
 	if addrs.len() > 0 {
-		return Resolution{Outcome: OutcomeResolved, Addresses: addrs.sorted()}
+		// No emitter renders Owners, so no version moves (ADR-0151 §2, #1678).
+		return Resolution{Outcome: OutcomeResolved, Addresses: addrs.sorted(), Owners: addrs.owners()}
 	}
 	if !anyReached {
 		return Resolution{Outcome: OutcomeGap}
@@ -174,14 +176,14 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (msg Msg,
 		EDNS:      true,
 		Cookie:    offers.EDNS.Cookie,
 	}
-	msg = peer.Exchange(q)
+	msg = Exchange(peer, offers, q)
 	if msg.Unreachable {
 		return Msg{}, false, true
 	}
 
 	if msg.Reached && msg.Rcode == FORMERR && q.EDNS && offers.Transport.EDNSlessRetry {
 		q.EDNS = false
-		msg = peer.Exchange(q)
+		msg = Exchange(peer, offers, q)
 		if msg.Unreachable {
 			return Msg{}, false, true
 		}
@@ -191,7 +193,7 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (msg Msg,
 	if msg.Reached && msg.Truncated && offers.Transport.FallbackOnTC && offers.Transport.TCPAttempts > 0 {
 		tq := q
 		tq.Transport = TCP
-		msg = peer.Exchange(tq)
+		msg = Exchange(peer, offers, tq)
 		if msg.Unreachable {
 			return Msg{}, false, true
 		}
@@ -210,8 +212,32 @@ func exchangeDeclared(peer Peer, offers Offers, name string, qt Qtype) (msg Msg,
 	return msg, true, false
 }
 
+func Exchange(peer Peer, offers Offers, q Query) Msg {
+	// Two UDP then one TCP per nameserver is the declared budget (offers §5.2, #1660).
+	attempts := offers.Transport.UDPAttempts
+	if q.Transport == TCP {
+		attempts = offers.Transport.TCPAttempts
+	}
+	if attempts < 1 {
+		attempts = 1
+	}
+	var msg Msg
+	for i := 0; i < attempts; i++ {
+		msg = peer.Exchange(q)
+		if !msg.Unreachable {
+			return msg
+		}
+	}
+	if q.Transport == TCP || offers.Transport.TCPAttempts < 1 {
+		return msg
+	}
+	tq := q
+	tq.Transport = TCP
+	return Exchange(peer, offers, tq)
+}
+
 func walk(peer Peer, offers Offers, name string) Delegation {
-	msg := peer.Exchange(Query{
+	msg := Exchange(peer, offers, Query{
 		Path:      PathWalk,
 		Name:      name,
 		Qtype:     QtypeNS,
@@ -232,7 +258,7 @@ func walk(peer Peer, offers Offers, name string) Delegation {
 			continue
 		}
 		// A walk authority must reach the guard with a non-empty Server, or it is exempted (#324).
-		ns := peer.Exchange(Query{
+		ns := Exchange(peer, offers, Query{
 			Path:      PathWalk,
 			Server:    rr.Data,
 			Name:      name,
@@ -284,22 +310,34 @@ func asciiLower(s string) string {
 }
 
 type addrSet struct {
-	seen map[netip.Addr]struct{}
+	seen map[netip.Addr]string
 }
 
-func (s *addrSet) add(text string) {
+func (s *addrSet) add(text, owner string) {
 	addr, err := netip.ParseAddr(text)
 	if err != nil {
 		return
 	}
 	addr = addr.Unmap()
 	if s.seen == nil {
-		s.seen = make(map[netip.Addr]struct{})
+		s.seen = make(map[netip.Addr]string)
 	}
-	s.seen[addr] = struct{}{}
+	if _, ok := s.seen[addr]; ok {
+		return
+	}
+	// The record's own name: a foreign CNAME target does not extend (ADR-0013 §3).
+	s.seen[addr] = CanonicalName(owner)
 }
 
 func (s *addrSet) len() int { return len(s.seen) }
+
+func (s *addrSet) owners() map[string]string {
+	out := make(map[string]string, len(s.seen))
+	for a, owner := range s.seen {
+		out[a.String()] = owner
+	}
+	return out
+}
 
 func (s *addrSet) sorted() []string {
 	out := make([]netip.Addr, 0, len(s.seen))

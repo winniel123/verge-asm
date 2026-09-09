@@ -1,11 +1,21 @@
-# ADR-0074: A narrowing is carried by the subject it leaves behind — and where it takes the carrier with it, it fires at the scope
+---
+number: 74
+title: "A narrowing is carried by the subject it leaves behind — and where it takes the carrier with it, it fires at the scope"
+slug: an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 130
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 47}
+  - {kind: amends, adr: 14}
+  - {kind: bounds, adr: 134}
+  - {kind: bounds, adr: 135}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#130 Does narrowing a `Seed` reach anybody?](https://github.com/winniel123/verge-asm/issues/130)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Amends:** [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md),
-  [ADR-0014](./0014-only-revealed-generalises.md)
+# ADR-0074: A narrowing is carried by the subject it leaves behind — and where it takes the carrier with it, it fires at the scope
 
 ## Context
 

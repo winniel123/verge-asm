@@ -47,7 +47,7 @@ func (lameDelegation) Eval(f NameFacts) Outcome {
 	switch f.Resolution {
 	case Lame:
 		return Fired
-	case Shadowed, Gap:
+	case Shadowed, Gap, ResolutionNotEvaluable:
 		return NotEvaluable
 	default:
 		return NotFired
@@ -66,13 +66,13 @@ func (cnameTargetNameError) Eval(f NameFacts) Outcome {
 	if f.CNAMETarget == "" {
 		return OutsideDomain
 	}
-	if f.Resolution == Shadowed {
+	if f.Resolution == Shadowed || f.Resolution == ResolutionNotEvaluable {
 		return NotEvaluable
 	}
 	switch f.TargetResolution {
 	case NameError:
 		return Fired
-	case "", Gap, Shadowed:
+	case "", Gap, Shadowed, ResolutionNotEvaluable:
 		return NotEvaluable
 	default:
 		return NotFired
@@ -99,7 +99,7 @@ func (zoneDeclaredNameReturnsNameError) Eval(f NameFacts) Outcome {
 	case NameError:
 		return Fired
 	// A lame delegation makes NameError unobtainable, so the rule cannot decide (ADR-0024, #128).
-	case Lame, Shadowed, Gap:
+	case Lame, Shadowed, Gap, ResolutionNotEvaluable:
 		return NotEvaluable
 	default:
 		return NotFired
@@ -110,7 +110,7 @@ type resolvedNameAbsentFromZone struct{}
 
 func (resolvedNameAbsentFromZone) Name() string { return "resolved-name-absent-from-zone" }
 func (resolvedNameAbsentFromZone) Version() Version {
-	return Version{Rule: "v1", Composes: leafVersions}
+	return Version{Rule: "v2", Composes: leafVersions}
 }
 
 func (resolvedNameAbsentFromZone) Severity() Severity { return SevLow }
@@ -120,11 +120,15 @@ func (resolvedNameAbsentFromZone) Eval(f NameFacts) Outcome {
 	}
 	switch f.Resolution {
 	case Resolved:
+		// The file delegates the subzone away and never read this name (ADR-0020, #1712).
+		if f.BeneathDelegation {
+			return NotEvaluable
+		}
 		if f.ZoneDeclared {
 			return NotFired
 		}
 		return Fired
-	case Shadowed:
+	case Shadowed, ResolutionNotEvaluable:
 		return NotEvaluable
 	default:
 		// The domain is resolved names, so an unresolved one is outside and not not-fired.
@@ -138,13 +142,17 @@ func (nonGloballyReachableFromInternet) Name() string {
 	return "non-globally-reachable-address-resolved-from-internet"
 }
 func (nonGloballyReachableFromInternet) Version() Version {
-	return Version{Rule: "v1", Composes: leafVersions}
+	return Version{Rule: "v2", Composes: leafVersions}
 }
 
 func (nonGloballyReachableFromInternet) Severity() Severity { return SevMedium }
 func (nonGloballyReachableFromInternet) Eval(f NameFacts) Outcome {
-	// Not assertable without an internet vantage; the internal twin is refused (ADR-0071).
-	if !f.HasInternetVantage || !hasAnswer(f.InternetResolution) {
+	// Dark without an internet vantage, as sensitive-port-reached-from-internet (ADR-0071 §4).
+	if !f.HasInternetVantage {
+		return NotEvaluable
+	}
+	// The internal twin is refused, and no address set means no question (ADR-0071 §4).
+	if !hasAnswer(f.InternetResolution) {
 		return OutsideDomain
 	}
 	if f.InternetResolution == Shadowed {

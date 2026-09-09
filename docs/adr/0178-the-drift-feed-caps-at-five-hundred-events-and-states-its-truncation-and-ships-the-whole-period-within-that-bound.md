@@ -1,12 +1,22 @@
+---
+number: 178
+title: "the Drift feed caps at 500 events, states its truncation, and ships the whole period within that bound"
+slug: the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1363
+pr: 1365
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 158}
+  - {kind: rests-on, adr: 131}
+  - {kind: rests-on, adr: 110}
+---
+
 # ADR-0178: the Drift feed caps at 500 events, states its truncation, and ships the whole period within that bound
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1363 ADR gaps: cmd/web messages.go, restore.go and drift.go](https://github.com/winniel123/verge-asm/issues/1363), gaps 4 and 5
-- **Sweep PR that deleted the comment:** [#1365](https://github.com/winniel123/verge-asm/pull/1365)
-- **Rests on:** [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md), whose limb 1 admits a client-side view scope on a console screen that submits no mutating form and whose limb 4 rules that such a scope narrows the rendered window, never the estate. Drift's group collapsing and kind chips **are** that admitted shape and are not re-ruled here; [ADR-0131](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md), which settles **where the JS runs** — inline vanilla JavaScript over server-rendered markup, no fetch/swap layer — and leaves open **what the server ships**; [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md), which makes the design package's *"composition … and copy"* the console's IA spec, so the callout's wording is its site and not this one's
 - **Not bound by:** [ADR-0105](./0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md), the citation the deleted comment carried. It rules that Inventory is a read over the open-span corpus, *"not a second corpus and not a second thesis"*, and states nothing about view JS and nothing about what a handler ships
-- **Supplies the ground for:** [ADR-0136](./0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md) §6, which borrows this cap as precedent while ruling the graph's own edge cap. That clause takes a pointer here under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 
 ## Context
 

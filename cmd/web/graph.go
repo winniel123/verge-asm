@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"math"
@@ -16,6 +17,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type graphStore interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/graph.tmpl"))
 
@@ -543,14 +549,14 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.render(w, r, "graph", s.graphFixtureData(acct))
 		return
 	}
-	seeds, err := s.store.ListSeeds(r.Context())
+	seeds, err := s.graphStore.ListSeeds(r.Context())
 	if err != nil {
 		log.Printf("web: graph: list seeds: %v", err)
 	}
 	scopes := graphScopes(seeds)
 	selected := resolveGraphScope(scopes, r.URL.Query().Get("scope"))
 
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.graphStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
 		return
@@ -567,9 +573,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 			g = joinSignals(g, signal.EvaluateCorpus(corpus))
 		}
 	}
-	s.render(w, r, "graph", map[string]any{
-		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "graph",
-		"Graph":     g,
-	})
+	s.render(w, r, "graph", pageData(acct, "Graph", "graph", map[string]any{
+		"Graph": g,
+	}))
 }

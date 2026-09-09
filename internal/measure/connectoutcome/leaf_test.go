@@ -2,8 +2,13 @@ package connectoutcome
 
 import (
 	"context"
+	"io"
 	"net/netip"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
 
 type scriptConnector struct {
@@ -103,8 +108,8 @@ func TestDefaultProfileMatchesTable(t *testing.T) {
 	if p.PerHostConnPerSec != 50 {
 		t.Errorf("per-host rate = %d, want 50 conn/s", p.PerHostConnPerSec)
 	}
-	if p.PerHostConcurrency != 20 {
-		t.Errorf("per-host concurrency = %d, want 20", p.PerHostConcurrency)
+	if p.PerHostConcurrency != 1 {
+		t.Errorf("per-host concurrency = %d, want 1, the count the serial exchange runs", p.PerHostConcurrency)
 	}
 	if p.ConnectTimeoutMillis != 3000 {
 		t.Errorf("timeout = %d ms, want 3000", p.ConnectTimeoutMillis)
@@ -112,8 +117,11 @@ func TestDefaultProfileMatchesTable(t *testing.T) {
 	if p.Retries != 2 {
 		t.Errorf("retries = %d, want 2", p.Retries)
 	}
-	if p.PerVantagePacketsPerSec != 200 {
-		t.Errorf("per-vantage ceiling = %d, want 200 pkt/s", p.PerVantagePacketsPerSec)
+	if p.ControlPortRetries != 0 {
+		t.Errorf("control-port retries = %d, want 0 (ADR-0224 §2)", p.ControlPortRetries)
+	}
+	if p.PerVantageConnPerSec != 200 {
+		t.Errorf("per-vantage ceiling = %d, want 200 conn/s", p.PerVantageConnPerSec)
 	}
 	if !p.RoundRobinByHost {
 		t.Errorf("round-robin by host must be set")
@@ -124,5 +132,115 @@ func TestDefaultProfileMatchesTable(t *testing.T) {
 	if !p.AdaptiveBackoff.HalveOnTimeout || !p.AdaptiveBackoff.HalveOnRSTSpike ||
 		!p.AdaptiveBackoff.HalveOn429 || !p.AdaptiveBackoff.HalveOn503 {
 		t.Errorf("adaptive back-off must halve on timeout/RST-spike/429/503")
+	}
+}
+
+type inflightConnector struct {
+	mu   sync.Mutex
+	live int
+	peak int
+}
+
+func (c *inflightConnector) Connect(_ context.Context, _ netip.AddrPort) ConnResult {
+	c.mu.Lock()
+	c.live++
+	if c.live > c.peak {
+		c.peak = c.live
+	}
+	c.mu.Unlock()
+	// A held slot is what makes a second caller observable; a serial caller never overlaps one.
+	time.Sleep(time.Millisecond)
+	c.mu.Lock()
+	c.live--
+	c.mu.Unlock()
+	return ConnRefused
+}
+
+type refusedHandshaker struct{}
+
+func (refusedHandshaker) Handshake(_ context.Context, _ netip.AddrPort, _ string) HandshakeResult {
+	return HandshakeResult{}
+}
+
+func TestRecordedConcurrencyIsTheConcurrencyTheExchangeRuns(t *testing.T) {
+	c := &inflightConnector{}
+	scope := Scope{
+		Vantage:   "local",
+		Addresses: []string{"198.51.100.9"},
+		TCPPorts:  []uint16{80, 443, 8080},
+		Profile:   DefaultProfile(),
+	}
+	gen := blanketdiscrim.FixedPorts{P: []uint16{50001, 50002}}
+	if err := RunExchange(context.Background(), c, refusedHandshaker{}, gen, "batch-1", scope, io.Discard); err != nil {
+		t.Fatalf("run exchange: %v", err)
+	}
+	if c.peak == 0 {
+		t.Fatal("no connect reached the connector, so the measurement witnesses nothing")
+	}
+	if scope.Profile.PerHostConcurrency != c.peak {
+		t.Errorf("Batch records per-host concurrency %d and the exchange ran %d in flight; the recorded figure must be the one that ran (#1572)",
+			scope.Profile.PerHostConcurrency, c.peak)
+	}
+}
+
+func TestControlPortSpendsItsOwnRetryBudget(t *testing.T) {
+	p := DefaultProfile()
+	addr := netip.MustParseAddr("198.51.100.50")
+	control := []uint16{50001, 50002}
+	seq := map[netip.AddrPort][]ConnResult{}
+	for _, port := range control {
+		seq[netip.AddrPortFrom(addr, port)] = []ConnResult{ConnTimedOut}
+	}
+	c := &scriptConnector{seq: seq}
+	scope := Scope{
+		Vantage:   "v1",
+		Addresses: []string{addr.String()},
+		TCPPorts:  []uint16{443},
+		Profile:   p,
+	}
+	gen := blanketdiscrim.FixedPorts{P: control}
+	if err := RunExchange(context.Background(), c, refusedHandshaker{}, gen, "batch-1", scope, io.Discard); err != nil {
+		t.Fatalf("run exchange: %v", err)
+	}
+	want := 1 + p.ControlPortRetries
+	for _, port := range control {
+		if got := c.calls[netip.AddrPortFrom(addr, port)]; got != want {
+			t.Errorf("control port %d spent %d attempts; the Batch declares %d control-port retries, so it must spend %d (ADR-0224)",
+				port, got, p.ControlPortRetries, want)
+		}
+	}
+	if got := c.calls[netip.AddrPortFrom(addr, 443)]; got != 0 {
+		t.Errorf("a gap verdict emits without probing a service port, so 443 must see 0 connects, got %d", got)
+	}
+}
+
+func TestServicePortKeepsTheFullRetryBudget(t *testing.T) {
+	p := DefaultProfile()
+	addr := netip.MustParseAddr("198.51.100.51")
+	control := []uint16{50001, 50002}
+	seq := map[netip.AddrPort][]ConnResult{}
+	for _, port := range control {
+		seq[netip.AddrPortFrom(addr, port)] = []ConnResult{ConnRefused}
+	}
+	service := netip.AddrPortFrom(addr, 443)
+	seq[service] = []ConnResult{ConnTimedOut}
+	c := &scriptConnector{seq: seq}
+	scope := Scope{
+		Vantage:   "v1",
+		Addresses: []string{addr.String()},
+		TCPPorts:  []uint16{443},
+		Profile:   p,
+	}
+	gen := blanketdiscrim.FixedPorts{P: control}
+	if err := RunExchange(context.Background(), c, refusedHandshaker{}, gen, "batch-1", scope, io.Discard); err != nil {
+		t.Fatalf("run exchange: %v", err)
+	}
+	if got, want := c.calls[service], 1+p.Retries; got != want {
+		t.Errorf("service port spent %d attempts, want %d: a reachability value keeps the full retry budget (ADR-0224)", got, want)
+	}
+	for _, port := range control {
+		if got := c.calls[netip.AddrPortFrom(addr, port)]; got != 1 {
+			t.Errorf("control port %d spent %d attempts, want 1: a refusal is decided and never retried", port, got)
+		}
 	}
 }

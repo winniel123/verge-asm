@@ -1,13 +1,19 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
@@ -471,5 +477,184 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	resp.Body.Close()
 	if f.retention.DispatchCadenceMultiple != 0 || f.retention.TranscriptCurrencyDays != 0 {
 		t.Fatalf("unbounded dial not persisted: %+v", f.retention)
+	}
+}
+
+func (f *fakeStore) GetInstanceHealth(context.Context) (db.GetInstanceHealthRow, error) {
+	return f.instanceHealth, nil
+}
+
+func (f *fakeStore) ListVergeCoreFrequencyEditsWithAuthor(context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error) {
+	ports := make([]int, 0, len(f.freqEdits))
+	for p := range f.freqEdits {
+		ports = append(ports, int(p))
+	}
+	sort.Ints(ports)
+	out := make([]db.ListVergeCoreFrequencyEditsWithAuthorRow, 0, len(ports))
+	for i, p := range ports {
+		e := f.freqEdits[int32(p)]
+		out = append(out, db.ListVergeCoreFrequencyEditsWithAuthorRow{
+			ID: int64(i + 1), Port: int32(p), Action: e.action, CreatedByUsername: "admin",
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) TightestEnabledScanCadenceSeconds(context.Context) (int64, error) {
+	var tightest int64
+	for _, sc := range f.scans {
+		if sc.Enabled && (tightest == 0 || sc.CadenceSeconds < tightest) {
+			tightest = sc.CadenceSeconds
+		}
+	}
+	return tightest, nil
+}
+
+func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {
+	if _, ok := f.accounts[id]; !ok {
+		return pgx.ErrNoRows
+	}
+	delete(f.accounts, id)
+	for name, nid := range f.byName {
+		if nid == id {
+			delete(f.byName, name)
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) ResetAccountTOTP(_ context.Context, id int64) error {
+	acct, ok := f.accounts[id]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	acct.TotpSecret = pgtype.Text{}
+	acct.TotpEnabled = false
+	f.accounts[id] = acct
+	return nil
+}
+
+func (f *fakeStore) CountAdmins(context.Context) (int64, error) {
+	var n int64
+	for _, a := range f.accounts {
+		if a.Role == roleAdmin {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeStore) UpdateAccountRole(_ context.Context, arg db.UpdateAccountRoleParams) error {
+	a, ok := f.accounts[arg.ID]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	a.Role = arg.Role
+	f.accounts[arg.ID] = a
+	return nil
+}
+
+func (f *fakeStore) CreateChannel(_ context.Context, arg db.CreateChannelParams) (int64, error) {
+	c := fakeChannel{
+		id: f.chanNextID, url: arg.Url, secret: arg.Secret,
+		drift: arg.RouteDrift, coverage: arg.RouteCoverage, clock: arg.RouteClock,
+		enabled: arg.Enabled, createdBy: arg.CreatedBy,
+		createdAt: time.Now(), updatedAt: time.Now(),
+	}
+	f.channels = append(f.channels, c)
+	f.chanNextID++
+	return c.id, nil
+}
+
+func (f *fakeStore) UpdateChannel(_ context.Context, arg db.UpdateChannelParams) error {
+	for i := range f.channels {
+		if f.channels[i].id == arg.ID {
+			f.channels[i].url = arg.Url
+			f.channels[i].drift = arg.RouteDrift
+			f.channels[i].coverage = arg.RouteCoverage
+			f.channels[i].clock = arg.RouteClock
+			f.channels[i].enabled = arg.Enabled
+			f.channels[i].updatedAt = time.Now()
+			return nil
+		}
+	}
+	return pgx.ErrNoRows
+}
+
+func (f *fakeStore) SetChannelSecret(_ context.Context, arg db.SetChannelSecretParams) error {
+	for i := range f.channels {
+		if f.channels[i].id == arg.ID {
+			f.channels[i].secret = arg.Secret
+			f.channels[i].updatedAt = time.Now()
+			return nil
+		}
+	}
+	return pgx.ErrNoRows
+}
+
+func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
+	for i, c := range f.channels {
+		if c.id == id {
+			f.channels = append(f.channels[:i], f.channels[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
+	return f.retention, nil
+}
+
+func (f *fakeStore) SetUpdateCheckEnabled(_ context.Context, arg db.SetUpdateCheckEnabledParams) error {
+	f.instanceConfig.UpdateCheckEnabled = arg.UpdateCheckEnabled
+	f.instanceConfig.UpdateCheckUpdatedBy = arg.UpdateCheckUpdatedBy
+	f.instanceConfig.UpdateCheckUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
+func (f *fakeStore) SetAPIEnabled(_ context.Context, arg db.SetAPIEnabledParams) error {
+	f.instanceConfig.ApiEnabled = arg.ApiEnabled
+	f.instanceConfig.ApiUpdatedBy = arg.ApiUpdatedBy
+	f.instanceConfig.ApiUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
+func (f *fakeStore) SetSeedAddressCap(_ context.Context, arg db.SetSeedAddressCapParams) error {
+	f.instanceConfig.SeedAddressCap = arg.SeedAddressCap
+	f.instanceConfig.SeedAddressCapUpdatedBy = arg.SeedAddressCapUpdatedBy
+	f.instanceConfig.SeedAddressCapUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
+func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
+	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
+	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
+	f.retention.TranscriptCurrencyDays = arg.TranscriptCurrencyDays
+	f.retention.UpdatedBy = arg.UpdatedBy
+	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
+func TestViewerIsRefusedEverySettingsTabButAPI(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	vc := login(t, base, "viewer", "hunter2hunter2")
+
+	for _, tab := range settingsTabs {
+		want := http.StatusForbidden
+		if tab == "api" {
+			want = http.StatusOK
+		}
+		resp, err := vc.Get(base + "/settings?tab=" + tab)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := body(t, resp)
+		if resp.StatusCode != want {
+			t.Errorf("viewer GET /settings?tab=%s: status = %d, want %d (body: %s)", tab, resp.StatusCode, want, got)
+		}
 	}
 }

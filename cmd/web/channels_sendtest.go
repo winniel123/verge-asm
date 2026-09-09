@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -12,6 +13,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+type channelSendTestStore interface {
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
+}
+
 func (s *server) testChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	dest := "/settings?tab=channels"
 
@@ -22,7 +27,7 @@ func (s *server) testChannel(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	ch, err := s.store.GetChannelForDelivery(r.Context(), id)
+	ch, err := s.channelSendTestStore.GetChannelForDelivery(r.Context(), id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.toastRedirectBack(w, r, dest, "danger", "Test message not sent",
 			"That channel could not be found.")

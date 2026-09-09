@@ -1,9 +1,16 @@
-# ADR-0081: A floor is territory and an unbounded default is a position the projection prices — and a corpus with no reader of its own travels with the corpus that reads it
+---
+number: 81
+title: "A floor is territory and an unbounded default is a position the projection prices — and a corpus with no reader of its own travels with the corpus that reads it"
+slug: a-floor-is-territory-and-an-unbounded-default-is-a-position
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 139
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#139 Coverage owes the retention projection and the two dials with their floors](https://github.com/winniel123/verge-asm/issues/139)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0081: A floor is territory and an unbounded default is a position the projection prices — and a corpus with no reader of its own travels with the corpus that reads it
 
 ## Context
 

@@ -1,13 +1,18 @@
-# ADR-0205: an empty name never keys a subject, and the `Endpoint` wire key encodes the absence of one
+---
+number: 205
+title: "an empty name never keys a subject, and the `Endpoint` wire key encodes the absence of one"
+slug: an-empty-name-never-keys-a-subject-and-the-endpoint-wire-key-encodes-the-absence-of-one
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1319
+pr: 1318
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 11}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1319 ADR gaps: internal/scan (2/3)](https://github.com/winniel123/verge-asm/issues/1319), gap 6
-- **PR that deleted the comment:** [#1318](https://github.com/winniel123/verge-asm/pull/1318)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0011](./0011-a-facet-is-six-parts.md), which makes an `Endpoint`'s `Name` optional and gives a nameless `Endpoint` one leg. It rules the **domain** shape and never the encoding
-- **Bounded by:** [ADR-0055](./0055-a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds.md), which rules that a `Name` key is a label sequence, that an empty text decodes to no label sequence and is **refused**, and that `Endpoint`'s absent `Name` is a **distinguished variant of the key, never an empty name**. This ADR does not touch that rule. It states what the wire may carry underneath it, and §4 answers the Alternatives row that appears to forbid it
-- **Bounded by:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md), which rules that a composed key holds the subject and never a rendering of it. The `Endpoint` key holds two subjects, and this ADR rules only how their absence is spelled
+# ADR-0205: an empty name never keys a subject, and the `Endpoint` wire key encodes the absence of one
 
 ## Context
 
@@ -68,7 +73,7 @@ Three decoders, all splitting at the first `@`, none of them in `internal/measur
 | --- | --- | --- |
 | The subject page | [`cmd/web/subjects.go`](../../cmd/web/subjects.go), `splitEndpointKey` | Returns `name = ""`, and `endpointPage` then sets `Nameless: name == ""` |
 | The signals fold | [`cmd/web/signals.go`](../../cmd/web/signals.go), `splitEndpointName` | Returns `name = ""` and keeps the service leg |
-| The #773 re-gate | [`internal/queue/scopegate.go`](../../internal/queue/scopegate.go), `subjectAddrKey` | Drops everything up to the first `@` and normalises the rest as an address |
+| The ADR-0217 re-gate | [`internal/queue/scopegate.go`](../../internal/queue/scopegate.go), `subjectAddrKey` | Drops everything up to the first `@` and normalises the rest as an address |
 
 The round trip is closed at the console: the encoder writes *absent*, and `endpointPage` renders the
 nameless mode from it. Nothing anywhere reads the leading `@` as a name that happens to be empty.

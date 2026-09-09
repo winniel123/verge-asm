@@ -1,17 +1,21 @@
+---
+number: 180
+title: "a message detail is a census plus its delivery receipts, and carries no prose body"
+slug: a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1333
+pr: 1335
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 64}
+  - {kind: rests-on, adr: 39}
+  - {kind: amends, adr: 108}
+---
+
 # ADR-0180: a message detail is a census plus its delivery receipts, and carries no prose body
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1333 ADR gaps: cmd/web/devfixtures.go](https://github.com/winniel123/verge-asm/issues/1333), gap 3
-- **Sweep PR that deleted the comment:** [#1335](https://github.com/winniel123/verge-asm/pull/1335)
-- **Rests on:** [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md), which fixes a
-  `Message` as **one sentence** under one grammar — *what moved · what it now is · what we counted* —
-  computed once at the cause, and [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md),
-  which makes the message the surface a failed `Delivery` is seen on
-- **Narrows:** [ADR-0108](./0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md),
-  whose delivery limb (`:121-124`) already rules the failed receipt — surfaced on *"the **Message it
-  failed to carry**"*, reading *"could not deliver, not … nothing fired"*, *"with the reason as a
-  drill-down"*. That is one of the four parts below. This ADR fixes the other three and the closure
 - **Not bound by:** [ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md),
   which rules the render form of the **report `Artifact`** and reaches no `Message`; and
   [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md), which rules a rule's predicate

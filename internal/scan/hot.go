@@ -30,6 +30,7 @@ type HotJob struct {
 	TCPPorts     []uint16
 	UDPPorts     []uint16
 	Profile      connectoutcome.SafetyProfile
+	Realm        custody.Realm
 }
 
 func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr], vantages []Vantage, core vergecore.List) iter.Seq[HotJob] {
@@ -50,7 +51,8 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr
 		for a := range addrs {
 			for i, v := range vantages {
 				// The gate applies at dispatch, so no prober gets a forbidden target (ADR-0019).
-				if !estate.MayProbe(a, classes[i]) {
+				scope, ok := estate.ProbeRealm(a, classes[i])
+				if !ok {
 					continue
 				}
 				// One address per Batch, the execution gap ADR-0127 names (ADR-0005).
@@ -64,6 +66,7 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr
 					TCPPorts:     tcp,
 					UDPPorts:     udp,
 					Profile:      connectoutcome.DefaultProfile(),
+					Realm:        custody.Realm{}.With(scope),
 				}
 				if !yield(job) {
 					return
@@ -85,7 +88,7 @@ func (j HotJob) JobSpec(batch string) (wire.JobSpec, error) {
 	if err != nil {
 		return wire.JobSpec{}, fmt.Errorf("scan: marshal hot scope: %w", err)
 	}
-	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw}, nil
+	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw, Realm: j.Realm.CIDRs()}, nil
 }
 
 func (j HotJob) AttemptedScope() ([]byte, error) {

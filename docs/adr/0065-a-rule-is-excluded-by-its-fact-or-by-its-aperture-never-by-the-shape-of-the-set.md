@@ -1,9 +1,16 @@
-# ADR-0065: A rule is excluded by its fact or by its aperture, never by the shape of the set
+---
+number: 65
+title: "A rule is excluded by its fact or by its aperture, never by the shape of the set"
+slug: a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 104
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#104 Does `smb-signing-not-required` become a v1 signal, now that the principle it was excluded on has been withdrawn?](https://github.com/winniel123/verge-asm/issues/104)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0065: A rule is excluded by its fact or by its aperture, never by the shape of the set
 
 ## Context
 

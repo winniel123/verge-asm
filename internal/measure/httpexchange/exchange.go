@@ -2,6 +2,7 @@ package httpexchange
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -63,6 +64,8 @@ type HTTPIdentity struct {
 
 const titleCap = 256
 
+const MaxResponseHeaderBytes = 64 << 10
+
 func Identity(r ExchangeResult, bodyCap int) HTTPIdentity {
 	// No valid HTTP response is a determinate negative, never an absence (ADR-0011, ADR-0015).
 	if r.Failed {
@@ -89,8 +92,7 @@ func Identity(r ExchangeResult, bodyCap int) HTTPIdentity {
 func extractTitle(body []byte) string {
 	// A deterministic scan, never an HTML parse: the golden corpus pins this output exactly.
 	s := string(body)
-	lower := strings.ToLower(s)
-	open := strings.Index(lower, "<title")
+	open := indexASCIIFold(s, "<title")
 	if open < 0 {
 		return ""
 	}
@@ -99,7 +101,7 @@ func extractTitle(body []byte) string {
 		return ""
 	}
 	start := open + gt + 1
-	end := strings.Index(lower[start:], "</title>")
+	end := indexASCIIFold(s[start:], "</title>")
 	if end < 0 {
 		return ""
 	}
@@ -110,12 +112,23 @@ func extractTitle(body []byte) string {
 	return title
 }
 
+func indexASCIIFold(s, sub string) int {
+	// strings.ToLower widens a non-UTF-8 byte, so its offsets do not index the raw body (#1648).
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if strings.EqualFold(s[i:i+len(sub)], sub) {
+			return i
+		}
+	}
+	return -1
+}
+
 type Exchanger interface {
 	Exchange(ctx context.Context, target Target) ExchangeResult
 }
 
 type NetExchanger struct {
 	Params  Params
+	realm   custody.Realm
 	control func(network, address string, c syscall.RawConn) error
 }
 
@@ -126,6 +139,9 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	}
 	if p.BodyCapBytes <= 0 {
 		p.BodyCapBytes = DefaultParams().BodyCapBytes
+	}
+	if len(p.ALPN) == 0 {
+		p.ALPN = DefaultParams().ALPN
 	}
 	// A hostname would be re-resolved at connect time with no rebinding backstop.
 	if _, err := netip.ParseAddr(target.Address); err != nil {
@@ -149,11 +165,21 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	// Non-nil only in a test that must reach loopback; production installs the guard.
 	control := n.control
 	if control == nil {
-		control = custody.EgressGuard("httpexchange")
+		control = custody.EgressGuard("httpexchange", n.realm)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// The rebinding-proof line: the kernel's own address is refused even when entry passed.
 	transport.DialContext = (&net.Dialer{Control: control}).DialContext
+	// The transport is dropped after one GET, so a pooled socket idles 90 s per target (#1661).
+	transport.DisableKeepAlives = true
+	// Three headers ride the observation verbatim, and the wire line caps at 1 MiB (#1662).
+	transport.MaxResponseHeaderBytes = MaxResponseHeaderBytes
+	// The URL names an IP, so verification fails every real certificate and reads no-HTTP (#1647).
+	transport.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true, // #nosec G402 (accepted: HTTP identity probe — reads the response of an untrusted listener; verifying the chain against an IP literal would drop the measurement. Not a trusted-service client call.)
+		// The declared list goes on the wire, so a Go release cannot move the offer (ADR-0025).
+		NextProtos: p.ALPN,
+	}
 	client := &http.Client{
 		Transport: transport,
 		// Not followed: the 3xx is returned as-is so its Location is identity (ADR-0025).

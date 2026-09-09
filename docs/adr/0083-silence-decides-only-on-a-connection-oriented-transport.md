@@ -1,9 +1,16 @@
-# ADR-0083: Silence decides only on a connection-oriented transport, and the honest connectionless value projects onto nothing
+---
+number: 83
+title: "Silence decides only on a connection-oriented transport, and the honest connectionless value projects onto nothing"
+slug: silence-decides-only-on-a-connection-oriented-transport
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 141
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#141 Can `connect-outcome` produce an honest UDP value?](https://github.com/winniel123/verge-asm/issues/141)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0083: Silence decides only on a connection-oriented transport, and the honest connectionless value projects onto nothing
 
 ## Context
 

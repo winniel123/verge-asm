@@ -3,6 +3,7 @@ package signal
 import (
 	"net/url"
 	"strings"
+	"time"
 
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	hx "github.com/winniel123/verge-asm/internal/measure/httpexchange"
@@ -19,9 +20,7 @@ const (
 // A nil attribute is evidence we do not hold: that rule alone is not-evaluable (collision #37).
 
 type CertDetails struct {
-	Expired            *bool
-	NotYetValid        *bool
-	Expiring           *bool
+	Clock              *CertClock
 	SelfSigned         *bool
 	WeakKeyOrSignature *bool
 
@@ -94,6 +93,59 @@ func EvaluateEndpoint(r EndpointRule, endpoints []EndpointFacts) Census {
 
 func certVersion() Version { return Version{Rule: "v1", Composes: []string{co.CertVersion}} }
 
+type CertClock struct {
+	NotBefore   time.Time
+	NotAfter    time.Time
+	ObservedAt  time.Time
+	EvaluatedAt time.Time
+}
+
+// N is the issuer's replacement window; a flat 30 days cannot split a six-day cert (ADR-0004 #67).
+
+const certHorizonVersion = "cert-horizon/v1"
+
+func CertHorizon(notBefore, notAfter time.Time) (time.Duration, bool) {
+	validity := notAfter.Sub(notBefore)
+	if validity <= 0 {
+		return 0, false
+	}
+	if validity <= 10*24*time.Hour {
+		return validity / 2, true
+	}
+	return validity / 3, true
+}
+
+// An observation older than N is surely superseded, so the clock class declines it (ADR-0043).
+
+type clockRule struct {
+	name string
+	sev  Severity
+	read func(c CertClock, horizon time.Duration) bool
+}
+
+func (r clockRule) Name() string { return r.name }
+func (r clockRule) Version() Version {
+	return Version{Rule: "v2", Composes: sortedStrings(co.CertVersion, certHorizonVersion)}
+}
+func (r clockRule) Severity() Severity { return r.sev }
+func (r clockRule) Eval(f EndpointFacts) Outcome {
+	if !presentedCert(f) {
+		return OutsideDomain
+	}
+	if f.CertDetails == nil || f.CertDetails.Clock == nil {
+		return NotEvaluable
+	}
+	c := *f.CertDetails.Clock
+	horizon, ok := CertHorizon(c.NotBefore, c.NotAfter)
+	if !ok || c.EvaluatedAt.Sub(c.ObservedAt) > horizon {
+		return NotEvaluable
+	}
+	if r.read(c, horizon) {
+		return Fired
+	}
+	return NotFired
+}
+
 // Read-side floors, so an edit Breaks this rule alone, never every certificate timeline (#715 §6).
 
 const weakKeyFloorVersion = "weak-key-floor/v1"
@@ -139,9 +191,15 @@ func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 // Rated by what breaks TLS for a client today, not by how bad the certificate looks (ADR-0186 §2).
 
 var (
-	certificateExpired            = certDetailRule{"certificate-expired", SevCritical, func(d CertDetails) *bool { return d.Expired }}
-	certificateNotYetValid        = certDetailRule{"certificate-not-yet-valid", SevHigh, func(d CertDetails) *bool { return d.NotYetValid }}
-	certificateExpiring           = certDetailRule{"certificate-expiring", SevMedium, func(d CertDetails) *bool { return d.Expiring }}
+	certificateExpired = clockRule{"certificate-expired", SevCritical, func(c CertClock, _ time.Duration) bool {
+		return !c.NotAfter.After(c.EvaluatedAt)
+	}}
+	certificateNotYetValid = clockRule{"certificate-not-yet-valid", SevHigh, func(c CertClock, _ time.Duration) bool {
+		return c.NotBefore.After(c.EvaluatedAt)
+	}}
+	certificateExpiring = clockRule{"certificate-expiring", SevMedium, func(c CertClock, horizon time.Duration) bool {
+		return c.NotAfter.After(c.EvaluatedAt) && !c.NotAfter.After(c.EvaluatedAt.Add(horizon))
+	}}
 	certificateSelfSigned         = certDetailRule{"certificate-self-signed", SevMedium, func(d CertDetails) *bool { return d.SelfSigned }}
 	certificateWeakKeyOrSignature = weakKeyRule{certDetailRule{"certificate-weak-key-or-signature", SevHigh, func(d CertDetails) *bool { return d.WeakKeyOrSignature }}}
 )

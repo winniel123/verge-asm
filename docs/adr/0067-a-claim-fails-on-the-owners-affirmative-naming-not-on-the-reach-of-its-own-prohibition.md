@@ -1,9 +1,16 @@
-# ADR-0067: A claim fails on the owner's affirmative naming, not on the reach of its own prohibition
+---
+number: 67
+title: "A claim fails on the owner's affirmative naming, not on the reach of its own prohibition"
+slug: a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 109
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#109 `1433/tcp`'s footing is gone and §10.3's failure condition is met — does the row survive?](https://github.com/winniel123/verge-asm/issues/109)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0067: A claim fails on the owner's affirmative naming, not on the reach of its own prohibition
 
 ## Context
 

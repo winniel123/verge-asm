@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -11,6 +12,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
+
+type probersStore interface {
+	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
+	SetVantageResolver(ctx context.Context, arg db.SetVantageResolverParams) (int64, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+}
 
 // Only the public half reaches web; the private key stays on the worker volume (ADR-0053).
 
@@ -54,7 +61,7 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail(err.Error())
 		return
 	}
-	if _, err := s.store.CreateVantage(r.Context(), db.CreateVantageParams{
+	if _, err := s.probersStore.CreateVantage(r.Context(), db.CreateVantageParams{
 		Name: fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port), Resolver: res,
 		Host: ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID, // #nosec G115 (ep.Port validated 1..65535 by vantage.ParseEndpoint)
 	}); err != nil {
@@ -85,12 +92,37 @@ func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, _ db
 		fail(err.Error())
 		return
 	}
-	if err := s.store.SetVantageResolver(r.Context(), db.SetVantageResolverParams{ID: id, Resolver: res}); err != nil {
+	n, err := s.probersStore.SetVantageResolver(r.Context(), db.SetVantageResolverParams{ID: id, Resolver: res})
+	if err != nil {
 		fail("Could not set the resolver.")
+		return
+	}
+	// Zero rows: a switch after the first observation would continue old timelines (ADR-0070).
+	if n == 0 {
+		if !s.vantageExists(r.Context(), id) {
+			fail("Unknown vantage.")
+			return
+		}
+		fail(resolverFixedMessage)
 		return
 	}
 	s.backToSection(w, r, "vantages")
 }
+
+func (s *server) vantageExists(ctx context.Context, id int64) bool {
+	rows, err := s.probersStore.ListVantages(ctx)
+	if err != nil {
+		return false
+	}
+	for _, row := range rows {
+		if row.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+const resolverFixedMessage = "This vantage has observed, so its resolver is fixed. Provision a new vantage with the new resolver and retire this one."
 
 func toProberViews(rows []db.ListVantagesRow) []proberView {
 	out := make([]proberView, 0, len(rows))

@@ -1,11 +1,22 @@
+---
+number: 140
+title: "a network seam is a runtime parameter the caller supplies, never a build tag and never a hardcoded client"
+slug: a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1283
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 124}
+  - {kind: sibling, adr: 149}
+  - {kind: bounds, adr: 124, clause: "2"}
+  - {kind: bounds, adr: 196}
+---
+
 # ADR-0140: a network seam is a runtime parameter the caller supplies, never a build tag and never a hardcoded client
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1283 ADR gaps: internal/auth, internal/measure/blanketdiscrim, internal/proposer, internal/seed](https://github.com/winniel123/verge-asm/issues/1283)
 - **Recorded independently by four more sweeps:** [#1272](https://github.com/winniel123/verge-asm/issues/1272) (`internal/release`), [#1279](https://github.com/winniel123/verge-asm/issues/1279) (`internal/measure/httpexchange`, `internal/measure/edgefanout`), [#1282](https://github.com/winniel123/verge-asm/issues/1282) (`internal/delivery`, `internal/report`), [#1296](https://github.com/winniel123/verge-asm/issues/1296) (`internal/measure/connectoutcome`)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8. The five records come from five sweep sessions that could not see each other. §8.10 directs dedup **by rule sentence**, and this ADR is what that dedup produced
-- **Bounded by:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md), which fixes *where* the measurement corpus runs and does not say *how* the leaf is reached
 - **Sibling, for the data seam:** [ADR-0149](./0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md) rules how wide a consumer's data-layer interface is; §5 below rules only the network one
 - **Reaches, and is not satisfied by:** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) §2, whose release-feed check is the one outbound call in the repo that breaks this rule
 
@@ -147,8 +158,9 @@ the delivery path.
   its own review, and it ships as its own ticket. **This ADR changes no Go code.**
 - **Every other package in §1 is already compliant.** The five records describe behaviour that exists,
   so closing this gap costs one constructor signature and one test file.
-- **The five `adr-gap` records collapse to one rule.** §8.10's dedup has a document to point at, and a
-  triage session no longer has to decide whether five wordings are one rule.
+- **The five `adr-gap` records collapse to one rule.** The `adr-gap` triage, retired by
+  [`comment-policy.md`](../spec/comment-policy.md) §8.4, has a document to point at. A triage
+  session no longer has to decide whether five wordings are one rule.
 - **ADR-0021 gains a cross-reference row and one qualified clause.** A session reading it for the
   corpus mechanism now lands here, rather than inferring a build-time seam from "build-time
   artefact". ADR-0085 and ADR-0124 gain a cross-reference each on the same grounds.
@@ -172,4 +184,4 @@ the delivery path.
 | **A `commentlint` rule or a `go vet` check that fails on a hardcoded client in a package that declares an interface** | Not decidable from the declaration. A legitimate adapter (`NewHTTPDoer`, `NewHTTPCTFetcher`) has the same shape as `NewHTTPFetcher`, and the difference is whether a caller supplies it. A check that fires on all three trains reviewers to suppress it |
 | **Fix `internal/release` on this ADR's own branch** | Mixes a production signature change and a new test into a docs change, and buries the code review under the ADR review |
 | **A section on [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)** | ADR-0021's subject is the version vector and the measurement corpus. This rule binds `internal/delivery`, `internal/report`, `internal/proposer`, `internal/queue`, `internal/remoteexec` and `internal/release`, none of which are measurement leaves. An amendment there would state a repo-wide rule inside a document scoped to one binary |
-| **Six per-package ADRs, one per record** | Six documents stating one sentence, and the next package that dials out matches none of them. §8.10 asks for dedup by rule sentence, and this is one sentence |
+| **Six per-package ADRs, one per record** | Six documents stating one sentence, and the next package that dials out matches none of them. The `adr-gap` triage, retired by `comment-policy.md` §8.4, asked for dedup by rule sentence, and this is one sentence |

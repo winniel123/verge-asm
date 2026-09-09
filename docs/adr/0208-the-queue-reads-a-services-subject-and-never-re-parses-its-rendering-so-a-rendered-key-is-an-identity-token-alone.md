@@ -1,14 +1,25 @@
+---
+number: 208
+title: "The queue reads a `Service`'s subject and never re-parses its rendering, so a rendered key is an identity token alone"
+slug: the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1320
+pr: 1324
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 207}
+  - {kind: rests-on, adr: 51}
+  - {kind: rests-on, adr: 58}
+  - {kind: rests-on, adr: 7}
+  - {kind: sibling, adr: 28}
+---
+
 # ADR-0208: The queue reads a `Service`'s subject and never re-parses its rendering, so a rendered key is an identity token alone
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1320 ADR gaps: internal/queue (#1200, sweep 6/7)](https://github.com/winniel123/verge-asm/issues/1320), gap 3
-- **PR that deleted the comment:** [#1324](https://github.com/winniel123/verge-asm/pull/1324)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
 - **Rests on, and applies:** [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md), which rules that *"a composed key holds the subject, never its rendering"* and names this exact hazard — *"a decoder that helpfully renders — hands on a string, and the key function is left to re-parse our own output."* This ADR agrees with it and applies it at the queue's read path. **No [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) withdrawal is owed on ADR-0051, and a reader should not go looking for one.** §4 states why
-- **Rests on:** [ADR-0007](./0007-drift-is-a-timeline-of-spans.md), which makes a `Span` a timeline identified by its subject and facet. `span.subject_key` is that timeline's identity, and this ADR rules what else it may be used for
 - **Sibling of, and not ruled by:** [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md). That ADR rules the `tls-acceptance` `Scan`'s cadence and aperture — weekly, over the open `Service` population, never a port tier. It is silent on the subject key's wire form, and this ADR adds no cadence or aperture clause
-- **Bounds:** [ADR-0207](./0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md). Its drop rule stays exactly as ruled. This ADR removes one of its drop sites' inputs, which is the one site where that drop could fire on every row at once
 
 ## Context
 

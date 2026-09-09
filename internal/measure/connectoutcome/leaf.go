@@ -50,7 +50,17 @@ func Decide(result ConnResult) Outcome {
 
 func Probe(ctx context.Context, c Connector, profile SafetyProfile, target netip.AddrPort) (Outcome, ConnResult) {
 	// The retry budget is a rate cost: spending it never extends the job's deadline (ADR-0021).
-	attempts := profile.Retries + 1
+	return probeAttempts(ctx, c, profile.Retries+1, target)
+}
+
+// A control port feeds a verdict over eight draws and is a value on no timeline (ADR-0224 §2).
+
+func probeControlPort(ctx context.Context, c Connector, profile SafetyProfile, target netip.AddrPort) ConnResult {
+	_, raw := probeAttempts(ctx, c, profile.ControlPortRetries+1, target)
+	return raw
+}
+
+func probeAttempts(ctx context.Context, c Connector, attempts int, target netip.AddrPort) (Outcome, ConnResult) {
 	if attempts < 1 {
 		attempts = 1
 	}
@@ -67,6 +77,7 @@ func Probe(ctx context.Context, c Connector, profile SafetyProfile, target netip
 
 type NetConnector struct {
 	Timeout time.Duration
+	realm   custody.Realm
 }
 
 func (n NetConnector) Connect(ctx context.Context, target netip.AddrPort) ConnResult {
@@ -82,7 +93,7 @@ func (n NetConnector) Connect(ctx context.Context, target netip.AddrPort) ConnRe
 	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	d := net.Dialer{Control: custody.EgressGuard("connectoutcome")}
+	d := net.Dialer{Control: custody.EgressGuard("connectoutcome", n.realm)}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err == nil {
 		_ = conn.Close()

@@ -17,6 +17,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -102,14 +103,28 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 		return err
 	}
 	if changes != nil {
-		*changes = append(*changes, spanChange{
+		change := spanChange{
 			SubjectKind:    key.SubjectKind,
 			SubjectKey:     key.SubjectKey,
 			Facet:          key.Facet,
 			Opened:         open == nil,
 			OpenedAperture: openedAperture,
 			Value:          append([]byte(nil), value...),
-		})
+			Vector:         opened.Vector,
+		}
+		if open != nil {
+			change.PrevVector = open.Vector
+			change.Previous = []byte(open.Value)
+		}
+		if open == nil && key.Facet == resolutionwalk.FacetResolution && message.RootFires(key.SubjectKind) {
+			// Read after the open, so the re-entering timeline is a witness (ADR-0097).
+			rows, err := qtx.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{SubjectKind: key.SubjectKind, SubjectKey: key.SubjectKey})
+			if err != nil {
+				return err
+			}
+			change.PriorClosure, change.WitnessBroke = reEntryInputs(rows)
+		}
+		*changes = append(*changes, change)
 	}
 	return nil
 }

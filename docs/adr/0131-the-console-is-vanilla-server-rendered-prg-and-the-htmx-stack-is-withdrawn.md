@@ -1,9 +1,20 @@
+---
+number: 131
+title: "The console is vanilla server-rendered PRG; the htmx stack is withdrawn"
+slug: the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn
+date: 2026-08-31
+status: accepted
+source: grilling
+ticket: 942
+map: 937
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 1}
+  - {kind: bounds, adr: 136}
+---
+
 # ADR-0131: The console is vanilla server-rendered PRG; the htmx stack is withdrawn
 
-- **Status:** Accepted
-- **Date:** 2026-08-31
-- **Ticket:** [#942 Resolve the ADR-0001 htmx drift: adopt htmx or ratify vanilla](https://github.com/winniel123/verge-asm/issues/942)
-- **Map:** [#937 Wayfinder: actions must not throw the operator to the top of the page](https://github.com/winniel123/verge-asm/issues/937)
 - **Withdraws, in part:** [ADR-0001](./0001-stack-and-runtime.md)'s *"htmx"* claim at its Decision-table Frontend row (`:45`), its *"heavy client-side filter state is where htmx starts to hurt"* cost note (`:179`), and its *"With htmx the HTTP surface is HTML fragments and SSE"* sentence (`:237`); and the same claim at [`v1-spec.md`](../spec/v1-spec.md) §4.1. Written at each specifying site per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as sharpened by its [#106](https://github.com/winniel123/verge-asm/issues/106) amendment.
 - **Leaves untouched:** the **server-rendered PRG** decision itself (confirmed, not htmx-dependent); the **SSE** live-feed claim, which is likewise unrealized but is *not* superseded by this pass (it keeps a non-striking pointer only); [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)'s read-only API reversal.
 

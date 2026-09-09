@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func setColdScope(t *testing.T, c *http.Client, base string, id int64, optIn bool) *http.Response {
@@ -126,4 +130,39 @@ func TestSetColdScopeRequiresLogin(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("anon opt in: status=%d location=%q, want redirect to /login", resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+func (f *fakeStore) OptInColdScope(_ context.Context, arg db.OptInColdScopeParams) error {
+	f.coldScopes[arg.SeedID] = true
+	return nil
+}
+
+func (f *fakeStore) OptOutColdScope(_ context.Context, seedID int64) error {
+	delete(f.coldScopes, seedID)
+	return nil
+}
+
+func (f *fakeStore) SyncColdScanEnabled(context.Context) error {
+	enabled := len(f.coldScopes) > 0
+	for i := range f.scans {
+		if f.scans[i].Kind == "cold" {
+			f.scans[i].Enabled = enabled
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) ListBlanketedReachServices(_ context.Context) ([]string, error) {
+	seen := map[string]struct{}{}
+	for k, o := range f.currentReachByVantage() {
+		if reachOutcomeIsGap(o.Value) {
+			seen[k.svc] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for svc := range seen {
+		out = append(out, svc)
+	}
+	sort.Strings(out)
+	return out, nil
 }

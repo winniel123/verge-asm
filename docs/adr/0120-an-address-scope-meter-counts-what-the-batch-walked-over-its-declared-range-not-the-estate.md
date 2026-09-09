@@ -1,10 +1,20 @@
+---
+number: 120
+title: "an address-scope aperture meter counts what the batch walked over its declared range, not the estate"
+slug: an-address-scope-meter-counts-what-the-batch-walked-over-its-declared-range-not-the-estate
+date: 2026-08-25
+status: accepted
+source: grilling
+ticket: 551
+map: 545
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 95}
+---
+
 # ADR-0120: an address-scope aperture meter counts what the batch walked over its declared range, not the estate
 
-- **Status:** Accepted
-- **Date:** 2026-08-25
-- **Ticket:** [#551 Coverage exact-parity conversion — data + fixtures](https://github.com/winniel123/verge-asm/issues/551)
-- **Map:** [#545 batch 1 — SignIn + Setup + Coverage (v3.7.0)](https://github.com/winniel123/verge-asm/issues/545)
-- **Refines:** [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)
+> **Amended** by [ADR-0167: a design corpus a live read cannot produce is served as a pinned fixture, and the live path renders the honest projection](./0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md), 2026-09-05. <!-- adr-marker amends 167 -->
 
 ## Context
 

@@ -1,0 +1,1 @@
+{"batch":"b1","kind":"http-exchange","facet":"http-identity","subject":"fr.example.com@198.51.100.11:80/tcp","vantage":"v1","address":"198.51.100.11","data":{"outcome":"responded","status":200,"server":"Apache","title":"Accueil"}}

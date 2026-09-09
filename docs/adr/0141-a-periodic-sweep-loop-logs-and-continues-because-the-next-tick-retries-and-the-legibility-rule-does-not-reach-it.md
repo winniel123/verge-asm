@@ -1,11 +1,20 @@
+---
+number: 141
+title: "A periodic sweep loop logs and continues because the next tick retries, and the legibility rule does not reach it"
+slug: a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it
+date: 2026-09-05
+status: accepted
+source: fix
+ticket: 1291
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: bounds, adr: 108}
+  - {kind: rests-on, adr: 84}
+---
+
 # ADR-0141: A periodic sweep loop logs and continues because the next tick retries, and the legibility rule does not reach it
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1291 ADR gaps: internal/measure/tlsacceptance, internal/retention](https://github.com/winniel123/verge-asm/issues/1291)
 - **Also found by:** [#1321](https://github.com/winniel123/verge-asm/issues/1321) §5 (`internal/queue/reaper.go`) and [#1272](https://github.com/winniel123/verge-asm/issues/1272) §1 (`internal/release`). One rule, three findings, one record
-- **Bounds:** [ADR-0108](./0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md) limb 6, at limb 6's own site, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
-- **Rests on:** [ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md) (a missed cadence ripens into a `Gap`, so a skipped pass is already told)
 
 ## Context
 

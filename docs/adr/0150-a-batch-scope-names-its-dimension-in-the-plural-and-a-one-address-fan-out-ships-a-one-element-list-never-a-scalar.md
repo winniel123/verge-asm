@@ -1,12 +1,19 @@
-# ADR-0150: a Batch scope names its dimension in the plural, and a one-address fan-out ships a one-element list, never a scalar
+---
+number: 150
+title: "a Batch scope names its dimension in the plural, and a one-address fan-out ships a one-element list, never a scalar"
+slug: a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar
+date: 2026-09-05
+status: accepted
+source: sweep
+ticket: 1312
+pr: 1313
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 5}
+  - {kind: rests-on, adr: 127}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-09-05
-- **Ticket:** [#1312 ADR gaps: internal/scan 3/3](https://github.com/winniel123/verge-asm/issues/1312), gap 1
-- **PR that deleted the comment:** [#1313](https://github.com/winniel123/verge-asm/pull/1313)
-- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
-- **Rests on:** [ADR-0005](./0005-scan-execution-model.md), which sets **one address per `Batch`**. It rules the execution unit. It says nothing about the field shape that unit leaves on the wire
-- **Rests on:** [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md), which names the streamed per-address fan-out and states that the `Batch` unit is unchanged. It also rules no field shape
+# ADR-0150: a Batch scope names its dimension in the plural, and a one-address fan-out ships a one-element list, never a scalar
 
 ## Context
 
@@ -44,7 +51,7 @@ carries the tag `json:"addresses"` with no `omitempty`.
 | --- | --- | --- |
 | The `connect-outcome` leaf | [`internal/measure/connectoutcome/run.go:43`](../../internal/measure/connectoutcome/run.go) | Ranges the list and crosses it with the TCP port set |
 | The certificate step | [`internal/measure/connectoutcome/certificate.go:170`](../../internal/measure/connectoutcome/certificate.go) | Ranges the list to size and fill a per-address verdict map |
-| The #773 re-gate | [`internal/queue/scopegate.go:28`](../../internal/queue/scopegate.go) | Unmarshals one union shape across every leaf kind and admits only the addresses the scope names |
+| The ADR-0217 re-gate | [`internal/queue/scopegate.go:28`](../../internal/queue/scopegate.go) | Unmarshals one union shape across every leaf kind and admits only the addresses the scope names |
 | The drift feed | [`cmd/web/driftfeed.go:240`](../../cmd/web/driftfeed.go) | Unmarshals `addresses` as `[]json.RawMessage` and counts it for the batch label |
 
 The re-gate and the drift feed never see the producer. They read the recorded scope out of the
@@ -130,7 +137,7 @@ member would break when the fan-out changed, which is the coupling this ADR remo
 
 | Alternative | Why not |
 | --- | --- |
-| **Collapse the field to a scalar `address` for the hot and cold tiers** | Four readers outside `internal/scan` decode `addresses` as a list, and two of them read it out of the database rather than from the producer. Neither fails to compile. The #773 re-gate would admit nothing and drop every legitimate observation, and the drift feed would render no label |
+| **Collapse the field to a scalar `address` for the hot and cold tiers** | Four readers outside `internal/scan` decode `addresses` as a list, and two of them read it out of the database rather than from the producer. Neither fails to compile. The ADR-0217 re-gate would admit nothing and drop every legitimate observation, and the drift feed would render no label |
 | **Keep the list but drop it to a scalar in the recorded scope alone** | Limb 4's failure exactly. The re-gate compares an observation against the recorded scope, so the two documents must carry one shape |
 | **Add a scalar `address` beside the list** | Two spellings of one fact, and nothing decides which one a reader trusts. It also breaks the single `scopeShape` union, which serves every leaf kind from one set of field names |
 | **Rely on ADR-0005 to cover the shape** | ADR-0005 rules the partition and the scope record's honesty. It never mentions the field's JSON shape, and ADR-0127 adds only that the unit is unchanged. A reader holding ADR-0005 alone can conclude that one address per `Batch` licenses a scalar |

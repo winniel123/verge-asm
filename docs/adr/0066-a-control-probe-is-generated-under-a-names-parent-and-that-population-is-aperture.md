@@ -1,10 +1,18 @@
-# A control probe is generated under a `Name`'s parent, and that population is aperture rather than a parameter
+---
+number: 66
+title: "A control probe is generated under a `Name`'s parent, and that population is aperture rather than a parameter"
+slug: a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 108
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 62}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#108 Which `Name`s does `wildcard-discrimination` generate control labels under, and is that population a declared parameter or an aperture input?](https://github.com/winniel123/verge-asm/issues/108)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0062](./0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md)'s ticketed gap — its sixth part is now writable
+# A control probe is generated under a `Name`'s parent, and that population is aperture rather than a parameter
 
 ## Context
 

@@ -8,6 +8,7 @@ import {
   refForTagVersion,
   versionManifest,
   refFromManifest,
+  landingVersion,
 } from "../src/version-ref.mjs";
 
 // The repo has no `v*` tag, so a fixture list is the only way to reach a released state (#1402).
@@ -98,4 +99,64 @@ test("an unlisted version resolves to itself, never to main", () => {
   const manifest = versionManifest(parseSemverTags(FIXTURES.oneStable));
   assert.equal(refFromManifest("v0.1.0", manifest), "v0.1.0");
   assert.equal(refFromManifest(LATEST_VERSION, []), LATEST_VERSION);
+});
+
+// listVersions() declared `ref` required and never set it, so this returned undefined (#1445).
+test("every manifest row carries a ref, so the client lookup never reads undefined", () => {
+  for (const [name, names] of Object.entries(FIXTURES)) {
+    for (const option of versionManifest(parseSemverTags(names))) {
+      assert.equal(typeof option.ref, "string", `${name}: ${option.value} carries no ref`);
+      assert.notEqual(option.ref, "", `${name}: ${option.value} carries an empty ref`);
+    }
+  }
+});
+
+test("the current badge names the newest stable release, and latest only where none exists", () => {
+  for (const [name, names] of Object.entries(FIXTURES)) {
+    const tags = parseSemverTags(names);
+    const badged = versionManifest(tags).filter((v) => v.tag === "current");
+    assert.equal(badged.length, 1, `${name}: expected exactly one current row`);
+    const stable = newestStableTag(tags);
+    assert.equal(badged[0].value, stable ? stable.raw : LATEST_VERSION, name);
+    assert.notEqual(badged[0].value, DEFAULT_VERSION, `${name}: current named the dev row`);
+  }
+});
+
+// This is the state the repo is in today: `git tag -l "v*"` returns nothing (#1445).
+test("with no tag at all, latest takes the badge and resolves to main", () => {
+  const manifest = versionManifest(parseSemverTags(FIXTURES.none));
+  assert.deepEqual(manifest, [
+    { value: LATEST_VERSION, ref: DEFAULT_VERSION, tag: "current" },
+    { value: DEFAULT_VERSION, ref: DEFAULT_VERSION, tag: "dev" },
+  ]);
+  assert.equal(refFromManifest(LATEST_VERSION, manifest), DEFAULT_VERSION);
+});
+
+// A prerelease is browsable and never current, so the only tag here takes no badge (ADR-0155 §3).
+test("a prerelease-only tag list leaves the badge on latest", () => {
+  const manifest = versionManifest(parseSemverTags(FIXTURES.onlyPrerelease));
+  assert.deepEqual(manifest, [
+    { value: LATEST_VERSION, ref: DEFAULT_VERSION, tag: "current" },
+    { value: "v1.0.0-rc1", ref: "v1.0.0-rc1" },
+    { value: DEFAULT_VERSION, ref: DEFAULT_VERSION, tag: "dev" },
+  ]);
+});
+
+// TopNav's fallback runs only where a caller omits `version`, and no route omits it (#1570).
+test("the landing version is the latest alias under every tag list", () => {
+  for (const [name, names] of Object.entries(FIXTURES)) {
+    assert.equal(landingVersion(versionManifest(parseSemverTags(names))), LATEST_VERSION, name);
+  }
+});
+
+test("the badge and the landing version name different rows once a stable tag exists", () => {
+  const manifest = versionManifest(parseSemverTags(FIXTURES.oneStable));
+  assert.equal(manifest.find((v) => v.tag === "current").value, "v1.0.0");
+  assert.equal(landingVersion(manifest), LATEST_VERSION);
+});
+
+test("a list with no latest row falls back to its first, and an empty list to undefined", () => {
+  assert.equal(landingVersion([{ value: "v2.0.0", ref: "v2.0.0", tag: "current" }]), "v2.0.0");
+  assert.equal(landingVersion([]), undefined);
+  assert.equal(landingVersion(undefined), undefined);
 });

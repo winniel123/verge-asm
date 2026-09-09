@@ -39,3 +39,13 @@ func TestToZoneObservationParamsStampsSupplyInstantAndZoneSource(t *testing.T) {
 		t.Errorf("qtype not carried onto the discriminator: %q, %q", params[0].Discriminator, params[1].Discriminator)
 	}
 }
+
+func TestZoneWildcardOwnerNeverBecomesANameSubject(t *testing.T) {
+	supply := time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC)
+	zf := scan.ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: "$ORIGIN example.com.\n*.example.com. IN A 203.0.113.5\n@ IN A 203.0.113.10\n"}
+	recs, _ := scan.RestateZone(zf)
+	params := toZoneObservationParams(7, recs)
+	if len(params) != 1 || params[0].SubjectKey != "example.com" {
+		t.Fatalf("a wildcard owner reached the dns-record subjects: %+v", params)
+	}
+}

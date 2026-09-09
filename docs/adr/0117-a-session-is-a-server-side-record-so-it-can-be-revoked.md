@@ -1,10 +1,19 @@
+---
+number: 117
+title: "a session is a server-side record, so it can be revoked"
+slug: a-session-is-a-server-side-record-so-it-can-be-revoked
+date: 2026-08-23
+status: accepted
+source: fix
+ticket: 393
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: rests-on, adr: 53}
+---
+
 # ADR-0117: a session is a server-side record, so it can be revoked
 
-- **Status:** Accepted
-- **Date:** 2026-08-23
-- **Ticket:** [#393 Wayfinder: active sessions — a server-side registry with view and revoke](https://github.com/winniel123/verge-asm/issues/393)
 - **Supersedes in part:** the stateless-session design as it was **stated in code and UI copy** — `cmd/web/auth.go`, ~~`cmd/web/templates_profile.go`~~, ~~`cmd/web/templates_signin.go`~~, `cmd/web/sso.go`, `internal/auth/password.go` — wherever they assert that a session "lapses when it expires rather than being revoked" or that the build "keeps no server-side session store." No ADR or the v1 spec mandated statelessness; the statements live in code and are withdrawn at their sites by the copy-sweep child (#409), per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). The two struck paths stood on 2026-08-23 and are not in the tree. The exact-parity conversion deleted `templates_profile.go` (`45c69cd`, #544) and `templates_signin.go` (`7a19842`, #545). Their UI copy now ships in `design-system/templates/profile.tmpl` and `design-system/templates/signin.tmpl`.
-- **Preserves:** [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) in full.
 
 ## Context
 

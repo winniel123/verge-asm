@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/transcript"
 )
+
+type rawOutputStore interface {
+	GetTranscriptByJob(ctx context.Context, queueJobID int64) (db.Transcript, error)
+	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail-raw.tmpl"))
 
@@ -83,7 +89,7 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 		JobID:   jobID,
 	}
 
-	if jobRows, jerr := s.store.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: runID, Valid: true}); jerr == nil {
+	if jobRows, jerr := s.rawOutputStore.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: runID, Valid: true}); jerr == nil {
 		for _, j := range jobRows {
 			if j.ID == jobID {
 				view.Kind = j.Kind
@@ -96,7 +102,7 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	// Written in the job's terminal tx, so no raw stream is tailable (raw-job-output.md §6.2).
-	row, err := s.store.GetTranscriptByJob(r.Context(), jobID)
+	row, err := s.rawOutputStore.GetTranscriptByJob(r.Context(), jobID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.render(w, r, "runraw", s.rawOutputData(acct, view))
 		return
@@ -118,13 +124,9 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 }
 
 func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]any {
-	return map[string]any{
-		"Title":     "Raw output · job #" + strconv.FormatInt(view.JobID, 10),
-		"Account":   acct,
-		"IsAdmin":   acct.Role == roleAdmin,
-		"NavActive": "drift",
-		"Raw":       view,
-	}
+	return pageData(acct, "Raw output · job #"+strconv.FormatInt(view.JobID, 10), "drift", map[string]any{
+		"Raw": view,
+	})
 }
 
 func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error {

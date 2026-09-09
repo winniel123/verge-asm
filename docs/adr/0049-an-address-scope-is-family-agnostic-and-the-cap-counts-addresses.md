@@ -1,9 +1,23 @@
+---
+number: 49
+title: "An address scope is family-agnostic, and the range cap counts addresses rather than prefix lengths"
+slug: an-address-scope-is-family-agnostic-and-the-cap-counts-addresses
+date: 2026-08-14
+status: accepted
+source: grilling
+ticket: 85
+map: 1
+proof: {none: "predates the governance SPEC"}
+relations:
+  - {kind: amends, adr: 47}
+---
+
 # ADR-0049: An address scope is family-agnostic, and the range cap counts addresses rather than prefix lengths
 
-- **Status:** Accepted
-- **Date:** 2026-08-14
-- **Ticket:** [#85 Can an address-scope `Seed` be an IPv6 prefix, and what does the range cap mean if it can?](https://github.com/winniel123/verge-asm/issues/85)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+> **Amended** by [ADR-0052: A declaration refusal names a route and never takes it](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md), 2026-08-15. <!-- adr-marker amends 52 -->
+
+> **Amended** by [ADR-0127: The address-scope range cap has no ceiling — a large scope is priced at policy time, not gated](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md), 2026-08-30. <!-- adr-marker amends 127 -->
+
 - **Amends:** [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md), [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md)
 
 ## Context

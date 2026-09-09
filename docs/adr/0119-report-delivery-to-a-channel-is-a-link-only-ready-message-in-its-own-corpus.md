@@ -1,9 +1,16 @@
-# ADR-0119: report delivery to a Channel is a link-only ready-message, in its own corpus
+---
+number: 119
+title: "report delivery to a Channel is a link-only ready-message, in its own corpus"
+slug: report-delivery-to-a-channel-is-a-link-only-ready-message-in-its-own-corpus
+date: 2026-08-24
+status: accepted
+source: grilling
+ticket: 508
+map: 499
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-24
-- **Ticket:** [#508 notify-with-link report delivery](https://github.com/winniel123/verge-asm/issues/508)
-- **Map:** [#499 report dispatch + delivery](https://github.com/winniel123/verge-asm/issues/499)
+# ADR-0119: report delivery to a Channel is a link-only ready-message, in its own corpus
 
 ## Context
 

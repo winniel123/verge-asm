@@ -1,9 +1,16 @@
-# ADR-0101: An intensive bound is stated by tag only where the artefact is content-addressed, and by retrieval where it is not
+---
+number: 101
+title: "An intensive bound is stated by tag only where the artefact is content-addressed, and by retrieval where it is not"
+slug: an-intensive-bound-is-stated-by-tag-only-where-the-artefact-is-content-addressed-and-by-retrieval-where-it-is-not
+date: 2026-08-15
+status: accepted
+source: grilling
+ticket: 157
+map: 1
+proof: {none: "predates the governance SPEC"}
+---
 
-- **Status:** Accepted
-- **Date:** 2026-08-15
-- **Ticket:** [#157 The first ambiguous class boundary in an intensive bound](https://github.com/winniel123/verge-asm/issues/157)
-- **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+# ADR-0101: An intensive bound is stated by tag only where the artefact is content-addressed, and by retrieval where it is not
 
 ## Context
 

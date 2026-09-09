@@ -63,8 +63,8 @@ func TestChangePasswordSignsOutOtherSessions(t *testing.T) {
 	}
 	toast := decodeToast(t, loc)
 	if toast["tone"] != "ok" || toast["title"] != "Password changed" ||
-		toast["description"] != "Other sessions keep working until they expire." {
-		t.Fatalf("change-password toast = %+v, want ok/Password changed/Other sessions keep working until they expire.", toast)
+		toast["description"] != "Every other session was signed out." {
+		t.Fatalf("change-password toast = %+v, want ok/Password changed/Every other session was signed out.", toast)
 	}
 
 	if got := countLiveSessions(f, ola.ID); got != 1 {

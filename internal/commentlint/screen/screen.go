@@ -1,3 +1,4 @@
+// Package screen is the negative screen of comment-policy.md §3.2.
 package screen
 
 import "regexp"
