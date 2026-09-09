@@ -1492,7 +1492,7 @@
 <div class="st-cardhead"><div class="hd"><span class="st-micro">Retention</span><h3>Retention dials</h3></div></div>
 <div class="st-body">
 <div style="display:flex;flex-direction:column;gap:14px">
-<span class="st-note">Retention is what may still be read, never age. Dispatch retention is a multiple of the slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The observation-currency floor lands with later work; for now zero means no operator floor. Transcript retention is a whole number of days, floored at 1 day when positive; 0 leaves raw job output unbounded.</span>
+<span class="st-note">Retention is what may still be read, never age. Dispatch retention is a multiple of the slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. Observation currency is a whole number of days, floored at 2 cadences of the tightest enabled scan; 0 leaves it unbounded, the default. Transcript retention is a whole number of days, floored at 1 day when positive; 0 leaves raw job output unbounded.</span>
 {{if .RetError}}<div class="st-error">{{.RetError}}</div>{{end}}
 {{if .IsAdmin}}
 <form method="post" action="/settings/retention" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">{{template "backfield" $}}
