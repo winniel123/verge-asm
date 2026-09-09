@@ -195,7 +195,7 @@ func TestRePointIgnoresAResolutionOpening(t *testing.T) {
 		t.Fatalf("repoint: %v", err)
 	}
 	if len(msgs) != 0 || len(store.citersAsked) != 0 {
-		t.Fatalf("an opening roots on the Name and membership carries it (ADR-0031 §1), got %+v", msgs)
+		t.Fatalf("an opening roots on the Name and membership carries it (ADR-0031), got %+v", msgs)
 	}
 }
 
