@@ -7,6 +7,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 const (
@@ -92,7 +93,6 @@ func TestSignalEdgeBeneathAFlagshipRidesItsCensus(t *testing.T) {
 	if err := produceMessages(context.Background(), store, 32, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
-	// One cause, one message: the flagship names the edge in its payload (ADR-0026 §6).
 	if len(store.inserted) != 1 || store.inserted[0].SubjectKind != "service" {
 		t.Fatalf("want the flagship alone, got %+v", store.inserted)
 	}
@@ -130,7 +130,6 @@ func TestSignalEdgeOnAnAnnotatedPairIsRecordedAndNotAMessage(t *testing.T) {
 			if err := produceMessages(context.Background(), store, 33, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 				t.Fatalf("produce: %v", err)
 			}
-			// The mute is on the pair's own edge and moves no number (ADR-0016).
 			if got := len(signalEdgeMessagesOf(store)); got != tc.want {
 				t.Errorf("want %d edge messages, got %+v", tc.want, store.inserted)
 			}
@@ -167,6 +166,21 @@ func TestSignalEdgeIsSilentWhereNoRuleCrossedIt(t *testing.T) {
 				t.Errorf("want no edge message, got %+v", got)
 			}
 		})
+	}
+}
+
+func TestClockRulesNameShippedEndpointRules(t *testing.T) {
+	shipped := map[string]bool{}
+	for _, r := range signal.AllEndpointRules() {
+		shipped[r.Name()] = true
+	}
+	for name := range clockRules {
+		if !shipped[name] {
+			t.Errorf("clockRules names %q, which no shipped endpoint rule carries", name)
+		}
+	}
+	if len(clockRules) != 3 {
+		t.Errorf("the clock class has three members (ADR-0004), got %d", len(clockRules))
 	}
 }
 

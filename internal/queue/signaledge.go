@@ -8,7 +8,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// Their class is read per firing, and the unchanged-span firing needs the clock sweep (#1728).
+// A clock rule fires on an unchanged span, so its edge is the clock sweep's (#1728).
 
 var clockRules = map[string]bool{
 	"certificate-expired":       true,
@@ -21,7 +21,12 @@ func signalEdgeRule(name string) bool {
 	return !clockRules[name] && name != sensitivePortRule
 }
 
-func signalEdgeMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, prior []*message.Message) ([]*message.Message, error) {
+type annotatedPair struct {
+	subject string
+	rule    string
+}
+
+func movedSubjectsAtCause(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange) ([]subjectAtCause, error) {
 	moved := map[[2]string]bool{}
 	for _, c := range changes {
 		if !c.Opened && ruleFacet(c.Facet) && ruleSubjectKind(c.SubjectKind) {
@@ -31,9 +36,13 @@ func signalEdgeMessages(ctx context.Context, store messageStore, observedAt time
 	if len(moved) == 0 {
 		return nil, nil
 	}
-	subjects, err := subjectsAtCause(ctx, store, observedAt, changes, func(kind, key string) bool {
+	return subjectsAtCause(ctx, store, observedAt, changes, func(kind, key string) bool {
 		return moved[[2]string{kind, key}]
 	})
+}
+
+func signalEdgeMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, prior []*message.Message) ([]*message.Message, error) {
+	subjects, err := movedSubjectsAtCause(ctx, store, observedAt, changes)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +72,7 @@ func signalEdgeMessages(ctx context.Context, store messageStore, observedAt time
 	var msgs []*message.Message
 	for _, e := range edges {
 		// An annotated pair's firing edge is recorded and is not a message (ADR-0016).
-		if muted[[2]string{e.subject.key, e.rule}] {
+		if muted[annotatedPair{subject: e.subject.key, rule: e.rule}] {
 			continue
 		}
 		msgs = append(msgs, message.SignalEdge(e.subject.kind, e.subject.key, e.rule, e.subject.moved, observedAt))
@@ -71,14 +80,14 @@ func signalEdgeMessages(ctx context.Context, store messageStore, observedAt time
 	return msgs, nil
 }
 
-func annotatedPairs(ctx context.Context, store messageStore) (map[[2]string]bool, error) {
+func annotatedPairs(ctx context.Context, store messageStore) (map[annotatedPair]bool, error) {
 	rows, err := store.ListAnnotations(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[[2]string]bool, len(rows))
+	out := make(map[annotatedPair]bool, len(rows))
 	for _, a := range rows {
-		out[[2]string{a.SubjectKey, a.SignalName}] = true
+		out[annotatedPair{subject: a.SubjectKey, rule: a.SignalName}] = true
 	}
 	return out, nil
 }
