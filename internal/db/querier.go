@@ -31,7 +31,9 @@ type Querier interface {
 	CountAccounts(ctx context.Context) (int64, error)
 	CountAdmins(ctx context.Context) (int64, error)
 	CountCertificateMaterial(ctx context.Context) (int64, error)
-	CountHeldObservations(ctx context.Context) (int64, error)
+	// The corpus reaches ~98M rows a year at the ceiling (ADR-0081), so the count stops at a cap
+	// and the stats collector's live-tuple figure prices anything above it as an estimate (#1768).
+	CountHeldObservations(ctx context.Context, exactLimit int64) (CountHeldObservationsRow, error)
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)

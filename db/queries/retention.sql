@@ -102,8 +102,13 @@ DELETE FROM transcript
 WHERE captured_at < $1;
 
 -- name: CountHeldObservations :one
-SELECT COUNT(*)::bigint AS rows_held
-FROM observation;
+-- The corpus reaches ~98M rows a year at the ceiling (ADR-0081), so the count stops at a cap
+-- and the stats collector's live-tuple figure prices anything above it as an estimate (#1768).
+SELECT
+    (SELECT COUNT(*)::bigint
+       FROM (SELECT 1 FROM observation LIMIT sqlc.arg(exact_limit)::bigint + 1) capped
+    )::bigint AS counted_rows,
+    GREATEST(pg_stat_get_live_tuples('observation'::regclass), 0)::bigint AS estimated_rows;
 
 -- name: ListFacetSourceFloors :many
 -- The pair's floor is the tightest bound in force across the pair, reached through each

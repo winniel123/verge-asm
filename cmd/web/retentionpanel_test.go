@@ -14,8 +14,8 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-func (f *fakeStore) CountHeldObservations(context.Context) (int64, error) {
-	return f.heldObs, nil
+func (f *fakeStore) CountHeldObservations(_ context.Context, _ int64) (db.CountHeldObservationsRow, error) {
+	return db.CountHeldObservationsRow{CountedRows: f.heldObs, EstimatedRows: f.heldEstimate}, nil
 }
 
 func (f *fakeStore) ListDerivationBreaks(_ context.Context, _ int64) ([]db.ListDerivationBreaksRow, error) {
@@ -324,5 +324,67 @@ func TestSettingsLinksToTheDialsAndCarriesNoCopy(t *testing.T) {
 	}
 	if strings.Contains(got, "lands with later work") {
 		t.Errorf("the stale floor note survives")
+	}
+}
+
+func TestTheHeldFigureSaysWhenItIsAnEstimate(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	// Above the cap the count stops, so the projection prices the corpus from the estimate.
+	f.heldObs = heldCountExactLimit + 1
+	f.heldEstimate = 97925120
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if !strings.Contains(got, "97,925,120 rows") {
+		t.Errorf("the projection does not price the corpus from the estimate")
+	}
+	// A price is exact over what the operator typed, so an estimate must say it is one (ADR-0081).
+	if !strings.Contains(got, "an estimate") {
+		t.Errorf("the held figure is an estimate and the panel does not say so")
+	}
+	if !strings.Contains(got, "about 97,925,120 rows") {
+		t.Errorf("the estimated held figure is not qualified where it is read")
+	}
+}
+
+func TestACountedHeldFigureIsNotCalledAnEstimate(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	f.heldEstimate = 4_000_000
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if !strings.Contains(got, "529 rows") {
+		t.Errorf("a count under the cap must be shown, not the estimate beside it")
+	}
+	if strings.Contains(got, "an estimate") {
+		t.Errorf("a counted held figure is called an estimate")
+	}
+}
+
+func TestACappedHeldCountNeverUnderstatesTheCorpus(t *testing.T) {
+	const cap = 100
+	for _, tc := range []struct {
+		name          string
+		row           db.CountHeldObservationsRow
+		wantRows      int64
+		wantEstimated bool
+	}{
+		{"under the cap", db.CountHeldObservationsRow{CountedRows: 99, EstimatedRows: 4}, 99, false},
+		{"at the cap", db.CountHeldObservationsRow{CountedRows: 100, EstimatedRows: 4}, 100, false},
+		{"over the cap", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true},
+		{"stale statistic", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 101, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, estimated := heldRows(tc.row, cap)
+			if rows != tc.wantRows || estimated != tc.wantEstimated {
+				t.Errorf("heldRows = (%d, %v), want (%d, %v)", rows, estimated, tc.wantRows, tc.wantEstimated)
+			}
+		})
 	}
 }

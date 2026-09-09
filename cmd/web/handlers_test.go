@@ -115,6 +115,7 @@ type fakeStore struct {
 	facetFloors    []db.ListFacetSourceFloorsRow
 	derivBreaks    []db.ListDerivationBreaksRow
 	heldObs        int64
+	heldEstimate   int64
 	instanceConfig db.GetInstanceConfigRow
 
 	observations    []db.Observation

@@ -12,15 +12,25 @@ import (
 )
 
 const countHeldObservations = `-- name: CountHeldObservations :one
-SELECT COUNT(*)::bigint AS rows_held
-FROM observation
+SELECT
+    (SELECT COUNT(*)::bigint
+       FROM (SELECT 1 FROM observation LIMIT $1::bigint + 1) capped
+    )::bigint AS counted_rows,
+    GREATEST(pg_stat_get_live_tuples('observation'::regclass), 0)::bigint AS estimated_rows
 `
 
-func (q *Queries) CountHeldObservations(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countHeldObservations)
-	var rows_held int64
-	err := row.Scan(&rows_held)
-	return rows_held, err
+type CountHeldObservationsRow struct {
+	CountedRows   int64 `json:"counted_rows"`
+	EstimatedRows int64 `json:"estimated_rows"`
+}
+
+// The corpus reaches ~98M rows a year at the ceiling (ADR-0081), so the count stops at a cap
+// and the stats collector's live-tuple figure prices anything above it as an estimate (#1768).
+func (q *Queries) CountHeldObservations(ctx context.Context, exactLimit int64) (CountHeldObservationsRow, error) {
+	row := q.db.QueryRow(ctx, countHeldObservations, exactLimit)
+	var i CountHeldObservationsRow
+	err := row.Scan(&i.CountedRows, &i.EstimatedRows)
+	return i, err
 }
 
 const deleteExpiredDispatches = `-- name: DeleteExpiredDispatches :execrows

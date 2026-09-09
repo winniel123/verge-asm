@@ -21,7 +21,7 @@ import (
 // A dial's only justification is the projection, so it is not shown apart from it (ADR-0081).
 
 type retentionPanelStore interface {
-	CountHeldObservations(ctx context.Context) (int64, error)
+	CountHeldObservations(ctx context.Context, exactLimit int64) (db.CountHeldObservationsRow, error)
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
@@ -75,6 +75,7 @@ type retentionClampView struct {
 type retentionProjectionView struct {
 	Held           string
 	HeldBytes      string
+	HeldEstimated  bool
 	HasDenominator bool
 	PerYear        string
 	PerYearBytes   string
@@ -107,6 +108,10 @@ var observationLadder = []int64{30, 90, 180, 365, 730}
 var dispatchLadder = []int64{4, 8, 13, 26, 52}
 
 const breakClampLimit = 200
+
+// Above the cap the count is the corpus scan the panel is bounding, so it stops there (#1768).
+
+const heldCountExactLimit = 100_000
 
 // Three of the panel's reads scan a whole corpus, so one budget bounds the page (#1692).
 
@@ -431,7 +436,7 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		view.Clamps = clampViews(retention.OrderClamps(clamps), now)
 	}
 
-	held, cerr := s.retentionPanelStore.CountHeldObservations(ctx)
+	counts, cerr := s.retentionPanelStore.CountHeldObservations(ctx, heldCountExactLimit)
 	if cerr != nil {
 		log.Printf("web: coverage: held observations: %v", cerr)
 		view.Projection.Withheld = "The projection " + notResolved
@@ -444,11 +449,13 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		return view
 	}
 	declared, declaredText, tooLarge := declaredAddresses(addrRows)
+	held, estimated := heldRows(counts, heldCountExactLimit)
 	p := retention.Project(held, declared, rowsPerAddressPerYear(scans))
 	overflowed := declared > 0 && !p.HasDenominator
 	view.Projection = retentionProjectionView{
 		Held:           humanRows(p.RowsHeld),
 		HeldBytes:      humanBytes(p.BytesHeld),
+		HeldEstimated:  estimated,
 		HasDenominator: p.HasDenominator,
 		Denominator:    declaredText,
 		Reason:         projectionReason(p.HasDenominator, declaredText != "", tooLarge || overflowed),
@@ -458,6 +465,17 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		view.Projection.PerYearBytes = humanBytes(p.BytesPerYear)
 	}
 	return view
+}
+
+func heldRows(row db.CountHeldObservationsRow, exactLimit int64) (rows int64, estimated bool) {
+	if row.CountedRows <= exactLimit {
+		return row.CountedRows, false
+	}
+	if row.EstimatedRows < row.CountedRows {
+		// The capped count is a floor, so a statistic behind the writes never understates it.
+		return row.CountedRows, true
+	}
+	return row.EstimatedRows, true
 }
 
 func dialInstant(now time.Time, dialSeconds int64) (time.Time, bool) {
