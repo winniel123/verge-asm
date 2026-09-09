@@ -252,6 +252,9 @@ func jumpLabel(cause message.Cause, subjectKind string) string {
 	case message.LinkSource:
 		return "Open source"
 	case message.LinkSeed:
+		if subjectKind == message.KindVantageClass {
+			return "Open vantages"
+		}
 		return "Open scope"
 	default:
 		switch subjectKind {
@@ -337,6 +340,10 @@ func messageLink(cause message.Cause, subjectKind, firedAt string) (href, text s
 	case message.LinkSource:
 		return "/sources", firedAt
 	case message.LinkSeed:
+		if subjectKind == message.KindVantageClass {
+			// A widening that is not Seed-scoped links the Declared object it acted on (§3.3).
+			return "/settings?tab=vantages", firedAt
+		}
 		// Coverage's aperture is constant and names no act (notification-channels §3.3).
 		return "/scope#seed-" + seedAnchor(firedAt), firedAt
 	default:

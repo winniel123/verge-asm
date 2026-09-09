@@ -17,6 +17,7 @@ const (
 	KindFacet   = "facet"
 	KindRule    = "rule"
 	KindAddress = "address"
+	KindService = "service"
 )
 
 type CensusEntry struct {

@@ -108,6 +108,18 @@ func TestBuildBodyOmitsCensusWhenFiringHasNone(t *testing.T) {
 	}
 }
 
+func TestBuildBodyLinksAVantageClassWideningToTheVantagesTab(t *testing.T) {
+	f := Firing{
+		ID: 8, Cause: message.CauseAperture, Class: message.ClassCoverage,
+		SubjectKind: message.KindVantageClass, FiredAt: "internet", Instant: causeAt,
+		Headline: "an internet vantage is now configured · no Exposure timeline opened",
+	}
+	b := BuildBody(f, "https://verge.example")
+	if b.Link != "https://verge.example/settings?tab=vantages" {
+		t.Errorf("widening link = %q, want the Vantages tab (notification-channels §3.3)", b.Link)
+	}
+}
+
 func TestSignIsHMACSHA256OverTimestampAndBody(t *testing.T) {
 	secret := []byte("s3cr3t")
 	body := []byte(`{"message":42}`)

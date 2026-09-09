@@ -202,6 +202,8 @@ follows the mover:
 - `declared-input` links to its `Source`.
 - An `aperture` widening links to the `Seed` whose scope moved, never to Coverage's
   standing aperture statement.
+- A vantage-class widening links to the `Vantages` settings tab. It fires at the class,
+  `internet` or `internal`, because a second vantage of a live class widens nothing.
 
 ---
 
