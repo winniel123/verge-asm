@@ -14,8 +14,9 @@ type Census struct {
 // A rule entry is the carrier of a rule that opened at fired beneath the cause (ADR-0033 §3).
 
 const (
-	KindFacet = "facet"
-	KindRule  = "rule"
+	KindFacet   = "facet"
+	KindRule    = "rule"
+	KindAddress = "address"
 )
 
 type CensusEntry struct {

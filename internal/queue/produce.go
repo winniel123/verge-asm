@@ -33,6 +33,7 @@ type messageStore interface {
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 	ListOpenSpansForSubject(ctx context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error)
 	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
+	ListNameCitationSpansWithinCurrency(ctx context.Context, arg db.ListNameCitationSpansWithinCurrencyParams) ([]db.ListNameCitationSpansWithinCurrencyRow, error)
 }
 
 type spanChange struct {
@@ -116,6 +117,14 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 	msgs = append(msgs, flagship...)
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
+
+	// The gate opening under a standing declaration is coverage, as revealed is (ADR-0013 #55).
+	gains, err := extensionGainMessages(ctx, store, observedAt, changes, in)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, gains...)
+
 	msgs = append(msgs, rebaselineMessages(observedAt, changes)...)
 
 	// Composed after every census producer, so the residue clause can consult them (ADR-0033 §3).
