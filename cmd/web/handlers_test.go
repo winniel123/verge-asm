@@ -137,6 +137,7 @@ type fakeStore struct {
 	lookupNextID int64
 	proposals    []db.Proposal
 	proposalNext int64
+	declinedRead int
 
 	freqEdits map[int32]fakeFreqEdit
 

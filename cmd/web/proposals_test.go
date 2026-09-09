@@ -549,6 +549,7 @@ func (f *fakeStore) UndoDeclineProposal(_ context.Context, id int64) (netip.Pref
 }
 
 func (f *fakeStore) ListDeclinedProposalScopes(context.Context) ([]db.ListDeclinedProposalScopesRow, error) {
+	f.declinedRead++
 	out := []db.ListDeclinedProposalScopesRow{}
 	for _, p := range f.proposals {
 		if p.Status == "declined" {
@@ -785,6 +786,56 @@ func TestOnlyTheDeclinedScopesExclusionRowCarriesTheUndoControl(t *testing.T) {
 	}
 	if !strings.Contains(page, "Undo decline") {
 		t.Errorf("the undo control has no label; body: %s", page)
+	}
+}
+
+func TestScopeSkipsTheDeclinedReadWithoutAnAddressExclusion(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+	declineOne(t, ac, base, f.proposals[0].ID)
+	f.exclusions = nil
+
+	f.declinedRead = 0
+	page := seedsBody(t, ac, base)
+	if f.declinedRead != 0 {
+		t.Errorf("declined reads on an empty exclusions list = %d, want 0", f.declinedRead)
+	}
+	if strings.Contains(page, `action="/proposals/undo-decline"`) {
+		t.Errorf("an undo control rendered without an exclusion row; body: %s", page)
+	}
+
+	postForm(t, ac, base+"/exclusions", url.Values{
+		"kind": {"name"}, "value": {"example.com"},
+	}).Body.Close()
+
+	f.declinedRead = 0
+	page = seedsBody(t, ac, base)
+	if f.declinedRead != 0 {
+		t.Errorf("declined reads with only a name exclusion = %d, want 0", f.declinedRead)
+	}
+	if strings.Contains(page, `action="/proposals/undo-decline"`) {
+		t.Errorf("an undo control rendered beside a name exclusion; body: %s", page)
+	}
+}
+
+func TestScopeReadsTheDeclinedTailForAnAddressExclusion(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+	declineOne(t, ac, base, f.proposals[0].ID)
+
+	f.declinedRead = 0
+	page := seedsBody(t, ac, base)
+	if f.declinedRead != 1 {
+		t.Errorf("declined reads with an address exclusion = %d, want 1", f.declinedRead)
+	}
+	if !strings.Contains(page, `<input type="hidden" name="id" value="`+itoa(f.proposals[0].ID)+`">`) {
+		t.Errorf("the undo control does not carry the declined proposal's id; body: %s", page)
 	}
 }
 
