@@ -515,7 +515,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
 	}
 	var declined map[string]int64
-	// The declined tail carries no index, so a screen that can render no undo control skips the read (#1780).
+	// The declined tail carries no index, so a screen with no undo control skips the read (#1780).
 	if hasAddressExclusion(excl) {
 		declined = s.declinedProposalScopes(r.Context())
 	}
