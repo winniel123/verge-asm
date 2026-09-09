@@ -514,6 +514,11 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
 	}
+	var declined map[string]int64
+	// The declined tail carries no index, so a screen with no undo control skips the read (#1780).
+	if hasAddressExclusion(excl) {
+		declined = s.declinedProposalScopes(r.Context())
+	}
 	// An additive card degrades alone so the screen it sits on still serves (ADR-0168 §1, #1339).
 	census, censusErr := s.custodyCensus(r.Context())
 	data := pageData(acct, "Scope", "scope", map[string]any{
@@ -522,7 +527,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"CoverageMsgs": coverageMessages(probers),
 		"FormError":    f.seedError, "FormScope": f.seedScope,
 		"Refusals":   f.refusals,
-		"Exclusions": toExclusionViews(excl, s.declinedProposalScopes(r.Context())),
+		"Exclusions": toExclusionViews(excl, declined),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
 		"CustodyScopes": toCustodyViews(nameSeeds), "CustodyError": f.custodyError,
 		"CustodyCensus": census.Rows, "CustodyCensusFailed": censusErr != nil,

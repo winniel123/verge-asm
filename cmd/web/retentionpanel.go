@@ -119,6 +119,10 @@ const retentionPanelBudget = 2 * time.Second
 
 const notResolved = "did not resolve on this load. Nothing is shown rather than a guessed zero."
 
+// A capped count is a floor and never an estimate, so a statistic under it prices nothing (#1778).
+
+const heldCountUnpriceable = "The projection is withheld. This corpus is too large to count on a page load, and the table's live-row statistic is below the capped count, so no figure here would estimate the corpus. A vacuum or an analyse refreshes that statistic."
+
 // An unfloored dial names the Scan set it came up empty in, and the two differ (ADR-0081).
 
 const (
@@ -449,7 +453,11 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		return view
 	}
 	declared, declaredText, tooLarge := declaredAddresses(addrRows)
-	held, estimated := heldRows(counts, heldCountExactLimit)
+	held, estimated, priced := heldRows(counts, heldCountExactLimit)
+	if !priced {
+		view.Projection.Withheld = heldCountUnpriceable
+		return view
+	}
 	p := retention.Project(held, declared, rowsPerAddressPerYear(scans))
 	overflowed := declared > 0 && !p.HasDenominator
 	view.Projection = retentionProjectionView{
@@ -467,15 +475,15 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 	return view
 }
 
-func heldRows(row db.CountHeldObservationsRow, exactLimit int64) (rows int64, estimated bool) {
+func heldRows(row db.CountHeldObservationsRow, exactLimit int64) (rows int64, estimated, priced bool) {
 	if row.CountedRows <= exactLimit {
-		return row.CountedRows, false
+		return row.CountedRows, false, true
 	}
 	if row.EstimatedRows < row.CountedRows {
-		// The capped count is a floor, so a statistic behind the writes never understates it.
-		return row.CountedRows, true
+		// A cold stats collector reports zero, and a restore or a bulk load leaves it cold (#1778).
+		return 0, false, false
 	}
-	return row.EstimatedRows, true
+	return row.EstimatedRows, true, true
 }
 
 func dialInstant(now time.Time, dialSeconds int64) (time.Time, bool) {

@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -148,5 +149,47 @@ func TestAnExclusionNarrowsTheScopeRevealCensus(t *testing.T) {
 	}
 	if scope.CensusLen() != 1 {
 		t.Fatalf("only the unexcluded opening counts, got %+v", scope.Census.Entries)
+	}
+}
+
+func TestDeclaredAddressScopeSkipsAnOpeningAnOpenSpanCites(t *testing.T) {
+	changes := []spanChange{darkOpening("198.51.100.7:8443/tcp")}
+	store := &fakeMessageStore{
+		citers: map[string][]db.ListResolutionCitersForAddressesRow{"198.51.100.7": {citer("example.com")}},
+	}
+	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
+
+	msgs, err := buildMessages(context.Background(), store, 75, produceT0, changes, nil, nil, in)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	for _, m := range msgs {
+		if m.SubjectKind == "seed" {
+			t.Fatalf("a Name cites the address through an open span, so the ground is not dark, got %+v", m)
+		}
+	}
+	if len(store.citersAsked) != 1 {
+		t.Fatalf("the producer reads the citers once for the fold, got %d reads: %+v", len(store.citersAsked), store.citersAsked)
+	}
+}
+
+func TestDeclaredAddressScopeReadsTheCitersOncePerFold(t *testing.T) {
+	changes := []spanChange{
+		darkOpening("198.51.100.7:443/tcp"),
+		darkOpening("198.51.100.7:80/tcp"),
+		darkOpening("198.51.100.8:443/tcp"),
+	}
+	store := &fakeMessageStore{}
+	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
+
+	if _, err := buildMessages(context.Background(), store, 76, produceT0, changes, nil, nil, in); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if len(store.citersAsked) != 1 {
+		t.Fatalf("three openings are one read, never one read each, got %d reads: %+v", len(store.citersAsked), store.citersAsked)
+	}
+	want := []string{"198.51.100.7", "198.51.100.8"}
+	if !reflect.DeepEqual(store.citersAsked[0], want) {
+		t.Errorf("the read carries every candidate address once, want %v, got %v", want, store.citersAsked[0])
 	}
 }

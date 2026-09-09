@@ -114,12 +114,14 @@ Run `go version` before you trust the toolchain. A missing `go` means the setup 
 
 ### Building docs-site locally
 
-This machine holds one Node, v20.20.2, under `~/.nvm/versions/node/`. `node` is off `PATH` by default. Node 20 is under the Astro floor, so `astro build` and `npm run build` fail here. Treat an Astro build as CI-only until someone installs Node 22.12.0 or newer.
+This machine holds one Node, v22.23.2, under `~/.nvm/versions/node/`. `node` is off `PATH` by default. Put `~/.nvm/versions/node/v22.23.2/bin` on `PATH` first. That version clears the 22.12.0 Astro floor, so `npm run build` succeeds here. The build takes about 10 seconds. It writes `docs-site/dist/` and `docs-site/.astro/`. `docs-site/.gitignore` ignores both directories.
 
-Two commands substitute for it when you need a local behaviour gate on `docs-site/`:
+A fresh worktree holds no `docs-site/node_modules`. Run `npm install` in `docs-site/`, or link that directory from the main checkout. A link is also ignored.
 
-- `npm run test:doclint` runs `node --test scripts/doclint.test.mjs`. That suite is plain Node and passes under Node 20.
-- An `esbuild --minify` byte comparison of each touched JS file, taken before and after the edit, gates a comment sweep. `esbuild` lives in `docs-site/node_modules/.bin/`.
+`npm run build` is the strongest local gate on `docs-site/`. Run it for any change to a page, a layout, or a component. Two narrower gates stay useful:
+
+- `npm run test:doclint` runs `node --test scripts/doclint.test.mjs`. It gates the doclint script itself, and it is faster than a build.
+- An `esbuild --minify` byte comparison of each touched JS file, taken before and after the edit, gates a comment sweep. `esbuild` lives in `docs-site/node_modules/.bin/`. A build does not replace it. A build proves that the site compiles, not that a comment sweep left behaviour unchanged.
 
 ### Running the checks
 

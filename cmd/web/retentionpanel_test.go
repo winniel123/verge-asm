@@ -374,17 +374,43 @@ func TestACappedHeldCountNeverUnderstatesTheCorpus(t *testing.T) {
 		row           db.CountHeldObservationsRow
 		wantRows      int64
 		wantEstimated bool
+		wantPriced    bool
 	}{
-		{"under the cap", db.CountHeldObservationsRow{CountedRows: 99, EstimatedRows: 4}, 99, false},
-		{"at the cap", db.CountHeldObservationsRow{CountedRows: 100, EstimatedRows: 4}, 100, false},
-		{"over the cap", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true},
-		{"stale statistic", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 101, true},
+		{"under the cap", db.CountHeldObservationsRow{CountedRows: 99, EstimatedRows: 4}, 99, false, true},
+		{"at the cap", db.CountHeldObservationsRow{CountedRows: 100, EstimatedRows: 4}, 100, false, true},
+		{"over the cap", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true, true},
+		// A capped count is a floor, so drawing it as an estimate of the whole corpus misprices it.
+		{"stale statistic", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 50}, 0, false, false},
+		{"cold collector", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 0, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rows, estimated := heldRows(tc.row, cap)
-			if rows != tc.wantRows || estimated != tc.wantEstimated {
-				t.Errorf("heldRows = (%d, %v), want (%d, %v)", rows, estimated, tc.wantRows, tc.wantEstimated)
+			rows, estimated, priced := heldRows(tc.row, cap)
+			if rows != tc.wantRows || estimated != tc.wantEstimated || priced != tc.wantPriced {
+				t.Errorf("heldRows = (%d, %v, %v), want (%d, %v, %v)",
+					rows, estimated, priced, tc.wantRows, tc.wantEstimated, tc.wantPriced)
 			}
 		})
+	}
+}
+
+func TestAColdStatisticWithholdsTheProjection(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	// A table that no vacuum and no analyse has reached reports zero live tuples.
+	f.heldObs = heldCountExactLimit + 1
+	f.heldEstimate = 0
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if !strings.Contains(got, "The projection is withheld") {
+		t.Errorf("a statistic below the capped count must withhold the projection")
+	}
+	if strings.Contains(got, "about 100,001 rows") {
+		t.Errorf("the panel prices the corpus from the capped count")
+	}
+	if strings.Contains(got, "a year at the enabled cadences") {
+		t.Errorf("the projection rendered from a figure that estimates nothing")
 	}
 }

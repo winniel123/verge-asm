@@ -134,6 +134,15 @@ func (s *server) unexclude(w http.ResponseWriter, r *http.Request, acct db.Accou
 	s.backToScope(w, r)
 }
 
+func hasAddressExclusion(rows []db.ListExclusionsRow) bool {
+	for _, row := range rows {
+		if row.Kind == "address" && row.AddressCidr != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func toExclusionViews(rows []db.ListExclusionsRow, declined map[string]int64) []exclusionView {
 	out := make([]exclusionView, 0, len(rows))
 	for _, row := range rows {
