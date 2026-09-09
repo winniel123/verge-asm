@@ -215,6 +215,76 @@ func (q *Queries) ListCitedAddressSpansForNames(ctx context.Context, names []str
 	return items, nil
 }
 
+const listNameCitationSpansWithinCurrency = `-- name: ListNameCitationSpansWithinCurrency :many
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    WHERE o.subject_kind = 'name' AND o.facet IN ('resolution', 'dns-record')
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+)
+SELECT sp.subject_key, sp.vantage_id, sp.facet, sp.value, sp.opened_at, sp.closed_at
+FROM span sp
+JOIN cover c
+    ON  c.subject_key   = sp.subject_key
+    AND c.facet         = sp.facet
+    AND c.discriminator = sp.discriminator
+    AND c.vantage_id IS NOT DISTINCT FROM sp.vantage_id
+    AND c.source        = sp.source
+WHERE sp.subject_kind = 'name'
+  AND sp.facet IN ('resolution', 'dns-record')
+  AND NOT sp.is_gap
+  AND sp.opened_at <= $1::timestamptz
+  AND (sp.closed_at IS NULL
+       OR EXTRACT(EPOCH FROM ($1::timestamptz - sp.closed_at))
+          <= $2::bigint * c.tightest_cadence)
+ORDER BY sp.subject_key, sp.vantage_id, sp.facet, sp.opened_at, sp.id
+`
+
+type ListNameCitationSpansWithinCurrencyParams struct {
+	At            pgtype.Timestamptz `json:"at"`
+	FloorCadences int64              `json:"floor_cadences"`
+}
+
+type ListNameCitationSpansWithinCurrencyRow struct {
+	SubjectKey string             `json:"subject_key"`
+	VantageID  pgtype.Int8        `json:"vantage_id"`
+	Facet      string             `json:"facet"`
+	Value      []byte             `json:"value"`
+	OpenedAt   pgtype.Timestamptz `json:"opened_at"`
+	ClosedAt   pgtype.Timestamptz `json:"closed_at"`
+}
+
+// The window is each timeline's own currency bound, the one NameCitedAddresses reads (ADR-0044).
+func (q *Queries) ListNameCitationSpansWithinCurrency(ctx context.Context, arg ListNameCitationSpansWithinCurrencyParams) ([]ListNameCitationSpansWithinCurrencyRow, error) {
+	rows, err := q.db.Query(ctx, listNameCitationSpansWithinCurrency, arg.At, arg.FloorCadences)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListNameCitationSpansWithinCurrencyRow{}
+	for rows.Next() {
+		var i ListNameCitationSpansWithinCurrencyRow
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.VantageID,
+			&i.Facet,
+			&i.Value,
+			&i.OpenedAt,
+			&i.ClosedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenSpansBeneathAddresses = `-- name: ListOpenSpansBeneathAddresses :many
 SELECT s.id, s.subject_kind, s.subject_key
 FROM span s

@@ -31,6 +31,14 @@ type fakeMessageStore struct {
 
 	annotations     []db.Annotation
 	annotationReads int
+
+	citations     []db.ListNameCitationSpansWithinCurrencyRow
+	citationsRead bool
+}
+
+func (f *fakeMessageStore) ListNameCitationSpansWithinCurrency(_ context.Context, _ db.ListNameCitationSpansWithinCurrencyParams) ([]db.ListNameCitationSpansWithinCurrencyRow, error) {
+	f.citationsRead = true
+	return f.citations, nil
 }
 
 func (f *fakeMessageStore) ListAnnotations(context.Context) ([]db.Annotation, error) {

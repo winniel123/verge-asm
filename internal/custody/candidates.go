@@ -9,25 +9,39 @@ import (
 
 // Pre-veto on purpose: a vetoed edge stays a candidate, so a later measurement can lift it (#985).
 
-func (e Estate) ExtensionCandidates() []netip.Addr {
-	var out []netip.Addr
+func (e Estate) ExtensionCitations() []Resolution {
+	var out []Resolution
 	// The extension limb alone, because it is the limb the veto reads; #988 measures the other one.
-	admitted := make(map[netip.Addr]struct{}, len(e.Resolutions))
+	seen := make(map[Resolution]struct{}, len(e.Resolutions))
 	// One linear pass over the resolutions, because this runs under the per-scan advisory lock.
 	for _, r := range e.Resolutions {
 		// A provider-flattened ALIAS or ANAME on a zone apex is a direct A record and arrives here.
-		addr := r.Address.Unmap()
-		if _, dup := admitted[addr]; dup {
+		r.Address = r.Address.Unmap()
+		if _, dup := seen[r]; dup {
 			continue
 		}
 		// Mirrors extensionReaches: a candidate outside it probes what no extension claims.
-		if IsNonGloballyReachable(addr) || !e.withinExtendedZone(r.Owner) {
+		if IsNonGloballyReachable(r.Address) || !e.withinExtendedZone(r.Owner) {
 			continue
 		}
-		// A rejected address is not recorded: a later resolution may hold it on an in-zone owner.
-		admitted[addr] = struct{}{}
+		seen[r] = struct{}{}
+		out = append(out, r)
+	}
+	return out
+}
+
+// The gain message counts through this too, so gate and message agree on a reach (ADR-0013 #55).
+
+func (e Estate) ExtensionCandidates() []netip.Addr {
+	var out []netip.Addr
+	admitted := make(map[netip.Addr]struct{}, len(e.Resolutions))
+	for _, r := range e.ExtensionCitations() {
+		if _, dup := admitted[r.Address]; dup {
+			continue
+		}
+		admitted[r.Address] = struct{}{}
 		// Append order is the job chunking read order, so one tick matches the next (ADR-0188 §3).
-		out = append(out, addr)
+		out = append(out, r.Address)
 	}
 	return out
 }

@@ -264,3 +264,31 @@ WHERE s.closed_at IS NULL
          OR s.subject_key LIKE '%@[' || a.addr || ']:%'
   )
 ORDER BY s.subject_kind, s.subject_key, s.id;
+
+-- name: ListNameCitationSpansWithinCurrency :many
+-- The window is each timeline's own currency bound, the one NameCitedAddresses reads (ADR-0044).
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    WHERE o.subject_kind = 'name' AND o.facet IN ('resolution', 'dns-record')
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+)
+SELECT sp.subject_key, sp.vantage_id, sp.facet, sp.value, sp.opened_at, sp.closed_at
+FROM span sp
+JOIN cover c
+    ON  c.subject_key   = sp.subject_key
+    AND c.facet         = sp.facet
+    AND c.discriminator = sp.discriminator
+    AND c.vantage_id IS NOT DISTINCT FROM sp.vantage_id
+    AND c.source        = sp.source
+WHERE sp.subject_kind = 'name'
+  AND sp.facet IN ('resolution', 'dns-record')
+  AND NOT sp.is_gap
+  AND sp.opened_at <= sqlc.arg(at)::timestamptz
+  AND (sp.closed_at IS NULL
+       OR EXTRACT(EPOCH FROM (sqlc.arg(at)::timestamptz - sp.closed_at))
+          <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence)
+ORDER BY sp.subject_key, sp.vantage_id, sp.facet, sp.opened_at, sp.id;
