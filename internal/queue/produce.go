@@ -453,7 +453,7 @@ func subjectBeneathRoot(root spanChange, cited map[string]bool, kind, key string
 	switch root.SubjectKind {
 	case subjectKindName:
 		if kind == subjectKindEndpoint {
-			// A sub-name entering in the same fold is its own root, not the apex's (ADR-0031 §1, #1773).
+			// A sub-name entering in the same fold is its own root (ADR-0031, #1773).
 			owner, _ := signalfacts.SplitEndpointName(key)
 			return owner == root.SubjectKey
 		}

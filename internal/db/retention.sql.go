@@ -24,8 +24,7 @@ type CountHeldObservationsRow struct {
 	EstimatedRows int64 `json:"estimated_rows"`
 }
 
-// The corpus reaches ~98M rows a year at the ceiling (ADR-0081), so the count stops at a cap
-// and the stats collector's live-tuple figure prices anything above it as an estimate (#1768).
+// The corpus reaches ~98M rows a year at the ceiling, so the count caps (ADR-0081, #1768).
 func (q *Queries) CountHeldObservations(ctx context.Context, exactLimit int64) (CountHeldObservationsRow, error) {
 	row := q.db.QueryRow(ctx, countHeldObservations, exactLimit)
 	var i CountHeldObservationsRow

@@ -102,8 +102,7 @@ DELETE FROM transcript
 WHERE captured_at < $1;
 
 -- name: CountHeldObservations :one
--- The corpus reaches ~98M rows a year at the ceiling (ADR-0081), so the count stops at a cap
--- and the stats collector's live-tuple figure prices anything above it as an estimate (#1768).
+-- The corpus reaches ~98M rows a year at the ceiling, so the count caps (ADR-0081, #1768).
 SELECT
     (SELECT COUNT(*)::bigint
        FROM (SELECT 1 FROM observation LIMIT sqlc.arg(exact_limit)::bigint + 1) capped

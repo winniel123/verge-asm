@@ -38,7 +38,7 @@ func TestMembershipCensusExcludesAnotherNamesEndpoint(t *testing.T) {
 		t.Errorf("the cited Service and the apex's own Endpoint are beneath it, got %+v", msgs[0].Census.Entries)
 	}
 	if keys[subName+"@"+apexSvc] {
-		t.Errorf("a distinct Name entering in the same fold is its own root (ADR-0031 §1), got %+v", msgs[0].Census.Entries)
+		t.Errorf("a distinct Name entering in the same fold is its own root (ADR-0031), got %+v", msgs[0].Census.Entries)
 	}
 	if keys[lookalike+"@"+apexSvc] {
 		t.Errorf("a Name that merely ends in the apex is no sub-name, got %+v", msgs[0].Census.Entries)
