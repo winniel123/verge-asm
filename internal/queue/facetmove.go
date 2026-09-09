@@ -41,12 +41,11 @@ func coveredByPrior(prior []*message.Message, s subjectAtCause, rule string) boo
 		if m == nil || m.Census == nil {
 			continue
 		}
-		above := m.FiredAt == s.key || keyNestsService(m.FiredAt, s.key)
+		if m.FiredAt != s.key && !keyNestsService(m.FiredAt, s.key) {
+			continue
+		}
 		for _, e := range m.Census.Entries {
-			if e.Kind == s.kind && e.Key == s.key {
-				return true
-			}
-			if above && e.Kind == message.KindRule && e.Key == rule {
+			if e.Kind == message.KindRule && e.Key == rule {
 				return true
 			}
 		}

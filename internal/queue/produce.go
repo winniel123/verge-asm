@@ -483,11 +483,13 @@ func subjectBeneathRoot(root spanChange, cited map[string]bool, kind, key string
 	switch root.SubjectKind {
 	case subjectKindName:
 		if kind == subjectKindEndpoint {
-			// A sub-name entering in the same fold is its own root (ADR-0031, #1773).
-			owner, _ := signalfacts.SplitEndpointName(key)
-			return owner == root.SubjectKey
+			if owner, _ := signalfacts.SplitEndpointName(key); owner == root.SubjectKey {
+				return true
+			}
 		}
-		return cited[serviceAddress(key)]
+		// ADR-0033 §2 names this census the carrier, so a Service leg beneath the root counts (#1776).
+		addr, ok := subjectAddress(kind, key)
+		return ok && cited[addr.String()]
 	case subjectKindAddress:
 		// An Endpoint key carries its Name before the address, so a prefix test misses it (#1730).
 		addr, ok := subjectAddress(kind, key)
