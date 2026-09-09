@@ -1,13 +1,14 @@
 name: Release
 
 # The tag-to-release pipeline (docs/spec/release-pipeline.md). A pushed `vX.Y.Z`
-# tag guards, builds the two multi-arch images, gates them on Trivy, tags them,
-# signs and attests them, and creates the GitHub Release last.
+# tag guards, runs the golden corpus, builds the two multi-arch images, gates
+# them on Trivy, tags them, signs and attests them, and creates the GitHub
+# Release last.
 #
 # `contents: write` and `id-token: write` NEVER coexist in one job. `publish`
 # holds `id-token: write` for keyless cosign; `release` holds `contents: write`
-# to create the Release. That split is why there are five jobs and not two, and
-# its whole cost is one artifact hop.
+# to create the Release. That split is why `publish` and `release` are two jobs
+# and not one, and its whole cost is one artifact hop.
 #
 # There is no `pull_request` trigger here, so the house rule that `id-token:
 # write` never reaches a pull-request run is honoured by absence. No machine
@@ -53,8 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     # Without this a fork that pushes a `v*` tag runs the pipeline under the
     # fork's own Fulcio identity, and `cosign sign-blob` over a locally built
-    # SHA256SUMS mints a genuine Sigstore bundle bound to a stranger. The five
-    # jobs chain through `needs:`, so a skipped `guard` skips all five (§4.1).
+    # SHA256SUMS mints a genuine Sigstore bundle bound to a stranger. The six
+    # jobs chain through `needs:`, so a skipped `guard` skips all six (§4.1).
     if: github.repository == 'winniel123/verge-asm'
     permissions:
       contents: read
@@ -211,9 +212,58 @@ jobs:
       - name: The Go toolchain pin check
         run: scripts/check-go-pins.sh --mode release
 
+  # ADR-0085 gates the corpus on every pull request AND every release
+  # (golden-corpus.md §3.3). `release.yml` ran neither `go test` nor a corpus
+  # job, so the release half of that rule had no owner (#1693). The legs and
+  # their build settings are golden-corpus.md §3.1's, stated rather than
+  # defaulted, and identical to `ci.yml`'s `golden-corpus`.
+  #
+  # A1 to A5 run inside `go test`. A6 is absent because it cannot run here: it
+  # is a cross-commit gate evaluated against a pull request's base
+  # (golden-corpus.md §3.2), and a
+  # tag has no base. Guard 3 already refuses a tag off `origin/main`, so every
+  # commit under the tag reached `main` through a pull request whose required
+  # `corpus-version-gate` ran A6 over it.
+  corpus:
+    name: Golden corpus ${{ matrix.runner }} ${{ matrix.goamd64 }}${{ matrix.goarm64 }}
+    needs: guard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            goamd64: v1
+          - runner: ubuntu-24.04-arm
+            goarm64: v8.0
+          - runner: ubuntu-24.04
+            goamd64: v3
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    env:
+      # Stated on every leg. A native build is where the toolchain default is
+      # on, and an unset value tests a binary that may resolve through the
+      # system resolver — a second answer path ADR-0070 closed
+      # (golden-corpus.md §3.1).
+      CGO_ENABLED: "0"
+      GOAMD64: ${{ matrix.goamd64 }}
+      GOARM64: ${{ matrix.goarm64 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: .go-version
+
+      - run: go test ./internal/measure/... ./internal/custody/...
+
   build:
     name: Build and push by digest
-    needs: guard
+    # `corpus` joins the chain ahead of `build`, so a red corpus leaves nothing
+    # in GHCR to reach by digest (§4.4).
+    needs: [guard, corpus]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -816,7 +866,7 @@ jobs:
       # cannot drift apart (§2.4).
       #
       # The digests must already exist here, and they do: they arrive from
-      # `build` (§9.1 ordering constraint, §4.4 step 11).
+      # `build` (§9.1 ordering constraint, §4.4 step 12).
       - name: Generate the digest-pinned compose asset
         env:
           WEB_INDEX: ${{ needs.build.outputs.web-index-digest }}
@@ -965,7 +1015,7 @@ jobs:
 
   # The Release is created last, so a failed run leaves no Release at all. No
   # step below builds an asset: every asset arrives as a workflow artifact
-  # (§4.4 step 12, §9.1).
+  # (§4.4 step 13, §9.1).
   #
   # This job holds `contents: write`, so it must NEVER gain `id-token: write`.
   # `contents: write` here cannot reach `main`, because the `main protection`

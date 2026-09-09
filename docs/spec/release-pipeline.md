@@ -402,8 +402,8 @@ reasons. A cancellation between the digest push and the sign step would leave un
 GHCR with no cleanup path. And a per-ref group would give two tags pushed together two separate
 groups, which then race on the floating `latest` tag. The precedent is the `docs-site-pages` concurrency group on `docs-site.yml`'s `deploy` job.
 
-**Fork guard: `if: github.repository == 'winniel123/verge-asm'` on the `guard` job only.** The five
-jobs chain linearly through `needs:`, so a skipped `guard` skips all five. Without it, a fork that
+**Fork guard: `if: github.repository == 'winniel123/verge-asm'` on the `guard` job only.** The six
+jobs chain linearly through `needs:`, so a skipped `guard` skips all six. Without it, a fork that
 pushes a `v*` tag runs the pipeline under **the fork's own Fulcio identity**. The GHCR push fails,
 because §2.1 hardcodes the registry path, but `cosign sign-blob` over a locally built
 `SHA256SUMS` succeeds first and mints a genuine Sigstore bundle bound to a stranger.
@@ -413,11 +413,12 @@ and its `deploy` job already holds `id-token: write`. That trigger stays. The re
 and the two workflows write different outputs to different places. There is no ordering between
 them. Silently deleting a working trigger to tidy the diagram is worse than a documented overlap.
 
-### 4.2 The five jobs and their permissions
+### 4.2 The six jobs and their permissions
 
 | Job | Purpose | Permissions |
 | --- | --- | --- |
 | `guard` | the four §4.3 checks, the migration diff, the pin check | `contents: read` |
+| `corpus` | the golden corpus on [`golden-corpus.md`](./golden-corpus.md) §3.1's three legs | `contents: read` |
 | `build` | bake, push by digest | `contents: read`, `packages: write` |
 | `scan` | the §5 Trivy gate, SARIF, the SBOM documents, the stdlib assert | `contents: read`, `packages: read`, `security-events: write` |
 | `publish` | tag, cosign sign, attest, sign-blob | `contents: read`, `packages: write`, `id-token: write`, `attestations: write`, `artifact-metadata: write` |
@@ -494,17 +495,19 @@ The order is load-bearing. §5 requires the gate between the digest push and the
 release leaves nothing public.
 
 1. The four guards refuse before any build (§4.3).
-2. `actions/checkout` at the tag.
-3. `docker/setup-buildx-action` and `docker/login-action`, both SHA-pinned.
-4. `docker/bake-action` over `docker-bake.hcl`. Push **by digest**, no tags (§2.3).
-5. Trivy scans each **platform manifest digest**. The OS half blocks, the Go half annotates (§5).
-6. Trivy writes the eight SBOM documents from those same four scan runs (§6).
-7. `docker buildx imagetools create` applies `vX.Y.Z` and `latest` (§2.2).
-8. `cosign sign --yes --recursive --registry-referrers-mode legacy` on each index. Six signatures (§7).
-9. `actions/attest` on the two index digests. Provenance (§8).
-10. `actions/attest` on the four platform digests. SPDX SBOM (§8).
-11. Build `SHA256SUMS` and run `cosign sign-blob --bundle` (§7, §9).
-12. Create the GitHub Release **last** (§10).
+2. The golden corpus runs on [`golden-corpus.md`](./golden-corpus.md) §3.1's three legs, before any
+   build (§4.5).
+3. `actions/checkout` at the tag.
+4. `docker/setup-buildx-action` and `docker/login-action`, both SHA-pinned.
+5. `docker/bake-action` over `docker-bake.hcl`. Push **by digest**, no tags (§2.3).
+6. Trivy scans each **platform manifest digest**. The OS half blocks, the Go half annotates (§5).
+7. Trivy writes the eight SBOM documents from those same four scan runs (§6).
+8. `docker buildx imagetools create` applies `vX.Y.Z` and `latest` (§2.2).
+9. `cosign sign --yes --recursive --registry-referrers-mode legacy` on each index. Six signatures (§7).
+10. `actions/attest` on the two index digests. Provenance (§8).
+11. `actions/attest` on the four platform digests. SPDX SBOM (§8).
+12. Build `SHA256SUMS` and run `cosign sign-blob --bundle` (§7, §9).
+13. Create the GitHub Release **last** (§10).
 
 **The Trivy gate binds the platform manifest digests, not the index digest.** `imagetools create`
 copies child descriptors by reference, so a platform digest survives the tagging step whatever
@@ -512,10 +515,33 @@ happens to the index.
 
 **A blocked release spends its version number.** The tag stays. Nobody deletes it and nobody
 re-pushes it. The repair is a fix on `main` followed by the next tag. A dead tag is invisible to
-the update check, because `isNewer` reads the feed's `tag_name` and never reads `git tag`. Step 4
+the update check, because `isNewer` reads the feed's `tag_name` and never reads `git tag`. Step 5
 keeps the images unreachable by name, so no image leaks either. **Reusing a tag is the only option
 that can cause harm**, because anyone who already fetched the tag would find different bytes under
 the same name.
+
+### 4.5 The `corpus` job
+
+[ADR-0085](../adr/0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md)
+runs the golden corpus on **every pull request and every release**, and
+[`golden-corpus.md`](./golden-corpus.md) §3.3 repeats it. `ci.yml` owned the pull-request half from
+the start. `release.yml` ran no `go test` and no corpus job, so the release half had no owner until
+[#1693](https://github.com/winniel123/verge-asm/issues/1693).
+
+**The legs are `golden-corpus.md` §3.1's three, unchanged and not re-derived here.** Every build
+setting is stated rather than defaulted, `CGO_ENABLED=0` included, and the job body is `ci.yml`'s
+`golden-corpus` with `persist-credentials: false` added per §4.2.
+
+**A1 to A5 run. A6 does not, and cannot.** A6 is a cross-commit gate evaluated against a pull
+request's base (`golden-corpus.md` §3.2), and a tag has no base. The release does not lose the
+assertion: guard 3 refuses a tag that is not an ancestor of `origin/main` (§4.3), and `main` admits
+no commit except through a pull request whose required `corpus-version-gate` ran A6 over it. **This
+is the one assertion the release inherits rather than runs**, and it holds only while that ruleset
+rule holds.
+
+**`corpus` sits between `guard` and `build`.** §4.4's rule is that a blocked release leaves nothing
+public, so the corpus must refuse before the digest push rather than after it. It is not a fifth
+guard: §4.3's guard count stays at four, and the corpus is a test rather than a refusal on the tag.
 
 ---
 
@@ -1974,8 +2000,8 @@ These hold across every ruling above. A change to any of them reopens the ticket
 | Invariant | Value |
 | --- | --- |
 | Guards in `release.yml` | **four** (§4.3) |
-| Jobs in `release.yml` | **five** (§4.2) |
-| Required status checks | **seven**. No eighth is registered. |
+| Jobs in `release.yml` | **six** (§4.2). It was five; §4.5 records why. |
+| Required status checks | **sixteen** ([#1693](https://github.com/winniel123/verge-asm/issues/1693)). |
 | Manual repository settings | **two** (§17). It was four; §17.1 records why. |
 | Workflow files this map delivers | **two** |
 | `contents: write` and `id-token: write` in one job | **never** |
