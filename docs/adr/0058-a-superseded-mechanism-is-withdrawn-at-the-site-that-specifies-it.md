@@ -12,6 +12,8 @@ proof: {none: "predates the governance SPEC"}
 
 # ADR-0058: A superseded mechanism is withdrawn at the site that specifies it, not only at the site that supersedes it
 
+> **Amended** by [ADR-1644: For an ADR target, a withdrawal is a tool-written marker, not a hand-edited sentence](./1644-for-an-adr-target-a-withdrawal-is-a-tool-written-marker-not-a-hand-edited-sentence.md), 2026-09-08. <!-- adr-marker amends 1644 -->
+
 ## Context
 
 [`sensitive-ports.md`](../research/sensitive-ports.md) §6 specified the relationship between the two

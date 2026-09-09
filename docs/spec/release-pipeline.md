@@ -77,11 +77,12 @@ Four grounds:
    multiplies entries in a namespace nothing can ever clean.
 4. **The update check cannot represent one.** See §1.4.
 
-Three layers refuse a pre-release tag, and the trigger is not one of them:
+Three layers refuse a pre-release tag by design, and the trigger is not one of them. The first
+layer is unavailable on this account. §17.1 records the measurement.
 
 | Layer | Where it lives | What it does |
 | --- | --- | --- |
-| `tag_name_pattern` on the tag ruleset | repository settings (§17) | refuses the **push**. Nothing is created. |
+| `tag_name_pattern` on the tag ruleset | repository settings (§17.1) | **unavailable** on a user-owned repository. It would refuse the **push**, so nothing is created. |
 | the trigger `push: tags: ["v*.*.*"]` | `release.yml` | **does not refuse**. See below. |
 | guard 1, `^v[0-9]+\.[0-9]+\.[0-9]+$` | `release.yml`, the `guard` job | refuses inside the run. The exact statement. |
 
@@ -93,8 +94,9 @@ push.
 A negation such as `!v*-*` is refused on three grounds. A glob is an approximation, and a later
 reader misreads a tightened one as exact. **The guard regex must remain the only exact statement
 of the tag format.** A refused `guard` job leaves a red run that names the reason, and a
-filtered-out tag leaves silence. Reaching this path at all needs the tag ruleset to be missing,
-which is an alarming state that earns a loud refusal.
+filtered-out tag leaves silence. A pre-release push that the glob admits reaches this path, because
+`tag_name_pattern` is unavailable on this account (§17.1). Guard 1 is the one layer that refuses,
+so it must refuse loudly.
 
 **A fourth site meets a pre-release tag and does not refuse it**
 ([ADR-0155](../adr/0155-the-docs-site-does-not-enforce-the-tag-policy-so-a-prerelease-tag-is-browsable-and-never-becomes-latest-or-current.md),
