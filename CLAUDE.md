@@ -22,6 +22,10 @@ verge-asm follows Logan's portable GitHub project standard. It governs branching
 
 All visual work uses the Verge ASM design system at `design-system/`. This covers production UI, prototypes, mocks, and slides. Invoke the `verge-asm-design` skill before you write markup. `design-system/` is the shared home for UI assets. It is the source of truth. The web app embeds and serves `templates/` and `tokens/` through `design-system/designfs.go`. The docs-site reads `tokens/` and `components/`. You may edit all of it in the repo. The old design-system handoff workflow authored markup in a separate package and byte-compared it into this repo. That workflow was retired 2026-08-28. See ADR-0145. See superseded ADR-0109 and ADR-0116. See `docs/agents/design-system.md`.
 
+### Model per task
+
+The session default is Fable 5.1. Planning skills such as `/wayfinder` and `/to-tickets` inherit it. `/implement` resolves to the project skill at `.claude/skills/implement/SKILL.md`. That skill pins `model: opus`, so the implement turn runs on Opus 5. The session returns to the default on the next prompt. Run `/model opus` first when you expect several implementation prompts in one session. The plugin copy stays reachable as `/mattpocock-skills:implement`.
+
 ## Start of work
 
 Do this before your first file change in a session. This step is mandatory. It applies to a one-line change.
