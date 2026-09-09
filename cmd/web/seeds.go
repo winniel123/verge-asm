@@ -522,7 +522,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"CoverageMsgs": coverageMessages(probers),
 		"FormError":    f.seedError, "FormScope": f.seedScope,
 		"Refusals":   f.refusals,
-		"Exclusions": toExclusionViews(excl),
+		"Exclusions": toExclusionViews(excl, s.declinedProposalScopes(r.Context())),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
 		"CustodyScopes": toCustodyViews(nameSeeds), "CustodyError": f.custodyError,
 		"CustodyCensus": census.Rows, "CustodyCensusFailed": censusErr != nil,

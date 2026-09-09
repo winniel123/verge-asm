@@ -21,6 +21,19 @@ SELECT COALESCE(MIN(cadence_seconds), 0)::bigint AS cadence_seconds
 FROM scan
 WHERE enabled = TRUE;
 
+-- name: ListCoveringScanKinds :many
+-- Cover is the cover CTE's relation, as a semi-join that stops at the first row (#1768).
+SELECT s.kind
+FROM scan s
+WHERE s.enabled = TRUE
+  AND EXISTS (
+      SELECT 1
+      FROM batch b
+      JOIN observation o ON o.batch_id = b.id
+      WHERE b.scan_id = s.id
+  )
+ORDER BY s.kind;
+
 -- name: ListLiveObservationsForDerivation :many
 -- Every derivation read of observation inlines this gate, never the raw table (#237, ADR-0041).
 WITH cover AS (
@@ -89,8 +102,12 @@ DELETE FROM transcript
 WHERE captured_at < $1;
 
 -- name: CountHeldObservations :one
-SELECT COUNT(*)::bigint AS rows_held
-FROM observation;
+-- The corpus reaches ~98M rows a year at the ceiling, so the count caps (ADR-0081, #1768).
+SELECT
+    (SELECT COUNT(*)::bigint
+       FROM (SELECT 1 FROM observation LIMIT sqlc.arg(exact_limit)::bigint + 1) capped
+    )::bigint AS counted_rows,
+    GREATEST(pg_stat_get_live_tuples('observation'::regclass), 0)::bigint AS estimated_rows;
 
 -- name: ListFacetSourceFloors :many
 -- The pair's floor is the tightest bound in force across the pair, reached through each

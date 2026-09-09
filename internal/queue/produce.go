@@ -18,6 +18,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/signal"
+	"github.com/winniel123/verge-asm/internal/signalfacts"
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
@@ -141,6 +142,9 @@ func buildMessages(ctx context.Context, store messageStore, batchID int64, obser
 	msgs = append(msgs, widened...)
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
+
+	// Dark declared space owes one message and has no root to fire it (ADR-0047, ADR-0052, #1770).
+	msgs = append(msgs, scopeRevealMessages(observedAt, changes, in)...)
 
 	// An Address root and ADR-0026 §2's residue are one partition, so they cannot disagree (#1730).
 	repoints, err := rePointMessages(ctx, store, observedAt, changes, in)
@@ -448,8 +452,10 @@ func citedAddresses(root spanChange) map[string]bool {
 func subjectBeneathRoot(root spanChange, cited map[string]bool, kind, key string) bool {
 	switch root.SubjectKind {
 	case subjectKindName:
-		if strings.Contains(key, root.SubjectKey) {
-			return true
+		if kind == subjectKindEndpoint {
+			// A sub-name entering in the same fold is its own root (ADR-0031, #1773).
+			owner, _ := signalfacts.SplitEndpointName(key)
+			return owner == root.SubjectKey
 		}
 		return cited[serviceAddress(key)]
 	case subjectKindAddress:

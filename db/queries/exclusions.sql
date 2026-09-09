@@ -23,3 +23,6 @@ ORDER BY id;
 
 -- name: DeleteExclusion :exec
 DELETE FROM exclusion WHERE id = $1;
+
+-- name: DeleteAddressExclusion :exec
+DELETE FROM exclusion WHERE kind = 'address' AND address_cidr = $1;

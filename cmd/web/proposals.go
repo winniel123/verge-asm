@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -23,10 +25,13 @@ type proposalsStore interface {
 	CreateProposal(ctx context.Context, arg db.CreateProposalParams) (db.Proposal, error)
 	CreateProposerLookup(ctx context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error)
 	DeclineProposal(ctx context.Context, id int64) (int64, error)
+	DeleteAddressExclusion(ctx context.Context, addressCidr *netip.Prefix) error
 	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	ListDeclinedProposalScopes(ctx context.Context) ([]db.ListDeclinedProposalScopesRow, error)
 	ListPendingProposals(ctx context.Context) ([]db.ListPendingProposalsRow, error)
 	RecordSourceAttempt(ctx context.Context, arg db.RecordSourceAttemptParams) (db.SourceHealth, error)
+	UndoDeclineProposal(ctx context.Context, id int64) (netip.Prefix, error)
 }
 
 type proposalRow struct {
@@ -311,6 +316,45 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 	s.backToScope(w, r)
+}
+
+func (s *server) declinedProposalScopes(ctx context.Context) map[string]int64 {
+	// No screen lists the declined tail, so the decline's own exclusion row carries it (#1721).
+	rows, err := s.proposalsStore.ListDeclinedProposalScopes(ctx)
+	if err != nil {
+		return nil
+	}
+	out := make(map[string]int64, len(rows))
+	for _, row := range rows {
+		out[row.AddressCidr.String()] = row.ID
+	}
+	return out
+}
+
+func (s *server) undoDecline(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad proposal id", http.StatusBadRequest)
+		return
+	}
+	scope, err := s.proposalsStore.UndoDeclineProposal(r.Context(), id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// A pending or confirmed Proposal is no decline to reverse, so nothing moves (ADR-0022).
+		s.backToScope(w, r)
+		return
+	}
+	if err != nil {
+		s.serverError(w, "undo declined proposal", err)
+		return
+	}
+	// A declined scope was never declared, so lifting it admits no ground (ADR-0133, #1721).
+	if err := s.proposalsStore.DeleteAddressExclusion(r.Context(), &scope); err != nil {
+		s.serverError(w, "lift declined proposal exclusion", err)
+		return
+	}
+	// The second sentence is the rider: undo may not become a confirm shortcut (ADR-0022).
+	s.toastRedirectBack(w, r, "/scope", "neutral",
+		scope.String()+" returned to pending.", "Confirming it is a fresh act.")
 }
 
 func (s *server) enabledProposers(r *http.Request) (map[string]bool, error) {

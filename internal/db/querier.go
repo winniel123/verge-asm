@@ -31,7 +31,8 @@ type Querier interface {
 	CountAccounts(ctx context.Context) (int64, error)
 	CountAdmins(ctx context.Context) (int64, error)
 	CountCertificateMaterial(ctx context.Context) (int64, error)
-	CountHeldObservations(ctx context.Context) (int64, error)
+	// The corpus reaches ~98M rows a year at the ceiling, so the count caps (ADR-0081, #1768).
+	CountHeldObservations(ctx context.Context, exactLimit int64) (CountHeldObservationsRow, error)
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
@@ -53,6 +54,7 @@ type Querier interface {
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
 	DeclineProposal(ctx context.Context, id int64) (int64, error)
 	DeleteAccount(ctx context.Context, id int64) error
+	DeleteAddressExclusion(ctx context.Context, addressCidr *netip.Prefix) error
 	DeleteAnnotation(ctx context.Context, id int64) error
 	DeleteChannel(ctx context.Context, id int64) error
 	DeleteExclusion(ctx context.Context, id int64) error
@@ -148,10 +150,13 @@ type Querier interface {
 	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
 	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error)
+	// Cover is the cover CTE's relation, as a semi-join that stops at the first row (#1768).
+	ListCoveringScanKinds(ctx context.Context) ([]string, error)
 	ListCurrentEndpointSubjects(ctx context.Context, arg ListCurrentEndpointSubjectsParams) ([]ListCurrentEndpointSubjectsRow, error)
 	// The gate carries the read instant, so no parameterless VIEW holds it and it inlines per read.
 	ListCurrentNameSubjects(ctx context.Context, arg ListCurrentNameSubjectsParams) ([]ListCurrentNameSubjectsRow, error)
 	ListCurrentServiceSubjects(ctx context.Context, arg ListCurrentServiceSubjectsParams) ([]ListCurrentServiceSubjectsRow, error)
+	ListDeclinedProposalScopes(ctx context.Context) ([]ListDeclinedProposalScopesRow, error)
 	ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error)
 	ListDeliveryOutcomes(ctx context.Context) ([]ListDeliveryOutcomesRow, error)
 	// A Break is derived on read from two adjacent spans' vectors and never stored, so the
@@ -307,6 +312,7 @@ type Querier interface {
 	TrimCTReliabilitySamples(ctx context.Context, arg TrimCTReliabilitySamplesParams) error
 	TryFanOut(ctx context.Context, arg TryFanOutParams) (int64, error)
 	TryInsertScheduledDelivery(ctx context.Context, arg TryInsertScheduledDeliveryParams) (TryInsertScheduledDeliveryRow, error)
+	UndoDeclineProposal(ctx context.Context, id int64) (netip.Prefix, error)
 	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error

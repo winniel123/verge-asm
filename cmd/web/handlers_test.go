@@ -115,15 +115,19 @@ type fakeStore struct {
 	facetFloors    []db.ListFacetSourceFloorsRow
 	derivBreaks    []db.ListDerivationBreaksRow
 	heldObs        int64
+	heldEstimate   int64
 	instanceConfig db.GetInstanceConfigRow
 
-	observations []db.Observation
-	batches      []db.Batch
-	scans        []db.Scan
-	listScansErr error
-	obsNextID    int64
-	batchNextID  int64
-	scanNextID   int64
+	observations    []db.Observation
+	batches         []db.Batch
+	scans           []db.Scan
+	listScansErr    error
+	coveringScans   []string
+	coveringScanErr error
+	undoDeclineErr  error
+	obsNextID       int64
+	batchNextID     int64
+	scanNextID      int64
 
 	zoneFiles    []fakeZoneFile
 	zoneNextID   int64

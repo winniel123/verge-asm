@@ -287,6 +287,7 @@ var classAExemptAnswers = map[string]string{
 	"POST /settings/integrations/channel · bindIntegrationChannel → http.Error": "an unknown catalogue slug, or an unparseable channel id, is a hand-crafted request",
 	"POST /proposals/confirm · confirmProposal → http.Error":                    "an unparseable proposal id; the row's own form always carries a valid one (#976)",
 	"POST /proposals/decline · declineLookup → http.Error":                      "an unparseable form body; there is no form state to echo back (#976)",
+	"POST /proposals/undo-decline · undoDecline → http.Error":                   "an unparseable proposal id; the exclusion row's own form always carries a valid one (#1721)",
 
 	"POST /settings/backup · backupDownload → http.Error": "answers with the archive; the unavailable-mode line is its only other answer",
 

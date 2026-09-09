@@ -21,10 +21,11 @@ import (
 // A dial's only justification is the projection, so it is not shown apart from it (ADR-0081).
 
 type retentionPanelStore interface {
-	CountHeldObservations(ctx context.Context) (int64, error)
+	CountHeldObservations(ctx context.Context, exactLimit int64) (db.CountHeldObservationsRow, error)
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	ListCoveringScanKinds(ctx context.Context) ([]string, error)
 	ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]db.ListDerivationBreaksRow, error)
 	ListEnabledScans(ctx context.Context) ([]db.Scan, error)
 	ListFacetSourceFloors(ctx context.Context) ([]db.ListFacetSourceFloorsRow, error)
@@ -74,6 +75,7 @@ type retentionClampView struct {
 type retentionProjectionView struct {
 	Held           string
 	HeldBytes      string
+	HeldEstimated  bool
 	HasDenominator bool
 	PerYear        string
 	PerYearBytes   string
@@ -107,11 +109,22 @@ var dispatchLadder = []int64{4, 8, 13, 26, 52}
 
 const breakClampLimit = 200
 
+// Above the cap the count is the corpus scan the panel is bounding, so it stops there (#1768).
+
+const heldCountExactLimit = 100_000
+
 // Three of the panel's reads scan a whole corpus, so one budget bounds the page (#1692).
 
 const retentionPanelBudget = 2 * time.Second
 
 const notResolved = "did not resolve on this load. Nothing is shown rather than a guessed zero."
+
+// An unfloored dial names the Scan set it came up empty in, and the two differ (ADR-0081).
+
+const (
+	unflooredObservation = "No Scan bounds a row yet, so nothing floors this dial."
+	unflooredDispatch    = "No enabled Scan supplies a cadence, so nothing floors this dial."
+)
 
 func floorText(f retention.FloorExpression) string {
 	// A multiple and a named Scan cannot go stale the way a day count already has (ADR-0038).
@@ -124,10 +137,16 @@ func floorText(f retention.FloorExpression) string {
 	return fmt.Sprintf("%d × cadence(%s)", f.Multiple, f.ScanKind)
 }
 
-func scanCadences(rows []db.Scan) []retention.ScanCadence {
+func scanCadences(rows []db.Scan, coveringKinds []string) []retention.ScanCadence {
+	covering := make(map[string]bool, len(coveringKinds))
+	for _, k := range coveringKinds {
+		covering[k] = true
+	}
 	out := make([]retention.ScanCadence, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, retention.ScanCadence{Kind: r.Kind, CadenceSeconds: r.CadenceSeconds})
+		out = append(out, retention.ScanCadence{
+			Kind: r.Kind, CadenceSeconds: r.CadenceSeconds, Covers: covering[r.Kind],
+		})
 	}
 	return out
 }
@@ -161,7 +180,7 @@ func humanCadences(n int64) string {
 	return fmt.Sprintf("%d cadences", n)
 }
 
-func buildDial(field, title, unit string, floor retention.FloorExpression, floorUnits int64, ladder []int64, value int64, label func(int64) string) retentionDialView {
+func buildDial(field, title, unit string, floor retention.FloorExpression, floorUnits int64, ladder []int64, value int64, label func(int64) string, unfloored string) retentionDialView {
 	stops := retention.DialStops(floorUnits, ladder)
 	// The handle parks on a labelled stop, so the control is never valueless (ADR-0081).
 	view := retentionDialView{
@@ -176,7 +195,7 @@ func buildDial(field, title, unit string, floor retention.FloorExpression, floor
 	if floor.Bounded() {
 		view.FloorHint = fmt.Sprintf("Below this the dial changes no row. Move it by changing %s's cadence, not by arguing with this control.", floor.ScanKind)
 	} else {
-		view.FloorHint = "No enabled Scan supplies a cadence, so nothing floors this dial."
+		view.FloorHint = unfloored
 	}
 	for _, s := range stops {
 		view.Stops = append(view.Stops, retentionStopView{Value: s, Label: label(s), Selected: value == s})
@@ -357,14 +376,23 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		view.Withheld = "The enabled Scan set, which every floor derives from, " + notResolved
 		return view
 	}
-	scans := scanCadences(scanRows)
+	coveringKinds, err := s.retentionPanelStore.ListCoveringScanKinds(ctx)
+	if err != nil {
+		// An unread cover would floor the dial on a Scan bounding nothing (ADR-0081).
+		log.Printf("web: coverage: covering scans: %v", err)
+		view.Withheld = "The covering Scan set, which the observation floor derives from, " + notResolved
+		return view
+	}
+	scans := scanCadences(scanRows, coveringKinds)
 	obsFloor := retention.ObservationFloor(scans)
 	dispFloor := retention.DispatchFloor(scans)
 
 	view.Observation = buildDial("observation_currency_days", "Observation currency", "days",
-		obsFloor, obsFloor.Days(), observationLadder, settings.ObservationCurrencyDays, humanDays)
+		obsFloor, obsFloor.Days(), observationLadder, settings.ObservationCurrencyDays, humanDays,
+		unflooredObservation)
 	view.Dispatch = buildDial("dispatch_cadence_multiple", "Dispatch retention", "cadences",
-		dispFloor, retention.FloorCadences, dispatchLadder, settings.DispatchCadenceMultiple, humanCadences)
+		dispFloor, retention.FloorCadences, dispatchLadder, settings.DispatchCadenceMultiple, humanCadences,
+		unflooredDispatch)
 	view.AnyBounded = settings.ObservationCurrencyDays > 0 || settings.DispatchCadenceMultiple > 0
 
 	if rows, perr := s.retentionPanelStore.ListFacetSourceFloors(ctx); perr == nil {
@@ -408,7 +436,7 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		view.Clamps = clampViews(retention.OrderClamps(clamps), now)
 	}
 
-	held, cerr := s.retentionPanelStore.CountHeldObservations(ctx)
+	counts, cerr := s.retentionPanelStore.CountHeldObservations(ctx, heldCountExactLimit)
 	if cerr != nil {
 		log.Printf("web: coverage: held observations: %v", cerr)
 		view.Projection.Withheld = "The projection " + notResolved
@@ -421,11 +449,13 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		return view
 	}
 	declared, declaredText, tooLarge := declaredAddresses(addrRows)
+	held, estimated := heldRows(counts, heldCountExactLimit)
 	p := retention.Project(held, declared, rowsPerAddressPerYear(scans))
 	overflowed := declared > 0 && !p.HasDenominator
 	view.Projection = retentionProjectionView{
 		Held:           humanRows(p.RowsHeld),
 		HeldBytes:      humanBytes(p.BytesHeld),
+		HeldEstimated:  estimated,
 		HasDenominator: p.HasDenominator,
 		Denominator:    declaredText,
 		Reason:         projectionReason(p.HasDenominator, declaredText != "", tooLarge || overflowed),
@@ -435,6 +465,17 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		view.Projection.PerYearBytes = humanBytes(p.BytesPerYear)
 	}
 	return view
+}
+
+func heldRows(row db.CountHeldObservationsRow, exactLimit int64) (rows int64, estimated bool) {
+	if row.CountedRows <= exactLimit {
+		return row.CountedRows, false
+	}
+	if row.EstimatedRows < row.CountedRows {
+		// The capped count is a floor, so a statistic behind the writes never understates it.
+		return row.CountedRows, true
+	}
+	return row.EstimatedRows, true
 }
 
 func dialInstant(now time.Time, dialSeconds int64) (time.Time, bool) {
@@ -469,7 +510,13 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 		s.serverError(w, "enabled scans", err)
 		return
 	}
-	scans := scanCadences(scanRows)
+	coveringKinds, err := s.retentionPanelStore.ListCoveringScanKinds(ctx)
+	if err != nil {
+		// A write clamps to the covering floor, so a missed cover raises the wrong one.
+		s.serverError(w, "covering scans", err)
+		return
+	}
+	scans := scanCadences(scanRows, coveringKinds)
 
 	// Below the floor is not the operator's territory, so nothing is rejected (ADR-0081).
 	obs := retention.ClampToFloor(

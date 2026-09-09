@@ -12,15 +12,24 @@ import (
 )
 
 const countHeldObservations = `-- name: CountHeldObservations :one
-SELECT COUNT(*)::bigint AS rows_held
-FROM observation
+SELECT
+    (SELECT COUNT(*)::bigint
+       FROM (SELECT 1 FROM observation LIMIT $1::bigint + 1) capped
+    )::bigint AS counted_rows,
+    GREATEST(pg_stat_get_live_tuples('observation'::regclass), 0)::bigint AS estimated_rows
 `
 
-func (q *Queries) CountHeldObservations(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countHeldObservations)
-	var rows_held int64
-	err := row.Scan(&rows_held)
-	return rows_held, err
+type CountHeldObservationsRow struct {
+	CountedRows   int64 `json:"counted_rows"`
+	EstimatedRows int64 `json:"estimated_rows"`
+}
+
+// The corpus reaches ~98M rows a year at the ceiling, so the count caps (ADR-0081, #1768).
+func (q *Queries) CountHeldObservations(ctx context.Context, exactLimit int64) (CountHeldObservationsRow, error) {
+	row := q.db.QueryRow(ctx, countHeldObservations, exactLimit)
+	var i CountHeldObservationsRow
+	err := row.Scan(&i.CountedRows, &i.EstimatedRows)
+	return i, err
 }
 
 const deleteExpiredDispatches = `-- name: DeleteExpiredDispatches :execrows
@@ -127,6 +136,40 @@ func (q *Queries) GetRetentionSettings(ctx context.Context) (GetRetentionSetting
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listCoveringScanKinds = `-- name: ListCoveringScanKinds :many
+SELECT s.kind
+FROM scan s
+WHERE s.enabled = TRUE
+  AND EXISTS (
+      SELECT 1
+      FROM batch b
+      JOIN observation o ON o.batch_id = b.id
+      WHERE b.scan_id = s.id
+  )
+ORDER BY s.kind
+`
+
+// Cover is the cover CTE's relation, as a semi-join that stops at the first row (#1768).
+func (q *Queries) ListCoveringScanKinds(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listCoveringScanKinds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var kind string
+		if err := rows.Scan(&kind); err != nil {
+			return nil, err
+		}
+		items = append(items, kind)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDerivationBreaks = `-- name: ListDerivationBreaks :many

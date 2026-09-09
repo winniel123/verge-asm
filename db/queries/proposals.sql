@@ -36,3 +36,15 @@ WHERE lookup_id = $1 AND status = 'pending';
 UPDATE proposal
 SET status = 'declined'
 WHERE id = $1 AND status = 'pending';
+
+-- name: UndoDeclineProposal :one
+UPDATE proposal
+SET status = 'pending'
+WHERE id = $1 AND status = 'declined'
+RETURNING address_cidr;
+
+-- name: ListDeclinedProposalScopes :many
+SELECT id, address_cidr
+FROM proposal
+WHERE status = 'declined'
+ORDER BY id;

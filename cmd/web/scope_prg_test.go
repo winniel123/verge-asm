@@ -22,12 +22,16 @@ func TestScopeFormsCarryTheSubmittingURL(t *testing.T) {
 	base := startWithProposer(t, f, &fakeProposer{candidates: []proposer.Candidate{
 		{SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
 			Scope: netip.MustParsePrefix("203.0.113.0/24"), OrgName: "Acme"},
+		{SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
+			Scope: netip.MustParsePrefix("198.51.100.8/29"), OrgName: "Acme"},
 	}})
 	ac := login(t, base, "admin", "hunter2hunter2")
 	lookup(t, ac, base, "Acme").Body.Close()
 	postForm(t, ac, base+"/exclusions", url.Values{
 		"kind": {"subtree"}, "value": {"old.example.com"},
 	}).Body.Close()
+	// One decline leaves both an undo control on its exclusion row and a pending row behind it.
+	declineOne(t, ac, base, f.proposals[1].ID)
 
 	page := getBody(t, ac, base+"/scope", http.StatusOK)
 	var forms int
@@ -35,7 +39,7 @@ func TestScopeFormsCarryTheSubmittingURL(t *testing.T) {
 	// A confirm state is the only render that ships /seeds/delete, and this is not one.
 	for _, act := range []string{"/seeds", "/seeds/preview", "/seeds/custody", "/seeds/zone",
 		"/seeds/zone/interval", "/seeds/dns/interval", "/exclusions", "/exclusions/delete", "/proposals/search",
-		"/proposals/confirm", "/proposals/decline"} {
+		"/proposals/confirm", "/proposals/decline", "/proposals/undo-decline"} {
 		if n := strings.Count(page, `action="`+act+`"`); n == 0 {
 			t.Errorf("no form posts to %s on /scope", act)
 		} else {

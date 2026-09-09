@@ -14,8 +14,8 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-func (f *fakeStore) CountHeldObservations(context.Context) (int64, error) {
-	return f.heldObs, nil
+func (f *fakeStore) CountHeldObservations(_ context.Context, _ int64) (db.CountHeldObservationsRow, error) {
+	return db.CountHeldObservationsRow{CountedRows: f.heldObs, EstimatedRows: f.heldEstimate}, nil
 }
 
 func (f *fakeStore) ListDerivationBreaks(_ context.Context, _ int64) ([]db.ListDerivationBreaksRow, error) {
@@ -39,12 +39,21 @@ func (f *fakeStore) ListEnabledScans(context.Context) ([]db.Scan, error) {
 	return out, nil
 }
 
+func (f *fakeStore) ListCoveringScanKinds(context.Context) ([]string, error) {
+	if f.coveringScanErr != nil {
+		return nil, f.coveringScanErr
+	}
+	return f.coveringScans, nil
+}
+
 func seedRetentionPanel(f *fakeStore) {
 	f.scans = append(f.scans,
 		db.Scan{ID: 501, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
 		db.Scan{ID: 502, Kind: "tls-acceptance", Enabled: true, CadenceSeconds: 7 * 86400},
 		db.Scan{ID: 503, Kind: "zone", Enabled: true, CadenceSeconds: 30 * 86400},
 	)
+	// The pair rows below are the same cover, reached per pair, so the two must agree.
+	f.coveringScans = []string{"dns", "zone"}
 	f.facetFloors = []db.ListFacetSourceFloorsRow{
 		{Facet: "dns-record", Source: "resolver", TightestCadence: 86400, ScanKind: "dns", RowsHeld: 400, UncoveredRows: 7},
 		{Facet: "dns-record", Source: "zone", TightestCadence: 30 * 86400, ScanKind: "zone", RowsHeld: 120},
@@ -125,6 +134,46 @@ func TestCoverageCarriesTheDialsAndTheClampList(t *testing.T) {
 	// The discarded group renders in the state where it is always empty, and says why.
 	if !strings.Contains(got, "Nothing has been discarded") {
 		t.Errorf("the discarded group is missing in its empty state")
+	}
+}
+
+func TestTheDialFloorNamesAScanThatBoundsARow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	// ADR-0081's walked case: no zone file, and ct enabled hourly bounds no row.
+	f.scans = append(f.scans, db.Scan{ID: 504, Kind: "ct", Enabled: true, CadenceSeconds: 3600})
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if !strings.Contains(got, "2 × cadence(dns)") {
+		t.Errorf("the observation floor does not name dns, the tightest Scan that bounds a row")
+	}
+	if strings.Contains(got, "cadence(ct)") {
+		t.Errorf("the observation floor names ct, a Scan that bounds no row — the operator would move the wrong Scan")
+	}
+	// A floor from an uncovered Scan would put a below-floor stop on the track.
+	if strings.Contains(got, `value="1"`) {
+		t.Errorf("a stop below the 2-day covering floor is offered on the track")
+	}
+}
+
+func TestAFailedCoveringScanReadWithholdsThePanel(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	f.coveringScanErr = errors.New("boom")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	// An unread cover would draw the dial with no floor, offering the ground as a stop (ADR-0081).
+	if strings.Contains(got, `action="/coverage/retention"`) {
+		t.Errorf("a failed covering-Scan read still rendered the dial form")
+	}
+	if !strings.Contains(got, "did not resolve on this load") {
+		t.Errorf("the withheld panel does not say why")
 	}
 }
 
@@ -275,5 +324,67 @@ func TestSettingsLinksToTheDialsAndCarriesNoCopy(t *testing.T) {
 	}
 	if strings.Contains(got, "lands with later work") {
 		t.Errorf("the stale floor note survives")
+	}
+}
+
+func TestTheHeldFigureSaysWhenItIsAnEstimate(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	// Above the cap the count stops, so the projection prices the corpus from the estimate.
+	f.heldObs = heldCountExactLimit + 1
+	f.heldEstimate = 97925120
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if !strings.Contains(got, "97,925,120 rows") {
+		t.Errorf("the projection does not price the corpus from the estimate")
+	}
+	// A price is exact over what the operator typed, so an estimate must say it is one (ADR-0081).
+	if !strings.Contains(got, "an estimate") {
+		t.Errorf("the held figure is an estimate and the panel does not say so")
+	}
+	if !strings.Contains(got, "about 97,925,120 rows") {
+		t.Errorf("the estimated held figure is not qualified where it is read")
+	}
+}
+
+func TestACountedHeldFigureIsNotCalledAnEstimate(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	f.heldEstimate = 4_000_000
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if !strings.Contains(got, "529 rows") {
+		t.Errorf("a count under the cap must be shown, not the estimate beside it")
+	}
+	if strings.Contains(got, "an estimate") {
+		t.Errorf("a counted held figure is called an estimate")
+	}
+}
+
+func TestACappedHeldCountNeverUnderstatesTheCorpus(t *testing.T) {
+	const cap = 100
+	for _, tc := range []struct {
+		name          string
+		row           db.CountHeldObservationsRow
+		wantRows      int64
+		wantEstimated bool
+	}{
+		{"under the cap", db.CountHeldObservationsRow{CountedRows: 99, EstimatedRows: 4}, 99, false},
+		{"at the cap", db.CountHeldObservationsRow{CountedRows: 100, EstimatedRows: 4}, 100, false},
+		{"over the cap", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true},
+		{"stale statistic", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 101, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, estimated := heldRows(tc.row, cap)
+			if rows != tc.wantRows || estimated != tc.wantEstimated {
+				t.Errorf("heldRows = (%d, %v), want (%d, %v)", rows, estimated, tc.wantRows, tc.wantEstimated)
+			}
+		})
 	}
 }

@@ -575,15 +575,15 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 
 func devRetentionPanel(empty bool) retentionPanelView {
 	scans := []retention.ScanCadence{
-		{Kind: "dns", CadenceSeconds: 86400},
-		{Kind: "tls-acceptance", CadenceSeconds: 7 * 86400},
-		{Kind: "zone", CadenceSeconds: 30 * 86400},
+		{Kind: "dns", CadenceSeconds: 86400, Covers: true},
+		{Kind: "tls-acceptance", CadenceSeconds: 7 * 86400, Covers: true},
+		{Kind: "zone", CadenceSeconds: 30 * 86400, Covers: true},
 	}
 	obs, disp := retention.ObservationFloor(scans), retention.DispatchFloor(scans)
 	view := retentionPanelView{
 		IsAdmin:     true,
-		Observation: buildDial("observation_currency_days", "Observation currency", "days", obs, obs.Days(), observationLadder, 0, humanDays),
-		Dispatch:    buildDial("dispatch_cadence_multiple", "Dispatch retention", "cadences", disp, retention.FloorCadences, dispatchLadder, 0, humanCadences),
+		Observation: buildDial("observation_currency_days", "Observation currency", "days", obs, obs.Days(), observationLadder, 0, humanDays, unflooredObservation),
+		Dispatch:    buildDial("dispatch_cadence_multiple", "Dispatch retention", "cadences", disp, retention.FloorCadences, dispatchLadder, 0, humanCadences, unflooredDispatch),
 	}
 	if empty {
 		view.Clamps = clampViews(retention.OrderClamps(nil), time.Now())
