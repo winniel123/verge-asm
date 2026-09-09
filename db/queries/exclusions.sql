@@ -29,10 +29,14 @@ DELETE FROM exclusion WHERE id = $1;
 WITH claim AS (
     SELECT 1 FROM proposal p
     WHERE p.status = 'declined' AND p.address_cidr = $1
+), kept AS (
+    SELECT 1 FROM exclusion
+    WHERE kind = 'address' AND address_cidr = $1
 ), lift AS (
     DELETE FROM exclusion
     WHERE kind = 'address' AND address_cidr = $1
       AND NOT EXISTS (SELECT 1 FROM claim)
     RETURNING id
 )
-SELECT EXISTS (SELECT 1 FROM claim) AS still_claimed;
+-- Every arm reads one snapshot, so kept is the row as it stood before lift (#1777).
+SELECT EXISTS (SELECT 1 FROM claim, kept) AS still_claimed;

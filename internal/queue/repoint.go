@@ -106,8 +106,16 @@ func addressesNewToEstate(moves []rePoint, in membershipInputs, citers []db.List
 	if len(keys) == 0 {
 		return nil
 	}
+	want := make(map[string]bool, len(keys))
+	for _, a := range keys {
+		want[a] = true
+	}
 	citedElsewhere := map[string]bool{}
 	for _, r := range citers {
+		// The read is shared, so it carries rows the other producer asked for (#1784).
+		if !want[r.Addr] {
+			continue
+		}
 		// A timeline that moved here is open, so it is no prior citer of its address (#1730).
 		if movedTimeline(moves, r) {
 			continue

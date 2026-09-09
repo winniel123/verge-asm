@@ -744,6 +744,43 @@ func TestUndoDeclineKeepsAnExclusionASiblingDeclineStillClaims(t *testing.T) {
 	}
 }
 
+func TestConfirmRefusesAScopeASiblingDeclineStillExcludes(t *testing.T) {
+	f := newFakeStore()
+	base, ac, first, second := declineOneScopeFromTwoSources(t, f)
+
+	postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(first)}}).Body.Close()
+	if got := addressExclusions(f); len(got) != 1 {
+		t.Fatalf("exclusions after the first undo = %v, want the sibling's row", got)
+	}
+
+	resp := postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(first)}})
+	page := refusalPage(t, ac, base, resp)
+	if len(f.seeds) != 0 {
+		t.Fatalf("a seed was declared under a standing exclusion, so its ground measures nothing: %+v", f.seeds)
+	}
+	if got := statusOf(f, first); got != "pending" {
+		t.Errorf("refused proposal %d status=%q, want pending", first, got)
+	}
+	if got := statusOf(f, second); got != "declined" {
+		t.Errorf("sibling proposal %d status=%q, want declined", second, got)
+	}
+	for _, want := range []string{"203.0.113.0/24", "refuses ground", "Undo every decline"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("still-excluded refusal missing %q; body: %s", want, page)
+		}
+	}
+
+	postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(second)}}).Body.Close()
+	resp = postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(first)}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("confirm after the last undo status=%d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+	if len(f.seeds) != 1 || f.seeds[0].AddressCidr.String() != "203.0.113.0/24" {
+		t.Fatalf("the scope was not confirmed once no decline claimed it: %+v", f.seeds)
+	}
+}
+
 func TestUndoDeclineWithNoExclusionStillReturnsTheProposal(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

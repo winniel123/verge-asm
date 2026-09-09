@@ -70,6 +70,7 @@ type Querier interface {
 	// Nothing else purges the table, so the request path bounds it to the live grants (#1651).
 	DeleteSpentPasswordResets(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	// A data-modifying CTE fires on its own, so nothing need select from lift (#1777).
+	// Every arm reads one snapshot, so kept is the row as it stood before lift (#1777).
 	DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (bool, error)
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)

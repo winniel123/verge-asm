@@ -76,16 +76,20 @@ const deleteUnclaimedAddressExclusion = `-- name: DeleteUnclaimedAddressExclusio
 WITH claim AS (
     SELECT 1 FROM proposal p
     WHERE p.status = 'declined' AND p.address_cidr = $1
+), kept AS (
+    SELECT 1 FROM exclusion
+    WHERE kind = 'address' AND address_cidr = $1
 ), lift AS (
     DELETE FROM exclusion
     WHERE kind = 'address' AND address_cidr = $1
       AND NOT EXISTS (SELECT 1 FROM claim)
     RETURNING id
 )
-SELECT EXISTS (SELECT 1 FROM claim) AS still_claimed
+SELECT EXISTS (SELECT 1 FROM claim, kept) AS still_claimed
 `
 
 // A data-modifying CTE fires on its own, so nothing need select from lift (#1777).
+// Every arm reads one snapshot, so kept is the row as it stood before lift (#1777).
 func (q *Queries) DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (bool, error) {
 	row := q.db.QueryRow(ctx, deleteUnclaimedAddressExclusion, addressCidr)
 	var still_claimed bool

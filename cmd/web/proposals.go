@@ -150,22 +150,30 @@ func (s *server) proposalLookups(ctx context.Context) ([]proposalLookupView, err
 	return toProposalLookups(rows, s.addressCap(ctx)), nil
 }
 
+func coveringExclusion(scope netip.Prefix, excl []*netip.Prefix) *netip.Prefix {
+	for _, e := range excl {
+		if e == nil {
+			continue
+		}
+		// A decline claims its prefix, so a wider candidate is still offered (ADR-0012, #1714).
+		if e.Bits() <= scope.Bits() && e.Contains(scope.Addr()) {
+			return e
+		}
+	}
+	return nil
+}
+
+func stillExcludedNotice(e *netip.Prefix) string {
+	return fmt.Sprintf(
+		"That scope sits under the exclusion %s, and an exclusion refuses ground. Undo every decline that claims %s, or remove the exclusion, then confirm it.",
+		e, e,
+	)
+}
+
 func excludeCandidates(cands []proposer.Candidate, excl []*netip.Prefix) []proposer.Candidate {
 	var out []proposer.Candidate
 	for _, c := range cands {
-		scope := c.Scope.Masked()
-		skip := false
-		for _, e := range excl {
-			if e == nil {
-				continue
-			}
-			// A decline claims its prefix, so a wider candidate is still offered (ADR-0012, #1714).
-			if e.Bits() <= scope.Bits() && e.Contains(scope.Addr()) {
-				skip = true
-				break
-			}
-		}
-		if !skip {
+		if coveringExclusion(c.Scope.Masked(), excl) == nil {
 			out = append(out, c)
 		}
 	}
@@ -258,6 +266,18 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 
 	// A cidr column rejects host bits, so masking gives an org range dispatch parity (#755).
 	cidr := p.AddressCidr.Masked()
+
+	excl, err := s.proposalsStore.ListAddressExclusionCidrs(r.Context())
+	if err != nil {
+		s.serverError(w, "list address exclusions", err)
+		return
+	}
+	// The queue refuses ground an exclusion covers, so this seed would measure nothing (#1777).
+	if e := coveringExclusion(cidr, excl); e != nil {
+		s.flashScopeBack(w, r, seedsForms{proposalNotice: stillExcludedNotice(e)})
+		return
+	}
+
 	sd, err := s.proposalsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 		AddressCidr: &cidr, CreatedBy: acct.ID,
 	})

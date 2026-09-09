@@ -382,12 +382,14 @@ func TestACappedHeldCountNeverUnderstatesTheCorpus(t *testing.T) {
 		{"over the cap", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true, true},
 		// A capped count is a floor, so a plausible statistic under it renders the floor.
 		{"lagging statistic just under the capped count", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 99}, 101, true, true},
-		{"statistic at the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 50}, 101, true, true},
-		{"statistic below the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 49}, 0, false, false},
+		{"statistic at the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 80}, 101, true, true},
+		{"statistic just below the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 79}, 0, false, false},
 		{"cold collector", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 0, false, false},
 		// A 50M-row corpus whose collector never warmed reports a far smaller table (#1778).
 		{"a 50M-row corpus behind a cold collector", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 0}, 0, false, false},
 		{"a 50M-row corpus behind a statistic from a bulk load", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 12_000}, 0, false, false},
+		// A half-warmed collector clears half the cap, so #1778's 500x understatement returns.
+		{"a 50M-row corpus behind a half-warmed collector", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 60_000}, 0, false, false},
 		// The ~100,500-row corpus of #1783: reltuples is stale by 1%, and it still prices.
 		{"a stale statistic just above the cap", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 99_000}, heldCountExactLimit + 1, true, true},
 	} {
