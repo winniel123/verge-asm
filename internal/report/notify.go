@@ -16,6 +16,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/delivery"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/secretseal"
 )
 
 // No field may carry an estate row; the type is the ADR-0039 guarantee.
@@ -53,23 +54,24 @@ func trimSlash(s string) string {
 }
 
 type NotifyRunner struct {
-	pool     *pgxpool.Pool
-	q        *db.Queries
-	doer     delivery.Doer
-	now      func() time.Time
-	baseURL  string
-	log      *log.Logger
-	resolver delivery.Resolver
+	pool      *pgxpool.Pool
+	q         *db.Queries
+	doer      delivery.Doer
+	now       func() time.Time
+	baseURL   string
+	log       *log.Logger
+	resolver  delivery.Resolver
+	secretKey []byte
 }
 
-func NewNotifyRunner(pool *pgxpool.Pool, doer delivery.Doer, now func() time.Time, baseURL string, logger *log.Logger) *NotifyRunner {
+func NewNotifyRunner(pool *pgxpool.Pool, doer delivery.Doer, now func() time.Time, baseURL string, logger *log.Logger, secretKey []byte) *NotifyRunner {
 	if now == nil {
 		now = time.Now
 	}
 	if doer == nil {
 		doer = delivery.NewHTTPDoer()
 	}
-	return &NotifyRunner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger, resolver: net.DefaultResolver}
+	return &NotifyRunner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger, resolver: net.DefaultResolver, secretKey: secretKey}
 }
 
 func (n *NotifyRunner) Run(ctx context.Context, interval time.Duration) error {
@@ -126,12 +128,10 @@ func (n *NotifyRunner) post(ctx context.Context, claim db.ClaimReportNotificatio
 	if err != nil {
 		return fmt.Errorf("marshal ready body: %w", err)
 	}
-	var secret []byte
-	if ch.Secret.Valid {
-		secret = []byte(ch.Secret.String)
+	statusCode, sendErr := n.sendToChannel(ctx, ch, body)
+	if errors.Is(sendErr, errOpenSecret) {
+		return sendErr
 	}
-
-	statusCode, sendErr := delivery.SendSigned(ctx, n.doer, n.resolver, ch.Url, body, secret, n.now().UTC())
 	delivered := sendErr == nil && delivery.Delivered(statusCode)
 
 	switch delivery.Decide(delivered, claim.Attempt, claim.MaxAttempts) {
@@ -154,6 +154,17 @@ func (n *NotifyRunner) post(ctx context.Context, claim db.ClaimReportNotificatio
 			ID: claim.ID, LastError: pgText(failure),
 		})
 	}
+}
+
+var errOpenSecret = errors.New("open channel secret")
+
+func (n *NotifyRunner) sendToChannel(ctx context.Context, ch db.GetChannelForDeliveryRow, body []byte) (int, error) {
+	// An unopenable secret is a fault, not a delivery miss, so no attempt is spent (ADR-0172 §5).
+	secret, err := secretseal.OpenText(n.secretKey, ch.Secret)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %w", errOpenSecret, err)
+	}
+	return delivery.SendSigned(ctx, n.doer, n.resolver, ch.Url, body, secret, n.now().UTC())
 }
 
 func (n *NotifyRunner) markDelivered(ctx context.Context, claim db.ClaimReportNotificationRow) error {

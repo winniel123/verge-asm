@@ -164,6 +164,14 @@ Ruled by [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed
 **public** key. A database dump therefore leaks neither the session key nor the SSH
 private key: they live on the per-service state volumes, not in Postgres.
 
+Three operator-typed credentials do sit in Postgres, and each is AEAD ciphertext under a
+key Postgres never holds
+([ADR-0172](../adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md)):
+the two-factor seed under a sub-key of the session signing key, and the webhook signing
+secret and the OIDC client secret under sub-keys of the `transcript-key` volume
+([#1679](https://github.com/winniel123/verge-asm/issues/1679)). A dump discloses
+ciphertext and no key.
+
 ---
 
 ## Volumes

@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/secretseal"
 )
 
 type fakeChannelSender struct {
@@ -41,6 +42,7 @@ func (f *fakeChannelSender) Send(_ context.Context, targetURL string, body, secr
 func startWithChannelSender(t *testing.T, f *fakeStore, sender channelTestSender) string {
 	t.Helper()
 	srv := newServer(f, testKey, "", fixedClock())
+	srv.useTranscriptKey(testTranscriptKey)
 	srv.channelSender = sender
 	ts := httptest.NewServer(srv.handler())
 	t.Cleanup(ts.Close)
@@ -53,7 +55,7 @@ func addFakeChannel(f *fakeStore, id int64, rawURL, secret string) {
 		createdBy: 1, createdAt: time.Now(), updatedAt: time.Now(),
 	}
 	if secret != "" {
-		c.secret = pgtype.Text{String: secret, Valid: true}
+		c.secret = pgtype.Text{String: mustSeal(secretseal.LabelChannelSecret, secret), Valid: true}
 	}
 	f.channels = append(f.channels, c)
 	if id >= f.chanNextID {

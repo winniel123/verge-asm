@@ -25,6 +25,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/report"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/scan"
+	"github.com/winniel123/verge-asm/internal/secretseal"
 	"github.com/winniel123/verge-asm/internal/transcript"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -66,6 +67,11 @@ func main() {
 	transcriptKey, err := transcript.LoadOrCreateKey(transcriptKeyDir)
 	if err != nil {
 		log.Fatalf("worker: transcript key: %v", err)
+	}
+	// The worker mounts no web-state, so the shared transcript key parents this sub-key (#1679).
+	channelSecretKey, err := secretseal.DeriveKey(transcriptKey, secretseal.LabelChannelSecret)
+	if err != nil {
+		log.Fatalf("worker: channel secret key: %v", err)
 	}
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
@@ -138,7 +144,7 @@ func main() {
 		}
 	}()
 
-	notifyRunner := report.NewNotifyRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger)
+	notifyRunner := report.NewNotifyRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger, channelSecretKey)
 	go func() {
 		if err := notifyRunner.Run(ctx, 5*time.Second); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: report notify stopped: %v", err)
@@ -194,7 +200,7 @@ func main() {
 		}
 	}()
 
-	deliveryRunner := delivery.NewRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger)
+	deliveryRunner := delivery.NewRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger, channelSecretKey)
 	go func() {
 		if err := deliveryRunner.Run(ctx, 5*time.Second); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Printf("worker: delivery stopped: %v", err)

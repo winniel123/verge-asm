@@ -62,7 +62,7 @@ A channel holds four things:
 | Field | Value |
 | --- | --- |
 | **URL** | An absolute `https://` URL. `http://` is refused except to a **loopback address literal** (§ below). |
-| **Secret** | Optional. Signs the body with `HMAC-SHA256`; **write-only** — set, replaced, or cleared, never rendered back. |
+| **Secret** | Optional. Signs the body with `HMAC-SHA256`; **write-only** — set, replaced, or cleared, never rendered back. Held as AEAD ciphertext under a sub-key of the `transcript-key` volume, so a database dump discloses no signing key ([#1679](https://github.com/winniel123/verge-asm/issues/1679)). |
 | **Classes** | A subset of `drift` · `coverage` · `clock`. At least one must be chosen — this is the only routing axis. |
 | **Enabled** | Boolean. A disabled channel is skipped at routing time; disabling is not a delete. |
 

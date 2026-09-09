@@ -23,10 +23,11 @@ CREATE TABLE sso_provider (
     -- The OAuth2 client id the IdP assigned this deployment. Not a secret.
     client_id      TEXT NOT NULL,
     -- The client secret for the confidential-client token exchange. WRITE-ONLY,
-    -- mirroring channel.secret (ADR-0053's shared-store precedent): the config reads
-    -- never SELECT it — they expose only whether one is set — and a single dedicated
-    -- server-side read hands it to the token exchange. NULL where the client is public
-    -- (PKCE-only) and no secret was set.
+    -- mirroring channel.secret: the config reads never SELECT it — they expose only
+    -- whether one is set — and a single dedicated server-side read hands it to the
+    -- token exchange. Held as AEAD ciphertext under a transcript-key sub-key since
+    -- migration 25200, so a dump discloses no key (ADR-0172 §2, #1679). NULL where
+    -- the client is public (PKCE-only) and no secret was set.
     client_secret  TEXT,
     -- Which id_token claim carries the local username to match. Defaults to the OIDC
     -- standard preferred_username; accounts here are usernames, not emails.

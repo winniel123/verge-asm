@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/secretseal"
 )
 
 type fakeSSOFlow struct {
@@ -48,6 +49,7 @@ func (f *fakeSSOFlow) Exchange(_ context.Context, cfg ssoConfig, code, verifier,
 func startWithSSO(t *testing.T, f *fakeStore, flow ssoFlow) string {
 	t.Helper()
 	srv := newServer(f, testKey, "", fixedClock())
+	srv.useTranscriptKey(testTranscriptKey)
 	srv.sso = flow
 	ts := httptest.NewServer(srv.handler())
 	t.Cleanup(ts.Close)
@@ -554,7 +556,7 @@ func seedSSOProviderWithSecret(f *fakeStore, id int64, slug, secret string, crea
 	f.ssoNextID = id
 	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
 		id: id, slug: slug, name: "Okta", issuer: "https://idp.example", clientID: "cid",
-		secret: secret, hasSecret: true,
+		secret: mustSeal(secretseal.LabelSSOClientSecret, secret), hasSecret: true,
 		enabled: true, createdBy: createdBy, createdAt: obsClock,
 	})
 }
@@ -575,7 +577,7 @@ func TestSettingsSSOSecretBlankKeepsStored(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	if !f.ssoProviders[0].hasSecret || f.ssoProviders[0].secret != "stored-secret" {
+	if !f.ssoProviders[0].hasSecret || openTestSSOSecret(t, f.ssoProviders[0].secret) != "stored-secret" {
 		t.Errorf("a blank update-secret submission wiped the stored secret: hasSecret=%v secret=%q",
 			f.ssoProviders[0].hasSecret, f.ssoProviders[0].secret)
 	}
@@ -608,7 +610,7 @@ func TestSettingsSSOSecretValueReplaces(t *testing.T) {
 		"id": {"1"}, "client_secret": {"rotated-secret"},
 	})
 	resp.Body.Close()
-	if !f.ssoProviders[0].hasSecret || f.ssoProviders[0].secret != "rotated-secret" {
+	if !f.ssoProviders[0].hasSecret || openTestSSOSecret(t, f.ssoProviders[0].secret) != "rotated-secret" {
 		t.Errorf("a typed secret did not replace the stored one: hasSecret=%v secret=%q",
 			f.ssoProviders[0].hasSecret, f.ssoProviders[0].secret)
 	}

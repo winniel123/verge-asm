@@ -23,7 +23,7 @@ import (
 func start(t *testing.T, f *fakeStore, setupToken string) string {
 	t.Helper()
 	srv := newServer(f, testKey, setupToken, fixedClock())
-	srv.transcriptKey = testTranscriptKey
+	srv.useTranscriptKey(testTranscriptKey)
 	ts := httptest.NewServer(srv.handler())
 	t.Cleanup(ts.Close)
 	return ts.URL
@@ -32,7 +32,7 @@ func start(t *testing.T, f *fakeStore, setupToken string) string {
 func startAt(t *testing.T, f *fakeStore, now time.Time) string {
 	t.Helper()
 	srv := newServer(f, testKey, "", func() time.Time { return now })
-	srv.transcriptKey = testTranscriptKey
+	srv.useTranscriptKey(testTranscriptKey)
 	ts := httptest.NewServer(srv.handler())
 	t.Cleanup(ts.Close)
 	return ts.URL

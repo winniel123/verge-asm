@@ -117,7 +117,7 @@ func main() {
 	}
 	web := newServer(queries, key, setupToken, clock)
 	web.devMode = devMode
-	web.transcriptKey = transcriptKey
+	web.useTranscriptKey(transcriptKey)
 	web.stateDir = stateDir
 	web.pool = pool
 	progressHub := newProgressHub()

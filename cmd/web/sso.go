@@ -182,10 +182,10 @@ func (s *server) ssoStart(w http.ResponseWriter, r *http.Request) {
 
 	state, nonce := randToken(), randToken()
 	verifier := oauth2.GenerateVerifier()
-	cfg := ssoConfig{
-		Slug: prov.Slug, Issuer: prov.Issuer, ClientID: prov.ClientID,
-		ClientSecret: prov.ClientSecret.String,
-		RedirectURL:  s.ssoRedirectURL(r, ssoLoginCallbackPath(prov.Slug)),
+	cfg, err := s.ssoConfigFor(prov, s.ssoRedirectURL(r, ssoLoginCallbackPath(prov.Slug)))
+	if err != nil {
+		s.serverError(w, "sso: open client secret", err)
+		return
 	}
 	authURL, err := s.sso.AuthCodeURL(r.Context(), cfg, state, nonce, verifier)
 	if err != nil {
@@ -228,10 +228,10 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
 		return
 	}
-	cfg := ssoConfig{
-		Slug: prov.Slug, Issuer: prov.Issuer, ClientID: prov.ClientID,
-		ClientSecret: prov.ClientSecret.String,
-		RedirectURL:  s.ssoRedirectURL(r, ssoLoginCallbackPath(prov.Slug)),
+	cfg, err := s.ssoConfigFor(prov, s.ssoRedirectURL(r, ssoLoginCallbackPath(prov.Slug)))
+	if err != nil {
+		s.serverError(w, "sso: open client secret", err)
+		return
 	}
 	ident, err := s.sso.Exchange(r.Context(), cfg, code, tx.Verifier, tx.Nonce)
 	if err != nil {
@@ -275,10 +275,10 @@ func (s *server) ssoLinkStart(w http.ResponseWriter, r *http.Request, _ db.Accou
 	}
 	state, nonce := randToken(), randToken()
 	verifier := oauth2.GenerateVerifier()
-	cfg := ssoConfig{
-		Slug: prov.Slug, Issuer: prov.Issuer, ClientID: prov.ClientID,
-		ClientSecret: prov.ClientSecret.String,
-		RedirectURL:  s.ssoRedirectURL(r, ssoLinkCallbackPath(prov.Slug)),
+	cfg, err := s.ssoConfigFor(prov, s.ssoRedirectURL(r, ssoLinkCallbackPath(prov.Slug)))
+	if err != nil {
+		s.serverError(w, "sso: open client secret", err)
+		return
 	}
 	authURL, err := s.sso.AuthCodeURL(r.Context(), cfg, state, nonce, verifier)
 	if err != nil {
@@ -319,10 +319,10 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		http.Redirect(w, r, "/profile?linkerr=unavailable", http.StatusSeeOther)
 		return
 	}
-	cfg := ssoConfig{
-		Slug: prov.Slug, Issuer: prov.Issuer, ClientID: prov.ClientID,
-		ClientSecret: prov.ClientSecret.String,
-		RedirectURL:  s.ssoRedirectURL(r, ssoLinkCallbackPath(prov.Slug)),
+	cfg, err := s.ssoConfigFor(prov, s.ssoRedirectURL(r, ssoLinkCallbackPath(prov.Slug)))
+	if err != nil {
+		s.serverError(w, "sso: open client secret", err)
+		return
 	}
 	ident, err := s.sso.Exchange(r.Context(), cfg, code, tx.Verifier, tx.Nonce)
 	if err != nil {
