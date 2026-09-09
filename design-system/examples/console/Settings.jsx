@@ -518,15 +518,16 @@ function SessionsSection({ onToast }) {
 
 function AuditSection() {
   const [range, setRange] = React.useState({ label: "Last 7d" });
+  // Every row is one operator act; a Batch or Delivery event has its own corpus and belongs there (#127, #1796).
   const ROWS = [
-    { when: "2026-08-22T14:41Z", actor: "ola@acmecorp.io", action: "annotation.create", subject: "VG-2481 · accepted risk", ip: "198.51.100.7" },
-    { when: "2026-08-22T14:38Z", actor: "system", action: "batch.complete", subject: "2026-08-22T14:00Z", ip: "—" },
-    { when: "2026-08-22T11:02Z", actor: "dana@acmecorp.io", action: "seed.add", subject: "203.0.113.0/24", ip: "198.51.100.12" },
-    { when: "2026-08-22T10:57Z", actor: "dana@acmecorp.io", action: "exclusion.add", subject: "old-blog.acmecorp.io", ip: "198.51.100.12" },
-    { when: "2026-08-21T16:20Z", actor: "ola@acmecorp.io", action: "member.invite", subject: "priya@acmecorp.io · viewer", ip: "198.51.100.7" },
-    { when: "2026-08-21T09:12Z", actor: "system", action: "delivery.fail", subject: "pager.example/verge · timeout", ip: "—" },
-    { when: "2026-08-20T15:44Z", actor: "sam@acmecorp.io", action: "channel.pause", subject: "pager.example/verge", ip: "203.0.113.80" },
-    { when: "2026-08-20T08:01Z", actor: "ola@acmecorp.io", action: "sso.metadata.update", subject: "okta · idp-signing-2026", ip: "198.51.100.7" },
+    { when: "2026-08-22T14:41Z", actor: "ola@acmecorp.io", action: "annotation.create", subject: "VG-2481 · accepted risk" },
+    { when: "2026-08-22T14:38Z", actor: "sam@acmecorp.io", action: "scan.trigger", subject: "cold" },
+    { when: "2026-08-22T11:02Z", actor: "dana@acmecorp.io", action: "seed.add", subject: "203.0.113.0/24" },
+    { when: "2026-08-22T10:57Z", actor: "dana@acmecorp.io", action: "exclusion.add", subject: "old-blog.acmecorp.io" },
+    { when: "2026-08-21T16:20Z", actor: "ola@acmecorp.io", action: "member.invite", subject: "priya@acmecorp.io · viewer" },
+    { when: "2026-08-21T09:12Z", actor: "ola@acmecorp.io", action: "api.enable", subject: "API access · on" },
+    { when: "2026-08-20T15:44Z", actor: "sam@acmecorp.io", action: "channel.pause", subject: "pager.example/verge" },
+    { when: "2026-08-20T08:01Z", actor: "ola@acmecorp.io", action: "sso.metadata.update", subject: "okta · idp-signing-2026" },
   ];
   return (
     <Card microLabel="Operational record" title="Audit log" pad={0} action={<DateRangePicker value={range} onChange={setRange} />} overflow="visible">
@@ -534,8 +535,8 @@ function AuditSection() {
         { key: "when", label: "When", mono: true, width: 160 },
         { key: "actor", label: "Actor", mono: true, width: 170 },
         { key: "action", label: "Action", mono: true, width: 170 },
+        // No Source IP column: an Act is never deleted, so the address would be retained permanently (#1796).
         { key: "subject", label: "Subject", mono: true },
-        { key: "ip", label: "Source IP", mono: true, align: "right", width: 120 },
       ]} rows={ROWS} rowKey="when" />
     </Card>
   );
