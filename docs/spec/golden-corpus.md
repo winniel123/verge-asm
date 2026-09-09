@@ -236,6 +236,12 @@ a row protects the leaf whose gate runs it and nothing else. The two blocks are 
 
 **Every pull request and every release. Every leg, every assertion.**
 
+**One qualification on the release side**
+([#1693](https://github.com/winniel123/verge-asm/issues/1693)). A6 compares a head against a pull
+request's base. A tag has no base, so `release.yml` runs A1 to A5 and inherits A6 from the pull
+request that admitted each commit. [`release-pipeline.md`](./release-pipeline.md) §4.5 states the
+inheritance and what it rests on.
+
 The named failure mode arrives on a dependency PR — the `go.mod` cadence
 [#49](https://github.com/winniel123/verge-asm/issues/49) put `resolution-walk` on. The tempting
 design is a `go.mod`-touched path filter. It is refused. The corpus is hermetic by construction, so
