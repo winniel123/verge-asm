@@ -353,8 +353,11 @@ func subjectHref(kind, key string) string {
 		return "/subjects/service?key=" + url.QueryEscape(key)
 	case "endpoint":
 		return "/subjects/endpoint?key=" + url.QueryEscape(key)
-	case "name", "address":
+	case "name":
 		return "/subjects/" + url.PathEscape(key)
+	case "address":
+		// No subject page renders an address, so the inbox falls back to the inventory (#1730).
+		return ""
 	case message.KindRule:
 		// The signals page filters on q, so a rule entry lands on that rule's rows.
 		return "/signals?q=" + url.QueryEscape(key)

@@ -40,15 +40,18 @@ type fakeMessageStore struct {
 	certSpans     []db.ListOpenEndpointCertificateSpansRow
 	certReads     int
 
-	citers      map[string][]string
+	citers      map[string][]db.ListResolutionCitersForAddressesRow
 	citersAsked [][]string
 }
 
 func (f *fakeMessageStore) ListResolutionCitersForAddresses(_ context.Context, addresses []string) ([]db.ListResolutionCitersForAddressesRow, error) {
 	f.citersAsked = append(f.citersAsked, addresses)
-	out := make([]db.ListResolutionCitersForAddressesRow, 0, len(addresses))
+	var out []db.ListResolutionCitersForAddressesRow
 	for _, a := range addresses {
-		out = append(out, db.ListResolutionCitersForAddressesRow{Addr: a, Citers: f.citers[a]})
+		for _, r := range f.citers[a] {
+			r.Addr = a
+			out = append(out, r)
+		}
 	}
 	return out, nil
 }

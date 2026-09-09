@@ -149,9 +149,10 @@ func link(base string, cause message.Cause, subjectKind, firedAt string) string 
 		switch subjectKind {
 		case "service":
 			return base + "/subjects/service?key=" + url.QueryEscape(firedAt)
-		case "name", "address":
+		case "name":
 			return base + "/subjects/" + url.PathEscape(firedAt)
 		default:
+			// No subject page renders an address, so an Address root lands on the list (#1730).
 			return base + "/subjects"
 		}
 	}

@@ -7,6 +7,10 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/estate"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/signalfacts"
@@ -15,9 +19,12 @@ import (
 // An Address root is read from a resolution move, never from a span of its own (ADR-0006).
 
 type rePoint struct {
-	name   string
-	before map[string]bool
-	after  map[string]bool
+	name          string
+	discriminator string
+	vantageID     pgtype.Int8
+	source        string
+	before        map[string]bool
+	after         map[string]bool
 }
 
 func rePointMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, in membershipInputs) ([]*message.Message, error) {
@@ -41,7 +48,7 @@ func rePointMessages(ctx context.Context, store messageStore, observedAt time.Ti
 		isFresh[a] = true
 	}
 	for _, mv := range moves {
-		if m := message.RePoint(mv.name, rePointResidue(changes, mv.name, isFresh), observedAt); m != nil {
+		if m := message.RePoint(mv.name, rePointResidue(changes, mv, isFresh), observedAt); m != nil {
 			msgs = append(msgs, m)
 		}
 	}
@@ -55,20 +62,30 @@ func rePoints(changes []spanChange) []rePoint {
 		if c.Opened || c.IsGap || c.Facet != resolutionwalk.FacetResolution || c.SubjectKind != subjectKindName {
 			continue
 		}
-		prev := c.Previous
+		// A Gap-closing edge is coverage by construction, so gapclose alone carries it (ADR-0014).
 		if c.PrevIsGap {
-			prev = c.BeforeGap
+			continue
 		}
-		out = append(out, rePoint{name: c.SubjectKey, before: citedIn(prev), after: citedIn(c.Value)})
+		out = append(out, rePoint{
+			name:          c.SubjectKey,
+			discriminator: c.Discriminator,
+			vantageID:     c.VantageID,
+			source:        c.Source,
+			before:        citedIn(c.Previous),
+			after:         citedIn(c.Value),
+		})
 	}
 	return out
 }
 
+func (mv rePoint) sameTimeline(r db.ListResolutionCitersForAddressesRow) bool {
+	return r.SubjectKey == mv.name && r.Discriminator == mv.discriminator &&
+		r.VantageID == mv.vantageID && r.Source == mv.source
+}
+
 func addressesNewToEstate(ctx context.Context, store messageStore, moves []rePoint, in membershipInputs) ([]string, error) {
-	moved := make(map[string]bool, len(moves))
 	before := map[string]bool{}
 	for _, mv := range moves {
-		moved[mv.name] = true
 		for a := range mv.before {
 			before[a] = true
 		}
@@ -95,22 +112,23 @@ func addressesNewToEstate(ctx context.Context, store messageStore, moves []rePoi
 	}
 	citedElsewhere := map[string]bool{}
 	for _, r := range rows {
-		for _, n := range r.Citers {
-			// A Name that moved here is open, so it is no prior citer of its own address (#1730).
-			if !moved[n] {
-				citedElsewhere[r.Addr] = true
-				break
-			}
+		// A timeline that moved here is open, so it is no prior citer of its address (#1730).
+		if movedTimeline(moves, r) {
+			continue
 		}
+		citedElsewhere[r.Addr] = true
 	}
 	var fresh []string
 	for _, a := range keys {
 		addr, err := netip.ParseAddr(a)
-		if err != nil || citedElsewhere[a] {
+		if err != nil {
 			continue
 		}
-		// A declared scope never appears, and a declared exclusion is refused ground (ADR-0047).
-		if addressSeedCovered(addr, in.seeds) || coveringAddressExclusion(addr, in.exclusions) != nil {
+		if estate.AddressPresent(citedElsewhere[a], addressSeedCovered(addr, in.seeds)) {
+			continue
+		}
+		// A declared exclusion is refused ground, so it is never announced as new (ADR-0047).
+		if coveringAddressExclusion(addr, in.exclusions) != nil {
 			continue
 		}
 		fresh = append(fresh, a)
@@ -118,18 +136,32 @@ func addressesNewToEstate(ctx context.Context, store messageStore, moves []rePoi
 	return fresh, nil
 }
 
-func rePointResidue(changes []spanChange, name string, fresh map[string]bool) message.Census {
+func movedTimeline(moves []rePoint, r db.ListResolutionCitersForAddressesRow) bool {
+	for _, mv := range moves {
+		if mv.sameTimeline(r) {
+			return true
+		}
+	}
+	return false
+}
+
+func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool) message.Census {
 	seen := map[string]bool{}
 	var entries []message.CensusEntry
 	for _, c := range changes {
 		if !c.Opened || c.SubjectKind != subjectKindEndpoint || seen[c.SubjectKey] {
 			continue
 		}
-		if owner, _ := signalfacts.SplitEndpointName(c.SubjectKey); owner != name {
+		if owner, _ := signalfacts.SplitEndpointName(c.SubjectKey); owner != mv.name {
 			continue
 		}
 		addr, ok := subjectAddress(c.SubjectKind, c.SubjectKey)
-		if !ok || fresh[addr.String()] {
+		if !ok {
+			continue
+		}
+		// Only an Endpoint beneath a newly cited address is the move's consequence (ADR-0026 §2).
+		key := addr.String()
+		if !mv.after[key] || mv.before[key] || fresh[key] {
 			continue
 		}
 		seen[c.SubjectKey] = true

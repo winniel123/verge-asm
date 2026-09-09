@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 )
@@ -24,12 +26,12 @@ func resolved(addrs ...string) []byte {
 	return []byte(`{"outcome":"Resolved","addresses":["` + strings.Join(addrs, `","`) + `"]}`)
 }
 
-func rePointMove(name, addr string, prev []byte) spanChange {
-	return spanChange{SubjectKind: "name", SubjectKey: name, Facet: "resolution", Value: resolved(addr), Previous: prev}
+func rePointMove(name string, prev, next []byte) spanChange {
+	return spanChange{SubjectKind: "name", SubjectKey: name, Facet: "resolution", Value: next, Previous: prev}
 }
 
-func openedBeneath(name, addr string) []spanChange {
-	svc := addr + ":443/tcp"
+func openedBeneath(name, addr string, port string) []spanChange {
+	svc := addr + ":" + port + "/tcp"
 	return []spanChange{
 		{SubjectKind: "service", SubjectKey: svc, Facet: "reachability", Opened: true, Value: reachValue("reached")},
 		{SubjectKind: "endpoint", SubjectKey: name + "@" + svc, Facet: "certificate", Opened: true, Value: []byte(`{}`)},
@@ -37,7 +39,11 @@ func openedBeneath(name, addr string) []spanChange {
 }
 
 func rePointChanges(addr string, prev []byte) []spanChange {
-	return append([]spanChange{rePointMove(rpName, addr, prev)}, openedBeneath(rpName, addr)...)
+	return append([]spanChange{rePointMove(rpName, prev, resolved(addr))}, openedBeneath(rpName, addr, "443")...)
+}
+
+func citer(name string) db.ListResolutionCitersForAddressesRow {
+	return db.ListResolutionCitersForAddressesRow{SubjectKey: name}
 }
 
 func byKind(msgs []*message.Message) map[string][]*message.Message {
@@ -79,7 +85,7 @@ func TestRePointToANewAddressFiresAddressAppeared(t *testing.T) {
 }
 
 func TestRePointOntoAKnownAddressFiresTheNameResidue(t *testing.T) {
-	store := &fakeMessageStore{citers: map[string][]string{rpNew: {rpOther}}}
+	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
 	msgs, err := rePointMessages(context.Background(), store, produceT0, rePointChanges(rpNew, resolved(rpOld)), membershipInputs{})
 	if err != nil {
 		t.Fatalf("repoint: %v", err)
@@ -98,10 +104,10 @@ func TestRePointOntoAKnownAddressFiresTheNameResidue(t *testing.T) {
 }
 
 func TestRePointTwoNamesOneAddressInOneFoldRootsOnce(t *testing.T) {
-	changes := append(rePointChanges(rpNew, resolved(rpOld)), rePointMove(rpOther, rpNew, resolved(rpOld)))
-	changes = append(changes, openedBeneath(rpOther, rpNew)...)
+	changes := append(rePointChanges(rpNew, resolved(rpOld)), rePointMove(rpOther, resolved(rpOld), resolved(rpNew)))
+	changes = append(changes, openedBeneath(rpOther, rpNew, "443")...)
 	// Both new spans are open when the fold reads, so each sees the other as a citer.
-	store := &fakeMessageStore{citers: map[string][]string{rpNew: {rpName, rpOther}}}
+	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpName), citer(rpOther)}}}
 	msgs, err := rePointMessages(context.Background(), store, produceT0, changes, membershipInputs{})
 	if err != nil {
 		t.Fatalf("repoint: %v", err)
@@ -115,9 +121,24 @@ func TestRePointTwoNamesOneAddressInOneFoldRootsOnce(t *testing.T) {
 	}
 }
 
+func TestRePointStandingCitationAtAnotherVantageIsNotNew(t *testing.T) {
+	// The same Name's timeline at vantage 2 has cited the address for weeks.
+	other := citer(rpName)
+	other.VantageID = pgtype.Int8{Int64: 2, Valid: true}
+	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpName), other}}}
+	msgs, err := rePointMessages(context.Background(), store, produceT0, rePointChanges(rpNew, resolved(rpOld)), membershipInputs{})
+	if err != nil {
+		t.Fatalf("repoint: %v", err)
+	}
+	got := byKind(msgs)
+	if len(got["address"]) != 0 || len(got["name"]) != 1 {
+		t.Fatalf("only the moved timeline is dropped, so a sibling vantage keeps the address in the estate; got %+v", msgs)
+	}
+}
+
 func TestRePointSwapWithinOneFoldIsNotNewGround(t *testing.T) {
-	changes := append(rePointChanges(rpNew, resolved(rpOld)), rePointMove(rpOther, rpOld, resolved(rpNew)))
-	store := &fakeMessageStore{citers: map[string][]string{rpNew: {rpName}}}
+	changes := append(rePointChanges(rpNew, resolved(rpOld)), rePointMove(rpOther, resolved(rpNew), resolved(rpOld)))
+	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpName)}}}
 	msgs, err := rePointMessages(context.Background(), store, produceT0, changes, membershipInputs{})
 	if err != nil {
 		t.Fatalf("repoint: %v", err)
@@ -144,7 +165,7 @@ func TestRePointIntoADeclaredScopeIsNoRoot(t *testing.T) {
 func TestRePointIntoAnExclusionIsNoRoot(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{exclusions: []db.ListExclusionsRow{addressExclusion("203.0.113.0/24")}}
-	msgs, err := rePointMessages(context.Background(), store, produceT0, []spanChange{rePointMove(rpName, rpNew, resolved(rpOld))}, in)
+	msgs, err := rePointMessages(context.Background(), store, produceT0, []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, in)
 	if err != nil {
 		t.Fatalf("repoint: %v", err)
 	}
@@ -153,21 +174,17 @@ func TestRePointIntoAnExclusionIsNoRoot(t *testing.T) {
 	}
 }
 
-func TestRePointAcrossAGapReadsTheValueBeforeIt(t *testing.T) {
+func TestRePointLeavesAGapCloseToCoverage(t *testing.T) {
 	changes := rePointChanges(rpNew, nil)
 	changes[0].PrevIsGap = true
-	changes[0].BeforeGap = resolved(rpNew)
+	changes[0].BeforeGap = resolved(rpOld)
 	store := &fakeMessageStore{}
 	msgs, err := rePointMessages(context.Background(), store, produceT0, changes, membershipInputs{})
 	if err != nil {
 		t.Fatalf("repoint: %v", err)
 	}
-	got := byKind(msgs)
-	if len(got["address"]) != 0 || len(got["name"]) != 1 {
-		t.Fatalf("an address cited before the Gap is not new (ADR-0014), got %+v", msgs)
-	}
-	if len(store.citersAsked) != 0 {
-		t.Errorf("no candidate means no estate read, got %v", store.citersAsked)
+	if len(msgs) != 0 || len(store.citersAsked) != 0 {
+		t.Fatalf("a Gap-closing edge is coverage by construction and gapclose carries it (ADR-0014); got %+v", msgs)
 	}
 }
 
@@ -177,12 +194,43 @@ func TestRePointReCitedAddressIsNotNew(t *testing.T) {
 	if err != nil {
 		t.Fatalf("repoint: %v", err)
 	}
-	got := byKind(msgs)
-	if len(got["address"]) != 0 || len(got["name"]) != 1 {
-		t.Fatalf("the closed span already cited it, so the Endpoint is residue; got %+v", msgs)
+	if len(msgs) != 0 {
+		t.Fatalf("the closed span already cited it, so nothing beneath it is the move's consequence; got %+v", msgs)
 	}
 	if len(store.citersAsked) != 0 {
 		t.Errorf("no candidate means no estate read, got %v", store.citersAsked)
+	}
+}
+
+func TestRePointResidueIsOnlyBeneathTheNewlyCitedAddresses(t *testing.T) {
+	// The move keeps rpOld and adds rpNew, which another Name already cites.
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpOld, rpNew))}
+	changes = append(changes, openedBeneath(rpName, rpOld, "8443")...)
+	changes = append(changes, openedBeneath(rpName, rpNew, "443")...)
+	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
+	msgs, err := rePointMessages(context.Background(), store, produceT0, changes, membershipInputs{})
+	if err != nil {
+		t.Fatalf("repoint: %v", err)
+	}
+	got := byKind(msgs)
+	if len(got["name"]) != 1 || got["name"][0].Census.Len() != 1 {
+		t.Fatalf("a new port on an address the Name already cited is not the move's consequence; got %+v", msgs)
+	}
+	if e := got["name"][0].Census.Entries[0]; !strings.Contains(e.Key, rpNew) {
+		t.Errorf("the residue is the Endpoint beneath the newly cited address, got %+v", e)
+	}
+}
+
+func TestRePointShrinkingToNoDataFiresNothing(t *testing.T) {
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), []byte(`{"outcome":"NoData"}`))}
+	changes = append(changes, openedBeneath(rpName, rpOld, "8443")...)
+	store := &fakeMessageStore{}
+	msgs, err := rePointMessages(context.Background(), store, produceT0, changes, membershipInputs{})
+	if err != nil {
+		t.Fatalf("repoint: %v", err)
+	}
+	if len(msgs) != 0 || len(store.citersAsked) != 0 {
+		t.Fatalf("the shrinking direction is silent (ADR-0026 §2), got %+v", msgs)
 	}
 }
 
@@ -201,7 +249,7 @@ func TestRePointIgnoresAResolutionOpening(t *testing.T) {
 
 func TestRePointReadsTheEstateOnceForEveryCandidate(t *testing.T) {
 	const third = "203.0.113.10"
-	changes := append(rePointChanges(rpNew, resolved(rpOld)), rePointMove(rpOther, third, resolved(rpOld)))
+	changes := append(rePointChanges(rpNew, resolved(rpOld)), rePointMove(rpOther, resolved(rpOld), resolved(third)))
 	store := &fakeMessageStore{}
 	if _, err := rePointMessages(context.Background(), store, produceT0, changes, membershipInputs{}); err != nil {
 		t.Fatalf("repoint: %v", err)

@@ -194,7 +194,7 @@ type Querier interface {
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
-	// Address membership is derived, never stored, so the citers are read at the fold (ADR-0006).
+	// One row per citing timeline, so a fold drops its own span and keeps a sibling vantage (#1730).
 	ListResolutionCitersForAddresses(ctx context.Context, addresses []string) ([]ListResolutionCitersForAddressesRow, error)
 	ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error)
 	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error)

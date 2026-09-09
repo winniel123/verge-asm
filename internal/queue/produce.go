@@ -44,6 +44,9 @@ type spanChange struct {
 	SubjectKind    string
 	SubjectKey     string
 	Facet          string
+	Discriminator  string
+	VantageID      pgtype.Int8
+	Source         string
 	Opened         bool
 	OpenedAperture bool
 	Value          []byte
