@@ -380,15 +380,15 @@ func TestACappedHeldCountNeverUnderstatesTheCorpus(t *testing.T) {
 		{"under the cap", cap, db.CountHeldObservationsRow{CountedRows: 99, EstimatedRows: 4}, 99, false, true},
 		{"at the cap", cap, db.CountHeldObservationsRow{CountedRows: 100, EstimatedRows: 4}, 100, false, true},
 		{"over the cap", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true, true},
-		// A capped count is a floor, so a plausible statistic under it renders the floor and never less.
+		// A capped count is a floor, so a plausible statistic under it renders the floor.
 		{"lagging statistic just under the capped count", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 99}, 101, true, true},
 		{"statistic at the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 50}, 101, true, true},
 		{"statistic below the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 49}, 0, false, false},
 		{"cold collector", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 0, false, false},
-		// A 50M-row corpus whose collector never warmed reports a statistic from a far smaller table (#1778).
+		// A 50M-row corpus whose collector never warmed reports a far smaller table (#1778).
 		{"a 50M-row corpus behind a cold collector", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 0}, 0, false, false},
 		{"a 50M-row corpus behind a statistic from a bulk load", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 12_000}, 0, false, false},
-		// The ~100,500-row corpus of #1783: reltuples is stale by 1%, and that estimate still prices.
+		// The ~100,500-row corpus of #1783: reltuples is stale by 1%, and it still prices.
 		{"a stale statistic just above the cap", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 99_000}, heldCountExactLimit + 1, true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -427,7 +427,7 @@ func TestALaggingStatisticJustAboveTheCapStillPrices(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	seedRetentionPanel(f)
-	// A ~100,500-row corpus whose reltuples has not been refreshed since it crossed the cap (#1783).
+	// A ~100,500-row corpus whose reltuples is stale since it crossed the cap (#1783).
 	f.heldObs = heldCountExactLimit + 1
 	f.heldEstimate = 99_000
 	base := start(t, f, "")

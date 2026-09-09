@@ -480,7 +480,7 @@ func heldRows(row db.CountHeldObservationsRow, exactLimit int64) (rows int64, es
 		return row.CountedRows, false, true
 	}
 	if row.EstimatedRows < exactLimit/2 {
-		// Autovacuum refreshes reltuples within a fifth of the row count, so half the cap is under any lag (#1783).
+		// reltuples lags the count by at most a fifth, so half the cap sits under it (#1783).
 		return 0, false, false
 	}
 	if row.EstimatedRows < row.CountedRows {
