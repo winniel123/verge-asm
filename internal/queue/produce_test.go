@@ -34,6 +34,21 @@ type fakeMessageStore struct {
 
 	citations     []db.ListNameCitationSpansWithinCurrencyRow
 	citationsRead bool
+
+	window        db.FoldedBatchWindowRow
+	unfoldedKinds []string
+	certSpans     []db.ListOpenEndpointCertificateSpansRow
+	certReads     int
+}
+
+func (f *fakeMessageStore) FoldedBatchWindow(_ context.Context, unfoldedKinds []string) (db.FoldedBatchWindowRow, error) {
+	f.unfoldedKinds = unfoldedKinds
+	return f.window, nil
+}
+
+func (f *fakeMessageStore) ListOpenEndpointCertificateSpans(context.Context) ([]db.ListOpenEndpointCertificateSpansRow, error) {
+	f.certReads++
+	return f.certSpans, nil
 }
 
 func (f *fakeMessageStore) ListNameCitationSpansWithinCurrency(_ context.Context, _ db.ListNameCitationSpansWithinCurrencyParams) ([]db.ListNameCitationSpansWithinCurrencyRow, error) {

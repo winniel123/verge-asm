@@ -119,22 +119,26 @@ merge into the three routing **classes**:
 | `drift` | The estate's own object moved. | `drift` |
 | `aperture` | Us — our own aperture widened. | `coverage` |
 | `declared-input` | The operator's own declared input moved — e.g. an operator exclusion narrowing a subject out of the estate. | `coverage` |
-| `threshold` | Only a clock or threshold was crossed; no measurement moved. | `clock` — *planned; see below* |
+| `threshold` | Only a clock or threshold was crossed; no measurement moved. | `clock` |
 
-> **`threshold` is not yet emitted.** The producer folds a message at the *cause*,
-> and it runs inside a completed batch's transaction over that batch's observations
-> (`internal/queue/produce.go`). A `threshold` firing is by definition the one cause
-> with **no** observation behind it — "only time passed". So a pure horizon crossing
-> produces no observation, no batch, and no change for the producer to fold. The
-> motivating case is a certificate crossing its *expiring* window. The certificate's
-> `not_after` does not move when the clock passes it. So re-measuring the unchanged
-> certificate yields no transition either. Emitting it faithfully needs a dedicated
-> **clock-driven sweep**. That sweep is a periodic evaluator. It reads open certificate
-> spans, fires `message.Threshold` on a horizon crossing, and persists what it fired so
-> it fires once. It is a separate mechanism from the observation-driven batch producer,
-> and is not yet built. Until it lands, `certificate-expiring` surfaces only as a
-> read-time `Signal` on the Signals screen, never as a routed `threshold` message. The
-> other three causes fire today.
+> **How `threshold` is read.** A `threshold` firing is the one cause with **no**
+> observation behind it. Only time passed. A certificate's `not_after` does not move
+> when the clock passes it, so re-measuring the unchanged certificate folds no
+> transition. The producer reads the crossing instead of waiting for one. Every
+> completed batch's fold evaluates the three certificate-lifetime rules twice over each
+> current certificate: once at the previous completed batch's instant and once at this
+> batch's. A rule that reads `not-fired` at the first instant and `fired` at the second
+> crossed inside that window, and it fires at this fold. A batch that folds no message,
+> a dead-lettered one or a CT or zone batch, never bounds a window. The worker folds
+> batches one at a time, so consecutive windows share no instant, a crossing fires once,
+> and nothing is stored to remember a firing. The class is read per firing
+> ([ADR-0064 §2](../adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)).
+> Where the `certificate` span was unchanged the message is `threshold` cause, `clock`
+> class, and its headline states that no measurement moved. Where the span moved in
+> the same fold the message is `drift` cause, `drift` class. A certificate observation
+> older than its own horizon is `not-evaluable`, so it fires nothing
+> ([ADR-0043](../adr/0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md)).
+> An annotated `(subject, signal-name)` pair mutes the edge.
 
 A channel subscribes on a subset of the three classes and **nothing finer**. The cause
 travels in the body as a field the operator reads. But the router never uses it as a

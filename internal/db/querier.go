@@ -74,6 +74,7 @@ type Querier interface {
 	FindCoveringNameSeed(ctx context.Context, name string) (FindCoveringNameSeedRow, error)
 	FindNameCitingAddress(ctx context.Context, arg FindNameCitingAddressParams) (FindNameCitingAddressRow, error)
 	FindNameSeedByID(ctx context.Context, seedID int64) (FindNameSeedByIDRow, error)
+	FoldedBatchWindow(ctx context.Context, unfoldedKinds []string) (FoldedBatchWindowRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetAccountBySSOIdentity(ctx context.Context, arg GetAccountBySSOIdentityParams) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
@@ -170,6 +171,7 @@ type Querier interface {
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
 	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
+	ListOpenEndpointCertificateSpans(ctx context.Context) ([]ListOpenEndpointCertificateSpansRow, error)
 	// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
 	ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error)
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
