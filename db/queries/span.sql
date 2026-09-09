@@ -266,8 +266,8 @@ WHERE s.closed_at IS NULL
 ORDER BY s.subject_kind, s.subject_key, s.id;
 
 -- name: ListNameCitationSpansWithinCurrency :many
--- The window is each timeline's own currency bound, the one NameCitedAddresses reads (ADR-0044).
 WITH cover AS (
+    -- Each timeline's own currency bound, the one NameCitedAddresses reads (ADR-0044).
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
            MIN(s.cadence_seconds) AS tightest_cadence
     FROM observation o

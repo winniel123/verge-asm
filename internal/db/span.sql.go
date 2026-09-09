@@ -217,6 +217,7 @@ func (q *Queries) ListCitedAddressSpansForNames(ctx context.Context, names []str
 
 const listNameCitationSpansWithinCurrency = `-- name: ListNameCitationSpansWithinCurrency :many
 WITH cover AS (
+    -- Each timeline's own currency bound, the one NameCitedAddresses reads (ADR-0044).
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
            MIN(s.cadence_seconds) AS tightest_cadence
     FROM observation o
@@ -257,7 +258,6 @@ type ListNameCitationSpansWithinCurrencyRow struct {
 	ClosedAt   pgtype.Timestamptz `json:"closed_at"`
 }
 
-// The window is each timeline's own currency bound, the one NameCitedAddresses reads (ADR-0044).
 func (q *Queries) ListNameCitationSpansWithinCurrency(ctx context.Context, arg ListNameCitationSpansWithinCurrencyParams) ([]ListNameCitationSpansWithinCurrencyRow, error) {
 	rows, err := q.db.Query(ctx, listNameCitationSpansWithinCurrency, arg.At, arg.FloorCadences)
 	if err != nil {

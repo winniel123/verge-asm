@@ -31,11 +31,12 @@ func extensionGainMessages(ctx context.Context, store messageStore, observedAt t
 	if err != nil {
 		return nil, err
 	}
+	spans := parseCitationSpans(rows)
 	// Before spans the currency bound, so a re-entry inside it is no gain (ADR-0013 #55).
-	before := custody.Estate{ExtendedZones: zones, Resolutions: citationsFrom(rows, func(r citationSpan) bool {
+	before := custody.Estate{ExtendedZones: zones, Resolutions: spans.citations(func(r citationSpan) bool {
 		return r.OpenedAt.Time.Before(observedAt)
 	})}
-	after := custody.Estate{ExtendedZones: zones, Resolutions: citationsFrom(rows, func(r citationSpan) bool {
+	after := custody.Estate{ExtendedZones: zones, Resolutions: spans.citations(func(r citationSpan) bool {
 		return !r.ClosedAt.Valid
 	})}
 	reached := map[netip.Addr]bool{}
@@ -96,7 +97,7 @@ func extendingZones(seeds []db.ListSeedsRow) []string {
 }
 
 func extendingScopeOf(owner string, zones []string) string {
-	// The most specific extending scope claims the owner, so nested scopes never both fire.
+	// A nested scope claims the owner once, so two extending scopes never both fire (ADR-0022).
 	best := ""
 	for _, zone := range zones {
 		if custody.LabelSuffix(owner, zone) && len(zone) > len(best) {
@@ -123,53 +124,88 @@ type citationTimeline struct {
 	vantage pgtype.Int8
 }
 
-func citationsFrom(rows []citationSpan, keep func(citationSpan) bool) []custody.Resolution {
-	// The owner rides the dns-record facet, as NameCitedAddresses joins it (ADR-0151 §2, #1678).
-	owners := map[citationTimeline]map[string]string{}
+type citedResolution struct {
+	row   citationSpan
+	addrs []string
+}
+
+type citedRecord struct {
+	row    citationSpan
+	owners map[string]string
+}
+
+type citationSpans struct {
+	resolutions []citedResolution
+	records     map[citationTimeline][]citedRecord
+}
+
+func parseCitationSpans(rows []citationSpan) citationSpans {
+	out := citationSpans{records: map[citationTimeline][]citedRecord{}}
 	for _, r := range rows {
-		if r.Facet != resolutionwalk.FacetDNSRecord || !keep(r) {
-			continue
-		}
-		var v struct {
-			RRs []resolutionwalk.RR `json:"rrs"`
-		}
-		if json.Unmarshal(r.Value, &v) != nil {
-			continue
-		}
 		key := citationTimeline{subject: r.SubjectKey, vantage: r.VantageID}
-		if owners[key] == nil {
-			owners[key] = map[string]string{}
-		}
-		for _, rr := range v.RRs {
-			if rr.Type == "A" || rr.Type == "AAAA" {
-				owners[key][rr.Data] = rr.Name
+		switch r.Facet {
+		case resolutionwalk.FacetResolution:
+			var v struct {
+				Outcome   string   `json:"outcome"`
+				Addresses []string `json:"addresses"`
 			}
-		}
-	}
-	var out []custody.Resolution
-	for _, r := range rows {
-		if r.Facet != resolutionwalk.FacetResolution || !keep(r) {
-			continue
-		}
-		var v struct {
-			Outcome   string   `json:"outcome"`
-			Addresses []string `json:"addresses"`
-		}
-		if json.Unmarshal(r.Value, &v) != nil || v.Outcome != string(resolutionwalk.OutcomeResolved) {
-			continue
-		}
-		key := citationTimeline{subject: r.SubjectKey, vantage: r.VantageID}
-		for _, a := range v.Addresses {
-			addr, err := netip.ParseAddr(a)
-			if err != nil {
+			if json.Unmarshal(r.Value, &v) != nil || v.Outcome != string(resolutionwalk.OutcomeResolved) {
 				continue
 			}
-			owner := r.SubjectKey
-			if o, ok := owners[key][a]; ok {
-				owner = o
+			out.resolutions = append(out.resolutions, citedResolution{row: r, addrs: v.Addresses})
+		case resolutionwalk.FacetDNSRecord:
+			var v struct {
+				RRs []resolutionwalk.RR `json:"rrs"`
 			}
-			out = append(out, custody.Resolution{Owner: owner, Address: addr.Unmap()})
+			if json.Unmarshal(r.Value, &v) != nil {
+				continue
+			}
+			owners := map[string]string{}
+			for _, rr := range v.RRs {
+				if rr.Type == "A" || rr.Type == "AAAA" {
+					owners[rr.Data] = rr.Name
+				}
+			}
+			out.records[key] = append(out.records[key], citedRecord{row: r, owners: owners})
 		}
 	}
 	return out
+}
+
+func (c citationSpans) citations(keep func(citationSpan) bool) []custody.Resolution {
+	var cited []db.NameCitedAddressesRow
+	for _, r := range c.resolutions {
+		if !keep(r.row) {
+			continue
+		}
+		for _, a := range r.addrs {
+			cited = append(cited, db.NameCitedAddressesRow{SubjectKey: r.row.SubjectKey, Address: a, Owner: c.ownerOf(r.row, a)})
+		}
+	}
+	// The same conversion the gate reads through, so both hold one owner per citation (#1678).
+	return CitedResolutions(cited)
+}
+
+func (c citationSpans) ownerOf(res citationSpan, addr string) string {
+	// The owner is read from the dns-record span open beside the resolution (ADR-0151 §2).
+	owner := res.SubjectKey
+	for _, d := range c.records[citationTimeline{subject: res.SubjectKey, vantage: res.VantageID}] {
+		if !spansOverlap(d.row, res) {
+			continue
+		}
+		if o, ok := d.owners[addr]; ok {
+			owner = o
+		}
+	}
+	return owner
+}
+
+func spansOverlap(a, b citationSpan) bool {
+	if a.ClosedAt.Valid && !a.ClosedAt.Time.After(b.OpenedAt.Time) {
+		return false
+	}
+	if b.ClosedAt.Valid && !b.ClosedAt.Time.After(a.OpenedAt.Time) {
+		return false
+	}
+	return true
 }

@@ -164,7 +164,6 @@ type Querier interface {
 	// Every derivation read of observation inlines this gate, never the raw table (#237, ADR-0041).
 	ListLiveObservationsForDerivation(ctx context.Context, arg ListLiveObservationsForDerivationParams) ([]ListLiveObservationsForDerivationRow, error)
 	ListMessages(ctx context.Context) ([]Message, error)
-	// The window is each timeline's own currency bound, the one NameCitedAddresses reads (ADR-0044).
 	ListNameCitationSpansWithinCurrency(ctx context.Context, arg ListNameCitationSpansWithinCurrencyParams) ([]ListNameCitationSpansWithinCurrencyRow, error)
 	ListNameDNSRecords(ctx context.Context, arg ListNameDNSRecordsParams) ([]ListNameDNSRecordsRow, error)
 	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)

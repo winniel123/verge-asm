@@ -7,14 +7,12 @@ import (
 	"time"
 )
 
-// The unit is the scope, never the address: one act on the declaration (ADR-0022, ADR-0013 #55).
-
-const KindAddress = "address"
-
 type ExtensionGain struct {
 	Address string
 	Names   []string
 }
+
+// The unit is the scope, never the address: one act on the declaration (ADR-0022, ADR-0013 #55).
 
 func ExtensionGained(scope string, gains []ExtensionGain, covered int, instant time.Time) *Message {
 	// A departure is the self-correction working, so only a gain fires (ADR-0013 #55).

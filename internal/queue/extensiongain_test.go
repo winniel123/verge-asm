@@ -255,3 +255,25 @@ func TestExtensionGainFiresPerScopeAndTheMostSpecificScopeClaimsANestedName(t *t
 		}
 	}
 }
+
+func TestExtensionGainPairsAnOwnerWithTheSpanOpenBesideIt(t *testing.T) {
+	earlier := produceT0.Add(-24 * time.Hour)
+	foreign := `{"name":"www.example.com","type":"CNAME","data":"d1x2y3.cloudfront.net"},` +
+		`{"name":"d1x2y3.cloudfront.net","type":"A","data":"13.32.0.1"}`
+	direct := `{"name":"www.example.com","type":"A","data":"13.32.0.1"}`
+	store := &fakeMessageStore{citations: []citationSpan{
+		citedSpan("www.example.com", earlier, &produceT0, "13.32.0.1"),
+		citedSpan("www.example.com", produceT0, nil, "13.32.0.1"),
+		dnsRecordSpan("www.example.com", earlier, &produceT0, foreign),
+		dnsRecordSpan("www.example.com", produceT0, nil, direct),
+	}}
+	changes := []spanChange{nameResolutionChange("www.example.com", "13.32.0.1")}
+	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
+	if err := produceMessages(context.Background(), store, 39, produceT0, changes, nil, nil, in, nil, false); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+	got := extensionGainMessagesOf(t, store)
+	if len(got) != 1 || !strings.Contains(got[0].Headline, "13.32.0.1 (www.example.com)") {
+		t.Fatalf("the extension first reaches the address when the in-zone owner cites it, got %+v", got)
+	}
+}

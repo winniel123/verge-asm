@@ -13,7 +13,6 @@ func (e Estate) ExtensionCitations() []Resolution {
 	var out []Resolution
 	// The extension limb alone, because it is the limb the veto reads; #988 measures the other one.
 	seen := make(map[Resolution]struct{}, len(e.Resolutions))
-	// One linear pass over the resolutions, because this runs under the per-scan advisory lock.
 	for _, r := range e.Resolutions {
 		// A provider-flattened ALIAS or ANAME on a zone apex is a direct A record and arrives here.
 		r.Address = r.Address.Unmap()
@@ -30,7 +29,7 @@ func (e Estate) ExtensionCitations() []Resolution {
 	return out
 }
 
-// The gain message counts through this too, so gate and message agree on a reach (ADR-0013 #55).
+// The gain message reads the reach through this too, so one predicate serves both (ADR-0013 #55).
 
 func (e Estate) ExtensionCandidates() []netip.Addr {
 	var out []netip.Addr
