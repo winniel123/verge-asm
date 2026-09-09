@@ -144,7 +144,11 @@ func buildMessages(ctx context.Context, store messageStore, batchID int64, obser
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
 
 	// Dark declared space owes one message and has no root to fire it (ADR-0047, ADR-0052, #1770).
-	msgs = append(msgs, scopeRevealMessages(observedAt, changes, in)...)
+	revealed, err := scopeRevealMessages(ctx, store, observedAt, changes, in)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, revealed...)
 
 	// An Address root and ADR-0026 §2's residue are one partition, so they cannot disagree (#1730).
 	repoints, err := rePointMessages(ctx, store, observedAt, changes, in)
