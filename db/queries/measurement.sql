@@ -14,6 +14,13 @@ SELECT id, kind, enabled, cadence_seconds, created_at
 FROM scan
 WHERE kind = $1;
 
+-- name: GetDnsCadenceSeconds :one
+SELECT cadence_seconds FROM scan WHERE kind = 'dns';
+
+-- name: SetDnsCadenceSeconds :exec
+-- A non-positive interval is refused by the table's CHECK, not by this statement.
+UPDATE scan SET cadence_seconds = $1 WHERE kind = 'dns';
+
 -- name: ListVantagesForDispatch :many
 SELECT id, name, class, resolver, egress, dialled_addr, created_at
 FROM vantage

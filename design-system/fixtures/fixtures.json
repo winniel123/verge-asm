@@ -802,6 +802,7 @@
       }
     ],
     "zone_interval_days": 30,
+    "dns_interval_days": 1,
     "name_tree": [
       {
         "label": "acmecorp.io",

@@ -21,6 +21,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
@@ -33,10 +34,12 @@ type seedsStore interface {
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
+	GetDnsCadenceSeconds(ctx context.Context) (int64, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+	SetDnsCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	WithdrawSeed(ctx context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error)
 }
@@ -62,6 +65,8 @@ type seedsForms struct {
 	zoneIntervalError                            string
 	zoneErrors                                   []zoneErrorView
 	zoneIntervalDays                             string
+	dnsIntervalError                             string
+	dnsIntervalDays                              string
 	proposalError, proposalNotice, proposalQuery string
 	exclPreview                                  *message.NarrowingReceipt
 	seedConfirm                                  *seedConfirmView
@@ -486,6 +491,11 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "get zone cadence", err)
 		return
 	}
+	dnsCadence, err := s.seedsStore.GetDnsCadenceSeconds(r.Context())
+	if err != nil {
+		s.serverError(w, "get dns cadence", err)
+		return
+	}
 	var lookups []proposalLookupView
 	if rows, perr := s.proposalLookups(r.Context()); perr == nil {
 		lookups = rows
@@ -495,6 +505,10 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	intervalDays := f.zoneIntervalDays
 	if intervalDays == "" {
 		intervalDays = strconv.FormatInt(cadence/86400, 10)
+	}
+	dnsIntervalDays := f.dnsIntervalDays
+	if dnsIntervalDays == "" {
+		dnsIntervalDays = strconv.FormatInt(dnsCadence/86400, 10)
 	}
 	var nameTree []nameTreeNode
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
@@ -518,7 +532,11 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ZoneErrors":           f.zoneErrors,
 		"ZoneIntervalError":    f.zoneIntervalError,
 		"ZoneIntervalDays":     intervalDays,
-		"Proposals":            flattenProposals(lookups), "OrgQuery": f.proposalQuery,
+		"DnsIntervalError":     f.dnsIntervalError,
+		"DnsIntervalDays":      dnsIntervalDays,
+		// The row states the bound every currency query is parameterised on (ADR-0084).
+		"DnsCurrencyDays": retention.FloorCadences * (dnsCadence / 86400),
+		"Proposals":       flattenProposals(lookups), "OrgQuery": f.proposalQuery,
 		"ProposalError": f.proposalError,
 		"ExclPreview":   f.exclPreview,
 		"SeedConfirm":   f.seedConfirm,
@@ -868,21 +886,23 @@ func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
 	return 0, false
 }
 
-// Beyond ten years the zone scan never dispatches, and the seconds overflow (#1667).
+// Beyond ten years a scan never dispatches, and the seconds overflow (#1667).
 
-const maxZoneIntervalDays = 3650
+const maxIntervalDays = 3650
 
-func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db.Account) {
+func intervalDaysFromForm(r *http.Request) (string, int, bool) {
 	raw := strings.TrimSpace(r.FormValue("interval_days"))
 	days, err := strconv.Atoi(raw)
-	if errors.Is(err, strconv.ErrRange) || days > maxZoneIntervalDays {
-		s.flashScopeBack(w, r, seedsForms{
-			zoneIntervalError: "Enter a re-supply interval between 1 and 3,650 days.",
-			zoneIntervalDays:  raw,
-		})
-		return
+	// A value past int's range parses as the clamped bound, so the error decides it too.
+	if err != nil || days < 1 || days > maxIntervalDays {
+		return raw, 0, false
 	}
-	if err != nil || days < 1 {
+	return raw, days, true
+}
+
+func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	raw, days, ok := intervalDaysFromForm(r)
+	if !ok {
 		s.flashScopeBack(w, r, seedsForms{
 			zoneIntervalError: "Enter a re-supply interval between 1 and 3,650 days.",
 			zoneIntervalDays:  raw,
@@ -891,6 +911,22 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 	}
 	if err := s.seedsStore.SetZoneCadenceSeconds(r.Context(), int64(days)*86400); err != nil {
 		s.serverError(w, "set zone cadence", err)
+		return
+	}
+	s.backToScope(w, r)
+}
+
+func (s *server) setDnsInterval(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	raw, days, ok := intervalDaysFromForm(r)
+	if !ok {
+		s.flashScopeBack(w, r, seedsForms{
+			dnsIntervalError: "Enter a DNS scan interval between 1 and 3,650 days.",
+			dnsIntervalDays:  raw,
+		})
+		return
+	}
+	if err := s.seedsStore.SetDnsCadenceSeconds(r.Context(), int64(days)*86400); err != nil {
+		s.serverError(w, "set dns cadence", err)
 		return
 	}
 	s.backToScope(w, r)

@@ -748,6 +748,7 @@ type fixtureScopePackage struct {
 			AgingLabel    string `json:"aging_label"`
 		} `json:"zone_scopes"`
 		ZoneIntervalDays int `json:"zone_interval_days"`
+		DnsIntervalDays  int `json:"dns_interval_days"`
 		NameTree         []struct {
 			Label    string `json:"label"`
 			Count    int    `json:"count"`
@@ -807,6 +808,9 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 	}
 	if got := devScopeZoneIntervalDays; got != itoa(int64(sc.ZoneIntervalDays)) {
 		t.Errorf("zone_interval_days drift: fixtures.json = %d, pinned = %q", sc.ZoneIntervalDays, got)
+	}
+	if sc.DnsIntervalDays != devScopeDnsIntervalDays {
+		t.Errorf("dns_interval_days drift: fixtures.json = %d, pinned = %d", sc.DnsIntervalDays, devScopeDnsIntervalDays)
 	}
 
 	if len(sc.Seeds) != len(devScopeSeeds) {

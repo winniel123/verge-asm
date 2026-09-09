@@ -19,6 +19,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
@@ -795,6 +796,8 @@ const (
 
 	devScopeZoneIntervalDays = "30"
 
+	devScopeDnsIntervalDays = 1
+
 	devScopeRefusalPost      = "203.0.113.0/20"
 	devScopeRefusalInput     = "203.0.113.0/20"
 	devScopeRefusalReason    = "Spans 4,096 addresses — the cap is 1,024 per scope."
@@ -963,6 +966,8 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 		"CustodyScopes":    custody,
 		"ZoneScopes":       zones,
 		"ZoneIntervalDays": devScopeZoneIntervalDays,
+		"DnsIntervalDays":  strconv.Itoa(devScopeDnsIntervalDays),
+		"DnsCurrencyDays":  retention.FloorCadences * devScopeDnsIntervalDays,
 		"NameTree":         tree,
 		"CoverageMsgs":     msgs,
 		"Proposals":        proposals,

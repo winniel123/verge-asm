@@ -144,6 +144,17 @@ func (q *Queries) FoldedBatchWindow(ctx context.Context, unfoldedKinds []string)
 	return i, err
 }
 
+const getDnsCadenceSeconds = `-- name: GetDnsCadenceSeconds :one
+SELECT cadence_seconds FROM scan WHERE kind = 'dns'
+`
+
+func (q *Queries) GetDnsCadenceSeconds(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getDnsCadenceSeconds)
+	var cadence_seconds int64
+	err := row.Scan(&cadence_seconds)
+	return cadence_seconds, err
+}
+
 const getScanByKind = `-- name: GetScanByKind :one
 SELECT id, kind, enabled, cadence_seconds, created_at
 FROM scan
@@ -726,6 +737,16 @@ func (q *Queries) ScanHasNonTerminalJobs(ctx context.Context, arg ScanHasNonTerm
 	var lagging bool
 	err := row.Scan(&lagging)
 	return lagging, err
+}
+
+const setDnsCadenceSeconds = `-- name: SetDnsCadenceSeconds :exec
+UPDATE scan SET cadence_seconds = $1 WHERE kind = 'dns'
+`
+
+// A non-positive interval is refused by the table's CHECK, not by this statement.
+func (q *Queries) SetDnsCadenceSeconds(ctx context.Context, cadenceSeconds int64) error {
+	_, err := q.db.Exec(ctx, setDnsCadenceSeconds, cadenceSeconds)
+	return err
 }
 
 const tryFanOut = `-- name: TryFanOut :one
