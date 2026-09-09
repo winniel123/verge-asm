@@ -92,9 +92,6 @@ func TestFacetMoveOpeningNoRuleIsSilent(t *testing.T) {
 		"no-tls -> tls-refused stays outside every domain": {
 			{SubjectKind: "endpoint", SubjectKey: sensitiveEp, Facet: "certificate", Value: []byte(certRefused), Previous: []byte(certNoTLS)},
 		},
-		"a within-domain not-fired -> fired edge is not an opening": {
-			{SubjectKind: "endpoint", SubjectKey: sensitiveEp, Facet: "certificate", Value: []byte(certExpired), Previous: []byte(certValid)},
-		},
 		"an opening emits no Transition": {
 			{SubjectKind: "endpoint", SubjectKey: sensitiveEp, Facet: "certificate", Opened: true, Value: []byte(certExpired)},
 		},

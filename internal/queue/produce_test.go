@@ -28,6 +28,14 @@ type fakeMessageStore struct {
 	addressExclusions []*netip.Prefix
 
 	open map[string][]db.ListOpenSpansForSubjectRow
+
+	annotations     []db.Annotation
+	annotationReads int
+}
+
+func (f *fakeMessageStore) ListAnnotations(context.Context) ([]db.Annotation, error) {
+	f.annotationReads++
+	return f.annotations, nil
 }
 
 func (f *fakeMessageStore) ListOpenSpansForSubject(_ context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error) {

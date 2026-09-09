@@ -11,18 +11,7 @@ import (
 // The fifth census producer: a move that opens a rule at fired, once per cause (ADR-0033 §3).
 
 func facetMoveMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, prior []*message.Message) ([]*message.Message, error) {
-	moved := map[[2]string]bool{}
-	for _, c := range changes {
-		if !c.Opened && ruleFacet(c.Facet) && ruleSubjectKind(c.SubjectKind) {
-			moved[[2]string{c.SubjectKind, c.SubjectKey}] = true
-		}
-	}
-	if len(moved) == 0 {
-		return nil, nil
-	}
-	subjects, err := subjectsAtCause(ctx, store, observedAt, changes, func(kind, key string) bool {
-		return moved[[2]string{kind, key}]
-	})
+	subjects, err := movedSubjectsAtCause(ctx, store, observedAt, changes)
 	if err != nil {
 		return nil, err
 	}

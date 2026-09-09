@@ -32,6 +32,7 @@ type messageStore interface {
 	AddressExclusionStore
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 	ListOpenSpansForSubject(ctx context.Context, arg db.ListOpenSpansForSubjectParams) ([]db.ListOpenSpansForSubjectRow, error)
+	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
 }
 
 type spanChange struct {
@@ -123,6 +124,13 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 		return nil, err
 	}
 	msgs = append(msgs, moves...)
+
+	// A census above the edge names it, so this runs after every census producer (ADR-0026 §6).
+	edges, err := signalEdgeMessages(ctx, store, observedAt, changes, msgs)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, edges...)
 
 	msgs = append(msgs, declaredInputMessages(observedAt, departures)...)
 	msgs = append(msgs, narrowingMessages(observedAt, narrowings)...)
