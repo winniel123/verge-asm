@@ -14,7 +14,7 @@ func TestInboxRendersReadUnread(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	putMessage(t, f, message.CauseDrift, "name", "a.example.com",
-		"a.example.com entered the estate · 1 timeline opened beneath it", nil)
+		"a.example.com entered the estate · 1 endpoint · 1 timeline opened beneath it", nil)
 	putMessage(t, f, message.CauseAperture, "seed", "198.51.100.0/24",
 		"198.51.100.0/24 narrowed · 128 subjects withdrawn", nil)
 
