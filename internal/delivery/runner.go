@@ -21,6 +21,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/secretseal"
 )
 
 type Doer interface {
@@ -51,23 +52,24 @@ type Resolver interface {
 }
 
 type Runner struct {
-	pool     *pgxpool.Pool
-	q        *db.Queries
-	doer     Doer
-	now      func() time.Time
-	baseURL  string
-	log      *log.Logger
-	resolver Resolver
+	pool      *pgxpool.Pool
+	q         *db.Queries
+	doer      Doer
+	now       func() time.Time
+	baseURL   string
+	log       *log.Logger
+	resolver  Resolver
+	secretKey []byte
 }
 
-func NewRunner(pool *pgxpool.Pool, doer Doer, now func() time.Time, baseURL string, logger *log.Logger) *Runner {
+func NewRunner(pool *pgxpool.Pool, doer Doer, now func() time.Time, baseURL string, logger *log.Logger, secretKey []byte) *Runner {
 	if now == nil {
 		now = time.Now
 	}
 	if doer == nil {
 		doer = NewHTTPDoer()
 	}
-	return &Runner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger, resolver: net.DefaultResolver}
+	return &Runner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger, resolver: net.DefaultResolver, secretKey: secretKey}
 }
 
 func EnqueueForMessage(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error) {
@@ -148,12 +150,10 @@ func (r *Runner) post(ctx context.Context, claim db.ClaimDeliveryRow) error {
 	if err != nil {
 		return fmt.Errorf("marshal body: %w", err)
 	}
-	var secret []byte
-	if ch.Secret.Valid {
-		secret = []byte(ch.Secret.String)
+	statusCode, sendErr := r.sendToChannel(ctx, ch, body)
+	if errors.Is(sendErr, errOpenSecret) {
+		return sendErr
 	}
-
-	statusCode, sendErr := r.send(ctx, ch.Url, body, secret)
 	delivered := sendErr == nil && Delivered(statusCode)
 
 	switch Decide(delivered, claim.Attempt, claim.MaxAttempts) {
@@ -182,6 +182,17 @@ func (r *Runner) post(ctx context.Context, claim db.ClaimDeliveryRow) error {
 
 func (r *Runner) send(ctx context.Context, targetURL string, body, secret []byte) (int, error) {
 	return SendSigned(ctx, r.doer, r.resolver, targetURL, body, secret, r.now().UTC())
+}
+
+var errOpenSecret = errors.New("open channel secret")
+
+func (r *Runner) sendToChannel(ctx context.Context, ch db.GetChannelForDeliveryRow, body []byte) (int, error) {
+	// An unopenable secret is a fault, not a delivery miss, so no attempt is spent (ADR-0172 §5).
+	secret, err := secretseal.OpenText(r.secretKey, ch.Secret)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %w", errOpenSecret, err)
+	}
+	return r.send(ctx, ch.Url, body, secret)
 }
 
 func SendSigned(ctx context.Context, doer Doer, res Resolver, targetURL string, body, secret []byte, now time.Time) (int, error) {

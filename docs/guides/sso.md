@@ -98,14 +98,22 @@ Each row carries an **Edit** disclosure with three independent forms:
 
 ### Where the client secret is stored
 
-The client secret is held in the database, in the `sso_provider.client_secret` column, and
-it is **write-only at the interface**. No list or detail read ever selects it — those
-queries expose only whether a secret **is set** (a `set` / `none` badge), never the value.
-Exactly one server-side read path hands the secret to the OIDC token exchange. So the
-Settings UI can display a provider without ever being able to leak its secret, and a
-placeholder in the form reads *"set — leave blank to keep."*
+The client secret is held in the database, in the `sso_provider.client_secret` column, as
+**AEAD ciphertext**, and it is **write-only at the interface**. No list or detail read
+ever selects it — those queries expose only whether a secret **is set** (a `set` / `none`
+badge), never the value. Exactly one server-side read path opens the secret and hands it
+to the OIDC token exchange. So the Settings UI can display a provider without ever being
+able to leak its secret, and a placeholder in the form reads *"set — leave blank to keep."*
 
-This is the same write-only treatment the notification-channel secret gets under
+The sealing key is a sub-key of the `transcript-key` volume, which never enters Postgres.
+A database dump therefore discloses ciphertext and no key
+([ADR-0172](../adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md),
+[#1679](https://github.com/winniel123/verge-asm/issues/1679)). An install that stored
+the secret before the seal finds it **cleared** after the upgrade, and the badge reads
+`none`. Re-enter it once on **Settings → Single sign-on**.
+
+This is the same sealed, write-only treatment the notification-channel secret gets. Both
+rest on
 [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md).
 Note the distinction from the session-signing and prober SSH keys, which live on
 per-service state volumes and never touch Postgres (see

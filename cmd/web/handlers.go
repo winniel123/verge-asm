@@ -147,15 +147,17 @@ type server struct {
 
 	// A read-only database leak must disclose ciphertext and no key (ADR-0053).
 
-	totpKey       []byte
-	transcriptKey []byte
-	setupToken    string
-	now           func() time.Time
-	startedAt     time.Time
-	sessionTTL    time.Duration
-	pendingTTL    time.Duration
-	resetTTL      time.Duration
-	proposer      proposerRunner
+	totpKey          []byte
+	transcriptKey    []byte
+	channelSecretKey []byte
+	ssoSecretKey     []byte
+	setupToken       string
+	now              func() time.Time
+	startedAt        time.Time
+	sessionTTL       time.Duration
+	pendingTTL       time.Duration
+	resetTTL         time.Duration
+	proposer         proposerRunner
 
 	sso ssoFlow
 

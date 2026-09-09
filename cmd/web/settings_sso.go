@@ -128,9 +128,13 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		fail(msg)
 		return
 	}
+	secret, ok := s.sealFormSecret(w, s.ssoSecretKey, r.FormValue("client_secret"), "seal sso provider secret")
+	if !ok {
+		return
+	}
 	if _, err := s.ssoAdminStore.InsertSSOProvider(r.Context(), db.InsertSSOProviderParams{
 		Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
-		ClientSecret: optionalSecret(r.FormValue("client_secret")),
+		ClientSecret: secret,
 		Enabled:      true, CreatedBy: acct.ID,
 	}); err != nil {
 		if isUniqueViolation(err) {
@@ -191,8 +195,12 @@ func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, _ 
 			return
 		}
 	case strings.TrimSpace(r.FormValue("client_secret")) != "":
+		sealed, ok := s.sealFormSecret(w, s.ssoSecretKey, r.FormValue("client_secret"), "seal sso provider secret")
+		if !ok {
+			return
+		}
 		if err := s.ssoAdminStore.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{
-			ID: id, ClientSecret: optionalSecret(r.FormValue("client_secret")),
+			ID: id, ClientSecret: sealed,
 		}); err != nil {
 			s.serverError(w, "set sso provider secret", err)
 			return

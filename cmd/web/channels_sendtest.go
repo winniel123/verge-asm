@@ -11,6 +11,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/delivery"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/secretseal"
 )
 
 type channelSendTestStore interface {
@@ -51,9 +52,10 @@ func (s *server) testChannel(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	var secret []byte
-	if ch.Secret.Valid {
-		secret = []byte(ch.Secret.String)
+	secret, err := secretseal.OpenText(s.channelSecretKey, ch.Secret)
+	if err != nil {
+		s.serverError(w, "test channel: open secret", err)
+		return
 	}
 
 	statusCode, sendErr := s.channelSender.Send(r.Context(), ch.Url, body, secret)

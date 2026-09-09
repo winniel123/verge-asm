@@ -15,7 +15,7 @@ There are **two** ways to take a backup, and they answer different needs:
 
 - **In-app backup** (**Settings → Instance**) — a one-click download of the estate and
   its configuration, and a guided restore, with **no shell**. It excludes the
-  session-minting keys (they regenerate on restore), and it **redacts** the two cleartext
+  session-minting keys (they regenerate on restore), and it **redacts** the two sealed
   credentials the database holds — the SSO client secret and the channel webhook secret.
   It also **drops the second factor**, so a restored operator lands unenrolled and enrols
   again.
@@ -97,10 +97,12 @@ Three account and configuration columns are **redacted** out of the archive
 | `channel.secret` | the webhook signing secret | lands empty — re-enter it on **Settings → Channels** |
 | `account.totp_secret` | the two-factor seed | lands empty, and `totp_enabled` lands false — enrol again on **Profile** |
 
-The first two grounds differ from the third. The two secrets are **cleartext**, and a
-reader of the archive would recover each one. The two-factor seed is ciphertext, and no
-reader opens it. A restore rotates the very key that opens it, so the archive drops the
-factor rather than restore a seed the instance cannot read
+All three columns are ciphertext, and no reader of the archive opens any of them. The two
+secrets are sealed under sub-keys of the `transcript-key` volume
+([#1679](https://github.com/winniel123/verge-asm/issues/1679)). The redaction predates
+the seal and stays in place, so a restore still asks you to re-enter both. The two-factor
+seed is sealed under the session key. A restore rotates that key, so the archive drops
+the factor rather than restore a seed the instance cannot read
 ([#1419](https://github.com/winniel123/verge-asm/issues/1419)).
 
 A restore **re-applies** the same redaction, so an archive taken before this rule landed
@@ -189,13 +191,15 @@ path for disaster recovery and the [pre-upgrade drill](#the-pre-upgrade-backup-d
 ### Backing up `pgdata`
 
 The database holds no minted key ([running.md → Where secrets live](running.md#where-secrets-live)),
-but it holds everything else — including the two cleartext credentials the in-app
-archive redacts, which a `pg_dump` carries in full. Take a logical dump with `pg_dump`
+but it holds everything else — including the two sealed credentials the in-app
+archive redacts. A `pg_dump` carries `channel.secret` and `sso_provider.client_secret`
+as ciphertext, and only a sub-key of `transcript-key` opens them. Take a logical dump with `pg_dump`
 inside the running `postgres` container. It is transactionally consistent without stopping
 the stack, so `web` and `worker` keep serving while it runs.
 
 The dump also carries the sealed `transcript` rows, as ciphertext. Only
-`transcript-key` opens those, and that volume is not in the dump. Store the dump
+`transcript-key` opens those two credentials and the transcript rows, and that volume is
+not in the dump. Store the dump
 and the key in different places.
 
 ```sh
@@ -347,6 +351,15 @@ the dump first:
 docker compose exec -T postgres pg_dump -U verge -d verge -Fc \
   > verge-pre-upgrade-$(date +%F).dump
 ```
+
+**One re-entry step, once.** The upgrade that seals `channel.secret` and
+`sso_provider.client_secret` (migration `25200`,
+[#1679](https://github.com/winniel123/verge-asm/issues/1679)) **clears** any value an
+earlier version stored in cleartext, because no reader will open cleartext again. After
+that upgrade, re-enter each webhook signing secret on **Settings → Channels** and the
+OIDC client secret on **Settings → Single sign-on**. Until you do, the channel posts
+unsigned and the SSO client runs as public (PKCE-only). Have both values to hand before
+you start.
 
 Then upgrade. A default install runs the published images, so it pulls them:
 

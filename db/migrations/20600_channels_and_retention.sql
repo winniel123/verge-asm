@@ -13,7 +13,8 @@ CREATE TABLE channel (
     -- write-only at the interface: it is set, replaced or cleared through the
     -- UI and never rendered back, on the footing recovery codes set (#11). No
     -- render query selects this column; ListChannels exposes only whether it is
-    -- present.
+    -- present. Held as AEAD ciphertext under a transcript-key sub-key since
+    -- migration 25200, so a dump discloses no key (ADR-0172 §2, #1679).
     secret         TEXT,
     -- Routing is by class and nothing finer (ADR-0091). Each class is a boolean
     -- rather than a set column so the database can enforce that at least one is

@@ -124,7 +124,7 @@ func TestChannelCreateListAndSecretWriteOnly(t *testing.T) {
 	if ch.drift || !ch.coverage || ch.clock {
 		t.Errorf("routing subset not persisted: %+v", ch)
 	}
-	if ch.secret.String != "s3cr3t-signing-key" || !ch.secret.Valid {
+	if !ch.secret.Valid || openTestChannelSecret(t, ch.secret) != "s3cr3t-signing-key" {
 		t.Errorf("secret not stored: %+v", ch.secret)
 	}
 
@@ -197,14 +197,14 @@ func TestChannelUpdateAndSecretLifecycle(t *testing.T) {
 	if ch.url != "https://b.example.com" || !ch.clock || ch.drift {
 		t.Fatalf("update did not persist url/classes: %+v", ch)
 	}
-	if ch.secret.String != "first" {
+	if openTestChannelSecret(t, ch.secret) != "first" {
 		t.Fatalf("blank secret should keep existing; got %q", ch.secret.String)
 	}
 
 	postForm(t, ac, base+"/settings/channels/update", url.Values{
 		"id": {idStr}, "url": {"https://b.example.com"}, "clock": {"on"}, "secret": {"second"},
 	}).Body.Close()
-	if f.channels[0].secret.String != "second" {
+	if openTestChannelSecret(t, f.channels[0].secret) != "second" {
 		t.Fatalf("secret not replaced; got %q", f.channels[0].secret.String)
 	}
 

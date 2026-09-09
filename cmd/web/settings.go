@@ -512,8 +512,12 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		fail("Choose at least one routing class.")
 		return
 	}
+	secret, ok := s.sealFormSecret(w, s.channelSecretKey, r.FormValue("secret"), "seal channel secret")
+	if !ok {
+		return
+	}
 	if _, err := s.channelsStore.CreateChannel(r.Context(), db.CreateChannelParams{
-		Url: normURL, Secret: optionalSecret(r.FormValue("secret")),
+		Url: normURL, Secret: secret,
 		RouteDrift: drift, RouteCoverage: coverage, RouteClock: clock,
 		Enabled: true, CreatedBy: acct.ID,
 	}); err != nil {
@@ -557,8 +561,12 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 			return
 		}
 	case strings.TrimSpace(r.FormValue("secret")) != "":
+		sealed, ok := s.sealFormSecret(w, s.channelSecretKey, r.FormValue("secret"), "seal channel secret")
+		if !ok {
+			return
+		}
 		if err := s.channelsStore.SetChannelSecret(r.Context(), db.SetChannelSecretParams{
-			ID: id, Secret: pgtype.Text{String: r.FormValue("secret"), Valid: true},
+			ID: id, Secret: sealed,
 		}); err != nil {
 			s.serverError(w, "set channel secret", err)
 			return
@@ -1480,13 +1488,6 @@ func projectedPassLabel(seconds float64) string {
 func classesFromForm(r *http.Request) (drift, coverage, clock bool) {
 	// Routing keys on the class and nothing finer; a per-cause predicate is refused (ADR-0091).
 	return r.FormValue("drift") != "", r.FormValue("coverage") != "", r.FormValue("clock") != ""
-}
-
-func optionalSecret(v string) pgtype.Text {
-	if strings.TrimSpace(v) == "" {
-		return pgtype.Text{}
-	}
-	return pgtype.Text{String: v, Valid: true}
 }
 
 func validateChannelURL(raw string) (string, string) {
