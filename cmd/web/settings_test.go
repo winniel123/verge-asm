@@ -578,6 +578,9 @@ func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
 }
 
 func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
+	if f.retentionErr != nil {
+		return db.GetRetentionSettingsRow{}, f.retentionErr
+	}
 	return f.retention, nil
 }
 

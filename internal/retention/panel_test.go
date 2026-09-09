@@ -143,20 +143,37 @@ func TestBelowFloorIsUnreachableRatherThanRefused(t *testing.T) {
 	}
 }
 
-func TestABreakNamesTheLeafThatMoved(t *testing.T) {
+func TestABreakNamesEveryLeafThatMoved(t *testing.T) {
 	prev := []byte(`[{"leaf":"resolution-walk","version":"3"},{"leaf":"wildcard-discrim","version":"1"}]`)
 	cur := []byte(`[{"leaf":"resolution-walk","version":"4"},{"leaf":"wildcard-discrim","version":"1"}]`)
-	if got := MovedLeaf(prev, cur); got != "resolution-walk" {
-		t.Errorf("MovedLeaf = %q, want resolution-walk", got)
+	if got := MovedLeaves(prev, cur); len(got) != 1 || got[0] != "resolution-walk" {
+		t.Errorf("MovedLeaves = %v, want [resolution-walk]", got)
+	}
+	// Two leaves moving in one transition are two Breaks, and both must be named.
+	both := []byte(`[{"leaf":"resolution-walk","version":"4"},{"leaf":"wildcard-discrim","version":"2"}]`)
+	if got := MovedLeaves(prev, both); len(got) != 2 || got[0] != "resolution-walk" || got[1] != "wildcard-discrim" {
+		t.Errorf("MovedLeaves on a two-leaf move = %v, want both, sorted", got)
 	}
 	added := []byte(`[{"leaf":"resolution-walk","version":"3"},{"leaf":"edge-fanout","version":"1"}]`)
-	if got := MovedLeaf(prev, added); got != "edge-fanout" {
-		t.Errorf("an added leaf moved: MovedLeaf = %q, want edge-fanout", got)
+	if got := MovedLeaves(prev, added); len(got) != 2 || got[0] != "edge-fanout" || got[1] != "wildcard-discrim" {
+		t.Errorf("an added and a dropped leaf both moved: MovedLeaves = %v", got)
 	}
-	if got := MovedLeaf(prev, prev); got != "" {
-		t.Errorf("MovedLeaf on an unchanged vector = %q, want empty", got)
+	if got := MovedLeaves(prev, prev); len(got) != 0 {
+		t.Errorf("MovedLeaves on an unchanged vector = %v, want none", got)
 	}
-	if got := MovedLeaf([]byte(`not json`), cur); got != "" {
-		t.Errorf("MovedLeaf on unreadable input = %q, want empty", got)
+	if got := MovedLeaves([]byte(`not json`), cur); got != nil {
+		t.Errorf("MovedLeaves on unreadable input = %v, want nil", got)
+	}
+}
+
+func TestAProjectionNeverOverflows(t *testing.T) {
+	// A /65 passes the int64 gate on the address count and would overflow the year.
+	huge := int64(1) << 62
+	p := Project(10, huge, 1460)
+	if p.HasDenominator || p.RowsPerYear != 0 || p.BytesPerYear != 0 {
+		t.Fatalf("an overflowing scope produced a forecast: %+v", p)
+	}
+	if p.RowsHeld != 10 {
+		t.Errorf("what is held must still render: %+v", p)
 	}
 }

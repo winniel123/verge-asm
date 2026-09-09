@@ -2,6 +2,7 @@ package retention
 
 import (
 	"encoding/json"
+	"math"
 	"sort"
 	"time"
 )
@@ -177,9 +178,17 @@ func Project(rowsHeld int64, declaredAddresses int64, rowsPerAddressPerYear int6
 	if declaredAddresses <= 0 || rowsPerAddressPerYear <= 0 {
 		return p
 	}
+	// The address cap has no ceiling, so a wide v6 scope can overflow a year (ADR-0127).
+	if declaredAddresses > math.MaxInt64/rowsPerAddressPerYear {
+		return p
+	}
+	rows := declaredAddresses * rowsPerAddressPerYear
+	if rows > math.MaxInt64/BytesPerObservation {
+		return p
+	}
 	p.HasDenominator = true
-	p.RowsPerYear = declaredAddresses * rowsPerAddressPerYear
-	p.BytesPerYear = p.RowsPerYear * BytesPerObservation
+	p.RowsPerYear = rows
+	p.BytesPerYear = rows * BytesPerObservation
 	return p
 }
 
@@ -213,15 +222,15 @@ type DerivationComponent struct {
 	Version string `json:"version"`
 }
 
-func MovedLeaf(previous, current []byte) string {
+func MovedLeaves(previous, current []byte) []string {
 	// The vector is the only record of the move: a Break is never stored (ADR-0008).
 	prev, err := decodeVector(previous)
 	if err != nil {
-		return ""
+		return nil
 	}
 	cur, err := decodeVector(current)
 	if err != nil {
-		return ""
+		return nil
 	}
 	moved := make([]string, 0, 2)
 	for leaf, v := range cur {
@@ -234,11 +243,8 @@ func MovedLeaf(previous, current []byte) string {
 			moved = append(moved, leaf)
 		}
 	}
-	if len(moved) == 0 {
-		return ""
-	}
 	sort.Strings(moved)
-	return moved[0]
+	return moved
 }
 
 func decodeVector(raw []byte) (map[string]string, error) {

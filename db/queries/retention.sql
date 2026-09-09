@@ -93,8 +93,9 @@ SELECT COUNT(*)::bigint AS rows_held
 FROM observation;
 
 -- name: ListFacetSourceFloors :many
--- The covering Scan is reached through the row's Batch, exactly as the retirement
--- query's cover CTE reaches it, so the rendered floor and the applied bound agree.
+-- The pair's floor is the tightest bound in force across the pair, reached through each
+-- row's Batch as the retirement query reaches it. A row from a disabled Scan has no bound
+-- and is counted apart, because the sweep never retires it.
 SELECT o.facet,
        o.source,
        COALESCE(MIN(s.cadence_seconds), 0)::bigint AS tightest_cadence,
@@ -103,7 +104,8 @@ SELECT o.facet,
             FILTER (WHERE s.kind IS NOT NULL))[1],
            ''
        )::text AS scan_kind,
-       COUNT(*)::bigint AS rows_held
+       COUNT(*)::bigint AS rows_held,
+       COUNT(*) FILTER (WHERE s.id IS NULL)::bigint AS uncovered_rows
 FROM observation o
 JOIN batch b ON b.id = o.batch_id
 LEFT JOIN scan s ON s.id = b.scan_id AND s.enabled = TRUE

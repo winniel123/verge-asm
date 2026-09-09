@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -45,14 +46,14 @@ func seedRetentionPanel(f *fakeStore) {
 		db.Scan{ID: 503, Kind: "zone", Enabled: true, CadenceSeconds: 30 * 86400},
 	)
 	f.facetFloors = []db.ListFacetSourceFloorsRow{
-		{Facet: "dns-record", Source: "resolver", TightestCadence: 86400, ScanKind: "dns", RowsHeld: 400},
+		{Facet: "dns-record", Source: "resolver", TightestCadence: 86400, ScanKind: "dns", RowsHeld: 400, UncoveredRows: 7},
 		{Facet: "dns-record", Source: "zone", TightestCadence: 30 * 86400, ScanKind: "zone", RowsHeld: 120},
-		{Facet: "reachability", Source: "resolver", TightestCadence: 0, ScanKind: "", RowsHeld: 9},
+		{Facet: "reachability", Source: "resolver", TightestCadence: 0, ScanKind: "", RowsHeld: 9, UncoveredRows: 9},
 	}
 	f.derivBreaks = []db.ListDerivationBreaksRow{{
 		OpenedAt:   pgtype.Timestamptz{Time: time.Now().Add(-72 * time.Hour), Valid: true},
-		Previous:   []byte(`[{"leaf":"resolution-walk","version":"3"}]`),
-		Derivation: []byte(`[{"leaf":"resolution-walk","version":"4"}]`),
+		Previous:   []byte(`[{"leaf":"resolution-walk","version":"3"},{"leaf":"wildcard-discrim","version":"1"}]`),
+		Derivation: []byte(`[{"leaf":"resolution-walk","version":"4"},{"leaf":"wildcard-discrim","version":"2"}]`),
 	}}
 	f.heldObs = 529
 	f.retention = db.GetRetentionSettingsRow{}
@@ -95,9 +96,15 @@ func TestCoverageCarriesTheDialsAndTheClampList(t *testing.T) {
 	if !strings.Contains(got, "the bound is undefined") {
 		t.Errorf("an uncovered pair must say its bound is undefined, not that it is expired")
 	}
-	// The clamp list, with the Break naming the leaf that moved.
-	if !strings.Contains(got, "resolution-walk moved") {
-		t.Errorf("the binding clamp does not name the leaf that moved")
+	// The clamp list, with a Break row per leaf that moved in the transition.
+	for _, leaf := range []string{"resolution-walk moved", "wildcard-discrim moved"} {
+		if !strings.Contains(got, leaf) {
+			t.Errorf("the clamp list does not name %q", leaf)
+		}
+	}
+	// A pair with rows from a disabled Scan says so, rather than reading as fully covered.
+	if !strings.Contains(got, "7 of these have no covering Scan") {
+		t.Errorf("the uncovered rows inside a covered pair are not stated")
 	}
 	if !strings.Contains(got, "Every clamp in force") {
 		t.Errorf("the clamp list is missing")
@@ -118,6 +125,65 @@ func TestCoverageCarriesTheDialsAndTheClampList(t *testing.T) {
 	// The discarded group renders in the state where it is always empty, and says why.
 	if !strings.Contains(got, "Nothing has been discarded") {
 		t.Errorf("the discarded group is missing in its empty state")
+	}
+}
+
+func TestTheDiscardedGroupDoesNotClaimNothingOnceADialBinds(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	f.retention.ObservationCurrencyDays = 90
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if strings.Contains(got, "Nothing has been discarded") {
+		t.Errorf("a bounded dial retires rows on each sweep, so the group may not say nothing was discarded")
+	}
+	if !strings.Contains(got, "No per-row record of a retirement is kept") {
+		t.Errorf("the discarded group does not say why it lists nothing by name")
+	}
+}
+
+func TestAFailedDialReadWithholdsThePanel(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	f.retentionErr = errors.New("boom")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	// A database failure must not render as an editable form parked on keep everything.
+	if strings.Contains(got, `action="/coverage/retention"`) {
+		t.Errorf("a failed settings read still rendered the dial form")
+	}
+	if strings.Contains(got, "Nothing has been discarded") || strings.Contains(got, "No clamp is in force yet") {
+		t.Errorf("a failed read rendered as a legitimate empty state")
+	}
+	if !strings.Contains(got, "did not resolve on this load") {
+		t.Errorf("the withheld panel does not say why")
+	}
+}
+
+func TestAWriteWithNoFloorIsRefusedNotPersisted(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	f.retention.ObservationCurrencyDays = 90
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	f.listScansErr = errors.New("boom")
+	resp := postForm(t, ac, base+"/coverage/retention", url.Values{
+		"observation_currency_days": {"1"}, "dispatch_cadence_multiple": {"4"},
+	})
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusSeeOther {
+		t.Fatalf("a write that could not compute its floor was accepted")
+	}
+	if f.retention.ObservationCurrencyDays != 90 {
+		t.Errorf("a below-floor value was persisted un-raised: %+v", f.retention)
 	}
 }
 
@@ -150,6 +216,16 @@ func TestABelowFloorDialIsUnreachableRatherThanRefused(t *testing.T) {
 	}
 	if !f.retention.UpdatedBy.Valid {
 		t.Errorf("updated_by not attributed")
+	}
+
+	// A negative or unreadable post is not the terminal stop: it leaves the dial alone.
+	f.retention.ObservationCurrencyDays, f.retention.DispatchCadenceMultiple = 90, 4
+	resp = postForm(t, ac, base+"/coverage/retention", url.Values{
+		"observation_currency_days": {"-1"}, "dispatch_cadence_multiple": {"soon"},
+	})
+	resp.Body.Close()
+	if f.retention.ObservationCurrencyDays != 90 || f.retention.DispatchCadenceMultiple != 4 {
+		t.Errorf("an unreadable post moved a dial to keep everything: %+v", f.retention)
 	}
 }
 

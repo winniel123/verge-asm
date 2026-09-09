@@ -184,7 +184,8 @@ SELECT o.facet,
             FILTER (WHERE s.kind IS NOT NULL))[1],
            ''
        )::text AS scan_kind,
-       COUNT(*)::bigint AS rows_held
+       COUNT(*)::bigint AS rows_held,
+       COUNT(*) FILTER (WHERE s.id IS NULL)::bigint AS uncovered_rows
 FROM observation o
 JOIN batch b ON b.id = o.batch_id
 LEFT JOIN scan s ON s.id = b.scan_id AND s.enabled = TRUE
@@ -198,10 +199,12 @@ type ListFacetSourceFloorsRow struct {
 	TightestCadence int64  `json:"tightest_cadence"`
 	ScanKind        string `json:"scan_kind"`
 	RowsHeld        int64  `json:"rows_held"`
+	UncoveredRows   int64  `json:"uncovered_rows"`
 }
 
-// The covering Scan is reached through the row's Batch, exactly as the retirement
-// query's cover CTE reaches it, so the rendered floor and the applied bound agree.
+// The pair's floor is the tightest bound in force across the pair, reached through each
+// row's Batch as the retirement query reaches it. A row from a disabled Scan has no bound
+// and is counted apart, because the sweep never retires it.
 func (q *Queries) ListFacetSourceFloors(ctx context.Context) ([]ListFacetSourceFloorsRow, error) {
 	rows, err := q.db.Query(ctx, listFacetSourceFloors)
 	if err != nil {
@@ -217,6 +220,7 @@ func (q *Queries) ListFacetSourceFloors(ctx context.Context) ([]ListFacetSourceF
 			&i.TightestCadence,
 			&i.ScanKind,
 			&i.RowsHeld,
+			&i.UncoveredRows,
 		); err != nil {
 			return nil, err
 		}

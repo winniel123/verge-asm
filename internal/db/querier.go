@@ -165,8 +165,9 @@ type Querier interface {
 	ListEndpointCertificates(ctx context.Context, arg ListEndpointCertificatesParams) ([]ListEndpointCertificatesRow, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
-	// The covering Scan is reached through the row's Batch, exactly as the retirement
-	// query's cover CTE reaches it, so the rendered floor and the applied bound agree.
+	// The pair's floor is the tightest bound in force across the pair, reached through each
+	// row's Batch as the retirement query reaches it. A row from a disabled Scan has no bound
+	// and is counted apart, because the sweep never retires it.
 	ListFacetSourceFloors(ctx context.Context) ([]ListFacetSourceFloorsRow, error)
 	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]ListJobsForDispatchRow, error)

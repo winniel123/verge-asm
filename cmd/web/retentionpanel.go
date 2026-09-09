@@ -57,6 +57,7 @@ type retentionPairView struct {
 	Source    string
 	FloorText string
 	Rows      string
+	Uncovered string
 	Covered   bool
 }
 
@@ -77,18 +78,25 @@ type retentionProjectionView struct {
 	PerYear        string
 	PerYearBytes   string
 	Denominator    string
+	Reason         string
+	Withheld       string
 }
 
+// A failed read withholds its section and says so, never an empty state (#989).
+
 type retentionPanelView struct {
-	Observation retentionDialView
-	Dispatch    retentionDialView
-	Pairs       []retentionPairView
-	Clamps      []retentionClampView
-	Projection  retentionProjectionView
-	Discarded   []retentionClampView
-	IsAdmin     bool
-	UpdatedAt   string
-	UpdatedBy   string
+	Withheld       string
+	Observation    retentionDialView
+	Dispatch       retentionDialView
+	Pairs          []retentionPairView
+	PairsWithheld  string
+	Clamps         []retentionClampView
+	ClampsWithheld string
+	Projection     retentionProjectionView
+	AnyBounded     bool
+	IsAdmin        bool
+	UpdatedAt      string
+	UpdatedBy      string
 }
 
 // A ladder is a rendering position above a computed floor, never a default (ADR-0038).
@@ -98,6 +106,12 @@ var observationLadder = []int64{30, 90, 180, 365, 730}
 var dispatchLadder = []int64{4, 8, 13, 26, 52}
 
 const breakClampLimit = 200
+
+// Three of the panel's reads scan a whole corpus, so one budget bounds the page (#1692).
+
+const retentionPanelBudget = 2 * time.Second
+
+const notResolved = "did not resolve on this load. Nothing is shown rather than a guessed zero."
 
 func floorText(f retention.FloorExpression) string {
 	// A multiple and a named Scan cannot go stale the way a day count already has (ADR-0038).
@@ -176,9 +190,13 @@ func buildDial(field, title, unit string, floor retention.FloorExpression, floor
 	return view
 }
 
+type pairKey struct{ facet, source string }
+
 func pairViews(rows []db.ListFacetSourceFloorsRow) []retentionPairView {
 	pairs := make([]retention.PairFloor, 0, len(rows))
+	uncovered := make(map[pairKey]int64, len(rows))
 	for _, r := range rows {
+		uncovered[pairKey{r.Facet, r.Source}] = r.UncoveredRows
 		pairs = append(pairs, retention.PairFloor{
 			Facet:  r.Facet,
 			Source: r.Source,
@@ -199,6 +217,9 @@ func pairViews(rows []db.ListFacetSourceFloorsRow) []retentionPairView {
 		} else {
 			// An undefined bound is not an expired one, so the row is never retired (ADR-0094).
 			v.FloorText = "no covering Scan — the bound is undefined, so nothing here is retired"
+		}
+		if n := uncovered[pairKey{p.Facet, p.Source}]; n > 0 && p.Floor.Bounded() {
+			v.Uncovered = fmt.Sprintf("%s of these have no covering Scan and are never retired", humanRows(n))
 		}
 		out = append(out, v)
 	}
@@ -229,14 +250,18 @@ func breakClamps(rows []db.ListDerivationBreaksRow) []retention.Clamp {
 	seen := make(map[string]bool, len(rows))
 	out := make([]retention.Clamp, 0, len(rows))
 	for _, r := range rows {
-		leaf := retention.MovedLeaf(r.Previous, r.Derivation)
-		if leaf == "" || seen[leaf] || !r.OpenedAt.Valid {
+		if !r.OpenedAt.Valid {
 			continue
 		}
-		seen[leaf] = true
-		out = append(out, retention.Clamp{
-			Kind: retention.ClampBreak, Label: "Break", Leaf: leaf, At: r.OpenedAt.Time, Bounded: true,
-		})
+		for _, leaf := range retention.MovedLeaves(r.Previous, r.Derivation) {
+			if seen[leaf] {
+				continue
+			}
+			seen[leaf] = true
+			out = append(out, retention.Clamp{
+				Kind: retention.ClampBreak, Label: "Break", Leaf: leaf, At: r.OpenedAt.Time, Bounded: true,
+			})
+		}
 	}
 	return out
 }
@@ -282,7 +307,7 @@ func relativeAge(d time.Duration) string {
 	}
 }
 
-func declaredAddresses(rows []*netip.Prefix) (int64, string) {
+func declaredAddresses(rows []*netip.Prefix) (count int64, text string, tooLarge bool) {
 	// An undeclared scope is the >99% install, so the projection renders anyway (#47).
 	total := new(big.Int)
 	for _, p := range rows {
@@ -291,30 +316,48 @@ func declaredAddresses(rows []*netip.Prefix) (int64, string) {
 		}
 		total.Add(total, seed.AddressCount(*p))
 	}
-	if !total.IsInt64() || total.Sign() == 0 {
-		return 0, total.String()
+	if total.Sign() == 0 {
+		return 0, "", false
 	}
-	return total.Int64(), total.String()
+	if !total.IsInt64() {
+		return 0, total.String(), true
+	}
+	return total.Int64(), total.String(), false
+}
+
+func projectionReason(hasDenominator, declared, tooLarge bool) string {
+	switch {
+	case hasDenominator:
+		return ""
+	case !declared:
+		return "This install declares no address scope, so this projection has no denominator: it shows what is held and never a forecast of what you have."
+	default:
+		return "Your declared address scope is too large to count here, so this projection has no denominator: it shows what is held and never a forecast."
+	}
 }
 
 func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPanelView {
 	view := retentionPanelView{IsAdmin: isAdmin}
+	ctx, cancel := context.WithTimeout(ctx, retentionPanelBudget)
+	defer cancel()
 
 	settings, err := s.retentionPanelStore.GetRetentionSettings(ctx)
 	if err != nil {
 		log.Printf("web: coverage: retention settings: %v", err)
+		view.Withheld = "The retention dials " + notResolved
 		return view
 	}
 	if settings.UpdatedAt.Valid {
 		view.UpdatedAt = settings.UpdatedAt.Time.UTC().Format("2006-01-02 15:04 MST")
 	}
-
-	var scans []retention.ScanCadence
-	if rows, serr := s.retentionPanelStore.ListEnabledScans(ctx); serr == nil {
-		scans = scanCadences(rows)
-	} else {
-		log.Printf("web: coverage: enabled scans: %v", serr)
+	scanRows, err := s.retentionPanelStore.ListEnabledScans(ctx)
+	if err != nil {
+		// A dial drawn with no floor would offer the ground as a stop (ADR-0081).
+		log.Printf("web: coverage: enabled scans: %v", err)
+		view.Withheld = "The enabled Scan set, which every floor derives from, " + notResolved
+		return view
 	}
+	scans := scanCadences(scanRows)
 	obsFloor := retention.ObservationFloor(scans)
 	dispFloor := retention.DispatchFloor(scans)
 
@@ -322,52 +365,70 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		obsFloor, obsFloor.Days(), observationLadder, settings.ObservationCurrencyDays, humanDays)
 	view.Dispatch = buildDial("dispatch_cadence_multiple", "Dispatch retention", "cadences",
 		dispFloor, retention.FloorCadences, dispatchLadder, settings.DispatchCadenceMultiple, humanCadences)
+	view.AnyBounded = settings.ObservationCurrencyDays > 0 || settings.DispatchCadenceMultiple > 0
 
 	if rows, perr := s.retentionPanelStore.ListFacetSourceFloors(ctx); perr == nil {
 		view.Pairs = pairViews(rows)
 	} else {
 		log.Printf("web: coverage: facet-source floors: %v", perr)
+		view.PairsWithheld = "The facet-source floors " + notResolved
 	}
 
 	now := s.now()
 	clamps := make([]retention.Clamp, 0, 8)
-	if at, berr := s.retentionPanelStore.EarliestBatchTime(ctx); berr == nil && at.Valid {
-		clamps = append(clamps, retention.Clamp{
-			Kind: retention.ClampBatch, Label: "First batch", At: at.Time, Bounded: true,
-		})
+	var clampsWithheld bool
+	if at, berr := s.retentionPanelStore.EarliestBatchTime(ctx); berr == nil {
+		if at.Valid {
+			clamps = append(clamps, retention.Clamp{
+				Kind: retention.ClampBatch, Label: "First batch", At: at.Time, Bounded: true,
+			})
+		}
+	} else {
+		log.Printf("web: coverage: earliest batch: %v", berr)
+		clampsWithheld = true
 	}
 	if rows, kerr := s.retentionPanelStore.ListDerivationBreaks(ctx, breakClampLimit); kerr == nil {
 		clamps = append(clamps, breakClamps(rows)...)
 	} else {
 		log.Printf("web: coverage: derivation breaks: %v", kerr)
+		clampsWithheld = true
 	}
-	obsAt, obsBounded := dialInstant(now, settings.ObservationCurrencyDays*retention.SecondsPerDay)
-	clamps = append(clamps, retention.Clamp{
-		Kind: retention.ClampRetention, Label: "Observation retention", At: obsAt, Bounded: obsBounded,
-	})
-	dispAt, dispBounded := retention.Cutoff(now, settings.DispatchCadenceMultiple, dispFloor.CadenceSeconds)
-	clamps = append(clamps, retention.Clamp{
-		Kind: retention.ClampRetention, Label: "Dispatch retention", At: dispAt, Bounded: dispBounded,
-	})
-	view.Clamps = clampViews(retention.OrderClamps(clamps), now)
-
-	var held int64
-	if n, cerr := s.retentionPanelStore.CountHeldObservations(ctx); cerr == nil {
-		held = n
+	if clampsWithheld {
+		// A list missing a Break would hand the ink to the wrong row, so none is shown.
+		view.ClampsWithheld = "The clamp list " + notResolved
 	} else {
+		obsAt, obsBounded := dialInstant(now, settings.ObservationCurrencyDays*retention.SecondsPerDay)
+		clamps = append(clamps, retention.Clamp{
+			Kind: retention.ClampRetention, Label: "Observation retention", At: obsAt, Bounded: obsBounded,
+		})
+		dispAt, dispBounded := retention.Cutoff(now, settings.DispatchCadenceMultiple, dispFloor.CadenceSeconds)
+		clamps = append(clamps, retention.Clamp{
+			Kind: retention.ClampRetention, Label: "Dispatch retention", At: dispAt, Bounded: dispBounded,
+		})
+		view.Clamps = clampViews(retention.OrderClamps(clamps), now)
+	}
+
+	held, cerr := s.retentionPanelStore.CountHeldObservations(ctx)
+	if cerr != nil {
 		log.Printf("web: coverage: held observations: %v", cerr)
+		view.Projection.Withheld = "The projection " + notResolved
+		return view
 	}
-	var declared int64
-	var declaredText string
-	if rows, aerr := s.retentionPanelStore.ListAddressScopeCidrs(ctx); aerr == nil {
-		declared, declaredText = declaredAddresses(rows)
+	addrRows, aerr := s.retentionPanelStore.ListAddressScopeCidrs(ctx)
+	if aerr != nil {
+		log.Printf("web: coverage: address scope: %v", aerr)
+		view.Projection.Withheld = "The declared address scope, which the projection prices, " + notResolved
+		return view
 	}
+	declared, declaredText, tooLarge := declaredAddresses(addrRows)
 	p := retention.Project(held, declared, rowsPerAddressPerYear(scans))
+	overflowed := declared > 0 && !p.HasDenominator
 	view.Projection = retentionProjectionView{
 		Held:           humanRows(p.RowsHeld),
 		HeldBytes:      humanBytes(p.BytesHeld),
 		HasDenominator: p.HasDenominator,
 		Denominator:    declaredText,
+		Reason:         projectionReason(p.HasDenominator, declaredText != "", tooLarge || overflowed),
 	}
 	if p.HasDenominator {
 		view.Projection.PerYear = humanRows(p.RowsPerYear)
@@ -402,10 +463,13 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 		s.serverError(w, "retention settings", err)
 		return
 	}
-	var scans []retention.ScanCadence
-	if rows, serr := s.retentionPanelStore.ListEnabledScans(ctx); serr == nil {
-		scans = scanCadences(rows)
+	scanRows, err := s.retentionPanelStore.ListEnabledScans(ctx)
+	if err != nil {
+		// With no floor to raise to, a write could persist the ground (ADR-0081).
+		s.serverError(w, "enabled scans", err)
+		return
 	}
+	scans := scanCadences(scanRows)
 
 	// Below the floor is not the operator's territory, so nothing is rejected (ADR-0081).
 	obs := retention.ClampToFloor(
@@ -428,14 +492,10 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 }
 
 func parseDialValue(raw string, fallback int64) int64 {
-	// An unreadable post lands on the terminal stop, which is a position (ADR-0081).
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return fallback
-	}
-	v, err := strconv.ParseInt(raw, 10, 64)
+	v, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	// Zero is the terminal stop; anything else the track cannot express leaves the dial alone.
 	if err != nil || v < 0 {
-		return 0
+		return fallback
 	}
 	return v
 }
