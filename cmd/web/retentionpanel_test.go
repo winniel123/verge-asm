@@ -371,20 +371,28 @@ func TestACappedHeldCountNeverUnderstatesTheCorpus(t *testing.T) {
 	const cap = 100
 	for _, tc := range []struct {
 		name          string
+		limit         int64
 		row           db.CountHeldObservationsRow
 		wantRows      int64
 		wantEstimated bool
 		wantPriced    bool
 	}{
-		{"under the cap", db.CountHeldObservationsRow{CountedRows: 99, EstimatedRows: 4}, 99, false, true},
-		{"at the cap", db.CountHeldObservationsRow{CountedRows: 100, EstimatedRows: 4}, 100, false, true},
-		{"over the cap", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true, true},
-		// A capped count is a floor, so drawing it as an estimate of the whole corpus misprices it.
-		{"stale statistic", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 50}, 0, false, false},
-		{"cold collector", db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 0, false, false},
+		{"under the cap", cap, db.CountHeldObservationsRow{CountedRows: 99, EstimatedRows: 4}, 99, false, true},
+		{"at the cap", cap, db.CountHeldObservationsRow{CountedRows: 100, EstimatedRows: 4}, 100, false, true},
+		{"over the cap", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 9000}, 9000, true, true},
+		// A capped count is a floor, so a plausible statistic under it renders the floor and never less.
+		{"lagging statistic just under the capped count", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 99}, 101, true, true},
+		{"statistic at the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 50}, 101, true, true},
+		{"statistic below the plausible threshold", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 49}, 0, false, false},
+		{"cold collector", cap, db.CountHeldObservationsRow{CountedRows: 101, EstimatedRows: 0}, 0, false, false},
+		// A 50M-row corpus whose collector never warmed reports a statistic from a far smaller table (#1778).
+		{"a 50M-row corpus behind a cold collector", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 0}, 0, false, false},
+		{"a 50M-row corpus behind a statistic from a bulk load", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 12_000}, 0, false, false},
+		// The ~100,500-row corpus of #1783: reltuples is stale by 1%, and that estimate still prices.
+		{"a stale statistic just above the cap", heldCountExactLimit, db.CountHeldObservationsRow{CountedRows: heldCountExactLimit + 1, EstimatedRows: 99_000}, heldCountExactLimit + 1, true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rows, estimated, priced := heldRows(tc.row, cap)
+			rows, estimated, priced := heldRows(tc.row, tc.limit)
 			if rows != tc.wantRows || estimated != tc.wantEstimated || priced != tc.wantPriced {
 				t.Errorf("heldRows = (%d, %v, %v), want (%d, %v, %v)",
 					rows, estimated, priced, tc.wantRows, tc.wantEstimated, tc.wantPriced)
@@ -412,5 +420,27 @@ func TestAColdStatisticWithholdsTheProjection(t *testing.T) {
 	}
 	if strings.Contains(got, "a year at the enabled cadences") {
 		t.Errorf("the projection rendered from a figure that estimates nothing")
+	}
+}
+
+func TestALaggingStatisticJustAboveTheCapStillPrices(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	// A ~100,500-row corpus whose reltuples has not been refreshed since it crossed the cap (#1783).
+	f.heldObs = heldCountExactLimit + 1
+	f.heldEstimate = 99_000
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if strings.Contains(got, "The projection is withheld") {
+		t.Errorf("a statistic within a percent of the capped count is an estimate, and the panel withheld it")
+	}
+	if !strings.Contains(got, "about 100,001 rows") {
+		t.Errorf("the projection does not price the corpus from the capped count")
+	}
+	if !strings.Contains(got, "a year at the enabled cadences") {
+		t.Errorf("the projection is priced and did not render")
 	}
 }

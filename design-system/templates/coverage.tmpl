@@ -264,9 +264,9 @@
 <div class="cv-proj">
 <span class="big">{{if .Projection.HeldEstimated}}about {{end}}{{.Projection.Held}} rows · {{.Projection.HeldBytes}}</span>
 {{if .Projection.HasDenominator}}
-<span class="tx">Held now{{if .Projection.HeldEstimated}}, to an estimate — this corpus is too large to count on a page load, so the figure is the table's own live-row statistic{{end}}. Your declared address scope covers {{.Projection.Denominator}} addresses, so a year at the enabled cadences is {{.Projection.PerYear}} rows, about {{.Projection.PerYearBytes}} in one compose volume.</span>
+<span class="tx">Held now{{if .Projection.HeldEstimated}}, to an estimate — this corpus is too large to count on a page load, so the figure is the table's own live-row statistic, floored by the rows already counted{{end}}. Your declared address scope covers {{.Projection.Denominator}} addresses, so a year at the enabled cadences is {{.Projection.PerYear}} rows, about {{.Projection.PerYearBytes}} in one compose volume.</span>
 {{else}}
-<span class="tx">Held now{{if .Projection.HeldEstimated}}, to an estimate — this corpus is too large to count on a page load, so the figure is the table's own live-row statistic{{end}}. {{.Projection.Reason}}</span>
+<span class="tx">Held now{{if .Projection.HeldEstimated}}, to an estimate — this corpus is too large to count on a page load, so the figure is the table's own live-row statistic, floored by the rows already counted{{end}}. {{.Projection.Reason}}</span>
 {{end}}
 </div>
 {{end}}
