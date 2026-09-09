@@ -33,10 +33,10 @@
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
   "dependencies": {
-    "@astrojs/react": "^6.0.4",
-    "astro": "^7.2.8",
+    "@astrojs/react": "^6.0.5",
+    "astro": "^7.3.1",
     "github-slugger": "^2.0.0",
-    "lucide-react": "^1.33.0",
+    "lucide-react": "^1.41.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
@@ -48,7 +48,7 @@
     "js-yaml": "^4.3.2",
     "parse-english": "7.0.0",
     "pixelmatch": "7.2.0",
-    "playwright": "1.62.1",
+    "playwright": "1.63.0",
     "pngjs": "7.0.0",
     "pos": "0.4.2",
     "remark-frontmatter": "^5.0.0",
