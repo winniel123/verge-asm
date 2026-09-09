@@ -37,6 +37,7 @@ type messageStore interface {
 	ListNameCitationSpansWithinCurrency(ctx context.Context, arg db.ListNameCitationSpansWithinCurrencyParams) ([]db.ListNameCitationSpansWithinCurrencyRow, error)
 	FoldedBatchWindow(ctx context.Context, unfoldedKinds []string) (db.FoldedBatchWindowRow, error)
 	ListOpenEndpointCertificateSpans(ctx context.Context) ([]db.ListOpenEndpointCertificateSpansRow, error)
+	ListResolutionCitersForAddresses(ctx context.Context, addresses []string) ([]db.ListResolutionCitersForAddressesRow, error)
 }
 
 type spanChange struct {
@@ -124,6 +125,13 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 	msgs = append(msgs, flagship...)
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
+
+	// An Address root and ADR-0026 §2's residue are one partition, so they cannot disagree (#1730).
+	repoints, err := rePointMessages(ctx, store, observedAt, changes, in)
+	if err != nil {
+		return nil, err
+	}
+	msgs = append(msgs, repoints...)
 
 	// The gate opening under a standing declaration is coverage, as revealed is (ADR-0013 #55).
 	gains, err := extensionGainMessages(ctx, store, observedAt, changes, in)
@@ -385,7 +393,7 @@ func membershipCensus(changes []spanChange, root spanChange) message.Census {
 		if c.SubjectKind != "service" && c.SubjectKind != "endpoint" {
 			continue
 		}
-		if !subjectBeneathRoot(root, cited, c.SubjectKey) {
+		if !subjectBeneathRoot(root, cited, c.SubjectKind, c.SubjectKey) {
 			continue
 		}
 		key := [2]string{c.SubjectKind, c.SubjectKey}
@@ -399,31 +407,23 @@ func membershipCensus(changes []spanChange, root spanChange) message.Census {
 }
 
 func citedAddresses(root spanChange) map[string]bool {
-	if root.SubjectKind != subjectKindName || len(root.Value) == 0 {
+	if root.SubjectKind != subjectKindName {
 		return nil
 	}
-	var v struct {
-		Addresses []string `json:"addresses"`
-	}
-	if err := json.Unmarshal(root.Value, &v); err != nil || len(v.Addresses) == 0 {
-		return nil
-	}
-	out := make(map[string]bool, len(v.Addresses))
-	for _, a := range v.Addresses {
-		out[a] = true
-	}
-	return out
+	return citedIn(root.Value)
 }
 
-func subjectBeneathRoot(root spanChange, cited map[string]bool, key string) bool {
+func subjectBeneathRoot(root spanChange, cited map[string]bool, kind, key string) bool {
 	switch root.SubjectKind {
 	case subjectKindName:
 		if strings.Contains(key, root.SubjectKey) {
 			return true
 		}
 		return cited[serviceAddress(key)]
-	case "address":
-		return serviceAddress(key) == root.SubjectKey || strings.HasPrefix(key, root.SubjectKey)
+	case subjectKindAddress:
+		// An Endpoint key carries its Name before the address, so a prefix test misses it (#1730).
+		addr, ok := subjectAddress(kind, key)
+		return ok && addr.String() == root.SubjectKey
 	default:
 		return false
 	}

@@ -307,3 +307,18 @@ WHERE sp.subject_kind = 'name'
        OR EXTRACT(EPOCH FROM (sqlc.arg(at)::timestamptz - sp.closed_at))
           <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence)
 ORDER BY sp.subject_key, sp.vantage_id, sp.facet, sp.opened_at, sp.id;
+
+-- name: ListResolutionCitersForAddresses :many
+-- Address membership is derived, never stored, so the citers are read at the fold (ADR-0006).
+SELECT a.addr::text AS addr,
+       COALESCE(array_agg(DISTINCT r.subject_key) FILTER (WHERE r.subject_key IS NOT NULL), '{}'::text[])::text[] AS citers
+FROM unnest(sqlc.arg(addresses)::text[]) AS a(addr)
+LEFT JOIN span r
+       ON r.closed_at IS NULL
+      AND r.subject_kind = 'name'
+      AND r.facet = 'resolution'
+      AND r.is_gap = FALSE
+      AND jsonb_typeof(r.value -> 'addresses') = 'array'
+      AND r.value -> 'addresses' @> to_jsonb(a.addr)
+GROUP BY a.addr
+ORDER BY a.addr;

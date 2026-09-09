@@ -39,6 +39,18 @@ type fakeMessageStore struct {
 	unfoldedKinds []string
 	certSpans     []db.ListOpenEndpointCertificateSpansRow
 	certReads     int
+
+	citers      map[string][]string
+	citersAsked [][]string
+}
+
+func (f *fakeMessageStore) ListResolutionCitersForAddresses(_ context.Context, addresses []string) ([]db.ListResolutionCitersForAddressesRow, error) {
+	f.citersAsked = append(f.citersAsked, addresses)
+	out := make([]db.ListResolutionCitersForAddressesRow, 0, len(addresses))
+	for _, a := range addresses {
+		out = append(out, db.ListResolutionCitersForAddressesRow{Addr: a, Citers: f.citers[a]})
+	}
+	return out, nil
 }
 
 func (f *fakeMessageStore) FoldedBatchWindow(_ context.Context, unfoldedKinds []string) (db.FoldedBatchWindowRow, error) {

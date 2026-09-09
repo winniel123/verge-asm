@@ -630,6 +630,47 @@ func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDrift
 	return items, nil
 }
 
+const listResolutionCitersForAddresses = `-- name: ListResolutionCitersForAddresses :many
+SELECT a.addr::text AS addr,
+       COALESCE(array_agg(DISTINCT r.subject_key) FILTER (WHERE r.subject_key IS NOT NULL), '{}'::text[])::text[] AS citers
+FROM unnest($1::text[]) AS a(addr)
+LEFT JOIN span r
+       ON r.closed_at IS NULL
+      AND r.subject_kind = 'name'
+      AND r.facet = 'resolution'
+      AND r.is_gap = FALSE
+      AND jsonb_typeof(r.value -> 'addresses') = 'array'
+      AND r.value -> 'addresses' @> to_jsonb(a.addr)
+GROUP BY a.addr
+ORDER BY a.addr
+`
+
+type ListResolutionCitersForAddressesRow struct {
+	Addr   string   `json:"addr"`
+	Citers []string `json:"citers"`
+}
+
+// Address membership is derived, never stored, so the citers are read at the fold (ADR-0006).
+func (q *Queries) ListResolutionCitersForAddresses(ctx context.Context, addresses []string) ([]ListResolutionCitersForAddressesRow, error) {
+	rows, err := q.db.Query(ctx, listResolutionCitersForAddresses, addresses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListResolutionCitersForAddressesRow{}
+	for rows.Next() {
+		var i ListResolutionCitersForAddressesRow
+		if err := rows.Scan(&i.Addr, &i.Citers); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listServiceReachabilitySpansByClassAt = `-- name: ListServiceReachabilitySpansByClassAt :many
 SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
     sp.subject_key AS subject_key,
