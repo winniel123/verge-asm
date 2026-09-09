@@ -254,6 +254,8 @@ type Querier interface {
 	// Both bound this smaller than the model asks, never larger; widening either moves every copy.
 	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+	// EXISTS stops at the first hit, so the kind range is read in full once per class (#1731).
+	ReachFoldedBeforeAtVantages(ctx context.Context, arg ReachFoldedBeforeAtVantagesParams) (bool, error)
 	// A dead worker is failure, not evidence: no Batch, no Availability move (ADR-0169 §1, #1391).
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)

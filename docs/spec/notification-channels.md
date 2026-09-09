@@ -140,8 +140,16 @@ guard against a link that names a route the operator cannot take.
 
 Where a future "us" trigger's aperture change is not `Seed`-scoped (for example, adding a
 `Vantage`), the same principle governs. Link to the Declared configuration object whose change
-was the widening act. But which object that is for a trigger besides the port-aperture case is
-not decided here.
+was the widening act.
+
+**The `Vantage` case is decided.** A vantage-class widening fires at the **class**, with
+`subject_kind` `vantage-class` and `fired_at` the class name — `internet` or `internal`. The
+aperture input is the class, not the vantage.
+[ADR-0029](../adr/0029-an-alert-fires-on-a-leg.md) keys the predicate on `Vantage class`, so a
+second vantage of a class that already runs widens nothing. A message keyed on the vantage would
+state a per-vantage event the model does not have. The link is the `Vantages` settings tab, which is the
+Declared object's own page and the page the operator declared the vantage on
+([#1731](https://github.com/winniel123/verge-asm/issues/1731)).
 
 ---
 
@@ -284,6 +292,24 @@ edge producers stay silent beneath it
 A subject that no `Seed` covers, a
 `Name` reached through a record outside every declared scope, fires at itself, so the closing is
 never lost ([#1729](https://github.com/winniel123/verge-asm/issues/1729)).
+
+A vantage class has one edge that is a message: its first member arriving. The first `hot` or
+`cold` `Batch` to complete at a vantage of a class no earlier completed `Batch` ran at fires one
+coverage-class message at that class. A vantage of a class that already runs fires nothing,
+because it widens no aperture ([ADR-0029](../adr/0029-an-alert-fires-on-a-leg.md)). The census
+names every `Service` in that fold whose `Exposure` composed for the first time. Each entry
+carries the composed value. The headline reads `an internet vantage is now configured · 3
+Exposure timelines opened · 1 edge-only, 2 exposed`, with the values in name order
+([ADR-0029](../adr/0029-an-alert-fires-on-a-leg.md)). The census is a description and grades
+nothing. The composed `Service`s are never alerted individually. Where the fold composed no
+`Exposure`, the headline states that zero rather than staying silent. The widening is itself
+the news ([#1731](https://github.com/winniel123/verge-asm/issues/1731)).
+
+**Stated cost.** A `Batch` covers one address, so the census is the first address's
+`Service`s, not the estate's. The `Exposure` timelines later folds open beneath the same
+class are openings, and an opening reaches nobody
+([ADR-0017](../adr/0017-exposure-needs-both-legs.md)). This is the same cost the sensitive-port
+paragraph below states, one layer up.
 
 | Option | Why not |
 | --- | --- |

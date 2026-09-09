@@ -63,6 +63,7 @@ func TestMessageLinkPerMover(t *testing.T) {
 		{message.CauseThreshold, "name", "expiry.example.com", "/subjects/expiry.example.com"},
 		{message.CauseDeclaredInput, "source", "zone-file", "/sources"},
 		{message.CauseAperture, "seed", "198.51.100.0/24", "/scope#seed-198-51-100-0-24"},
+		{message.CauseAperture, message.KindVantageClass, "internet", "/settings?tab=vantages"},
 	}
 	for _, c := range cases {
 		href, text := messageLink(c.cause, c.subjectKind, c.firedAt)
