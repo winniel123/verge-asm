@@ -181,7 +181,7 @@ func batchMovingBothSignals() (changes []spanChange, store *fakeMessageStore) {
 	const svc = "198.51.100.1:443/tcp"
 	changes = []spanChange{
 		{SubjectKind: "service", SubjectKey: svc, Facet: "reachability", Opened: false, Value: reachValue("reached")},
-		{SubjectKind: "endpoint", SubjectKey: "example.com|" + svc, Facet: "certificate", Opened: true, Value: []byte(`{}`)},
+		{SubjectKind: "endpoint", SubjectKey: "example.com@" + svc, Facet: "certificate", Opened: true, Value: []byte(`{}`)},
 		{SubjectKind: "name", SubjectKey: "example.com", Facet: "resolution", Opened: true,
 			Value: []byte(`{"outcome":"Resolved","addresses":["198.51.100.1"]}`)},
 		{SubjectKind: "service", SubjectKey: svc, Facet: "reachability", Opened: true, Value: reachValue("reached")},

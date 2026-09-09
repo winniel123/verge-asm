@@ -18,6 +18,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/signal"
+	"github.com/winniel123/verge-asm/internal/signalfacts"
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
@@ -448,8 +449,10 @@ func citedAddresses(root spanChange) map[string]bool {
 func subjectBeneathRoot(root spanChange, cited map[string]bool, kind, key string) bool {
 	switch root.SubjectKind {
 	case subjectKindName:
-		if strings.Contains(key, root.SubjectKey) {
-			return true
+		if kind == subjectKindEndpoint {
+			// A sub-name entering in the same fold is its own root, not the apex's (ADR-0031 §1, #1773).
+			owner, _ := signalfacts.SplitEndpointName(key)
+			return owner == root.SubjectKey
 		}
 		return cited[serviceAddress(key)]
 	case subjectKindAddress:
