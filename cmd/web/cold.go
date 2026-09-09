@@ -203,6 +203,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"Gaps":        gaps,
 		"Unevaluable": unevaluable,
 		"StaleZones":  staleZonesView,
+		"Retention":   s.retentionPanel(ctx, acct.Role == roleAdmin),
 	}))
 }
 

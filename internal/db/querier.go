@@ -31,6 +31,7 @@ type Querier interface {
 	CountAccounts(ctx context.Context) (int64, error)
 	CountAdmins(ctx context.Context) (int64, error)
 	CountCertificateMaterial(ctx context.Context) (int64, error)
+	CountHeldObservations(ctx context.Context) (int64, error)
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
@@ -153,6 +154,9 @@ type Querier interface {
 	ListCurrentServiceSubjects(ctx context.Context, arg ListCurrentServiceSubjectsParams) ([]ListCurrentServiceSubjectsRow, error)
 	ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error)
 	ListDeliveryOutcomes(ctx context.Context) ([]ListDeliveryOutcomesRow, error)
+	// A Break is derived on read from two adjacent spans' vectors and never stored, so the
+	// moved leaf is named by diffing the pair in Go.
+	ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]ListDerivationBreaksRow, error)
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error)
 	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]ListEdgeFanoutMeasurementsOverRow, error)
@@ -161,6 +165,10 @@ type Querier interface {
 	ListEndpointCertificates(ctx context.Context, arg ListEndpointCertificatesParams) ([]ListEndpointCertificatesRow, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
+	// The pair's floor is the tightest bound in force across the pair, reached through each
+	// row's Batch as the retirement query reaches it. A row from a disabled Scan has no bound
+	// and is counted apart, because the sweep never retires it.
+	ListFacetSourceFloors(ctx context.Context) ([]ListFacetSourceFloorsRow, error)
 	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]ListJobsForDispatchRow, error)
 	// Every derivation read of observation inlines this gate, never the raw table (#237, ADR-0041).

@@ -87,3 +87,46 @@ WHERE scheduled_time < $1;
 -- name: DeleteExpiredTranscripts :execrows
 DELETE FROM transcript
 WHERE captured_at < $1;
+
+-- name: CountHeldObservations :one
+SELECT COUNT(*)::bigint AS rows_held
+FROM observation;
+
+-- name: ListFacetSourceFloors :many
+-- The pair's floor is the tightest bound in force across the pair, reached through each
+-- row's Batch as the retirement query reaches it. A row from a disabled Scan has no bound
+-- and is counted apart, because the sweep never retires it.
+SELECT o.facet,
+       o.source,
+       COALESCE(MIN(s.cadence_seconds), 0)::bigint AS tightest_cadence,
+       COALESCE(
+           (ARRAY_AGG(s.kind ORDER BY s.cadence_seconds, s.kind)
+            FILTER (WHERE s.kind IS NOT NULL))[1],
+           ''
+       )::text AS scan_kind,
+       COUNT(*)::bigint AS rows_held,
+       COUNT(*) FILTER (WHERE s.id IS NULL)::bigint AS uncovered_rows
+FROM observation o
+JOIN batch b ON b.id = o.batch_id
+LEFT JOIN scan s ON s.id = b.scan_id AND s.enabled = TRUE
+GROUP BY o.facet, o.source
+ORDER BY o.facet, o.source;
+
+-- name: ListDerivationBreaks :many
+-- A Break is derived on read from two adjacent spans' vectors and never stored, so the
+-- moved leaf is named by diffing the pair in Go.
+WITH adjacent AS (
+    SELECT opened_at,
+           derivation,
+           lag(derivation) OVER (
+               PARTITION BY subject_key, facet, discriminator, vantage_id, source
+               ORDER BY opened_at
+           ) AS previous
+    FROM span
+)
+SELECT opened_at, derivation, previous::jsonb AS previous
+FROM adjacent
+WHERE previous IS NOT NULL
+  AND derivation <> previous
+ORDER BY opened_at DESC
+LIMIT sqlc.arg(row_limit)::bigint;

@@ -67,6 +67,7 @@ type store interface {
 	reportScheduleStore
 	reportsExportStore
 	reportsStore
+	retentionPanelStore
 	restoreStore
 	scanTriggerStore
 	scansStore
@@ -126,6 +127,7 @@ type server struct {
 	reportScheduleStore    reportScheduleStore
 	reportsExportStore     reportsExportStore
 	reportsStore           reportsStore
+	retentionPanelStore    retentionPanelStore
 	restoreStore           restoreStore
 	scanTriggerStore       scanTriggerStore
 	scansStore             scansStore
@@ -246,6 +248,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		reportScheduleStore:    s,
 		reportsExportStore:     s,
 		reportsStore:           s,
+		retentionPanelStore:    s,
 		restoreStore:           s,
 		scanTriggerStore:       s,
 		scansStore:             s,
@@ -450,6 +453,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
 	mux.HandleFunc("POST /settings/channels/test", s.requireAdmin(s.testChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
+	mux.HandleFunc("POST /coverage/retention", s.requireAdmin(s.updateCoverageRetention))
 	mux.HandleFunc("POST /settings/address-cap", s.requireAdmin(s.updateAddressCap))
 	mux.HandleFunc("POST /settings/updates/check", s.requireAdmin(s.updateCheckToggle))
 	mux.HandleFunc("POST /settings/backup", s.requireAdmin(s.backupDownload))

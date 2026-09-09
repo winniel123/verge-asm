@@ -389,23 +389,29 @@ func TestTeamRolesCopyHasNoOperatorRole(t *testing.T) {
 	}
 }
 
-func TestRetentionPersistsAndValidates(t *testing.T) {
+// The observation and dispatch dials moved to Coverage, and retentionpanel_test.go
+// asserts their contract. Settings hosts the transcript dial alone.
+
+func TestTranscriptRetentionPersistsAndValidates(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.retention = db.GetRetentionSettingsRow{ObservationCurrencyDays: 90, DispatchCadenceMultiple: 4}
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := postForm(t, ac, base+"/settings/retention", url.Values{
-		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"30"},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("retention save: status=%d (%s)", resp.StatusCode, body(t, resp))
 	}
 	resp.Body.Close()
-	if f.retention.ObservationCurrencyDays != 90 || f.retention.DispatchCadenceMultiple != 4 ||
-		f.retention.TranscriptCurrencyDays != 30 {
-		t.Fatalf("dials not persisted: %+v", f.retention)
+	if f.retention.TranscriptCurrencyDays != 30 {
+		t.Fatalf("transcript dial not persisted: %+v", f.retention)
+	}
+	// This form no longer carries the other two dials, so it may not overwrite them.
+	if f.retention.ObservationCurrencyDays != 90 || f.retention.DispatchCadenceMultiple != 4 {
+		t.Fatalf("the Coverage dials were overwritten by the Settings form: %+v", f.retention)
 	}
 	if !f.retention.UpdatedBy.Valid {
 		t.Errorf("updated_by not attributed")
@@ -420,43 +426,15 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		return getBody(t, ac, base+deliveryTab, http.StatusOK)
 	}
 
-	got := refuse("negative dial", url.Values{
-		"observation_currency_days": {"-1"}, "dispatch_cadence_multiple": {"4"},
-		"transcript_currency_days": {"30"},
-	})
+	got := refuse("negative transcript dial", url.Values{"transcript_currency_days": {"-1"}})
 	if !strings.Contains(got, "zero or more") {
-		t.Fatalf("negative dial not refused; body: %s", got)
+		t.Fatalf("negative transcript dial not refused; body: %s", got)
 	}
-	if f.retention.ObservationCurrencyDays != 90 {
+	if f.retention.TranscriptCurrencyDays != 30 {
 		t.Fatalf("rejected save mutated the dial: %+v", f.retention)
 	}
 
-	got = refuse("below-floor observation dial", url.Values{
-		"observation_currency_days": {"1"}, "dispatch_cadence_multiple": {"4"},
-		"transcript_currency_days": {"30"},
-	})
-	if !strings.Contains(got, "at least 2 days") {
-		t.Fatalf("below-floor observation dial not refused; body: %s", got)
-	}
-	if f.retention.ObservationCurrencyDays != 90 {
-		t.Fatalf("rejected save mutated the observation dial: %+v", f.retention)
-	}
-
-	got = refuse("below-floor dispatch dial", url.Values{
-		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"1"},
-		"transcript_currency_days": {"30"},
-	})
-	if !strings.Contains(got, "at least 2 cadences") {
-		t.Fatalf("below-floor dispatch dial not refused; body: %s", got)
-	}
-	if f.retention.DispatchCadenceMultiple != 4 {
-		t.Fatalf("rejected save mutated the dispatch dial: %+v", f.retention)
-	}
-
-	got = refuse("non-numeric transcript dial", url.Values{
-		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"4"},
-		"transcript_currency_days": {"soon"},
-	})
+	got = refuse("non-numeric transcript dial", url.Values{"transcript_currency_days": {"soon"}})
 	if !strings.Contains(got, "zero or more") {
 		t.Fatalf("non-numeric transcript dial not refused; body: %s", got)
 	}
@@ -467,15 +445,12 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Fatalf("rejected save mutated the transcript dial: %+v", f.retention)
 	}
 
-	resp = postForm(t, ac, base+"/settings/retention", url.Values{
-		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"0"},
-		"transcript_currency_days": {"0"},
-	})
+	resp = postForm(t, ac, base+"/settings/retention", url.Values{"transcript_currency_days": {"0"}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("unbounded (0) dial refused: status=%d (%s)", resp.StatusCode, body(t, resp))
 	}
 	resp.Body.Close()
-	if f.retention.DispatchCadenceMultiple != 0 || f.retention.TranscriptCurrencyDays != 0 {
+	if f.retention.TranscriptCurrencyDays != 0 {
 		t.Fatalf("unbounded dial not persisted: %+v", f.retention)
 	}
 }
@@ -603,6 +578,9 @@ func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
 }
 
 func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
+	if f.retentionErr != nil {
+		return db.GetRetentionSettingsRow{}, f.retentionErr
+	}
 	return f.retention, nil
 }
 
