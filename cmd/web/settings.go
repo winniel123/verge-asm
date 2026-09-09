@@ -18,7 +18,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
-	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
@@ -62,7 +61,6 @@ type deliverySettingsStore interface {
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
 	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
-	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
 }
 
@@ -189,8 +187,6 @@ type settingsForms struct {
 	ssoClientID string
 
 	retError      string
-	retObs        string
-	retDispatch   string
 	retTranscript string
 
 	capError string
@@ -590,51 +586,32 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 
 // The floor is derived from the tightest bound in force, never an operator choice (ADR-0094).
 
+// The observation and dispatch dials live on Coverage (ADR-0081, #1692). This handler
+// keeps the transcript dial alone: ADR-0126 gives it a fixed floor and no derivation.
 func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	obsRaw := strings.TrimSpace(r.FormValue("observation_currency_days"))
-	dispRaw := strings.TrimSpace(r.FormValue("dispatch_cadence_multiple"))
 	transRaw := strings.TrimSpace(r.FormValue("transcript_currency_days"))
 	fail := func(msg string) {
 		s.failSettings(w, r, settingsForms{
-			section: "retention", retError: msg,
-			retObs: obsRaw, retDispatch: dispRaw, retTranscript: transRaw,
+			section: "retention", retError: msg, retTranscript: transRaw,
 		})
 	}
 
-	obs, err := strconv.ParseInt(obsRaw, 10, 64)
-	if err != nil || obs < 0 {
-		fail("Observation-currency floor must be a whole number of days, zero or more.")
-		return
-	}
-	disp, err := strconv.ParseInt(dispRaw, 10, 64)
-	if err != nil || disp < 0 {
-		fail("Dispatch floor must be a whole number of cadences, zero or more.")
-		return
-	}
 	// A positive value is floored up by the retirer, so none is refused (raw-job-output.md §4).
 	trans, err := strconv.ParseInt(transRaw, 10, 64)
 	if err != nil || trans < 0 {
 		fail("Transcript retention must be a whole number of days, zero or more.")
 		return
 	}
-	tightest, err := s.deliverySettingsStore.TightestEnabledScanCadenceSeconds(r.Context())
+	current, err := s.deliverySettingsStore.GetRetentionSettings(r.Context())
 	if err != nil {
-		s.serverError(w, "tightest scan cadence", err)
-		return
-	}
-	if retention.BelowObservationFloor(obs, tightest) {
-		floorDays, _ := retention.ObservationFloorDays(tightest)
-		fail(fmt.Sprintf("Observation currency must be at least %d days — the tightest observation bound in force — or 0 to leave it unbounded.", floorDays))
-		return
-	}
-	if retention.BelowFloor(disp) {
-		fail(fmt.Sprintf("Dispatch retention must be at least %d cadences of the slowest enabled Scan, or 0 to leave it unbounded.", retention.FloorCadences))
+		s.serverError(w, "retention settings", err)
 		return
 	}
 	if err := s.deliverySettingsStore.UpdateRetentionSettings(r.Context(), db.UpdateRetentionSettingsParams{
-		ObservationCurrencyDays: obs, DispatchCadenceMultiple: disp,
-		TranscriptCurrencyDays: trans,
-		UpdatedBy:              pgtype.Int8{Int64: acct.ID, Valid: true},
+		ObservationCurrencyDays: current.ObservationCurrencyDays,
+		DispatchCadenceMultiple: current.DispatchCadenceMultiple,
+		TranscriptCurrencyDays:  trans,
+		UpdatedBy:               pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "update retention", err)
 		return
@@ -817,8 +794,6 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	}
 	data["Retention"] = toRetentionView(ret, accounts)
 	data["RetError"] = f.retError
-	data["RetObs"] = f.retObs
-	data["RetDispatch"] = f.retDispatch
 	data["RetTranscript"] = f.retTranscript
 	return nil
 }

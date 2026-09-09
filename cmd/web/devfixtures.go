@@ -531,6 +531,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		data["Gaps"] = []coverageGapView(nil)
 		data["Unevaluable"] = []unevaluableRuleView(nil)
 		data["StaleZones"] = []coverageStaleZoneView(nil)
+		data["Retention"] = devRetentionPanel(true)
 		return data
 	}
 
@@ -568,7 +569,43 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data["Gaps"] = gaps
 	data["Unevaluable"] = unevaluable
 	data["StaleZones"] = stale
+	data["Retention"] = devRetentionPanel(false)
 	return data
+}
+
+func devRetentionPanel(empty bool) retentionPanelView {
+	scans := []retention.ScanCadence{
+		{Kind: "dns", CadenceSeconds: 86400},
+		{Kind: "tls-acceptance", CadenceSeconds: 7 * 86400},
+		{Kind: "zone", CadenceSeconds: 30 * 86400},
+	}
+	obs, disp := retention.ObservationFloor(scans), retention.DispatchFloor(scans)
+	view := retentionPanelView{
+		IsAdmin:     true,
+		Observation: buildDial("observation_currency_days", "Observation currency", "days", obs, obs.Days(), observationLadder, 0, humanDays),
+		Dispatch:    buildDial("dispatch_cadence_multiple", "Dispatch retention", "cadences", disp, retention.FloorCadences, dispatchLadder, 0, humanCadences),
+	}
+	if empty {
+		view.Clamps = clampViews(retention.OrderClamps(nil), time.Now())
+		view.Projection = retentionProjectionView{Held: "0", HeldBytes: "0 B"}
+		return view
+	}
+	view.Pairs = pairViews([]db.ListFacetSourceFloorsRow{
+		{Facet: "dns-record", Source: "resolver", TightestCadence: 86400, ScanKind: "dns", RowsHeld: 41208},
+		{Facet: "dns-record", Source: "zone", TightestCadence: 30 * 86400, ScanKind: "zone", RowsHeld: 9134},
+		{Facet: "reachability", Source: "resolver", TightestCadence: 86400, ScanKind: "dns", RowsHeld: 128640},
+		{Facet: "tls-acceptance", Source: "resolver", TightestCadence: 7 * 86400, ScanKind: "tls-acceptance", RowsHeld: 6220},
+	})
+	now := time.Now()
+	view.Clamps = clampViews(retention.OrderClamps([]retention.Clamp{
+		{Kind: retention.ClampBatch, Label: "First batch", At: now.Add(-410 * 24 * time.Hour), Bounded: true},
+		{Kind: retention.ClampBreak, Label: "Break", Leaf: "resolution-walk", At: now.Add(-26 * 24 * time.Hour), Bounded: true},
+		{Kind: retention.ClampRetention, Label: "Observation retention", Bounded: false},
+		{Kind: retention.ClampRetention, Label: "Dispatch retention", Bounded: false},
+	}), now)
+	p := retention.Project(185202, 0, 0)
+	view.Projection = retentionProjectionView{Held: humanRows(p.RowsHeld), HeldBytes: humanBytes(p.BytesHeld)}
+	return view
 }
 
 const (

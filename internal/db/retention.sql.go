@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countHeldObservations = `-- name: CountHeldObservations :one
+SELECT COUNT(*)::bigint AS rows_held
+FROM observation
+`
+
+func (q *Queries) CountHeldObservations(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countHeldObservations)
+	var rows_held int64
+	err := row.Scan(&rows_held)
+	return rows_held, err
+}
+
 const deleteExpiredDispatches = `-- name: DeleteExpiredDispatches :execrows
 DELETE FROM dispatch
 WHERE scheduled_time < $1
@@ -115,6 +127,105 @@ func (q *Queries) GetRetentionSettings(ctx context.Context) (GetRetentionSetting
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listDerivationBreaks = `-- name: ListDerivationBreaks :many
+WITH adjacent AS (
+    SELECT opened_at,
+           derivation,
+           lag(derivation) OVER (
+               PARTITION BY subject_key, facet, discriminator, vantage_id, source
+               ORDER BY opened_at
+           ) AS previous
+    FROM span
+)
+SELECT opened_at, derivation, previous::jsonb AS previous
+FROM adjacent
+WHERE previous IS NOT NULL
+  AND derivation <> previous
+ORDER BY opened_at DESC
+LIMIT $1::bigint
+`
+
+type ListDerivationBreaksRow struct {
+	OpenedAt   pgtype.Timestamptz `json:"opened_at"`
+	Derivation []byte             `json:"derivation"`
+	Previous   []byte             `json:"previous"`
+}
+
+// A Break is derived on read from two adjacent spans' vectors and never stored, so the
+// moved leaf is named by diffing the pair in Go.
+func (q *Queries) ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]ListDerivationBreaksRow, error) {
+	rows, err := q.db.Query(ctx, listDerivationBreaks, rowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDerivationBreaksRow{}
+	for rows.Next() {
+		var i ListDerivationBreaksRow
+		if err := rows.Scan(&i.OpenedAt, &i.Derivation, &i.Previous); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFacetSourceFloors = `-- name: ListFacetSourceFloors :many
+SELECT o.facet,
+       o.source,
+       COALESCE(MIN(s.cadence_seconds), 0)::bigint AS tightest_cadence,
+       COALESCE(
+           (ARRAY_AGG(s.kind ORDER BY s.cadence_seconds, s.kind)
+            FILTER (WHERE s.kind IS NOT NULL))[1],
+           ''
+       )::text AS scan_kind,
+       COUNT(*)::bigint AS rows_held
+FROM observation o
+JOIN batch b ON b.id = o.batch_id
+LEFT JOIN scan s ON s.id = b.scan_id AND s.enabled = TRUE
+GROUP BY o.facet, o.source
+ORDER BY o.facet, o.source
+`
+
+type ListFacetSourceFloorsRow struct {
+	Facet           string `json:"facet"`
+	Source          string `json:"source"`
+	TightestCadence int64  `json:"tightest_cadence"`
+	ScanKind        string `json:"scan_kind"`
+	RowsHeld        int64  `json:"rows_held"`
+}
+
+// The covering Scan is reached through the row's Batch, exactly as the retirement
+// query's cover CTE reaches it, so the rendered floor and the applied bound agree.
+func (q *Queries) ListFacetSourceFloors(ctx context.Context) ([]ListFacetSourceFloorsRow, error) {
+	rows, err := q.db.Query(ctx, listFacetSourceFloors)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFacetSourceFloorsRow{}
+	for rows.Next() {
+		var i ListFacetSourceFloorsRow
+		if err := rows.Scan(
+			&i.Facet,
+			&i.Source,
+			&i.TightestCadence,
+			&i.ScanKind,
+			&i.RowsHeld,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listLiveObservationsForDerivation = `-- name: ListLiveObservationsForDerivation :many

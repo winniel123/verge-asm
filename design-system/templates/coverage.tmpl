@@ -57,6 +57,48 @@
 .cv-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
 .cv-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
 .cv-empty .act { margin-top: 14px; }
+.cv-ret { display: flex; flex-direction: column; gap: 22px; }
+.cv-retlede { font: 400 12.5px/1.6 var(--font-ui); color: var(--text-secondary); max-width: 78ch; }
+.cv-dials { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.cv-dial { display: flex; flex-direction: column; gap: 9px; }
+.cv-dialhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cv-floor { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.cv-track { display: flex; align-items: stretch; border: 1px solid var(--border-default); border-radius: var(--r-md); background: var(--surface-sunken); overflow: hidden; }
+.cv-ground { flex: none; width: 44px; border-right: 1px dashed var(--border-strong); background: repeating-linear-gradient(45deg, var(--border-default) 0 4px, transparent 4px 9px); }
+.cv-stops { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 2px; padding: 5px; }
+.cv-stop { display: inline-flex; align-items: center; }
+.cv-stop input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cv-stop span { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 8px; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.cv-stop span:hover { background: var(--surface); }
+.cv-stop input:checked + span { background: var(--accent); color: var(--on-accent); font-weight: 500; }
+.cv-stop input:focus-visible + span { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.cv-stop.term { margin-left: auto; }
+.cv-stop.term span { border: 1px solid var(--border-strong); }
+.cv-stop.term input:checked + span { border-color: transparent; }
+.cv-hint, .cv-horizon { font: 400 11.5px/1.6 var(--font-ui); color: var(--text-muted); }
+.cv-pairs { display: flex; flex-direction: column; margin-top: 2px; }
+.cv-pair { display: grid; grid-template-columns: minmax(0, 200px) 1fr auto; gap: 12px; align-items: baseline; padding: 7px 0; }
+.cv-pair + .cv-pair { border-top: 1px solid var(--row-sep); }
+.cv-pair .k { font: 500 12px var(--font-mono); color: var(--text-ink); overflow: hidden; text-overflow: ellipsis; }
+.cv-pair .f { font: 400 11.5px var(--font-mono); color: var(--text-secondary); }
+.cv-pair.uncov .f { color: var(--text-muted); }
+.cv-pair .n { font: 400 11.5px var(--font-mono); color: var(--text-muted); text-align: right; white-space: nowrap; }
+.cv-clamps { display: flex; flex-direction: column; margin: 0; padding: 0 0 0 22px; }
+.cv-clamp { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 8px 0; }
+.cv-clamps li::marker { font: 400 11px var(--font-mono); color: var(--text-muted); }
+.cv-clamp + .cv-clamp { border-top: 1px solid var(--row-sep); }
+.cv-clamp .ord { font: 400 11px var(--font-mono); color: var(--text-muted); }
+.cv-clamp .lb { font: 400 12.5px var(--font-ui); color: var(--text-secondary); }
+.cv-clamp .at { font: 400 11.5px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+.cv-clamp .leaf { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.cv-clamp.ink .lb { color: var(--text-ink); font-weight: 600; }
+.cv-clamp.ink .at, .cv-clamp.ink .leaf { color: var(--text-secondary); }
+.cv-clamp.inert .lb, .cv-clamp.inert .at { color: var(--text-muted); text-decoration: line-through; }
+.cv-proj { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--r-sm); background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.cv-proj .big { font: 600 20px var(--font-mono); color: var(--text-ink); }
+.cv-proj .tx { font: 400 12px/1.6 var(--font-ui); color: var(--text-secondary); }
+.cv-subhead { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; }
+@media (max-width: 900px) { .cv-dials { grid-template-columns: minmax(0, 1fr); } }
 </style>
 <main class="cv-main" data-screen-label="Coverage">
 <header style="display:flex;flex-direction:column;gap:2px">
@@ -156,5 +198,100 @@
 {{end}}
 </div>
 </div>
+{{with .Retention}}
+<section class="cv-card" id="retention">
+<div class="cv-cardhead"><span class="cv-micro">Retention</span><h3>How far back this answer reaches</h3></div>
+<div class="cv-body">
+<div class="cv-ret">
+<span class="cv-retlede">Retention is what may still be read, never age. These two dials change nothing operational — they change how far back Coverage's own answer reaches, which is this screen's question in the time axis.</span>
+
+{{if .IsAdmin}}
+<form method="post" action="/coverage/retention" style="margin:0;display:flex;flex-direction:column;gap:22px">{{template "backfield" $}}
+<div class="cv-dials">
+{{template "cv-dial" .Observation}}
+{{template "cv-dial" .Dispatch}}
+</div>
+<div><button type="submit" class="cv-btn-sm">Save dials</button></div>
+</form>
+{{else}}
+<div class="cv-dials">
+<div class="cv-dial"><div class="cv-dialhead"><span class="cv-micro">{{.Observation.Title}}</span><span class="cv-floor">floor · {{.Observation.FloorText}}</span></div><span class="cv-horizon">{{.Observation.HorizonText}}</span></div>
+<div class="cv-dial"><div class="cv-dialhead"><span class="cv-micro">{{.Dispatch.Title}}</span><span class="cv-floor">floor · {{.Dispatch.FloorText}}</span></div><span class="cv-horizon">{{.Dispatch.HorizonText}}</span></div>
+</div>
+{{end}}
+
+<div>
+<div class="cv-subhead"><span class="cv-micro">What the observation dial reaches</span></div>
+{{if .Pairs}}
+<div class="cv-pairs">
+{{range .Pairs}}<div class="cv-pair{{if not .Covered}} uncov{{end}}">
+<span class="k">{{.Facet}} · {{.Source}}</span>
+<span class="f">{{.FloorText}}</span>
+<span class="n">{{.Rows}} rows</span>
+</div>{{end}}
+</div>
+{{else}}
+<span class="cv-hint">No observation has been recorded yet, so no facet-source pair carries a floor. A row appears here for each pair the batch writes, with the Scan supplying its bound.</span>
+{{end}}
+</div>
+
+<div>
+<div class="cv-subhead"><span class="cv-micro">Every clamp in force</span></div>
+{{if .Clamps}}
+<ol class="cv-clamps">
+{{range .Clamps}}<li class="cv-clamp{{if .Binding}} ink{{end}}{{if .Inert}} inert{{end}}">
+<span class="lb">{{.Label}}{{if .Names}} <span class="leaf">— {{.Names}} moved</span>{{end}}</span>
+<span class="at"{{if .ISO}} title="{{.ISO}}"{{end}}>{{.At}}</span>
+</li>{{end}}
+</ol>
+<span class="cv-hint">Tightest first. Only the binding clamp is drawn in ink, and it names the leaf that moved. A retention row sorting above it is drawn inert: retention may never be the tighter clamp.</span>
+{{else}}
+<span class="cv-hint">No clamp is in force yet. The first batch, each Break, and each retention dial appear here in one list once the batch has run.</span>
+{{end}}
+</div>
+
+<div>
+<div class="cv-subhead"><span class="cv-micro">What this costs</span></div>
+<div class="cv-proj">
+<span class="big">{{.Projection.Held}} rows · {{.Projection.HeldBytes}}</span>
+{{if .Projection.HasDenominator}}
+<span class="tx">Held now. Your declared address scope covers {{.Projection.Denominator}} addresses, so a year at the enabled cadences is {{.Projection.PerYear}} rows, about {{.Projection.PerYearBytes}} in one compose volume.</span>
+{{else}}
+<span class="tx">Held now. This install declares no address scope, so this projection has no denominator: it shows what is held and never a forecast of what you have.</span>
+{{end}}
+</div>
+</div>
+
+<div>
+<div class="cv-subhead"><span class="cv-micro">Discarded</span></div>
+{{if .Discarded}}
+<ol class="cv-clamps">
+{{range .Discarded}}<li class="cv-clamp"><span class="lb">{{.Label}}</span><span class="at">{{.At}}</span></li>{{end}}
+</ol>
+{{else}}
+<span class="cv-hint">Nothing has been discarded. Both dials are floored at the tightest bound in force, so no derivation has lost a row it may still read. This group renders whether or not it is empty.</span>
+{{end}}
+</div>
+
+{{if .UpdatedAt}}<span class="cv-hint">Last changed {{.UpdatedAt}}.</span>{{end}}
+</div>
+</div>
+</section>
+{{end}}
 </main>
 {{template "foot" .}}{{end}}
+
+{{define "cv-dial"}}
+<div class="cv-dial">
+<div class="cv-dialhead"><span class="cv-micro">{{.Title}}</span><span class="cv-floor">floor · {{.FloorText}}</span></div>
+<div class="cv-track">
+{{if .HasFloor}}<div class="cv-ground" title="{{.FloorHint}}" aria-hidden="true"></div>{{end}}
+<div class="cv-stops">
+{{range .Stops}}<label class="cv-stop"><input type="radio" name="{{$.Field}}" value="{{.Value}}"{{if .Selected}} checked{{end}}><span>{{.Label}}</span></label>{{end}}
+<label class="cv-stop term"><input type="radio" name="{{$.Field}}" value="0"{{if .Terminal.Selected}} checked{{end}}><span>{{.Terminal.Label}}</span></label>
+</div>
+</div>
+<span class="cv-hint">{{.FloorHint}}</span>
+<span class="cv-horizon">{{.HorizonText}}</span>
+</div>
+{{end}}

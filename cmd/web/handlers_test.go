@@ -111,6 +111,9 @@ type fakeStore struct {
 	channels       []fakeChannel
 	chanNextID     int64
 	retention      db.GetRetentionSettingsRow
+	facetFloors    []db.ListFacetSourceFloorsRow
+	derivBreaks    []db.ListDerivationBreaksRow
+	heldObs        int64
 	instanceConfig db.GetInstanceConfigRow
 
 	observations []db.Observation

@@ -626,7 +626,21 @@ rather than a seventh
 | **Signals** | Every v1 rule's fired/not-fired/`not-evaluable` census, and `Annotation` management |
 | **Seeds** | Declare/confirm/decline scopes, custody extensions, source enablement's entry point |
 | **Coverage** | The aperture statement, per-`Scan` rows, retention, and the day-one checklist |
-| **Settings** | Accounts, `Channel`s, retention dials — the operator's dials, gated per §4.3's auth model and §4.6's floor rules |
+| **Settings** | Accounts, `Channel`s, ~~retention dials~~ **the transcript retention dial alone** — the operator's dials, gated per §4.3's auth model and §4.6's floor rules |
+
+> **"retention dials" on `Settings` WITHDRAWN 2026-09-09 by
+> [#1692](https://github.com/winniel123/verge-asm/issues/1692) /
+> [ADR-0081](../adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md)
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> The observation-currency and `Dispatch` dials live on **`Coverage`, editable there**, which §6.3
+> already states. A dial whose only legitimate justification is a projection may not be separated
+> from the projection, and the projection is on `Coverage`. `Settings` links there and carries no
+> copy. It keeps the **transcript** dial, which has a fixed 1-day floor and no derivation
+> ([ADR-0126](../adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md)).
+>
+> The floor is **territory, never a refused value**: the control offers no position below it, and a
+> below-floor value posted anyway is raised to the floor rather than answered with an error. An
+> error is a response to a choice, so a rejected value is a value the operator was offered.
 
 ### 6.2 Exposure (landing view)
 
