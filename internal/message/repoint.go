@@ -23,7 +23,7 @@ func RePoint(nameKey string, census Census, instant time.Time) *Message {
 }
 
 func rePointHeadline(nameKey string, census Census) string {
-	// "within" against membership's "entered" keeps the pair from reading as duplicates (ADR-0026 §2).
+	// "within" against membership's "entered" keeps the pair distinct (ADR-0026 §2).
 	return fmt.Sprintf("%s re-pointed within the estate · %s%s opened beneath it",
 		nameKey, factorsClause(kindCountFactors(census)),
 		plural(census.Len(), "timeline", "timelines"))

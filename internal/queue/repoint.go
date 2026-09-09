@@ -12,7 +12,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/signalfacts"
 )
 
-// An Address root is derived from a Name's resolution move, never from a span of its own (ADR-0006, #1730).
+// An Address root is read from a resolution move, never from a span of its own (ADR-0006).
 
 type rePoint struct {
 	name   string
@@ -96,7 +96,7 @@ func addressesNewToEstate(ctx context.Context, store messageStore, moves []rePoi
 	citedElsewhere := map[string]bool{}
 	for _, r := range rows {
 		for _, n := range r.Citers {
-			// A Name that moved here is already open, so it is no prior citer of its own new address (#1730).
+			// A Name that moved here is open, so it is no prior citer of its own address (#1730).
 			if !moved[n] {
 				citedElsewhere[r.Addr] = true
 				break
