@@ -142,6 +142,38 @@ func (q *Queries) GetPendingProposal(ctx context.Context, id int64) (Proposal, e
 	return i, err
 }
 
+const listDeclinedProposalScopes = `-- name: ListDeclinedProposalScopes :many
+SELECT id, address_cidr
+FROM proposal
+WHERE status = 'declined'
+ORDER BY id
+`
+
+type ListDeclinedProposalScopesRow struct {
+	ID          int64        `json:"id"`
+	AddressCidr netip.Prefix `json:"address_cidr"`
+}
+
+func (q *Queries) ListDeclinedProposalScopes(ctx context.Context) ([]ListDeclinedProposalScopesRow, error) {
+	rows, err := q.db.Query(ctx, listDeclinedProposalScopes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDeclinedProposalScopesRow{}
+	for rows.Next() {
+		var i ListDeclinedProposalScopesRow
+		if err := rows.Scan(&i.ID, &i.AddressCidr); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingProposals = `-- name: ListPendingProposals :many
 SELECT p.id, p.lookup_id, p.source_slug, p.record_kind, p.address_cidr, p.org_name,
        l.query AS lookup_query, l.created_at AS lookup_at, a.username AS lookup_by
@@ -192,4 +224,18 @@ func (q *Queries) ListPendingProposals(ctx context.Context) ([]ListPendingPropos
 		return nil, err
 	}
 	return items, nil
+}
+
+const undoDeclineProposal = `-- name: UndoDeclineProposal :one
+UPDATE proposal
+SET status = 'pending'
+WHERE id = $1 AND status = 'declined'
+RETURNING address_cidr
+`
+
+func (q *Queries) UndoDeclineProposal(ctx context.Context, id int64) (netip.Prefix, error) {
+	row := q.db.QueryRow(ctx, undoDeclineProposal, id)
+	var address_cidr netip.Prefix
+	err := row.Scan(&address_cidr)
+	return address_cidr, err
 }

@@ -63,6 +63,15 @@ func (q *Queries) CreateNameExclusion(ctx context.Context, arg CreateNameExclusi
 	return i, err
 }
 
+const deleteAddressExclusion = `-- name: DeleteAddressExclusion :exec
+DELETE FROM exclusion WHERE kind = 'address' AND address_cidr = $1
+`
+
+func (q *Queries) DeleteAddressExclusion(ctx context.Context, addressCidr *netip.Prefix) error {
+	_, err := q.db.Exec(ctx, deleteAddressExclusion, addressCidr)
+	return err
+}
+
 const deleteExclusion = `-- name: DeleteExclusion :exec
 DELETE FROM exclusion WHERE id = $1
 `

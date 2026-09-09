@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -531,6 +533,237 @@ func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) 
 		}
 	}
 	return 0, nil
+}
+
+func (f *fakeStore) UndoDeclineProposal(_ context.Context, id int64) (netip.Prefix, error) {
+	for i, p := range f.proposals {
+		if p.ID == id && p.Status == "declined" {
+			f.proposals[i].Status = "pending"
+			return p.AddressCidr, nil
+		}
+	}
+	return netip.Prefix{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) ListDeclinedProposalScopes(context.Context) ([]db.ListDeclinedProposalScopesRow, error) {
+	out := []db.ListDeclinedProposalScopesRow{}
+	for _, p := range f.proposals {
+		if p.Status == "declined" {
+			out = append(out, db.ListDeclinedProposalScopesRow{ID: p.ID, AddressCidr: p.AddressCidr})
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) DeleteAddressExclusion(_ context.Context, addressCidr *netip.Prefix) error {
+	if addressCidr == nil {
+		return nil
+	}
+	kept := f.exclusions[:0]
+	for _, e := range f.exclusions {
+		if e.Kind == "address" && e.AddressCidr != nil && e.AddressCidr.String() == addressCidr.String() {
+			continue
+		}
+		kept = append(kept, e)
+	}
+	f.exclusions = kept
+	return nil
+}
+
+func declineOne(t *testing.T, c *http.Client, base string, id int64) {
+	t.Helper()
+	resp := postForm(t, c, base+"/proposals/decline", url.Values{"ids": {itoa(id)}})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("decline status=%d, want 303", resp.StatusCode)
+	}
+}
+
+func toastText(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	// The ruling fixes one sentence, so the two toast fields are read back joined.
+	loc := submitLoc(t, resp)
+	u, err := url.Parse(loc)
+	if err != nil {
+		t.Fatalf("parse redirect %q: %v", loc, err)
+	}
+	raw := u.Query().Get("toast")
+	if raw == "" {
+		t.Fatalf("the redirect to %q carries no toast", loc)
+	}
+	blob, err := base64.RawURLEncoding.DecodeString(raw)
+	if err != nil {
+		t.Fatalf("decode toast %q: %v", raw, err)
+	}
+	var got struct {
+		Tone        string `json:"tone"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal(blob, &got); err != nil {
+		t.Fatalf("unmarshal toast %q: %v", blob, err)
+	}
+	return strings.TrimSpace(got.Title + " " + got.Description)
+}
+
+const undoDeclineFlash = "203.0.113.0/24 returned to pending. Confirming it is a fresh act."
+
+func statusOf(f *fakeStore, id int64) string {
+	for _, p := range f.proposals {
+		if p.ID == id {
+			return p.Status
+		}
+	}
+	return ""
+}
+
+func addressExclusions(f *fakeStore) []string {
+	var out []string
+	for _, e := range f.exclusions {
+		if e.Kind == "address" && e.AddressCidr != nil {
+			out = append(out, e.AddressCidr.String())
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func TestUndoDeclineReturnsTheProposalAndLiftsItsExclusion(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	declined := f.proposals[0]
+	declineOne(t, ac, base, declined.ID)
+	if got := addressExclusions(f); len(got) != 1 || got[0] != "203.0.113.0/24" {
+		t.Fatalf("exclusions after the decline = %v, want [203.0.113.0/24]", got)
+	}
+
+	const from = "/scope?seen=1"
+	resp := postForm(t, ac, base+"/proposals/undo-decline",
+		url.Values{"id": {itoa(declined.ID)}, "return": {from}})
+	if got := toastText(t, resp); got != undoDeclineFlash {
+		t.Errorf("undo flash = %q, want %q", got, undoDeclineFlash)
+	}
+	if loc := resp.Header.Get("Location"); !strings.HasPrefix(loc, from) {
+		t.Errorf("undo landed at %q, want the submitting URL %q", loc, from)
+	}
+
+	if got := statusOf(f, declined.ID); got != "pending" {
+		t.Errorf("proposal %d status=%q, want pending", declined.ID, got)
+	}
+	if got := addressExclusions(f); len(got) != 0 {
+		t.Errorf("exclusions after the undo = %v, want none", got)
+	}
+	if len(f.messages) != 0 {
+		t.Errorf("the undo fired %d messages; a declined scope was never declared", len(f.messages))
+	}
+	if page := seedsBody(t, ac, base); !strings.Contains(page, `action="/proposals/confirm"`) {
+		t.Errorf("the returned scope is not offered for a fresh confirm; body: %s", page)
+	}
+}
+
+func TestUndoDeclineWithNoExclusionStillReturnsTheProposal(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	declined := f.proposals[0]
+	declineOne(t, ac, base, declined.ID)
+	// An operator may lift the exclusion on its own row first, which leaves the decline alone.
+	f.exclusions = nil
+
+	resp := postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(declined.ID)}})
+	if got := toastText(t, resp); got != undoDeclineFlash {
+		t.Errorf("undo flash = %q, want %q", got, undoDeclineFlash)
+	}
+	if got := statusOf(f, declined.ID); got != "pending" {
+		t.Errorf("proposal %d status=%q, want pending", declined.ID, got)
+	}
+	if len(f.messages) != 0 {
+		t.Errorf("the undo fired %d messages", len(f.messages))
+	}
+}
+
+func TestUndoDeclineRefusesAPendingOrConfirmedProposal(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	pending := f.proposals[0].ID
+	confirmed := f.proposals[1].ID
+	postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(confirmed)}}).Body.Close()
+	seedsBefore := len(f.seeds)
+
+	for _, id := range []int64{pending, confirmed} {
+		resp := postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(id)}})
+		loc := submitLoc(t, resp)
+		if strings.Contains(loc, "toast=") {
+			t.Errorf("undo of proposal %d answered with a receipt at %q", id, loc)
+		}
+	}
+	if got := statusOf(f, pending); got != "pending" {
+		t.Errorf("pending proposal moved to %q", got)
+	}
+	if got := statusOf(f, confirmed); got != "confirmed" {
+		t.Errorf("confirmed proposal moved to %q", got)
+	}
+	if len(f.seeds) != seedsBefore {
+		t.Errorf("seeds = %d, want %d; the undo touched the gate", len(f.seeds), seedsBefore)
+	}
+}
+
+func TestViewerCannotUndoADecline(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+	declined := f.proposals[0]
+	declineOne(t, ac, base, declined.ID)
+
+	vc := login(t, base, "viewer", "hunter2hunter2")
+	resp := postForm(t, vc, base+"/proposals/undo-decline", url.Values{"id": {itoa(declined.ID)}})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("viewer POST /proposals/undo-decline: status=%d, want 403", resp.StatusCode)
+	}
+	if got := statusOf(f, declined.ID); got != "declined" {
+		t.Errorf("proposal %d status=%q, want declined", declined.ID, got)
+	}
+	if page := seedsBody(t, vc, base); strings.Contains(page, `action="/proposals/undo-decline"`) {
+		t.Errorf("undo control shown to a viewer; body: %s", page)
+	}
+}
+
+func TestOnlyTheDeclinedScopesExclusionRowCarriesTheUndoControl(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+	declineOne(t, ac, base, f.proposals[0].ID)
+	postForm(t, ac, base+"/exclusions", url.Values{
+		"kind": {"address"}, "value": {"192.0.2.0/24"},
+	}).Body.Close()
+
+	page := seedsBody(t, ac, base)
+	if got := strings.Count(page, `action="/proposals/undo-decline"`); got != 1 {
+		t.Fatalf("undo controls on /scope = %d, want 1 (a hand-typed exclusion carries none); body: %s", got, page)
+	}
+	if !strings.Contains(page, `<input type="hidden" name="id" value="`+itoa(f.proposals[0].ID)+`">`) {
+		t.Errorf("the undo control does not carry the declined proposal's id; body: %s", page)
+	}
+	if !strings.Contains(page, "Undo decline") {
+		t.Errorf("the undo control has no label; body: %s", page)
+	}
 }
 
 func TestOverCapProposalRowRendersRefusalAndNoConfirm(t *testing.T) {

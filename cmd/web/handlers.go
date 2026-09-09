@@ -401,6 +401,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /proposals/search", s.requireAdmin(s.runLookup))
 	mux.HandleFunc("POST /proposals/confirm", s.requireAdmin(s.confirmProposal))
 	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
+	mux.HandleFunc("POST /proposals/undo-decline", s.requireAdmin(s.undoDecline))
 
 	// Folding a viewer-readable read into admin Settings would downgrade a viewer's access (#281).
 	mux.HandleFunc("GET /coverage", s.requireLogin(s.coveragePage))

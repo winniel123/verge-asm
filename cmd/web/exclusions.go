@@ -30,6 +30,8 @@ type exclusionView struct {
 	Value string
 	By    string
 	At    string
+
+	UndoProposalID int64
 }
 
 func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -132,12 +134,13 @@ func (s *server) unexclude(w http.ResponseWriter, r *http.Request, acct db.Accou
 	s.backToScope(w, r)
 }
 
-func toExclusionViews(rows []db.ListExclusionsRow) []exclusionView {
+func toExclusionViews(rows []db.ListExclusionsRow, declined map[string]int64) []exclusionView {
 	out := make([]exclusionView, 0, len(rows))
 	for _, row := range rows {
 		v := exclusionView{ID: row.ID, Kind: row.Kind, By: row.CreatedByUsername}
 		if row.Kind == "address" && row.AddressCidr != nil {
 			v.Value = row.AddressCidr.String()
+			v.UndoProposalID = declined[v.Value]
 		} else {
 			v.Value = row.Name.String
 		}
