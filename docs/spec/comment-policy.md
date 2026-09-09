@@ -92,7 +92,7 @@ the boundary.
 | `prototypes/` | Disposable mock source. About 640 comment lines. It ships in no binary and it is not maintained. |
 | `.html` | A comment's bytes are output bytes, so ruling 15 is unsatisfiable. 19 of 19 lexable files fail byte-exact comparison under both delete strategies. |
 | `.astro` | It needs `@astrojs/compiler`, which the repo does not install. Installing it would cross the two build lanes `docs-site/package.json` keeps apart. |
-| Authoring the ADRs the sweep surfaces | §8.10 triages the backlog and stops there. |
+| Authoring the ADRs the sweep surfaces | §8.4 records a proposal and stops there. |
 | Any product behaviour change | This effort deletes comments and adds a lint tool. Nothing else. |
 
 Two qualifications on the `db/migrations` exclusion:
@@ -115,7 +115,7 @@ Neither `.html` nor `.astro` ships in the binary. `designfs.go` embeds only `tem
 | **Skeleton** | The token stream a file yields with every comment removed and every protected directive kept. §5.1 defines it. |
 | **Residue** | The blocks the mechanical pass declines. An agent judges each one. |
 | **Keeps ledger** | The table in a sweep PR body listing every surviving and rewritten comment. §4.9 defines it. |
-| **ADR gap** | A decision stated only in a comment the sweep is about to delete. §8.1 defines it. |
+| **ADR gap** | A decision stated only in a comment a PR deletes or compresses. §8.1 defines it. §8.4 says how it is recorded. |
 
 ---
 
@@ -1151,9 +1151,9 @@ Ruling 9 exists so a sweep never stalls. It does not exist to destroy reasons. A
 retries because the upstream 502s on cold start") is a fact about the world. It is not an
 undocumented decision. Deleting it to satisfy a citation format inverts the rule's purpose.
 
-**A follow-up issue opens only where the comment asserts a decision** — a rule someone chose that
-ought to be an ADR. A hazard, a cost note, or an external constraint survives silently and opens
-nothing. §8.2 narrows the trigger further with two more gates.
+**A decision proposal block is written only where the comment asserts a decision.** A decision is a
+rule someone chose. A hazard, a cost note, or an external constraint survives silently and earns no
+block. §8.2 adds two gates. §8.4 gives the block. No PR opens an issue for a gap.
 
 **A survivor may not cite a document that does not exist.** Repair has purchase only where a live
 document states the rule, so "prefer repair to deletion" is too broad. Three dangling families are
@@ -1516,10 +1516,10 @@ survivor citing any of the three deserves a second read.
 
 **The #1441 defect did not come from a sweep, and that is the finding.** Every other row was
 authored by a sweep agent compressing a block. This one was authored by an ADR-recording session
-under §8.10, which copied `ADR-0129 §5` into a new ADR while **#1368** stood open against the same
-citation in code. **A defect ledger this section keeps does not reach the sessions that write ADRs.**
-Read this row as evidence that the citation tests in this section bind every author, not the sweep
-alone.
+under the triage route §8.4 retires. It copied `ADR-0129 §5` into a new ADR while **#1368** stood
+open against the same citation in code. **A defect ledger this section keeps does not reach the
+sessions that write ADRs.** Read this row as evidence that the citation tests in this section bind
+every author, not the sweep alone.
 
 #### A `§n` citation needs a numbered heading in the target
 
@@ -1792,8 +1792,8 @@ authoritative, so the lines die on gate A with no `false` row. That ticket refus
 verdicts systematically. Prefer the cheaper verdict where both reach the same deletion, because a
 `false` row asserts something extra about the world.
 
-The ledger carries a second table, the gaps table (§8.6). A ticket that finds no ADR gap states
-`ADR gaps: none` (§8.7).
+The ledger carries the decision proposal blocks (§8.4). A PR that finds no ADR gap states
+`ADR gaps: none`.
 
 The volume is manageable. The salvage population is about 1,729 declaration blocks tree-wide, so a
 per-package slice yields a ledger of tens. §7.1 sizes the cap against that.
@@ -2553,8 +2553,11 @@ Four stages. **Each stage blocks the next.**
 **Stage A. Prerequisites.** In this order:
 
 1. The `commentlint` binary (§6). `strip` must exist before stage B runs.
-2. The `commentlint.yml` workflow (§6.9), the `sweep:comments` label (§6.10), and the `adr-gap` label
-   (§8.9). A sweep PR cannot carry ruling 15 without the workflow.
+2. The `commentlint.yml` workflow (§6.9), the `sweep:comments` label (§6.10), and the `adr-gap`
+   label. A sweep PR cannot carry ruling 15 without the workflow.
+
+   The `adr-gap` label, and the issue container §8.4 to §8.10 once described, are retired. §8.4
+   states the replacement.
 3. The `CLAUDE.md` amendment (§9). A sweep session is itself an agent. It reads `CLAUDE.md` every
    session and the SPEC almost never, so the amended rule must be in `CLAUDE.md` before the first
    sweep.
@@ -2579,7 +2582,8 @@ misfires, it misfires once.
 2. **D2. SQL** (`db/queries` only). One homogeneous shape, the sqlc `-- name:` block, so it is nearly
    a second mechanical class. **The §5.5 cross-check is a precondition of the first D2 ticket.**
 3. **D3. Web assets** (`.mjs`, `.ts`, `.jsx`, `.tmpl`, `.css`). Smallest and least load-bearing.
-4. **D4. The ADR-gap triage** (§8.10). It blocks on every other stage-D ticket.
+4. **D4. The ADR-gap triage** (retired with its container, §8.4). It blocks on every other stage-D
+   ticket.
 
 `strip` is Go-only in v1, so families D2 and D3 are 100% judgment with `verify` as the only automated
 gate.
@@ -2828,7 +2832,8 @@ A sweep ticket is done when **seven** conditions hold:
 
 1. `commentlint verify` **ran** on the PR and is green.
 2. `commentlint lint` reports zero flags on the ticket's files.
-3. The PR body carries a keeps ledger (§4.9) and a gaps table (§8.6).
+3. The PR body carries a keeps ledger (§4.9) and the decision proposal blocks, or `ADR gaps: none`
+   (§8.4).
 4. Every survivor's citation was checked to resolve, **including one the sweep inherited rather
    than wrote**.
 5. `gofmt -l` ran on the ticket's own file set, and the PR body names every formatting hunk the
@@ -3022,15 +3027,15 @@ sweep is about to delete the only statement of it.
 
 `CONTEXT.md` already spends "candidate" on four unrelated measurement concepts, so "salvage
 candidate" would collide with the ubiquitous language. "ADR gap" names the defect, not the process.
-It also reads correctly in both directions. An agent files a record against a gap, and the gap
-closes when an ADR lands.
+It also reads correctly in both directions. An agent writes a proposal against a gap. The gap closes
+when a human ratifies the proposal or refuses it.
 
 **The term is not added to `CONTEXT.md`.** `CONTEXT.md` is the product domain glossary. This is a
 repo-hygiene process term, so this SPEC defines it.
 
 ### 8.2 The trigger
 
-A block opens an ADR gap only when **all three** gates hold.
+A block earns a decision proposal only when **all three** gates hold.
 
 | Gate | Test |
 | --- | --- |
@@ -3053,7 +3058,10 @@ dies honestly on gate A. **The uncited rule is the one most likely to be genuine
 was stated five times, uncited, inside one function, and nothing in the citation machinery fired on
 it. Ask the three gates of every rule you delete, not only of every citation you cannot repair.
 
-**Gate C means the eight `cmd/web` test tickets expect §8.7's zero case.** A `_test.go` block is
+The paragraphs below record the 2026-09 sweep. Read `adr-gap` issue there as the retired container
+(§8.4).
+
+**Gate C means the eight `cmd/web` test tickets expect §8.4's zero case.** A `_test.go` block is
 disqualified before gate A is reached, so a test ticket filing no `adr-gap` issue is the normal
 outcome. #1219 filed none. A reviewer reading eight consecutive test PRs with no gap issue should
 not read that as eight lazy sweeps.
@@ -3134,124 +3142,42 @@ shell must read the in-flight flag — not `chromeScanRunning`'s degrade directi
 comment stated (#1215). Shape 3 above is the same failure inside the ADR corpus. **Read the source's
 body before you let it suppress.**
 
-### 8.4 The container
+### 8.4 The record
 
-**One `adr-gap` issue per sweep ticket.** It lists every gap that ticket found. The backlog is bounded
-at about 30 issues.
+**A gap is recorded as a decision proposal block in the PR body. No issue opens.** The block is
+defined once, in `docs/spec/adr-governance.md`, Terms. It holds five fields: Thesis, Site,
+Alternative, Reversal, Proof. It ends with one unticked checkbox, "Ratified".
 
-Three alternatives are refused:
+The comment itself survives in code, in the §4.4 form, with no citation. The block records that a
+rule may deserve an ADR. It does not remove the rule from the code.
 
-1. **One issue per gap block** gives 250 to 340 issues, which is the problem this protocol prevents.
-2. **One issue per distinct rule** is the right unit and is not buildable. Up to 4 parallel sweep
-   PRs run across roughly 30 independent sessions. No session can see another's gaps, so dedup at
-   capture time is guesswork.
-3. **A single whole-sweep issue, or an appended file such as `docs/adr/gaps.md`**, puts every
-   parallel PR on one shared write target. For a file that is a merge conflict, and §7.5 forbids
-   hand-resolving one, so a conflict costs a re-run of the whole ticket.
+Two stages decide a gap, and different readers run them.
 
-Dedup moves to triage, where the whole population is visible at once (§8.10).
+| Stage | Reader | Test | Outcome |
+| --- | --- | --- | --- |
+| Detect | The agent | §8.2 gates A, B, C | A block in the PR body |
+| Ratify | The human reviewer | The three-part test in `CLAUDE.md` | A ticked box, or a refusal |
 
-### 8.5 The record's fields
+Under orchestration, the orchestrator writes the block from the subagent's proposal. The human still
+ratifies.
 
-Each entry in the issue holds **five** fields.
+**Only a human opens the issue.** At review, the human opens one issue per ticked block. Its title is
+the Thesis. Its body is the block. Its label is `ready-for-agent`. It is never a sub-issue of a map,
+because an open unassigned child sits on the frontier forever. Its number becomes the ADR's number.
+The ADR is a separate PR, written after this PR merges, under the governance SPEC's review gate.
 
-| Field | Content |
-| --- | --- |
-| Rule | The rule in one sentence, in the agent's own words. |
-| Symbol | The enclosing declaration's name. |
-| Location | `file:line`, read at deletion time. |
-| Text | The deleted comment, verbatim. |
-| PR | The sweep PR's number. |
+An unticked block at merge is a refusal. It leaves no record beyond the merged PR body. An agent may
+not open the issue. The old route let agents file 43 issues that became 80 ADRs in two days.
 
-**Issue title:** `ADR gaps: <sweep ticket scope>`, for example `ADR gaps: internal/queue`.
+**No cap on blocks per PR.** The PR body states the count in one line, so an outlier is visible.
 
-**The PR number replaces the commit SHA.** The commit that deletes the comment does not exist when
-the agent writes the record. Squash-only merges in `CONTRIBUTING.md` then rewrite every SHA an agent
-could record. A `git log -S` against a dead SHA finds nothing. The PR number survives the squash and
-reaches the diff, the keeps ledger, and the review conversation.
+**A PR that finds no gap states `ADR gaps: none`** in its keeps ledger (§4.9). Silence cannot
+separate "applied and found none" from "never applied".
 
-**The Rule field is the one downstream work depends on.** §8.10 dedups by comparing rules, not texts.
-`internal/queue/reaper.go`, `internal/retention/observation.go` and
-`internal/retention/transcript.go` state one worker-loop error rule, uncited, in three wordings. A
-triager comparing verbatim texts sees it three times. A triager comparing rule sentences sees it
-once.
+**The `adr-gap` label is retired.** It stays on its 43 closed issues as a historic marker. No new
+issue carries it.
 
-**The record keeps the verbatim text as well as the locator.** A locator alone bets that a future
-author will chase it. Citations already rot here: the standing fact is 88 distinct ADRs cited
-against 133 on disk.
-
-A free-text "why it looked ADR-worthy" field is refused. The `adr-gap` label already asserts that, and
-no downstream step reads it.
-
-### 8.6 The PR body's gaps table
-
-**Every sweep PR body carries a gaps table: rule sentence and `file:line` only.** The other three
-fields stay in the issue.
-
-The verbatim deleted text is already in front of the reviewer, as a deletion in the diff under
-review. Reproducing it in the PR body is noise at the moment attention is scarcest. In the issue it
-is not noise, because the issue outlives the diff and a future ADR author has no diff open.
-
-The table is what lets the reviewer dismiss a batch in one comment without leaving the PR. **The
-agent files. The human ratifies at review.**
-
-### 8.7 The zero case
-
-**A sweep ticket that finds no gaps files no issue, and its keeps ledger states `ADR gaps: none`.**
-
-Silence cannot separate two cases: the agent applied the trigger and found none, or the agent never
-applied the trigger. Across about 30 sessions that difference is the whole integrity of ruling 9
-itself. The explicit line costs one line and is the only evidence the reviewer gets.
-
-**An empty issue is refused.** It pollutes the backlog §8.10 must read.
-
-**A ticket body may say otherwise, and this section wins.** Every open sweep ticket body carried an
-unconditional "open one `adr-gap` issue for this ticket" in step 7, written before this section
-existed. #1201 and #1209 both reached zero gaps, both resolved the conflict this way, and both named
-it in the PR body. The bodies are amended. Where any instruction outside this SPEC asks for an empty
-issue, refuse it and say so in the PR body.
-
-### 8.8 An `adr-gap` issue is never a sub-issue of a map
-
-**Do not link an `adr-gap` issue as a sub-issue of the wayfinder map or the implementation map.** It
-carries `Found by #<sweep ticket>` in its body. §8.10's ticket finds the backlog by label.
-
-This is a prohibition, not an omission. `docs/agents/issue-tracker.md` defines the frontier as the
-map's open sub-issues, minus those with an open blocker or an assignee. An `adr-gap` issue is open,
-unblocked and unassigned by construction. Linking it as a sub-issue therefore puts **every gap record
-on the implementation frontier permanently**, and a later `/implement` session picks one up as its
-ticket. The map also never closes. A map closes when every child closes, and a gap closes only when
-someone writes an ADR. §1.4 excludes that work.
-
-A sweep agent reaches for "child issue of the map" by pattern. This is the trap that needs saying.
-
-### 8.9 Labels
-
-**On filing: `adr-gap` plus `needs-triage`.** On disposal: remove `needs-triage`, then apply either
-`ready-for-human` or `wontfix`.
-
-`adr-gap` is new and must be created in stage A (§7.2). The rest is the canonical vocabulary in
-`docs/agents/triage-labels.md`. A gap record is ordinary triage input, so it needs one new noun, not a
-new vocabulary. A `sec:*`-style family is refused: that pattern earns its shape from a category axis,
-and ADR gaps have one category.
-
-### 8.10 Disposal
-
-**The last ticket of stage D triages the whole `adr-gap` backlog** (§7.2, D4). It is an
-implementation-map ticket, so it has an owner and a scheduled moment. It does four things:
-
-1. Read every open `adr-gap` issue by label.
-2. Dedup by **rule sentence**, not by text. Collapse duplicates into one surviving record that lists
-   every location.
-3. Close the noise and the duplicates, labelled `wontfix` or as duplicates.
-4. Label each survivor `ready-for-human` and remove `needs-triage`.
-
-The ticket is done at a triaged, deduplicated, `ready-for-human` backlog. **Authoring the ADRs stays
-out of scope** (§1.4).
-
-Per-PR triage is refused for two reasons. It cannot dedup, because a reviewer sees one PR. And it asks
-a reviewer to judge ADR-worthiness while reviewing a deletion diff. A stated cadence with no ticket
-rots.
+**This rule binds any PR that deletes a comment passing the three gates.** A sweep is one case.
 
 ---
 
