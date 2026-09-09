@@ -114,6 +114,18 @@ function canonicalPath(slug: string): string                   // always /latest
   `refForVersion("latest")` falls back to `main` — which is the state of this repo
   today, so the manifest is `[{ value: "latest", ref: "main", tag: "current" },
   { value: "main", ref: "main", tag: "dev" }]`.
+- **A prerelease tag renders as its own `/<tag>/*` tree, and it is never `latest` or
+  `current`.** `publishableTags` in `src/pipeline/source-resolution.ts` keeps every
+  semver tag that carries `docs/guides/`, and a tag with a prerelease segment is one of
+  them. `newestStableTag` in `src/version-ref.mjs` skips such a tag, so `latest` and the
+  `current` badge name a stable tag, or `main` when none exists. The ground is
+  containment: the docs site renders the tag namespace and never gates it
+  ([ADR-0155](../docs/adr/0155-the-docs-site-does-not-enforce-the-tag-policy-so-a-prerelease-tag-is-browsable-and-never-becomes-latest-or-current.md)
+  §1 to §3).
+- **The prerelease path is unreachable while
+  [release-pipeline SPEC §1.3](../docs/spec/release-pipeline.md) holds**, because the
+  project cuts no prerelease tag. Do not add a skip or a badge for a prerelease tag.
+  ADR-0155 rejects both.
 - **One rule resolves a version to a ref, and it lives in `src/version-ref.mjs`.**
   That module is pure: no `node:`, no `astro:content`, so a client island bundles it.
   `refForVersion` applies the rule to the tags git reports; `listVersions` stamps the

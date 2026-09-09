@@ -2585,7 +2585,7 @@
       "date": "2026-08-14",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -2616,10 +2616,21 @@
           "kind": "rests-on",
           "from": 208,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1644,
+          "clause": null
         }
       ],
       "sections": [],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1644,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 329,
         "text": "**When a decision supersedes a mechanism, the document that *specifies* the mechanism is amended in\nthe same change.** A note in the superseding document does not discharge the obligation.\n\n| Concern | Decision |\n| --- | --- |\n| Where the withdrawal is written | At the **superseded** site, in the same change — and at the superseding site too, which is where the reasoning lives |\n| What the superseded site gets | A **withdrawal**, naming what no longer holds and pointing at the decision — never a silent deletion, per the note's existing name-and-withdraw convention |\n| Whether a pointer from the superseding document suffices | **No.** It reaches only a reader who already holds it, which is the reader who did not need it |\n| Scope | Any **mechanism** — a test, a gate, a check, an enforcement point, a procedure. Not figures, which already have `FIGURE DELTA`, and not claims about the world, which have the amendment convention |\n| What counts as discharge | The superseded sentence can no longer be read, in isolation and in the present tense, as specifying something that exists |\n| Who does it | The pass that supersedes. It is the last party who knows both states |\n\n**The test for a reader:** if the superseded sentence, read alone and out of context, would cause a\ncompetent session to build or specify the thing — it is not withdrawn.\n\n> **The unit is the *sentence*, and the #106 amendment below settles that it is.** *Site* here means\n> the clause, not the file — so **a document supersedes itself**, and an amendment appended to a file\n> does not discharge a clause standing unmarked earlier in that same file. Read *\"the document that\n> specifies the mechanism is amended\"* as *\"the sentence that specifies the mechanism is marked\"*\n> throughout; the two readings differ only in the intra-document case, and\n> [#106](https://github.com/winniel123/verge-asm/issues/106) rules that case **in**."
@@ -10989,6 +11000,45 @@
       "decision": {
         "words": 0,
         "text": ""
+      }
+    },
+    {
+      "number": 1644,
+      "file": "docs/adr/1644-for-an-adr-target-a-withdrawal-is-a-tool-written-marker-not-a-hand-edited-sentence.md",
+      "title": "For an ADR target, a withdrawal is a tool-written marker, not a hand-edited sentence",
+      "slug": "for-an-adr-target-a-withdrawal-is-a-tool-written-marker-not-a-hand-edited-sentence",
+      "date": "2026-09-08",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "test": "docs-site/scripts/check-adr-markers.test.mjs::a relation without a marker fails"
+      },
+      "ticket": 1644,
+      "map": 1638,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 58
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 149,
+        "text": "For an ADR target, a withdrawal is a tool-written marker, not a hand-edited sentence. The acting ADR declares one relation in its front matter. The tool renders one blockquote line under the affected heading, signed `<!-- adr-marker -->`. CI regenerates every marker and fails on any difference. A relation without a marker, a marker without a relation, and a hand-written marker all fail.\n\nThe unit is the numbered clause, or the whole file when the target numbers no heading. This coarsens the #106 sentence rule for an ADR target only. A spec or research target keeps the hand-written sentence rule.\n\nThe pass that supersedes still pays. It writes the relation. The marker names the acting ADR by thesis title and date.\n\nRejected: a sentence-level marker, which needs a prose parser and a hand edit. On 2026-09-07, 32 ADRs read Accepted while a later ADR amended a clause.\n\nProof: `docs-site/scripts/check-adr-markers.test.mjs`."
       }
     }
   ]
