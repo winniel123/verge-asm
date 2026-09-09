@@ -129,6 +129,40 @@ func (q *Queries) GetRetentionSettings(ctx context.Context) (GetRetentionSetting
 	return i, err
 }
 
+const listCoveringScanKinds = `-- name: ListCoveringScanKinds :many
+SELECT s.kind
+FROM scan s
+WHERE s.enabled = TRUE
+  AND EXISTS (
+      SELECT 1
+      FROM batch b
+      JOIN observation o ON o.batch_id = b.id
+      WHERE b.scan_id = s.id
+  )
+ORDER BY s.kind
+`
+
+// Cover is the cover CTE's relation, as a semi-join that stops at the first row (#1768).
+func (q *Queries) ListCoveringScanKinds(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listCoveringScanKinds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var kind string
+		if err := rows.Scan(&kind); err != nil {
+			return nil, err
+		}
+		items = append(items, kind)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDerivationBreaks = `-- name: ListDerivationBreaks :many
 WITH adjacent AS (
     SELECT opened_at,

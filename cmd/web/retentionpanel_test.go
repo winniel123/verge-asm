@@ -39,12 +39,21 @@ func (f *fakeStore) ListEnabledScans(context.Context) ([]db.Scan, error) {
 	return out, nil
 }
 
+func (f *fakeStore) ListCoveringScanKinds(context.Context) ([]string, error) {
+	if f.coveringScanErr != nil {
+		return nil, f.coveringScanErr
+	}
+	return f.coveringScans, nil
+}
+
 func seedRetentionPanel(f *fakeStore) {
 	f.scans = append(f.scans,
 		db.Scan{ID: 501, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
 		db.Scan{ID: 502, Kind: "tls-acceptance", Enabled: true, CadenceSeconds: 7 * 86400},
 		db.Scan{ID: 503, Kind: "zone", Enabled: true, CadenceSeconds: 30 * 86400},
 	)
+	// The pair rows below are the same cover, reached per pair, so the two must agree.
+	f.coveringScans = []string{"dns", "zone"}
 	f.facetFloors = []db.ListFacetSourceFloorsRow{
 		{Facet: "dns-record", Source: "resolver", TightestCadence: 86400, ScanKind: "dns", RowsHeld: 400, UncoveredRows: 7},
 		{Facet: "dns-record", Source: "zone", TightestCadence: 30 * 86400, ScanKind: "zone", RowsHeld: 120},
@@ -125,6 +134,46 @@ func TestCoverageCarriesTheDialsAndTheClampList(t *testing.T) {
 	// The discarded group renders in the state where it is always empty, and says why.
 	if !strings.Contains(got, "Nothing has been discarded") {
 		t.Errorf("the discarded group is missing in its empty state")
+	}
+}
+
+func TestTheDialFloorNamesAScanThatBoundsARow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	// ADR-0081's walked case: no zone file, and ct enabled hourly bounds no row.
+	f.scans = append(f.scans, db.Scan{ID: 504, Kind: "ct", Enabled: true, CadenceSeconds: 3600})
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	if !strings.Contains(got, "2 × cadence(dns)") {
+		t.Errorf("the observation floor does not name dns, the tightest Scan that bounds a row")
+	}
+	if strings.Contains(got, "cadence(ct)") {
+		t.Errorf("the observation floor names ct, a Scan that bounds no row — the operator would move the wrong Scan")
+	}
+	// A floor from an uncovered Scan would put a below-floor stop on the track.
+	if strings.Contains(got, `value="1"`) {
+		t.Errorf("a stop below the 2-day covering floor is offered on the track")
+	}
+}
+
+func TestAFailedCoveringScanReadWithholdsThePanel(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedRetentionPanel(f)
+	f.coveringScanErr = errors.New("boom")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	got := getBody(t, ac, base+"/coverage", http.StatusOK)
+	// An unread cover would draw the dial with no floor, offering the ground as a stop (ADR-0081).
+	if strings.Contains(got, `action="/coverage/retention"`) {
+		t.Errorf("a failed covering-Scan read still rendered the dial form")
+	}
+	if !strings.Contains(got, "did not resolve on this load") {
+		t.Errorf("the withheld panel does not say why")
 	}
 }
 

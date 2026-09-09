@@ -6,10 +6,10 @@ import (
 )
 
 var shipped = []ScanCadence{
-	{Kind: "dns", CadenceSeconds: 86400},
-	{Kind: "hot", CadenceSeconds: 86400},
-	{Kind: "tls-acceptance", CadenceSeconds: 7 * 86400},
-	{Kind: "zone", CadenceSeconds: 30 * 86400},
+	{Kind: "dns", CadenceSeconds: 86400, Covers: true},
+	{Kind: "hot", CadenceSeconds: 86400, Covers: true},
+	{Kind: "tls-acceptance", CadenceSeconds: 7 * 86400, Covers: true},
+	{Kind: "zone", CadenceSeconds: 30 * 86400, Covers: true},
 }
 
 func TestFloorsAreAMultipleAndANamedScan(t *testing.T) {
@@ -30,11 +30,36 @@ func TestFloorsAreAMultipleAndANamedScan(t *testing.T) {
 	}
 }
 
+func TestTheObservationFloorNamesTheTightestCoveringScan(t *testing.T) {
+	// ADR-0081's walked case: on an install with no zone file, zone is enabled and covers nothing.
+	scans := []ScanCadence{
+		{Kind: "ct", CadenceSeconds: 3600},
+		{Kind: "dns", CadenceSeconds: 86400, Covers: true},
+		{Kind: "zone", CadenceSeconds: 30 * 86400},
+	}
+	obs := ObservationFloor(scans)
+	if !obs.Bounded() || obs.ScanKind != "dns" || obs.CadenceSeconds != 86400 {
+		t.Fatalf("observation floor = %+v, want k over dns, the tightest Scan that bounds a row", obs)
+	}
+	// The Dispatch floor reads the enabled set, covering or not, and is the other rule (ADR-0081).
+	if disp := DispatchFloor(scans); !disp.Bounded() || disp.ScanKind != "zone" {
+		t.Fatalf("dispatch floor = %+v, want the slowest enabled Scan, zone", disp)
+	}
+}
+
 func TestAFloorWithNoEnabledScanIsUnbounded(t *testing.T) {
 	for _, scans := range [][]ScanCadence{nil, {{Kind: "zone", CadenceSeconds: 0}}} {
 		if f := ObservationFloor(scans); f.Bounded() || f.Days() != 0 {
 			t.Errorf("ObservationFloor(%v) = %+v, want unbounded", scans, f)
 		}
+	}
+	// A Scan bounding no timeline leaves the bound undefined, and that floors nothing (ADR-0094).
+	uncovered := []ScanCadence{{Kind: "zone", CadenceSeconds: 30 * 86400}}
+	if f := ObservationFloor(uncovered); f.Bounded() || f.Days() != 0 {
+		t.Errorf("ObservationFloor(%v) = %+v, want unbounded", uncovered, f)
+	}
+	if f := DispatchFloor(uncovered); !f.Bounded() {
+		t.Errorf("DispatchFloor(%v) = %+v, want a bound from the enabled Scan", uncovered, f)
 	}
 }
 

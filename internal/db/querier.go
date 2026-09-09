@@ -148,6 +148,8 @@ type Querier interface {
 	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
 	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error)
+	// Cover is the cover CTE's relation, as a semi-join that stops at the first row (#1768).
+	ListCoveringScanKinds(ctx context.Context) ([]string, error)
 	ListCurrentEndpointSubjects(ctx context.Context, arg ListCurrentEndpointSubjectsParams) ([]ListCurrentEndpointSubjectsRow, error)
 	// The gate carries the read instant, so no parameterless VIEW holds it and it inlines per read.
 	ListCurrentNameSubjects(ctx context.Context, arg ListCurrentNameSubjectsParams) ([]ListCurrentNameSubjectsRow, error)

@@ -21,6 +21,19 @@ SELECT COALESCE(MIN(cadence_seconds), 0)::bigint AS cadence_seconds
 FROM scan
 WHERE enabled = TRUE;
 
+-- name: ListCoveringScanKinds :many
+-- Cover is the cover CTE's relation, as a semi-join that stops at the first row (#1768).
+SELECT s.kind
+FROM scan s
+WHERE s.enabled = TRUE
+  AND EXISTS (
+      SELECT 1
+      FROM batch b
+      JOIN observation o ON o.batch_id = b.id
+      WHERE b.scan_id = s.id
+  )
+ORDER BY s.kind;
+
 -- name: ListLiveObservationsForDerivation :many
 -- Every derivation read of observation inlines this gate, never the raw table (#237, ADR-0041).
 WITH cover AS (

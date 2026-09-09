@@ -25,6 +25,7 @@ type retentionPanelStore interface {
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	ListCoveringScanKinds(ctx context.Context) ([]string, error)
 	ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]db.ListDerivationBreaksRow, error)
 	ListEnabledScans(ctx context.Context) ([]db.Scan, error)
 	ListFacetSourceFloors(ctx context.Context) ([]db.ListFacetSourceFloorsRow, error)
@@ -113,6 +114,13 @@ const retentionPanelBudget = 2 * time.Second
 
 const notResolved = "did not resolve on this load. Nothing is shown rather than a guessed zero."
 
+// An unfloored dial names the Scan set it came up empty in, and the two differ (ADR-0081).
+
+const (
+	unflooredObservation = "No Scan bounds a row yet, so nothing floors this dial."
+	unflooredDispatch    = "No enabled Scan supplies a cadence, so nothing floors this dial."
+)
+
 func floorText(f retention.FloorExpression) string {
 	// A multiple and a named Scan cannot go stale the way a day count already has (ADR-0038).
 	if !f.Bounded() {
@@ -124,10 +132,16 @@ func floorText(f retention.FloorExpression) string {
 	return fmt.Sprintf("%d × cadence(%s)", f.Multiple, f.ScanKind)
 }
 
-func scanCadences(rows []db.Scan) []retention.ScanCadence {
+func scanCadences(rows []db.Scan, coveringKinds []string) []retention.ScanCadence {
+	covering := make(map[string]bool, len(coveringKinds))
+	for _, k := range coveringKinds {
+		covering[k] = true
+	}
 	out := make([]retention.ScanCadence, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, retention.ScanCadence{Kind: r.Kind, CadenceSeconds: r.CadenceSeconds})
+		out = append(out, retention.ScanCadence{
+			Kind: r.Kind, CadenceSeconds: r.CadenceSeconds, Covers: covering[r.Kind],
+		})
 	}
 	return out
 }
@@ -161,7 +175,7 @@ func humanCadences(n int64) string {
 	return fmt.Sprintf("%d cadences", n)
 }
 
-func buildDial(field, title, unit string, floor retention.FloorExpression, floorUnits int64, ladder []int64, value int64, label func(int64) string) retentionDialView {
+func buildDial(field, title, unit string, floor retention.FloorExpression, floorUnits int64, ladder []int64, value int64, label func(int64) string, unfloored string) retentionDialView {
 	stops := retention.DialStops(floorUnits, ladder)
 	// The handle parks on a labelled stop, so the control is never valueless (ADR-0081).
 	view := retentionDialView{
@@ -176,7 +190,7 @@ func buildDial(field, title, unit string, floor retention.FloorExpression, floor
 	if floor.Bounded() {
 		view.FloorHint = fmt.Sprintf("Below this the dial changes no row. Move it by changing %s's cadence, not by arguing with this control.", floor.ScanKind)
 	} else {
-		view.FloorHint = "No enabled Scan supplies a cadence, so nothing floors this dial."
+		view.FloorHint = unfloored
 	}
 	for _, s := range stops {
 		view.Stops = append(view.Stops, retentionStopView{Value: s, Label: label(s), Selected: value == s})
@@ -357,14 +371,23 @@ func (s *server) retentionPanel(ctx context.Context, isAdmin bool) retentionPane
 		view.Withheld = "The enabled Scan set, which every floor derives from, " + notResolved
 		return view
 	}
-	scans := scanCadences(scanRows)
+	coveringKinds, err := s.retentionPanelStore.ListCoveringScanKinds(ctx)
+	if err != nil {
+		// An unread cover would floor the dial on a Scan bounding nothing (ADR-0081).
+		log.Printf("web: coverage: covering scans: %v", err)
+		view.Withheld = "The covering Scan set, which the observation floor derives from, " + notResolved
+		return view
+	}
+	scans := scanCadences(scanRows, coveringKinds)
 	obsFloor := retention.ObservationFloor(scans)
 	dispFloor := retention.DispatchFloor(scans)
 
 	view.Observation = buildDial("observation_currency_days", "Observation currency", "days",
-		obsFloor, obsFloor.Days(), observationLadder, settings.ObservationCurrencyDays, humanDays)
+		obsFloor, obsFloor.Days(), observationLadder, settings.ObservationCurrencyDays, humanDays,
+		unflooredObservation)
 	view.Dispatch = buildDial("dispatch_cadence_multiple", "Dispatch retention", "cadences",
-		dispFloor, retention.FloorCadences, dispatchLadder, settings.DispatchCadenceMultiple, humanCadences)
+		dispFloor, retention.FloorCadences, dispatchLadder, settings.DispatchCadenceMultiple, humanCadences,
+		unflooredDispatch)
 	view.AnyBounded = settings.ObservationCurrencyDays > 0 || settings.DispatchCadenceMultiple > 0
 
 	if rows, perr := s.retentionPanelStore.ListFacetSourceFloors(ctx); perr == nil {
@@ -469,7 +492,13 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 		s.serverError(w, "enabled scans", err)
 		return
 	}
-	scans := scanCadences(scanRows)
+	coveringKinds, err := s.retentionPanelStore.ListCoveringScanKinds(ctx)
+	if err != nil {
+		// A write clamps to the covering floor, so a missed cover raises the wrong one.
+		s.serverError(w, "covering scans", err)
+		return
+	}
+	scans := scanCadences(scanRows, coveringKinds)
 
 	// Below the floor is not the operator's territory, so nothing is rejected (ADR-0081).
 	obs := retention.ClampToFloor(

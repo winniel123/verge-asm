@@ -10,6 +10,7 @@ import (
 type ScanCadence struct {
 	Kind           string
 	CadenceSeconds int64
+	Covers         bool
 }
 
 // A floor is a multiple and a named Scan, computed live, never a day count (ADR-0081).
@@ -58,8 +59,15 @@ func pickScan(scans []ScanCadence, tighter func(a, b int64) bool) FloorExpressio
 }
 
 func ObservationFloor(scans []ScanCadence) FloorExpression {
+	covering := make([]ScanCadence, 0, len(scans))
+	for _, s := range scans {
+		// A Scan bounding no timeline sets no floor, and naming it moves the wrong Scan (ADR-0081).
+		if s.Covers {
+			covering = append(covering, s)
+		}
+	}
 	// Below the tightest bound in force the control changes no row (ADR-0094).
-	return pickScan(scans, func(a, b int64) bool { return a < b })
+	return pickScan(covering, func(a, b int64) bool { return a < b })
 }
 
 func DispatchFloor(scans []ScanCadence) FloorExpression {
