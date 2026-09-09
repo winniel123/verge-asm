@@ -536,6 +536,9 @@ func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) 
 }
 
 func (f *fakeStore) UndoDeclineProposal(_ context.Context, id int64) (netip.Prefix, error) {
+	if f.undoDeclineErr != nil {
+		return netip.Prefix{}, f.undoDeclineErr
+	}
 	for i, p := range f.proposals {
 		if p.ID == id && p.Status == "declined" {
 			f.proposals[i].Status = "pending"
@@ -686,6 +689,25 @@ func TestUndoDeclineWithNoExclusionStillReturnsTheProposal(t *testing.T) {
 	}
 	if len(f.messages) != 0 {
 		t.Errorf("the undo fired %d messages", len(f.messages))
+	}
+}
+
+func TestUndoDeclineSurfacesAStoreFailure(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	id := f.proposals[0].ID
+	declineOne(t, ac, base, id)
+	f.undoDeclineErr = errors.New("connection refused")
+
+	resp := postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(id)}})
+	defer resp.Body.Close()
+	// A silent redirect would read to the operator as "nothing to undo" (#1721).
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("a store failure answered %d, want 500", resp.StatusCode)
 	}
 }
 

@@ -102,3 +102,51 @@ func TestDeclaredAddressScopeSkipsAnOpeningANameCites(t *testing.T) {
 		t.Errorf("the scope counts only what no Name cites, got %+v", scope.Census.Entries)
 	}
 }
+
+func TestAnExcludedAddressFiresNoScopeReveal(t *testing.T) {
+	changes := []spanChange{darkOpening("198.51.100.7:443/tcp")}
+	store := &fakeMessageStore{}
+	in := membershipInputs{
+		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
+		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.0/28")},
+	}
+
+	msgs, err := buildMessages(context.Background(), store, 73, produceT0, changes, nil, nil, in)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	for _, m := range msgs {
+		if m.SubjectKind == "seed" {
+			t.Fatalf("an operator who narrowed the range is owed no aperture message, got %+v", m)
+		}
+	}
+}
+
+func TestAnExclusionNarrowsTheScopeRevealCensus(t *testing.T) {
+	changes := []spanChange{
+		darkOpening("198.51.100.7:443/tcp"),
+		darkOpening("198.51.100.200:443/tcp"),
+	}
+	store := &fakeMessageStore{}
+	in := membershipInputs{
+		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
+		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.0/28")},
+	}
+
+	msgs, err := buildMessages(context.Background(), store, 74, produceT0, changes, nil, nil, in)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	var scope *message.Message
+	for _, m := range msgs {
+		if m.SubjectKind == "seed" {
+			scope = m
+		}
+	}
+	if scope == nil {
+		t.Fatal("the address outside the exclusion still owes one message at the scope")
+	}
+	if scope.CensusLen() != 1 {
+		t.Fatalf("only the unexcluded opening counts, got %+v", scope.Census.Entries)
+	}
+}

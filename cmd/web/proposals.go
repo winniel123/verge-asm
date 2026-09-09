@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -336,9 +338,13 @@ func (s *server) undoDecline(w http.ResponseWriter, r *http.Request, _ db.Accoun
 		return
 	}
 	scope, err := s.proposalsStore.UndoDeclineProposal(r.Context(), id)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		// A pending or confirmed Proposal is no decline to reverse, so nothing moves (ADR-0022).
 		s.backToScope(w, r)
+		return
+	}
+	if err != nil {
+		s.serverError(w, "undo declined proposal", err)
 		return
 	}
 	// A declined scope was never declared, so lifting it admits no ground (ADR-0133, #1721).

@@ -124,6 +124,7 @@ type fakeStore struct {
 	listScansErr    error
 	coveringScans   []string
 	coveringScanErr error
+	undoDeclineErr  error
 	obsNextID       int64
 	batchNextID     int64
 	scanNextID      int64

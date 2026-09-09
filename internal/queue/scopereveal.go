@@ -28,6 +28,10 @@ func scopeRevealMessages(observedAt time.Time, changes []spanChange, in membersh
 		if !ok || cited[addr.String()] {
 			continue
 		}
+		// An exclusion cuts the Seed limb, so narrowed ground is no aperture (ADR-0133 §3).
+		if coveringAddressExclusion(addr, in.exclusions) != nil {
+			continue
+		}
 		scope := coveringSeedKey(subjectKindAddress, addr.String(), in)
 		if scope == "" || coveredByFoldRoot(roots, c.SubjectKind, c.SubjectKey) {
 			continue
