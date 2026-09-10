@@ -156,7 +156,8 @@ func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool) mes
 		if !c.Opened || c.SubjectKind != subjectKindEndpoint || seen[c.SubjectKey] {
 			continue
 		}
-		if owner, _ := signalfacts.SplitEndpointName(c.SubjectKey); owner != mv.name {
+		// No dispatcher names an Endpoint, so an absent leg roots on address (ADR-0205, #1774).
+		if owner, _ := signalfacts.SplitEndpointName(c.SubjectKey); owner != "" && owner != mv.name {
 			continue
 		}
 		addr, ok := subjectAddress(c.SubjectKind, c.SubjectKey)
