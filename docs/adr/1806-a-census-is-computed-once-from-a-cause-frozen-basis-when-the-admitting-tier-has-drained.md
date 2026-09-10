@@ -56,8 +56,9 @@ Root determination stays in the fold. It reads the gap-crossing history that onl
    the subject, the instant, and a cause-clause headline. It sets a new nullable
    `census_pending_after_batch` that references the root's `batch`. It enqueues no delivery.
 2. The dispatcher's existing minute poll (`internal/queue/queue.go`) finds a pending row whose
-   first `hot` dispatch after that batch has drained. `dispatch` already carries `scan_id`,
-   `created_at` and `status`, so the query needs no new column.
+   first `hot` dispatch after that batch has drained. That dispatch must hold
+   `status = 'fanned-out'`. A tick the cadence-lag gate recorded `skipped` enqueues no job, so a
+   drain test alone would read it as drained the instant the row exists.
 3. The poll computes the census, appends the census clause to the headline, clears the pending
    column, and enqueues delivery.
 4. A pending row is not rendered and counts toward no unread badge. Nothing reaches the operator
@@ -74,10 +75,19 @@ where the residue is non-empty.
 
 ## 3. The bound is one drained `hot` dispatch
 
-`ScanHasNonTerminalJobs` (`internal/queue/hotlag.go`) answers whether a dispatch has drained. It is
-state the model already holds for the cadence-lag gate.
+The predicate is that the dispatch fanned out and every `queue_job` it enqueued has reached a
+terminal state. It is state the model already holds, and
 [#27](https://github.com/winniel123/verge-asm/issues/27) refuses an invented number in a safety
-path, and a duration window is one.
+path, which a duration window is.
+
+**The shipped `ScanHasNonTerminalJobs` does not answer it.** That query tests
+`dispatch_id IS DISTINCT FROM` the named dispatch, so it asks whether an *earlier* dispatch of the
+same `Scan` is still draining. That is the cadence-lag gate of
+[ADR-0137](./0137-the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages.md) §4, and it
+excludes the named dispatch's own jobs by construction. Called at release time it reads false while
+every job of that dispatch is still `ready`. The release poll needs the complement of that query,
+not the query. The grilling took one for the other, and the implementation ticket writes the new
+one.
 
 The bound names `hot` by Kind. It does not derive the tier from the estate. The reason is recorded
 so a later tier change is caught by a reader of this file:
@@ -121,11 +131,13 @@ decision about which tiers a message waits for, and it would need its own file.
 
 | Configuration | Behaviour | Why it is honest |
 | --- | --- | --- |
-| The stale-running reaper is disabled (`staleJobThreshold` zero) | No hold. The census is written at the cause, as before. | `ScanHasNonTerminalJobs` reads a job set that nothing reaps, so one wedged row would hold every message forever. `HotLagGateArmed` (`internal/queue/hotlag.go`) already warns on this configuration, for the same reason. |
+| The stale-running reaper is disabled (`staleJobThreshold` zero) | No hold. The census is written at the cause, as before. | The drain test reads a job set that nothing reaps, so one wedged row would hold every message forever. `HotLagGateArmed` (`internal/queue/hotlag.go`) already refuses to arm the cadence-lag gate on this configuration, for the same reason. |
 | The `hot` `Scan` is disabled | Release at once, with an empty census. | Nothing will ever open beneath the root, so an empty census is accurate rather than premature. |
 
-Neither degradation is silent about itself. Each is a configuration the operator chose, and the
-first already carries a warning at dispatch.
+Each is a configuration the operator chose. The first already logs a warning at dispatch
+(`internal/queue/hotlag.go`), but that warning speaks about a doubled probe rate and says nothing
+about a census. So the reinstated write-at-the-cause behaviour, and the empty census it ships,
+reach the operator unexplained. Widening that warning is the implementation ticket's work.
 
 ## 7. Rejected alternatives
 
@@ -137,7 +149,30 @@ first already carries a warning at dispatch.
 | Reuse a `NULL` `census` as the pending flag | `NULL` already means *the firing carries only a count, or none*. One column would carry two facts, and a released empty census would be indistinguishable from a held one. |
 | Wait for `tls-acceptance` as well, so the census is complete | A 7-day hold on the product's headline event, and a second decision on top of this one. §5 keeps ADR-0031's price instead. |
 
-## 8. Proof
+## 8. Fog
+
+Three questions this decision does not answer. Each is recorded rather than guessed at, as
+ADR-0031 recorded this decision's own question.
+
+**What stops the re-point message firing twice.** §2 gives the re-point path no pending row,
+because ADR-0026 §2's predicate reads two durable spans. Those spans stay durable after the message
+fires, the poll runs every minute, and `message` carries no uniqueness constraint over a subject and
+a cause (`db/migrations/20500_message.sql`). The membership path is bounded by the pending column,
+which step 3 clears. The re-point path is given no equivalent, and no drain bound of its own. §4's
+frozen basis is not applied to it either, so a name that re-points twice inside one poll interval is
+the case §4 says a frozen basis prevents.
+
+**Which instant orders a dispatch against a batch.** Step 2 needs the first `hot` dispatch *after*
+the root's batch. Both `created_at` columns default to `now()`, which Postgres fixes at transaction
+start, and `InsertBatch` runs at the top of the fold transaction (`internal/queue/worker.go`) while
+the spans commit at its end. A dispatch that claims inside that window sorts after the batch and
+still cannot see the subject. The test wants the fold's commit instant, and no column carries one.
+
+**What the unread predicate costs.** §2 holds a pending row out of the badge. The shipped partial
+index is `message_unread ON message (id DESC) WHERE read_at IS NULL`
+(`db/migrations/20500_message.sql`), which does not cover a predicate carrying a pending term.
+
+## 9. Proof
 
 [#1819](https://github.com/winniel123/verge-asm/issues/1819) is the proof: a worker-level
 integration test across two folds. It folds a `dns` batch that enters a `Name`, folds a `hot` batch
