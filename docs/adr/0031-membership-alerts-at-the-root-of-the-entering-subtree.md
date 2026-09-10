@@ -12,6 +12,8 @@ proof: {none: "predates the governance SPEC"}
 
 # ADR-0031: A membership message fires at the root of the entering sub-tree — and a first run reveals rather than appears
 
+> **Amended** by [ADR-1806: A census is computed once from a cause-frozen basis, when the admitting tier has drained](./1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md), 2026-09-10. <!-- adr-marker amends 1806 -->
+
 ## Context
 
 [ADR-0006](./0006-subjects-leave-by-measurement.md) split appearance into `appeared` and

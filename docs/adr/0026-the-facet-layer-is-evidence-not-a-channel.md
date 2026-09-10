@@ -65,6 +65,8 @@ membership is at the `Reach`, `Signal` and membership layers above it.**
 
 ### 2. The one new facet message: a `resolution` transition that admits ground nothing else covers
 
+> **Amended** by [ADR-1806: A census is computed once from a cause-frozen basis, when the admitting tier has drained](./1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md), 2026-09-10. <!-- adr-marker amends 1806 -->
+
 **A `resolution` `Transition` is a message where it opens an `Endpoint` that no membership message
 in the same fold covers, and its census is exactly those `Endpoint`s and what opened beneath
 them.** Drift class, *the world moved*. One message per transition, no count and no threshold in
