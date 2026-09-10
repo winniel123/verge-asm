@@ -8,11 +8,12 @@ import (
 )
 
 const (
-	apexName  = "example.com"
-	apexAddr  = "203.0.113.7"
-	apexSvc   = apexAddr + ":443/tcp"
-	subName   = "www." + apexName
-	lookalike = "notexample.com"
+	apexName   = "example.com"
+	apexAddr   = "203.0.113.7"
+	apexSvc    = apexAddr + ":443/tcp"
+	subName    = "www." + apexName
+	lookalike  = "notexample.com"
+	uncitedSvc = "198.51.100.9:443/tcp"
 )
 
 func apexFold() []spanChange {
@@ -22,10 +23,11 @@ func apexFold() []spanChange {
 		{SubjectKind: "endpoint", SubjectKey: apexName + "@" + apexSvc, Facet: "certificate", Opened: true, Value: []byte(`{}`)},
 		{SubjectKind: "endpoint", SubjectKey: subName + "@" + apexSvc, Facet: "certificate", Opened: true, Value: []byte(`{}`)},
 		{SubjectKind: "endpoint", SubjectKey: lookalike + "@" + apexSvc, Facet: "certificate", Opened: true, Value: []byte(`{}`)},
+		{SubjectKind: "endpoint", SubjectKey: subName + "@" + uncitedSvc, Facet: "certificate", Opened: true, Value: []byte(`{}`)},
 	}
 }
 
-func TestMembershipCensusExcludesAnotherNamesEndpoint(t *testing.T) {
+func TestMembershipCensusCarriesAnEndpointOnACitedService(t *testing.T) {
 	msgs := membershipMessages(produceT0, apexFold(), membershipInputs{})
 	if len(msgs) != 1 {
 		t.Fatalf("the apex is the one root that opened a resolution, got %+v", msgs)
@@ -37,14 +39,18 @@ func TestMembershipCensusExcludesAnotherNamesEndpoint(t *testing.T) {
 	if !keys[apexSvc] || !keys[apexName+"@"+apexSvc] {
 		t.Errorf("the cited Service and the apex's own Endpoint are beneath it, got %+v", msgs[0].Census.Entries)
 	}
-	if keys[subName+"@"+apexSvc] {
-		t.Errorf("a distinct Name entering in the same fold is its own root (ADR-0031), got %+v", msgs[0].Census.Entries)
+	// ADR-0033 §2 names this census the carrier for an Endpoint that entered (#1776).
+	if !keys[subName+"@"+apexSvc] {
+		t.Errorf("a sub-name's Endpoint entered on the apex's Service, got %+v", msgs[0].Census.Entries)
 	}
-	if keys[lookalike+"@"+apexSvc] {
-		t.Errorf("a Name that merely ends in the apex is no sub-name, got %+v", msgs[0].Census.Entries)
+	if !keys[lookalike+"@"+apexSvc] {
+		t.Errorf("a foreign Name's Endpoint entered on the apex's Service too, got %+v", msgs[0].Census.Entries)
 	}
-	if msgs[0].Census.Len() != 2 {
-		t.Errorf("census = %+v, want exactly the Service and the apex's Endpoint", msgs[0].Census.Entries)
+	if keys[subName+"@"+uncitedSvc] {
+		t.Errorf("the apex cites no address of that Service, so nothing puts it beneath (#1773), got %+v", msgs[0].Census.Entries)
+	}
+	if msgs[0].Census.Len() != 4 {
+		t.Errorf("census = %+v, want the Service and the three Endpoints on it", msgs[0].Census.Entries)
 	}
 }
 
@@ -69,8 +75,8 @@ func TestAForeignEndpointKeepsItsOwnMessageBeneathAnApexRoot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse census: %v", err)
 			}
-			if c.Len() != 0 {
-				t.Errorf("nothing of the apex's own opened, so its census is empty; got %+v", c.Entries)
+			if c.Len() != 1 || c.Entries[0].Key != ep {
+				t.Errorf("the Endpoint entered on a cited Service, so the census carries it; got %+v", c.Entries)
 			}
 		case m.FiredAt == ep:
 			own++
