@@ -30,8 +30,8 @@ folded straight from observations composes a canonicaliser version and a stalene
 makes its version move, is
 [ADR-0008](./docs/adr/0008-derivation-versions-move-on-content.md).
 
-A fourth group, **Operational**, sits outside the table on purpose. It records what the
-system *did*, never what is true of the estate. The comparison path may read nothing in it at
+A fourth group, **Operational**, sits outside the table on purpose. It records **what happened at
+this install that is not a fact about the estate**. The comparison path may read nothing in it at
 all.
 
 ## Language
@@ -41,8 +41,11 @@ all.
 **A Declared term holds a current value and no instant.** An instant is not a field this layer may
 carry. It is a per-term exception earned on two limbs together. First, the term must be **replaced
 rather than edited**, so the instant has one value for the object's whole life and acquires no
-successor. Second, the act must leave **no dated residue** anywhere in the Observed or Operational
-corpus while a named v1 reader needs it dated. Every Declared act but one is dated by what it moved: a
+successor. Second, **nothing the act moved** may already carry the instant — a measurement the estate
+produced, or a record of the system acting on what the act changed — **and** a consumer that exists in
+v1 must need the date. Both halves are required: a wish is not a reader. **A record of the act itself
+is not residue.** The `Act` corpus transcribes every Declared act, with an instant, and it dates no
+consequence because it is not one. Every Declared act but one is dated by what it moved: a
 `Seed` declaration by `revealed` and the earliest `revealed` beneath the scope, a narrowing by the
 coverage-class message at the scope, a `Source` toggle by the `Batch`'s recorded source set, a `Scan`
 config change by the `Batch`'s recorded completed scope, a `Channel` by a `Delivery`. `Annotation` is
@@ -527,9 +530,9 @@ withdrawn subject is reached **only by its own key**, which is what an annotatio
 And it **states its reason** and does **not** appear on `Coverage`. A `Seed`
 exclusion is there because it shrinks the estate, and this shrinks nothing. Its home is `Signals`.
 It carries the **instant it was declared and no author**. The one Declared term holding operator
-prose is still an operator dial, and every dial in the model is unattributed. So
-[#127](https://github.com/winniel123/verge-asm/issues/127)'s ruling that no operator act is recorded
-with an actor on it holds here without exception. A date names nobody. An undated standing mute
+prose is still an operator dial, and every dial in the model is unattributed. So no **Declared term**
+records an actor, this one included. The act of annotating is recorded as an `Act` in the Operational
+group, which no derivation may read. A date names nobody. An undated standing mute
 on an object with no expiry cannot be reviewed at all. It is the **only** Declared term carrying an
 instant, and what earns it is not the prose. It cannot be edited, so the instant acquires no
 successor. And **its whole effect is a message that does not fire**, so no `Message`, `Batch`, `Gap`
@@ -1579,7 +1582,8 @@ fold step, so the adjacency is the fact. A version change's `Break` is derived o
 two vectors, so a stored reason at either site is a second representation. It records **no vector** —
 a version change closes every open span of that derivation, so a `Span` is wholly inside one vector
 by construction and its vector *is* the vector in force at its closure. It records **no actor**, which would
-be the operator-act record the model refuses arriving through the corpus that is never compacted. It records
+put operator identity in the **Observed** corpus, one join from the comparison path. The record exists; it
+lives on the Operational side of the fence and nothing derived may read it. It records
 **no pointer** to the subject it accompanied, which the `Citation` holds. And it records **not the observation**,
 which is retained in its own corpus while the closure is the boundary that measurement drew. Writing
 one reason onto every timeline a departing subject held is not the *one fact in n representations*
@@ -1793,9 +1797,12 @@ delete on a schedule is the property that makes it safe to keep out of the compa
 [#119](https://github.com/winniel123/verge-asm/issues/119) added `Message` and `Delivery` to this
 layer, and [#838](https://github.com/winniel123/verge-asm/issues/838) ·
 [ADR-0126](./docs/adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md)
-added `Transcript` (verbatim raw job output), so the operational record is **four** corpora, and
+added `Transcript` (verbatim raw job output), and
+[#1826](https://github.com/winniel123/verge-asm/issues/1826) added `Act` (one recorded act by one
+principal on this instance) beside it, so the operational record is **five** corpora, and
 `Dispatch` is **no longer the only one carrying a dial** — `Transcript` carries the second, and it
-ships **bounded** where `Dispatch` ships unbounded. A `Message` is retained while the operator may still read it again, and a `Delivery` travels
+ships **bounded** where `Dispatch` ships unbounded. `Act` carries **no** dial: it is unbounded,
+append-only, and never deleted. A `Message` is retained while the operator may still read it again, and a `Delivery` travels
 with the message it was against
 ([ADR-0081](./docs/adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md)). Its
 retention window is an **operator dial**, the strongest instance of *outside every derivation* in the
@@ -1901,6 +1908,33 @@ every backup**. That reverses
 hole. See
 [ADR-0126](./docs/adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md).
 _Avoid_: log, raw log, job log, output, run log
+
+**Act**:
+**One recorded act by one principal on this instance.** The **fifth** Operational corpus, beside
+`Dispatch`, `Message`, `Delivery` and `Transcript`. It records an act on **four limbs**, each with its
+own named reader: the estate's **declaration**, **who may act** on this instance, **directing the
+instance to act** on the network, and a **disclosure** from a corpus the model seals. An act outside
+all four is not recorded, and the login family is exempt by name — a session is not one of the four.
+Its principal is a **closed union of two members** — `Account{account_id, username_snapshot}` or
+`GrantHolder` of a setup token, a password-reset link or an invite — never a record with a nullable
+`account_id`. It discriminates on **how the principal proved themselves**, never on who the row is
+about. Its value is a **closed union of one variant per act class**, each naming its own typed
+subject; an action enum beside a subject union is barred, because it makes an illegal pair
+expressible. It carries **no foreign key** to `account`: it holds the id **and the name as it stood**,
+so an act outlives the account that took it and no admin who has ever acted becomes unremovable.
+**A Declared act is the doing; an `Act` is the Operational record of the doing** — which is
+`Dispatch`'s relationship to a `Scan` firing, and why recording one dates no Declared term. It is
+**unbounded, append-only, and never deleted**: no dial, no `UPDATE` and no `DELETE` generated against
+it. What that buys is **accountability among cooperating operators, never forensics** — the admin
+holds the database credential, and a table cannot be trusted against the principal who can edit it.
+It inherits the Operational fence: **no derivation may read an `Act`**, which is what keeps operator
+identity out of the comparison path. Only an explicit recorder writes one, gated by a conformance test
+that fails CI on an auditable route with no recorder on its call graph; only the admin-gated `audit`
+tab reads one. See `docs/spec/audit-act.md`, and
+[#127](https://github.com/winniel123/verge-asm/issues/127), whose refusal it withdraws. **The
+interface label stays "Audit log"**, on the `Asset` precedent — acceptable as a collective noun in the
+interface, never as a modelled thing.
+_Avoid_: audit entry, log line, event, activity, history, ledger
 
 ## Terms deliberately not used
 
