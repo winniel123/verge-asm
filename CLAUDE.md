@@ -123,6 +123,33 @@ A fresh worktree holds no `docs-site/node_modules`. Run `npm install` in `docs-s
 - `npm run test:doclint` runs `node --test scripts/doclint.test.mjs`. It gates the doclint script itself, and it is faster than a build.
 - An `esbuild --minify` byte comparison of each touched JS file, taken before and after the edit, gates a comment sweep. `esbuild` lives in `docs-site/node_modules/.bin/`. A build does not replace it. A build proves that the site compiles, not that a comment sweep left behaviour unchanged.
 
+### Serving a prototype
+
+Serve every prototype on port **8090**. Always use that port. `8080` belongs to the compose stack's `web` service, and `4321` belongs to the Astro dev server. `8090` is free.
+
+Bind the server to `127.0.0.1`. Run it from the prototype's own directory:
+
+```sh
+cd prototype/<name> && python3 -m http.server 8090 --bind 127.0.0.1
+```
+
+Start it in the background. A foreground server blocks the session.
+
+Two rules hold, and both are about what the port exposes:
+
+- **Do not serve the repository root.** A server rooted at the repo publishes `.env`, `.git/`, and every source file. Serve the one prototype directory.
+- **Do not bind to `0.0.0.0`.** This machine is a VPS. `0.0.0.0` publishes the directory to the internet, and the server asks for no password.
+
+The user reaches the port through an SSH tunnel. They run this on their own machine:
+
+```sh
+ssh -L 8090:127.0.0.1:8090 <user>@<host>
+```
+
+Then they open `http://127.0.0.1:8090/` there.
+
+One process at a time holds the port. Stop the running server before you start another.
+
 ### Running the checks
 
 Run the gating checks natively:
