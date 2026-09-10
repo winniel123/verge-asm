@@ -1808,10 +1808,15 @@ ships it unbounded**, one row per firing being nothing to retire. See
 _Avoid_: scan run, run, execution, job group
 
 **Message**:
-One firing of one cause, computed **once at the cause** and never recomputed — recomputing one
-would reach back across a `Break`. It carries its class, the key of the subject or scope it
-fired at, the instant of the cause, and its census where it has one. It holds read-state and
-its delivery outcomes and no other operator state. Operational, and the layer is the point: a
+One firing of one cause, computed **once** and never recomputed — recomputing one would reach
+back across a `Break`. At the cause, except for the census: a fold is one job with one Kind, so
+what opens beneath the fired-at subject opens in a later fold, and a census read at the cause is
+empty. So the census, and the headline clause it produces, are computed when the tier that admits
+that sub-tree has drained — still once, and from a basis frozen at the cause. See
+[ADR-1806](./docs/adr/1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md).
+It carries its class, the key of the subject or scope it fired at, the instant of the cause, and
+its census where it has one. It holds read-state and its delivery outcomes and no other operator
+state. Operational, and the layer is the point: a
 message records that the operator was **told**, never what is true of the estate. The fact
 itself is in the timelines, so if the two ever disagree the timeline wins and the message is
 still a true record of what we said. That is what stops a stored message being a second
@@ -1828,9 +1833,12 @@ unchanged and drift class where it moved, and drift where both are true. The voc
 *OK* — because a clear is not always good news and a widening is neither. And a count is stated
 with the **factors** that produced it rather than as a bare product. See
 [ADR-0064](./docs/adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md).
-Every message is written and rendered **unconditionally**: the store is not a `Channel`, has no
-configuration, cannot be disabled and cannot fail. Which transitions are messages is settled
-elsewhere and not by this entry — see
+Every message is written **unconditionally**: the store is not a `Channel`, has no
+configuration, cannot be disabled and cannot fail. It is rendered unconditionally once its census
+is real: a message still waiting on one is **held**, and reaches no panel, no bell and no unread
+badge until the wait ends. See
+[ADR-1806](./docs/adr/1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md).
+Which transitions are messages is settled elsewhere and not by this entry — see
 [ADR-0026](./docs/adr/0026-the-facet-layer-is-evidence-not-a-channel.md),
 [ADR-0029](./docs/adr/0029-an-alert-fires-on-a-leg.md) and
 [ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).

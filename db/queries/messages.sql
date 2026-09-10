@@ -1,11 +1,13 @@
 -- name: InsertMessage :one
 INSERT INTO message (cause, class, subject_kind, fired_at, instant, census, headline)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at;
+RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch;
 
 -- name: ListMessages :many
-SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at
+SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch
 FROM message
+  -- A held row carries no census yet, so no operator surface may render it (ADR-1806 §2).
+WHERE census_pending_after_batch IS NULL
 ORDER BY id DESC;
 
 -- name: ListReadMessageIDs :many
@@ -13,7 +15,9 @@ SELECT message_id FROM message_read WHERE account_id = sqlc.arg(account_id);
 
 -- name: CountUnreadMessages :one
 SELECT count(*) FROM message m
-WHERE NOT EXISTS (
+  -- A held row counts toward no unread badge (ADR-1806 §2).
+WHERE m.census_pending_after_batch IS NULL
+  AND NOT EXISTS (
     SELECT 1 FROM message_read mr
     WHERE mr.message_id = m.id AND mr.account_id = sqlc.arg(account_id)
 );
@@ -21,14 +25,20 @@ WHERE NOT EXISTS (
 -- name: MarkMessageRead :exec
 -- A re-read is not a new fact, so the first read instant stands.
 INSERT INTO message_read (account_id, message_id, read_at)
-VALUES (sqlc.arg(account_id), sqlc.arg(message_id), sqlc.arg(read_at))
+SELECT sqlc.arg(account_id), m.id, sqlc.arg(read_at)
+FROM message m
+  -- A row released later must still show unread, so the mark passes over it (ADR-1806 §2).
+WHERE m.id = sqlc.arg(message_id)
+  AND m.census_pending_after_batch IS NULL
 ON CONFLICT (account_id, message_id) DO NOTHING;
 
 -- name: MarkAllMessagesRead :exec
 INSERT INTO message_read (account_id, message_id, read_at)
 SELECT sqlc.arg(account_id), m.id, sqlc.arg(read_at)
 FROM message m
-WHERE NOT EXISTS (
+  -- A row released later must still show unread, so the mark passes over it (ADR-1806 §2).
+WHERE m.census_pending_after_batch IS NULL
+  AND NOT EXISTS (
     SELECT 1 FROM message_read mr
     WHERE mr.message_id = m.id AND mr.account_id = sqlc.arg(account_id)
 )
