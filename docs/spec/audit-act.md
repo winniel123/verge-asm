@@ -54,7 +54,7 @@ Each is priced and recorded, not accidental.
 | --- | --- | --- |
 | **#127** — an operator-act record is out of v1; *"named accounts create identity; they do not create a log"* | No operator act is written down with an actor on it | The `Act` corpus, under a four-limb predicate (§1) |
 | **ADR-0073 §1's totality** — *"#127's ruling is therefore total rather than nearly total"* | The refusal reached its last site | The refusal survives **over the Declared layer only**. `Annotation` still carries no author; the **act** of annotating carries its actor (§8 · A.2) |
-| **ADR-0126 §5.4** — a read-audit is deferred *"because the audit facility is a repo-wide stub"* | Reads unaudited | One read is auditable — a `Transcript` disclosure, under limb 4 (§1.4) |
+| **ADR-0126** — a read-audit is deferred *"because the audit facility is a repo-wide stub"* | Reads unaudited | One read is auditable — a `Transcript` disclosure, under limb 4 (§1.4) |
 | **ADR-0093 limb 2** — *"nothing else in the Observed or Operational corpus may already date the act"* | An `Annotation` lives with no dated residue | Limb 2 restated on the **nature** of the residue. `Annotation` keeps its instant (§8 · D) |
 | **Restrict-and-refuse on the attribution columns** — 14 FKs pin every account that ever declared anything | A working admin usually cannot be removed | All 14 become nullable `ON DELETE SET NULL`, paired with a `JOIN` sweep (§9) |
 
@@ -1027,7 +1027,7 @@ refusal.** The amendment is owed on **#11**, not on #127.
 
 `prototypes/signals-annotated/index.html:9-11` and `:869-873` both state the refusal as a rule.
 **A genuine conflict of precedent, and this SPEC does not resolve it.** ADR-0075 says a prototype is
-*a dated record of a reading, never of a rule*, which exempts both lines. But ADR-0093 §Context read
+*a dated record of a reading, never of a rule*, which exempts both lines. But ADR-0093's Context read
 two prototypes as *"drawn states a session would build from"* and treated them as evidence.
 **Recommendation: a dated note at the top of the prototype, on ADR-0075's terms, and no edit to the
 drawn markup.**
@@ -1548,7 +1548,7 @@ the SSO audit-write ticket, blocked on this chart since 2026-09-09.
 9. **The upgrade residual on §9.** `[thin]` Pre-corpus authorship is lost on removal and no backfill is
    possible.
 10. **Four withdrawal rows are flagged borderline** — ADR-0073 `:44-45`, ADR-0074 `:76`, and the two
-    prototype lines, where ADR-0075 and ADR-0093 §Context cut against each other (§8 · A.8).
+    prototype lines, where ADR-0075 and ADR-0093's Context cut against each other (§8 · A.8).
 11. **The integrations gate.** `[thin]` Five routes register inside `if integrationsEnabled`. If the
     const flipped, the harvest would read their absence as compliance rather than as a gap.
 12. **The corpus's own volume is a row count and nothing bounds it.** `[thin]` §5.1 accepts this
