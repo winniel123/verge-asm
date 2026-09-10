@@ -1256,7 +1256,7 @@
       "date": "2026-08-13",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -1267,7 +1267,13 @@
       "pr": null,
       "withdrawal": null,
       "relations": [],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 1806,
+          "clause": "2"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -1277,7 +1283,13 @@
         "6",
         "7"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1806,
+          "clause": "2"
+        }
+      ],
       "decision": {
         "words": 62,
         "text": "**No `Transition` is a message for the layer it sits in. A `Transition` is a message exactly where\nit is the sole carrier of a fact the operator asked for. Everything else is recorded, queryable,\nand silent. Concretely: the facet layer is evidence, not a channel, and the drift class's real\nmembership is at the `Reach`, `Signal` and membership layers above it.**"
@@ -1446,7 +1458,7 @@
       "date": "2026-08-13",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -1457,9 +1469,21 @@
       "pr": null,
       "withdrawal": null,
       "relations": [],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 1806,
+          "clause": null
+        }
+      ],
       "sections": [],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1806,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 717,
         "text": "**A membership message fires once, at the root of the entering sub-tree, and it carries the\ncensus of what entered beneath it. A subject first observed under a widened aperture is not\n`appeared` at all.**\n\n**1. The root of an entering sub-tree is the entering subject whose own `Citation` points at\nsomething already in the estate** — an existing subject, a `Seed`, or a `Batch`. Everything\nthat entered beneath it in the same fold is its consequence and is recorded, not messaged. One\ncause, one message, exactly as ADR-0007 requires, with no count anywhere in the predicate.\n\n**2. Only `Name` and `Address` can be roots, and this is a theorem rather than a second rule.**\nThe four subjects split on **who supplies the key**:\n\n| Subject | Key | Supplied by |\n| --- | --- | --- |\n| `Name` | the FQDN | the world — a source names it |\n| `Address` | the IP | the world — a resolution or a `Seed` names it |\n| `Service` | `(Address, port, transport)` | the model — an `Address` already in the estate, and `verge-core`, which is ours |\n| `Endpoint` | `(Name, Service)` | the model — two subjects already in the estate |\n\n`Service` and `Endpoint` have keys built entirely from things the model already holds, so\nneither can bring ground the model was not already accounting for, and neither can ever satisfy\n§1 — a `Service`'s citation runs to its `Address`, an `Endpoint`'s to its `Name` or its\n`Service`. **`Service` and `Endpoint` membership is recorded and is never a message, in any\ndirection**, and a message announcing one would be ADR-0007's second representation of one\nfact.\n\n**3. The message carries the census of every value the entry started.** This is\nADR-0029's payload shape with a second producer, and for the identical reason: everything\nbeneath an entering subject *opens*, nothing compares, and a bare count cannot tell the operator\nwhether to get out of bed. It is computed once at the cause, is a description and never a\n`Transition`, and carries no difference set.\n\n> *`admin.example.com` entered the estate, cited by the `crt.sh` `Batch` that returned it. It resolves to\n> `203.0.113.9`, which is new. 214 `Service` timelines opened; 3 read `reached` from the\n> internet — 22/tcp, 443/tcp, 6379/tcp — and `sensitive-port-reached-from-internet` opened\n> *fired* on 6379/tcp. Nothing is compared.*\n\nThe 3 are **not** alerted individually. They are openings.\n\n> **The example's citation is REPAIRED at this site**, per\n> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). It read\n> *\"cited by a `crt.sh` observation\"* until [#176](https://github.com/winniel123/verge-asm/issues/176),\n> and [ADR-0027](./0027-a-source-may-admit-without-observing.md) had already made that impossible:\n> **crt.sh observes no facet at all**, so the hop is its `Batch`. Read alone and in the present tense\n> the old wording would cause a competent session to build a `crt.sh` observation — which is the\n> defect ADR-0027 was written to remove, surviving in a payload example its own consequence sweep\n> did not reach. [#102](https://github.com/winniel123/verge-asm/issues/102)'s shape, not a new one.\n> The message's structure, its census and the no-individual-alert rule are untouched.\n\n**4. A first run is not `appeared`. It is `revealed`, coverage class, one message.** Declaring\nthe first `Seed` moves the **custody gate**, and enabling the discovery sources moves the\n**enabled source set** — two of the ~~six~~ **seven** enumerated aperture inputs (*the count is\ncorrected, not the argument: [#108](https://github.com/winniel123/verge-asm/issues/108) /\n[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)\nadded the control-probe population, and this file was outside ADR-0066's stated sweep*) — so the whole of a first run\nis a zero-to-declared aperture widening, and\n[ADR-0003](./0003-third-party-source-consent-bar.md)'s rule already governs it: *a subject first\nobserved under a widened aperture is not \"appeared\"*. It fires one coverage-class message under\n*we changed how we look*, **trigger 1**, carrying §3's census. **No first-run special case is\nneeded and none is admitted** — a predicate reading *is this the first `Batch`?* would be a\nstate we invented, sitting in the notification path for a case the general rule already covers.\nAdding a `Seed` later behaves identically, for the same reason.\n\n**5. Nothing is added to the notification vocabulary.** `appeared` and `returned` are *the world\nmoved*, in the drift class they were always in. No fifth cause, no third trigger, no fourth\nclass, and no tenth member of the coverage class — §4 uses `revealed`, which is already member\ntwo."
@@ -11039,6 +11063,53 @@
       "decision": {
         "words": 149,
         "text": "For an ADR target, a withdrawal is a tool-written marker, not a hand-edited sentence. The acting ADR declares one relation in its front matter. The tool renders one blockquote line under the affected heading, signed `<!-- adr-marker -->`. CI regenerates every marker and fails on any difference. A relation without a marker, a marker without a relation, and a hand-written marker all fail.\n\nThe unit is the numbered clause, or the whole file when the target numbers no heading. This coarsens the #106 sentence rule for an ADR target only. A spec or research target keeps the hand-written sentence rule.\n\nThe pass that supersedes still pays. It writes the relation. The marker names the acting ADR by thesis title and date.\n\nRejected: a sentence-level marker, which needs a prose parser and a hand edit. On 2026-09-07, 32 ADRs read Accepted while a later ADR amended a clause.\n\nProof: `docs-site/scripts/check-adr-markers.test.mjs`."
+      }
+    },
+    {
+      "number": 1806,
+      "file": "docs/adr/1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md",
+      "title": "A census is computed once from a cause-frozen basis, when the admitting tier has drained",
+      "slug": "a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained",
+      "date": "2026-09-10",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1819
+      },
+      "ticket": 1806,
+      "map": 1811,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 26,
+          "clause": "2"
+        },
+        {
+          "kind": "amends",
+          "adr": 31
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 147,
+        "text": "A census is computed once, from a basis frozen at its cause, when the tier that admits the subtree has drained.\n\nA fold is one job with one Kind, so a resolution move and the openings beneath it never share a fold, and a census read there is empty. `produceMessages` writes the membership row at the cause and defers the census. The dispatcher's minute poll releases the row once one `hot` dispatch that fanned out after the root's batch has drained. It computes the census, appends the census clause to the headline, and enqueues delivery. A deferred row reaches no panel and no unread badge.\n\nThe basis is the root span's own value at that batch, so a later re-point adds no subject to an earlier census.\n\nRejected: a duration window, which [#27](https://github.com/winniel123/verge-asm/issues/27) refuses in a safety path.\n\nReversal costs a migration and every message already released."
       }
     }
   ]
