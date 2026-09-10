@@ -46,7 +46,7 @@ type ListActsInRangeParams struct {
 	UntilTime pgtype.Timestamptz `json:"until_time"`
 }
 
-// A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 §6.2).
+// A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 limb 4).
 func (q *Queries) ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error) {
 	rows, err := q.db.Query(ctx, listActsInRange, arg.FromTime, arg.UntilTime)
 	if err != nil {

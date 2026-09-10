@@ -136,7 +136,7 @@ type Querier interface {
 	LatestZoneFilesForDispatch(ctx context.Context) ([]LatestZoneFilesForDispatchRow, error)
 	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
 	ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error)
-	// A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 §6.2).
+	// A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 limb 4).
 	ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)
