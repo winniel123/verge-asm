@@ -189,16 +189,17 @@ type Invite struct {
 }
 
 type Message struct {
-	ID          int64              `json:"id"`
-	Cause       string             `json:"cause"`
-	Class       string             `json:"class"`
-	SubjectKind string             `json:"subject_kind"`
-	FiredAt     string             `json:"fired_at"`
-	Instant     pgtype.Timestamptz `json:"instant"`
-	Census      []byte             `json:"census"`
-	Headline    string             `json:"headline"`
-	ReadAt      pgtype.Timestamptz `json:"read_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ID                      int64              `json:"id"`
+	Cause                   string             `json:"cause"`
+	Class                   string             `json:"class"`
+	SubjectKind             string             `json:"subject_kind"`
+	FiredAt                 string             `json:"fired_at"`
+	Instant                 pgtype.Timestamptz `json:"instant"`
+	Census                  []byte             `json:"census"`
+	Headline                string             `json:"headline"`
+	ReadAt                  pgtype.Timestamptz `json:"read_at"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	CensusPendingAfterBatch pgtype.Int8        `json:"census_pending_after_batch"`
 }
 
 type MessageRead struct {
