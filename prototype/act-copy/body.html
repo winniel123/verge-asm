@@ -1,0 +1,307 @@
+<body>
+<div class="pt-page">
+
+<header class="pt-head">
+  <span class="st-micro">Prototype · map #1786 · ticket #1792</span>
+  <h1>The copy a landed Act corpus makes true</h1>
+  <p>Throwaway. Answers <a href="https://github.com/winniel123/verge-asm/issues/1792">#1792</a> for map
+  <a href="https://github.com/winniel123/verge-asm/issues/1786">#1786</a>. It lands nothing and it
+  ships nothing. Every surface below is drawn against the real tokens and the real
+  <code style="font:400 12px var(--font-mono)">st-</code> classes, read out of
+  <code style="font:400 12px var(--font-mono)">design-system/templates/settings.tmpl</code> at build
+  time, so the copy is judged at the size and colour it will actually have.</p>
+  <p>Each site switches between the shipped string and the candidates. <b>Today</b> is drawn so the
+  loss is visible, and it carries the ADR-0075 mark, because a prototype that draws a withdrawn
+  sentence in the product's voice is owed one.</p>
+</header>
+
+<!-- ────────────────────────────────────────────────────────────── site 1 -->
+<section class="pt-site" data-site="remove">
+  <div class="pt-sitehead">
+    <h2>1 · The remove-member dialog</h2>
+    <span class="pt-where">settings.tmpl:743 · Settings.jsx:456 · DocsPage.jsx:113</span>
+  </div>
+  <div class="pt-switch" role="group" aria-label="Remove dialog variants">
+    <button type="button" data-v="today" aria-pressed="false">Today</button>
+    <button type="button" data-v="a" aria-pressed="true">A — say what is refused</button>
+    <button type="button" data-v="c" aria-pressed="false">C — success only</button>
+  </div>
+
+  <div class="pt-stage pt-scrim">
+    <div class="pt-variant" data-v="today" hidden>
+      <div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Remove member">
+        <h2>Remove member</h2>
+        <p class="desc">dana loses access to this deployment.</p>
+        <p class="detail">Their annotations and audit history stay attributed. Personal API tokens are revoked.</p>
+        <div class="acts" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <span class="st-btn ghost">Cancel</span>
+          <span class="st-btn danger">Remove member</span>
+        </div>
+      </div></div>
+      <div class="pt-mark">
+        <span class="lbl">Withdrawn</span>
+        <span class="txt">Wrong in both halves, and wrong in opposite directions.
+        <b>"Their annotations … stay attributed"</b> is false today and stays false: ADR-0073 §1 gives an
+        <code>Annotation</code> no author, no name, no "declared by", not stored and not rendered.
+        <b>"audit history stays attributed"</b> is false today because there is no audit history, and
+        becomes true under Settled #8 — the <code>Act</code> holds the username as a captured value, so
+        removal can neither orphan the history nor be blocked by it. The sentence also describes a removal
+        that usually cannot happen. Under the Act corpus this dialog would read as variant A.</span>
+      </div>
+    </div>
+
+    <div class="pt-variant" data-v="a">
+      <div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Remove member">
+        <h2>Remove member</h2>
+        <p class="desc">dana loses access to this deployment.</p>
+        <p class="detail">Their acts stay in the audit log under the name they held. Personal API tokens are revoked.</p>
+        <p class="detail" style="color:var(--text-secondary)">An account that has declared scopes, channels or other estate objects cannot be removed. Reassign that work or keep the account.</p>
+        <div class="acts" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <span class="st-btn ghost">Cancel</span>
+          <span class="st-btn danger">Remove member</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="pt-variant" data-v="c" hidden>
+      <div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Remove member">
+        <h2>Remove member</h2>
+        <p class="desc">dana loses access to this deployment.</p>
+        <p class="detail">Their acts stay in the audit log under the name they held. Personal API tokens are revoked.</p>
+        <div class="acts" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <span class="st-btn ghost">Cancel</span>
+          <span class="st-btn danger">Remove member</span>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="pt-note">
+    <p data-note="today"><span class="pt-verdict wrong">Wrong today</span> Two false clauses. Drawn for the comparison only.</p>
+    <p data-note="a"><span class="pt-verdict chosen">Chosen</span> The second line is the whole point.
+    The eleven <code>created_by</code> columns name no <code>ON DELETE</code>, so they restrict, and
+    <code>removeAccount</code> catches the violation and refuses
+    (<code>cmd/web/settings.go:479-486</code>). The operator types an exact username to confirm, so a
+    silent dialog puts the refusal <b>after</b> the typing — the worst available ordering. The annotation
+    clause is dropped rather than repaired: attribution now lives on the <code>Act</code>, never on the
+    <code>Annotation</code>, and naming the object here would put a "declared by" story back beside it.</p>
+    <p data-note="c"><span class="pt-verdict declined">Declined</span> Honest about success, silent about
+    the common outcome. On any instance older than a day, a working admin's removal is refused.</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────── site 2 -->
+<section class="pt-site" data-site="lede">
+  <div class="pt-sitehead">
+    <h2>2 · The audit tab lede</h2>
+    <span class="pt-where">settings.tmpl:866</span>
+  </div>
+  <div class="pt-switch" role="group" aria-label="Lede variants">
+    <button type="button" data-v="today" aria-pressed="false">Today</button>
+    <button type="button" data-v="a" aria-pressed="true">A — the bare sentence</button>
+    <button type="button" data-v="b" aria-pressed="false">B — plus a settled fact</button>
+  </div>
+
+  <div class="pt-stage">
+    <div class="pt-variant" data-v="today" hidden>
+      <header style="display:flex;flex-direction:column;gap:6px">
+        <span class="st-micro">Access · operational record</span>
+        <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Audit log</h2>
+        <p class="st-lede">Who did what, when. This build keeps no separate queryable log of admin acts — source enablement, for one, keeps no log line of its own and is dated by the batch whose recorded source set it moved.</p>
+      </header>
+      <div class="pt-mark">
+        <span class="lbl">Withdrawn</span>
+        <span class="txt">The first clause after the full stop is false the moment the corpus lands. The
+        second is still true but is now about a different instant — it dates the <b>estate</b>, not the
+        <b>act</b>. Under the Act corpus this lede would read as variant A.</span>
+      </div>
+    </div>
+
+    <div class="pt-variant" data-v="a">
+      <header style="display:flex;flex-direction:column;gap:6px">
+        <span class="st-micro">Access · operational record</span>
+        <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Audit log</h2>
+        <p class="st-lede">Who did what, when.</p>
+      </header>
+    </div>
+
+    <div class="pt-variant" data-v="b" hidden>
+      <header style="display:flex;flex-direction:column;gap:6px">
+        <span class="st-micro">Access · operational record</span>
+        <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Audit log</h2>
+        <p class="st-lede">Who did what, when. Each row is one act by one principal. Nothing here is deleted.</p>
+      </header>
+    </div>
+  </div>
+
+  <div class="pt-note">
+    <p data-note="today"><span class="pt-verdict wrong">Wrong today</span> Drawn for the comparison only.</p>
+    <p data-note="a"><span class="pt-verdict chosen">Chosen</span> #1787 already ruled this row: <i>"Who
+    did what, when." survives verbatim and becomes the whole lede; everything after the full stop is
+    struck.</i> It reads thin beside the other tabs, and that is the right thinness — the two-instants
+    story belongs to <a href="https://github.com/winniel123/verge-asm/issues/1797">#1797</a>, which is open,
+    and a lede that explains it would pre-empt an open ticket in shipped copy.</p>
+    <p data-note="b"><span class="pt-verdict declined">Declined</span> Both added sentences are true and
+    settled — one row per subject (#1788), unbounded and never deleted (Settled #6). It still loses:
+    #1787's ruling says the whole lede, and a retention claim in the lede pulls a reader toward the
+    question #1797 has not answered.</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────── site 3 -->
+<section class="pt-site" data-site="empty">
+  <div class="pt-sitehead">
+    <h2>3 · The empty state</h2>
+    <span class="pt-where">settings.tmpl:882-883</span>
+  </div>
+  <div class="pt-switch" role="group" aria-label="Empty state variants">
+    <button type="button" data-v="today" aria-pressed="false">Today</button>
+    <button type="button" data-v="a" aria-pressed="true">A — when the record began</button>
+    <button type="button" data-v="b" aria-pressed="false">B — #127 §6's line</button>
+  </div>
+
+  <div class="pt-stage">
+    <div class="pt-variant" data-v="today" hidden>
+      <section class="st-card"><div class="st-body" style="padding:0"><div class="st-empty">
+        <span class="msg">No audit log</span>
+        <span class="det">The operational records this build does keep are the <a href="#">delivery record</a> and the <a href="#">message store</a> — each fact is legible where it fired.</span>
+      </div></div></section>
+      <div class="pt-mark">
+        <span class="lbl">Withdrawn</span>
+        <span class="txt">This says the facility is <b>absent</b> and points at substitutes. Once the
+        corpus lands the tab is a real surface with nothing in it yet, which is a different message and a
+        different #47 obligation. Under the Act corpus this state would read as variant A.</span>
+      </div>
+    </div>
+
+    <div class="pt-variant" data-v="a">
+      <section class="st-card"><div class="st-body" style="padding:0"><div class="st-empty">
+        <span class="msg">No acts recorded yet</span>
+        <span class="det">This instance has taken no auditable act since the record began. Your next seed, scan or team change lands here.</span>
+      </div></div></section>
+    </div>
+
+    <div class="pt-variant" data-v="b" hidden>
+      <section class="st-card"><div class="st-body" style="padding:0"><div class="st-empty">
+        <span class="msg">No acts recorded yet</span>
+        <span class="det">There is only one of you. An act record earns its keep when a second admin joins.</span>
+      </div></div></section>
+    </div>
+  </div>
+
+  <div class="pt-note">
+    <p data-note="today"><span class="pt-verdict wrong">Wrong today</span> Drawn for the comparison only.</p>
+    <p data-note="a"><span class="pt-verdict chosen">Chosen</span> Fact plus next action, the shape the
+    design system requires of an empty state. <b>"Since the record began"</b> is doing the load-bearing
+    work: the state's dominant cause is an <b>upgrade</b>, where accounts already exist and the corpus
+    starts at zero. It says so without naming a migration, so
+    <a href="https://github.com/winniel123/verge-asm/issues/1805">#1805</a> can rule either way without
+    moving this string.</p>
+    <p data-note="b"><span class="pt-verdict declined">Declined</span> #127 §6 wrote this line as an
+    <b>argument against shipping</b>, and it does not survive being repurposed as copy. It reads as a
+    rebuke, it needs a live admin count to render, and it is the wrong diagnosis: on a fresh install
+    <code>POST /setup</code> is itself an auditable act (#1789, limb 2), so the corpus holds a row before
+    any admin can open this tab. The empty state is not about how many operators there are.</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────── site 4 -->
+<section class="pt-site" data-site="callout">
+  <div class="pt-sitehead">
+    <h2>4 · The Sources-tab callout</h2>
+    <span class="pt-where">settings.tmpl:898</span>
+  </div>
+  <div class="pt-switch" role="group" aria-label="Callout variants">
+    <button type="button" data-v="today" aria-pressed="false">Today</button>
+    <button type="button" data-v="a" aria-pressed="true">A — both instants kept apart</button>
+    <button type="button" data-v="b" aria-pressed="false">B — #1787's bare strike</button>
+  </div>
+
+  <div class="pt-stage">
+    <div class="pt-variant" data-v="today" hidden>
+      <div class="st-callout">
+        <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+        <span class="ct"><b>Toggling is admin-only</b><span>Every account can read this catalogue. Enabling or disabling is an admin act — it keeps no log line of its own; it is dated by the batch whose recorded source set it moved.</span></span>
+      </div>
+      <div class="pt-mark">
+        <span class="lbl">Withdrawn</span>
+        <span class="txt">A source toggle is predicate limb 1, so it writes an <code>Act</code> and the
+        "no log line of its own" half is false. Under the Act corpus this callout would read as variant A.</span>
+      </div>
+    </div>
+
+    <div class="pt-variant" data-v="a">
+      <div class="st-callout">
+        <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+        <span class="ct"><b>Toggling is admin-only</b><span>Every account can read this catalogue. Enabling or disabling is an admin act — the toggle lands in the audit log; the estate change it causes is dated by the batch whose recorded source set it moved.</span></span>
+      </div>
+    </div>
+
+    <div class="pt-variant" data-v="b" hidden>
+      <div class="st-callout">
+        <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+        <span class="ct"><b>Toggling is admin-only</b><span>Every account can read this catalogue. Enabling or disabling is an admin act — it is dated by the batch whose recorded source set it moved.</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pt-note">
+    <p data-note="today"><span class="pt-verdict wrong">Wrong today</span> Drawn for the comparison only.</p>
+    <p data-note="a"><span class="pt-verdict chosen">Chosen</span> It names two facts and keeps them
+    apart without explaining the theory, so it rules nothing #1797 has to rule. #1787 kept the batch
+    dating deliberately, as <i>the estate-side answer</i>; this gives that clause a subject that is
+    actually the estate.</p>
+    <p data-note="b"><span class="pt-verdict declined">Declined — and this amends #1787</span> #1787's row
+    strikes only <i>"it keeps no log line of its own;"</i> and keeps the rest. The strike is not
+    sufficient. The surviving clause's subject is <b>an admin act</b>, and an <code>Act</code> carries its
+    own <code>When</code>, so the bare strike leaves a sentence that dates the act by the batch — the same
+    error one clause later.</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────── site 5 -->
+<section class="pt-site" data-site="error">
+  <div class="pt-sitehead">
+    <h2>5 · The removal refusal — a fifth site the ticket did not name</h2>
+    <span class="pt-where">cmd/web/settings.go:485</span>
+  </div>
+  <div class="pt-switch" role="group" aria-label="Error variants">
+    <button type="button" data-v="today" aria-pressed="false">Today</button>
+    <button type="button" data-v="a" aria-pressed="true">A — drop "attributed acts"</button>
+  </div>
+
+  <div class="pt-stage">
+    <div class="pt-variant" data-v="today" hidden>
+      <div class="st-error">dana has declared scopes, channels, or other attributed acts and cannot be removed — reassign or keep the account.</div>
+      <div class="pt-mark">
+        <span class="lbl">Withdrawn</span>
+        <span class="txt">The string calls <code>created_by</code> rows <b>"attributed acts"</b>. Once the
+        corpus lands, an <i>act</i> is a row in it — and an <code>Act</code> carries a captured username, so
+        it never blocks a removal. The operator is told their removal failed because of acts, on the same
+        screen whose dialog has just told them acts survive removal. Under the Act corpus this string would
+        read as variant A.</span>
+      </div>
+    </div>
+
+    <div class="pt-variant" data-v="a">
+      <div class="st-error">dana has declared scopes, channels or other estate objects and cannot be removed — reassign or keep the account.</div>
+    </div>
+  </div>
+
+  <div class="pt-note">
+    <p data-note="today"><span class="pt-verdict wrong">Wrong today</span> Not wrong today, but wrong the
+    day the corpus lands, and wrongest of all beside variant A of site 1.</p>
+    <p data-note="a"><span class="pt-verdict chosen">Chosen</span> One word class changes. The dialog's
+    second line and this refusal now use the same nouns, so the operator who reads the warning recognises
+    the refusal when it fires.</p>
+  </div>
+</section>
+
+</div>
+
+<div class="pt-bar">
+  <button type="button" id="pt-all-today">Show every "today"</button>
+  <button type="button" id="pt-all-chosen">Show every chosen</button>
+  <button type="button" id="pt-theme">Dark</button>
+</div>
+</body>
