@@ -12,7 +12,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/estate"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/message"
-	"github.com/winniel123/verge-asm/internal/signalfacts"
 )
 
 // An Address root is read from a resolution move, never from a span of its own (ADR-0006).
@@ -154,10 +153,6 @@ func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool) mes
 	var entries []message.CensusEntry
 	for _, c := range changes {
 		if !c.Opened || c.SubjectKind != subjectKindEndpoint || seen[c.SubjectKey] {
-			continue
-		}
-		// No dispatcher names an Endpoint, so an absent leg roots on address (ADR-0205, #1774).
-		if owner, _ := signalfacts.SplitEndpointName(c.SubjectKey); owner != "" && owner != mv.name {
 			continue
 		}
 		addr, ok := subjectAddress(c.SubjectKind, c.SubjectKey)

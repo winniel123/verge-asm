@@ -29,14 +29,16 @@ func TestRePointResidueCountsTheNamelessEndpoint(t *testing.T) {
 	}
 }
 
-func TestRePointResidueExcludesAForeignNamedEndpoint(t *testing.T) {
+func TestRePointResidueCountsAForeignNamedEndpointOnTheNewGround(t *testing.T) {
 	changes := append([]spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, openedBeneath(rpOther, rpNew, "443")...)
 	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
 	msgs := rePointFrom(t, store, changes, membershipInputs{})
-	for _, m := range byKind(msgs)["name"] {
-		if censusKinds(m)["endpoint"] != 0 {
-			t.Errorf("another Name's Endpoint is not this move's consequence (ADR-0026 §2), got %+v", m.Census)
-		}
+	got := byKind(msgs)["name"]
+	if len(got) != 1 {
+		t.Fatalf("the move admits ground beneath a known address, so §2 fires; got %+v", msgs)
+	}
+	if k := censusKinds(got[0]); k["endpoint"] != 1 {
+		t.Errorf("ADR-0026 §2 residues every Endpoint no membership message covers, whatever its Name leg; got %v", k)
 	}
 }
 
