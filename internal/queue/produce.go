@@ -487,7 +487,7 @@ func subjectBeneathRoot(root spanChange, cited map[string]bool, kind, key string
 				return true
 			}
 		}
-		// ADR-0033 §2 names this census the carrier, so a Service leg beneath the root counts (#1776).
+		// ADR-0033 §2 makes this census the carrier, so a Service leg counts too (#1776).
 		addr, ok := subjectAddress(kind, key)
 		return ok && cited[addr.String()]
 	case subjectKindAddress:
