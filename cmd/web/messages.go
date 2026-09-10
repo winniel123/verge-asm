@@ -117,7 +117,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db
 	if err := s.messagesStore.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
 		AccountID: acct.ID, MessageID: id, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err != nil && !isForeignKeyViolation(err) {
-		// ON CONFLICT covers the unique key only, so a retired id surfaces as the FK (#1652).
+		// The account leg of the FK fires where a session outlives its account (#1652).
 		s.serverError(w, "mark message read", err)
 		return
 	}
@@ -172,7 +172,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 			if err := s.messagesStore.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
 				AccountID: acct.ID, MessageID: selID, ReadAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 			}); err != nil && !isForeignKeyViolation(err) {
-				// A stale bell link names a retired message, which is not a fault (#1652).
+				// The account leg of the FK fires where a session outlives its account (#1652).
 				s.serverError(w, "mark message read", err)
 				return
 			}

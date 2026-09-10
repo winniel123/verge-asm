@@ -14,7 +14,9 @@ import (
 
 const countUnreadMessages = `-- name: CountUnreadMessages :one
 SELECT count(*) FROM message m
-WHERE NOT EXISTS (
+  -- A held row counts toward no unread badge (ADR-1806 §2).
+WHERE m.census_pending_after_batch IS NULL
+  AND NOT EXISTS (
     SELECT 1 FROM message_read mr
     WHERE mr.message_id = m.id AND mr.account_id = $1
 )
@@ -30,7 +32,7 @@ func (q *Queries) CountUnreadMessages(ctx context.Context, accountID int64) (int
 const insertMessage = `-- name: InsertMessage :one
 INSERT INTO message (cause, class, subject_kind, fired_at, instant, census, headline)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at
+RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch
 `
 
 type InsertMessageParams struct {
@@ -65,6 +67,7 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		&i.Headline,
 		&i.ReadAt,
 		&i.CreatedAt,
+		&i.CensusPendingAfterBatch,
 	)
 	return i, err
 }
@@ -128,8 +131,10 @@ func (q *Queries) ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAd
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at
+SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch
 FROM message
+  -- A held row carries no census yet, so no operator surface may render it (ADR-1806 §2).
+WHERE census_pending_after_batch IS NULL
 ORDER BY id DESC
 `
 
@@ -153,6 +158,7 @@ func (q *Queries) ListMessages(ctx context.Context) ([]Message, error) {
 			&i.Headline,
 			&i.ReadAt,
 			&i.CreatedAt,
+			&i.CensusPendingAfterBatch,
 		); err != nil {
 			return nil, err
 		}
@@ -355,7 +361,9 @@ const markAllMessagesRead = `-- name: MarkAllMessagesRead :exec
 INSERT INTO message_read (account_id, message_id, read_at)
 SELECT $1, m.id, $2
 FROM message m
-WHERE NOT EXISTS (
+  -- A row released later must still show unread, so the mark passes over it (ADR-1806 §2).
+WHERE m.census_pending_after_batch IS NULL
+  AND NOT EXISTS (
     SELECT 1 FROM message_read mr
     WHERE mr.message_id = m.id AND mr.account_id = $1
 )
@@ -374,19 +382,23 @@ func (q *Queries) MarkAllMessagesRead(ctx context.Context, arg MarkAllMessagesRe
 
 const markMessageRead = `-- name: MarkMessageRead :exec
 INSERT INTO message_read (account_id, message_id, read_at)
-VALUES ($1, $2, $3)
+SELECT $1, m.id, $2
+FROM message m
+  -- A row released later must still show unread, so the mark passes over it (ADR-1806 §2).
+WHERE m.id = $3
+  AND m.census_pending_after_batch IS NULL
 ON CONFLICT (account_id, message_id) DO NOTHING
 `
 
 type MarkMessageReadParams struct {
 	AccountID int64              `json:"account_id"`
-	MessageID int64              `json:"message_id"`
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
+	MessageID int64              `json:"message_id"`
 }
 
 // A re-read is not a new fact, so the first read instant stands.
 func (q *Queries) MarkMessageRead(ctx context.Context, arg MarkMessageReadParams) error {
-	_, err := q.db.Exec(ctx, markMessageRead, arg.AccountID, arg.MessageID, arg.ReadAt)
+	_, err := q.db.Exec(ctx, markMessageRead, arg.AccountID, arg.ReadAt, arg.MessageID)
 	return err
 }
 
