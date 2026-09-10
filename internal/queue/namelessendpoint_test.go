@@ -61,6 +61,21 @@ func TestRePointResidueNamesOneDispatcherEndpointUnderEveryMove(t *testing.T) {
 	}
 }
 
+func TestRePointResidueLeavesAnEndpointAFoldRootAlreadyCovers(t *testing.T) {
+	entering := spanChange{SubjectKind: "name", SubjectKey: rpOther, Facet: "resolution", Opened: true, Value: resolved(rpNew)}
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew)), entering}
+	changes = append(changes, namelessBeneath(rpNew, "443")...)
+	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer("cdn.example.com")}}}
+	if got := len(membershipMessages(produceT0, changes, membershipInputs{})); got != 1 {
+		t.Fatalf("the entering Name is one membership root, got %d", got)
+	}
+	for _, m := range byKind(rePointFrom(t, store, changes, membershipInputs{}))["name"] {
+		if censusKinds(m)["endpoint"] != 0 {
+			t.Errorf("a membership message in this fold already covers it (ADR-0026 §2), got %+v", m.Census)
+		}
+	}
+}
+
 func TestMembershipCensusCountsTheNamelessEndpointBeneathACitedAddress(t *testing.T) {
 	root := spanChange{SubjectKind: "name", SubjectKey: rpName, Facet: "resolution", Opened: true, Value: resolved(rpNew)}
 	changes := append([]spanChange{root}, namelessBeneath(rpNew, "443")...)

@@ -41,8 +41,9 @@ func rePointMessages(observedAt time.Time, changes []spanChange, moves []rePoint
 	for _, a := range fresh {
 		isFresh[a] = true
 	}
+	roots := foldMembershipRoots(changes)
 	for _, mv := range moves {
-		if m := message.RePoint(mv.name, rePointResidue(changes, mv, isFresh), observedAt); m != nil {
+		if m := message.RePoint(mv.name, rePointResidue(changes, mv, isFresh, roots), observedAt); m != nil {
 			msgs = append(msgs, m)
 		}
 	}
@@ -148,7 +149,7 @@ func movedTimeline(moves []rePoint, r db.ListResolutionCitersForAddressesRow) bo
 	return false
 }
 
-func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool) message.Census {
+func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool, roots []spanChange) message.Census {
 	seen := map[string]bool{}
 	var entries []message.CensusEntry
 	for _, c := range changes {
@@ -162,6 +163,10 @@ func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool) mes
 		// Only an Endpoint beneath a newly cited address is the move's consequence (ADR-0026 §2).
 		key := addr.String()
 		if !mv.after[key] || mv.before[key] || fresh[key] {
+			continue
+		}
+		// fresh covers an Address root, so a Name root needs its own test (ADR-0026 §2).
+		if coveredByFoldRoot(roots, c.SubjectKind, c.SubjectKey) {
 			continue
 		}
 		seen[c.SubjectKey] = true
