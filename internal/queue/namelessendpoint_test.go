@@ -29,14 +29,16 @@ func TestRePointResidueCountsTheNamelessEndpoint(t *testing.T) {
 	}
 }
 
-func TestRePointResidueExcludesAForeignNamedEndpoint(t *testing.T) {
+func TestRePointResidueCountsAForeignNamedEndpointOnTheNewGround(t *testing.T) {
 	changes := append([]spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, openedBeneath(rpOther, rpNew, "443")...)
 	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
 	msgs := rePointFrom(t, store, changes, membershipInputs{})
-	for _, m := range byKind(msgs)["name"] {
-		if censusKinds(m)["endpoint"] != 0 {
-			t.Errorf("another Name's Endpoint is not this move's consequence (ADR-0026 §2), got %+v", m.Census)
-		}
+	got := byKind(msgs)["name"]
+	if len(got) != 1 {
+		t.Fatalf("the move admits ground beneath a known address, so §2 fires; got %+v", msgs)
+	}
+	if k := censusKinds(got[0]); k["endpoint"] != 1 {
+		t.Errorf("ADR-0026 §2 residues every Endpoint no membership message covers, whatever its Name leg; got %v", k)
 	}
 }
 
@@ -55,6 +57,21 @@ func TestRePointResidueNamesOneDispatcherEndpointUnderEveryMove(t *testing.T) {
 	for _, m := range got {
 		if censusKinds(m)["endpoint"] != 1 {
 			t.Errorf("both Names gained the dispatcher's ground, so both residues name it, got %+v", m.Census)
+		}
+	}
+}
+
+func TestRePointResidueLeavesAnEndpointAFoldRootAlreadyCovers(t *testing.T) {
+	entering := spanChange{SubjectKind: "name", SubjectKey: rpOther, Facet: "resolution", Opened: true, Value: resolved(rpNew)}
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew)), entering}
+	changes = append(changes, namelessBeneath(rpNew, "443")...)
+	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer("cdn.example.com")}}}
+	if got := len(membershipMessages(produceT0, changes, membershipInputs{})); got != 1 {
+		t.Fatalf("the entering Name is one membership root, got %d", got)
+	}
+	for _, m := range byKind(rePointFrom(t, store, changes, membershipInputs{}))["name"] {
+		if censusKinds(m)["endpoint"] != 0 {
+			t.Errorf("a membership message in this fold already covers it (ADR-0026 §2), got %+v", m.Census)
 		}
 	}
 }
