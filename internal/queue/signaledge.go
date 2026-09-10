@@ -29,7 +29,11 @@ type annotatedPair struct {
 func movedSubjectsAtCause(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange) ([]subjectAtCause, error) {
 	moved := map[[2]string]bool{}
 	for _, c := range changes {
-		if !c.Opened && ruleFacet(c.Facet) && ruleSubjectKind(c.SubjectKind) {
+		// No Transition crosses a Gap, so gapclose alone carries that edge (ADR-0033 §2, #1776).
+		if c.Opened || c.IsGap || c.PrevIsGap {
+			continue
+		}
+		if ruleFacet(c.Facet) && ruleSubjectKind(c.SubjectKind) {
 			moved[[2]string{c.SubjectKind, c.SubjectKey}] = true
 		}
 	}

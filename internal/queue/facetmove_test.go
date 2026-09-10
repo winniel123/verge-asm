@@ -87,6 +87,27 @@ func TestFacetMoveReadsTheUnchangedFacetsFromTheStore(t *testing.T) {
 	}
 }
 
+func TestAGapEdgeIsNoMoveSoOnlyGapcloseCarriesIt(t *testing.T) {
+	cases := map[string]spanChange{
+		"a Gap closing": {SubjectKind: "endpoint", SubjectKey: sensitiveEp, Facet: "certificate", Value: []byte(certExpired), PrevIsGap: true},
+		"a Gap opening": {SubjectKind: "endpoint", SubjectKey: sensitiveEp, Facet: "certificate", Value: []byte(`{}`), Previous: []byte(certNoTLS), IsGap: true},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			store := &fakeMessageStore{}
+			var log []routed
+			if err := produceMessages(context.Background(), store, 25, produceT0, []spanChange{c}, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+				t.Fatalf("produce: %v", err)
+			}
+			for _, m := range store.inserted {
+				if m.Class == string(message.ClassDrift) {
+					t.Errorf("no Transition crosses a Gap, so nothing drifts here; got %q", m.Headline)
+				}
+			}
+		})
+	}
+}
+
 func TestFacetMoveOpeningNoRuleIsSilent(t *testing.T) {
 	cases := map[string][]spanChange{
 		"no-tls -> tls-refused stays outside every domain": {
