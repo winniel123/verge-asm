@@ -116,6 +116,8 @@ type Querier interface {
 	GetTranscriptByJob(ctx context.Context, queueJobID int64) (Transcript, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
+	// id and created_at are defaulted: the caller cannot forge the time (spec §4.1).
+	InsertAct(ctx context.Context, arg InsertActParams) error
 	InsertAdmittedName(ctx context.Context, arg InsertAdmittedNameParams) error
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
 	InsertCTReliabilitySample(ctx context.Context, arg InsertCTReliabilitySampleParams) error
@@ -134,6 +136,8 @@ type Querier interface {
 	LatestZoneFilesForDispatch(ctx context.Context) ([]LatestZoneFilesForDispatchRow, error)
 	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
 	ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error)
+	// A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 limb 4).
+	ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)

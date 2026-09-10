@@ -21,6 +21,15 @@ type Account struct {
 	TotpLastStep pgtype.Int8        `json:"totp_last_step"`
 }
 
+type Act struct {
+	ID        int64              `json:"id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ActorKind string             `json:"actor_kind"`
+	Actor     []byte             `json:"actor"`
+	Action    string             `json:"action"`
+	Subject   []byte             `json:"subject"`
+}
+
 type AdmittedName struct {
 	ID        int64              `json:"id"`
 	Name      string             `json:"name"`
