@@ -110,11 +110,16 @@ func (g GrantHolder) MarshalJSON() ([]byte, error) {
 	if g.Grant == nil {
 		return nil, fmt.Errorf("act: a GrantHolder carrying no grant")
 	}
+	tag := g.Grant.tag()
+	if _, known := grants[tag]; !known {
+		// An unregistered tag writes a row no decoder can read, and the corpus never deletes one.
+		return nil, fmt.Errorf("act: grant %T tags %q, which grants does not register", g.Grant, tag)
+	}
 	data, err := json.Marshal(g.Grant)
 	if err != nil {
 		return nil, fmt.Errorf("act: marshal grant %T: %w", g.Grant, err)
 	}
-	return json.Marshal(grantEnvelope{Kind: g.Grant.tag(), Data: data})
+	return json.Marshal(grantEnvelope{Kind: tag, Data: data})
 }
 
 func (g *GrantHolder) UnmarshalJSON(b []byte) error {
@@ -152,6 +157,17 @@ func EncodeActor(a Actor) (string, []byte, error) {
 			return "", nil, fmt.Errorf("act: marshal grant_holder actor: %w", err)
 		}
 		return v.Kind(), payload, nil
+	case *Account:
+		// Every method takes a value receiver, so a pointer satisfies Actor and would drop a row.
+		if v == nil {
+			return "", nil, fmt.Errorf("act: a nil *Account is not an actor")
+		}
+		return EncodeActor(*v)
+	case *GrantHolder:
+		if v == nil {
+			return "", nil, fmt.Errorf("act: a nil *GrantHolder is not an actor")
+		}
+		return EncodeActor(*v)
 	default:
 		// A closed union we author errors on an unknown member (ADR-0209 §1).
 		return "", nil, fmt.Errorf("act: actor variant %T is not a member of the union", a)

@@ -353,6 +353,55 @@ func TestTheStoreKeepsTheBareUsername(t *testing.T) {
 	}
 }
 
+// An unregistered grant writes a row no decoder reads, and the corpus never deletes one (§5.1).
+
+func TestEveryGrantIsRegistered(t *testing.T) {
+	const grantCount = 3
+	if len(grants) != grantCount {
+		t.Fatalf("grants registers %d tags, the Grant union of §3 has %d", len(grants), grantCount)
+	}
+	for _, g := range []Grant{SetupToken{}, PasswordReset{}, Invite{}} {
+		if _, known := grants[g.tag()]; !known {
+			t.Errorf("%T tags %q, which grants does not register", g, g.tag())
+		}
+	}
+
+	// A variant outside the registry must fail at write time, never at read time.
+
+	if _, err := json.Marshal(GrantHolder{Grant: strayGrant{}}); err == nil {
+		t.Error("MarshalJSON wrote an unregistered grant, so the row would never decode")
+	}
+}
+
+type strayGrant struct{}
+
+func (strayGrant) Label() string { return "stray grant" }
+func (strayGrant) tag() string   { return "stray" }
+func (strayGrant) isGrant()      {}
+
+// A pointer satisfies Actor, and a dropped row is §7.6's named failure mode.
+
+func TestEncodeActorTakesAPointer(t *testing.T) {
+	for _, a := range []Actor{&Account{AccountID: 7, UsernameSnapshot: "alice"}, &GrantHolder{Grant: Invite{InviteID: 12}}} {
+		kind, payload, err := EncodeActor(a)
+		if err != nil {
+			t.Fatalf("%T: encode: %v", a, err)
+		}
+		back, err := DecodeActor(kind, payload)
+		if err != nil {
+			t.Fatalf("%T: decode: %v", a, err)
+		}
+		if back.Name() != a.Name() {
+			t.Errorf("%T round-tripped to %q, want %q", a, back.Name(), a.Name())
+		}
+	}
+	for _, a := range []Actor{(*Account)(nil), (*GrantHolder)(nil)} {
+		if _, _, err := EncodeActor(a); err == nil {
+			t.Errorf("EncodeActor accepted a nil %T", a)
+		}
+	}
+}
+
 func TestDecoderRefusesAnUnknownToken(t *testing.T) {
 	if _, err := DecodeSubject("seed.evaporated", []byte(`{}`)); err == nil {
 		t.Error("DecodeSubject accepted an action token no variant claims")
