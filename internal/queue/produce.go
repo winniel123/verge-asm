@@ -476,26 +476,40 @@ func flagshipCensus(changes []spanChange, service string) message.Census {
 	return message.NewCensus(entries...)
 }
 
+type subjectRef struct{ kind, key string }
+
 func membershipCensus(changes []spanChange, root spanChange) message.Census {
-	cited := citedAddresses(root)
-	seen := map[[2]string]bool{}
-	var entries []message.CensusEntry
+	subjects := make([]subjectRef, 0, len(changes))
 	for _, c := range changes {
-		if !c.Opened || c.SubjectKey == root.SubjectKey {
+		if !c.Opened {
 			continue
 		}
-		if c.SubjectKind != "service" && c.SubjectKind != "endpoint" {
+		subjects = append(subjects, subjectRef{kind: c.SubjectKind, key: c.SubjectKey})
+	}
+	return censusBeneathRoot(root, subjects)
+}
+
+// The fold and the release poll read one rule, so a held census cannot differ (ADR-1806 §4).
+
+func censusBeneathRoot(root spanChange, subjects []subjectRef) message.Census {
+	cited := citedAddresses(root)
+	seen := map[subjectRef]bool{}
+	var entries []message.CensusEntry
+	for _, s := range subjects {
+		if s.key == root.SubjectKey {
 			continue
 		}
-		if !subjectBeneathRoot(root, cited, c.SubjectKind, c.SubjectKey) {
+		if s.kind != subjectKindService && s.kind != subjectKindEndpoint {
 			continue
 		}
-		key := [2]string{c.SubjectKind, c.SubjectKey}
-		if seen[key] {
+		if !subjectBeneathRoot(root, cited, s.kind, s.key) {
 			continue
 		}
-		seen[key] = true
-		entries = append(entries, message.CensusEntry{Kind: c.SubjectKind, Key: c.SubjectKey})
+		if seen[s] {
+			continue
+		}
+		seen[s] = true
+		entries = append(entries, message.CensusEntry{Kind: s.kind, Key: s.key})
 	}
 	return message.NewCensus(entries...)
 }

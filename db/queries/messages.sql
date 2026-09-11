@@ -230,3 +230,45 @@ WHERE w.consumed_at IS NULL
           )
       )
   );
+
+-- name: ListReleasableHeldMessages :many
+-- A held row releases once the first hot dispatch after its root's batch has drained (ADR-1806 §3).
+SELECT m.id, m.class, m.headline, m.census_pending_after_batch, m.census_basis
+FROM message m
+JOIN batch b ON b.id = m.census_pending_after_batch
+WHERE m.census_pending_after_batch IS NOT NULL
+  AND EXISTS (
+      SELECT 1
+      FROM (
+          SELECT d.id
+          FROM dispatch d
+          JOIN scan s ON s.id = d.scan_id
+          WHERE s.kind = 'hot'
+            -- A skipped tick enqueues no job, so a drain test alone reads it drained (ADR-1806 §2).
+            AND d.status = 'fanned-out'
+            AND d.created_at >= b.created_at
+          ORDER BY d.created_at, d.id
+          LIMIT 1
+      ) first_hot
+        -- hot commits its dispatch row before its jobs, so an empty set is not drained (#1816).
+      WHERE EXISTS (
+          SELECT 1 FROM queue_job j
+          WHERE j.dispatch_id = first_hot.id
+      )
+      AND NOT EXISTS (
+          -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
+          SELECT 1 FROM queue_job j
+          WHERE j.dispatch_id = first_hot.id
+            AND j.state IN ('ready', 'running')
+      )
+  )
+ORDER BY m.id;
+
+-- name: ReleaseHeldMessage :execrows
+-- The guarded update is the claim: a second pass takes no row and owes no delivery (ADR-1806 §2).
+UPDATE message
+SET census = sqlc.arg(census),
+    headline = sqlc.arg(headline),
+    census_pending_after_batch = NULL
+  -- A released row keeps the basis its census was computed from (25600_message_census_basis.sql).
+WHERE id = sqlc.arg(id) AND census_pending_after_batch IS NOT NULL;
