@@ -37,7 +37,8 @@ func hotTickLags(ctx context.Context, q HotLagStore, scanID, dispatchID int64, s
 			logger.Printf("dispatcher: the stale-running reaper is disabled (stale job timeout %s), so the cadence-lag gate is not armed; "+
 				"a hot tick that overtakes an undrained dispatch can double the rate at one target, and a ct-tail tick stacks a second dispatch; "+
 				"a membership census is also written at its cause, so it counts only what its own fold opened and names no service or endpoint "+
-				"the hot tier opens later", staleJobThreshold)
+				"the hot tier opens later; a re-point residue is read on the next poll pass rather than on a drained tier, so it names no "+
+				"endpoint the hot tier opens after that pass", staleJobThreshold)
 		}
 		return false, nil
 	}

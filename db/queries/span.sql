@@ -352,3 +352,83 @@ FROM span s
 WHERE s.opened_batch_id >= sqlc.arg(batch_id)::bigint
   AND s.subject_kind IN ('service', 'endpoint')
 ORDER BY s.subject_kind, s.subject_key;
+
+-- name: ListRePointMovesForBatch :many
+-- ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
+SELECT n.subject_key, n.discriminator, n.vantage_id, n.source,
+       n.opened_at, n.value, p.value AS previous
+FROM span n
+JOIN span p
+  ON p.subject_key = n.subject_key
+ AND p.facet = n.facet
+ AND p.discriminator = n.discriminator
+ AND p.vantage_id IS NOT DISTINCT FROM n.vantage_id
+ AND p.source = n.source
+   -- One fold closed p and opened n, so the pair is a move and never an opening.
+ AND p.closed_batch_id = n.opened_batch_id
+WHERE n.opened_batch_id = sqlc.arg(batch_id)::bigint
+  AND n.subject_kind = 'name'
+  AND n.facet = 'resolution'
+  -- A Gap-closing edge is coverage, which gapclose carries instead (ADR-0014).
+  AND n.is_gap = FALSE
+  AND p.is_gap = FALSE
+ORDER BY n.subject_key, n.id;
+
+-- name: ListNameRootsOpenedInBatch :many
+-- The membership roots one fold rooted, so the residue drops what they cover (ADR-0026 §2).
+SELECT n.subject_key, n.value
+FROM span n
+WHERE n.opened_batch_id = sqlc.arg(batch_id)::bigint
+  AND n.subject_kind = 'name'
+  AND n.facet = 'resolution'
+  -- A timeline the same fold closed moved, so it roots nothing.
+  AND NOT EXISTS (
+      SELECT 1
+      FROM span p
+      WHERE p.closed_batch_id = n.opened_batch_id
+        AND p.subject_key = n.subject_key
+        AND p.facet = n.facet
+        AND p.discriminator = n.discriminator
+        AND p.vantage_id IS NOT DISTINCT FROM n.vantage_id
+        AND p.source = n.source
+  )
+ORDER BY n.subject_key, n.id;
+
+-- name: ListResolutionCitersForAddressesAt :many
+-- ListResolutionCitersForAddresses as the fold read it, at the move's own instant (#1818).
+SELECT a.addr::text AS addr,
+       r.subject_key, r.discriminator, r.vantage_id, r.source
+FROM unnest(sqlc.arg(addresses)::text[]) AS a(addr)
+JOIN span r
+  -- The fold read what was open at its commit, so a span it closed is no citer (#1730).
+  ON r.opened_at <= sqlc.arg(at)::timestamptz
+ AND (r.closed_at IS NULL OR r.closed_at > sqlc.arg(at)::timestamptz)
+ AND r.subject_kind = 'name'
+ AND r.facet = 'resolution'
+ AND (
+      (r.is_gap = FALSE
+       AND jsonb_typeof(r.value -> 'addresses') = 'array'
+       AND r.value -> 'addresses' @> to_jsonb(a.addr))
+   -- A gapped Name still cites its pre-Gap value, as the withdrawal fold reads it (ADR-0006).
+   OR (r.is_gap = TRUE AND EXISTS (
+          SELECT 1
+          FROM (
+              SELECT q.value
+              FROM span q
+              WHERE q.subject_kind = 'name'
+                AND q.facet = 'resolution'
+                AND q.subject_key = r.subject_key
+                AND q.discriminator = r.discriminator
+                AND q.vantage_id IS NOT DISTINCT FROM r.vantage_id
+                AND q.source = r.source
+                AND q.closed_at IS NOT NULL
+                AND q.closed_at <= sqlc.arg(at)::timestamptz
+                AND q.is_gap = FALSE
+              ORDER BY q.closed_at DESC, q.id DESC
+              LIMIT 1
+          ) p
+          WHERE jsonb_typeof(p.value -> 'addresses') = 'array'
+            AND p.value -> 'addresses' @> to_jsonb(a.addr)
+      ))
+ )
+ORDER BY a.addr, r.subject_key, r.discriminator, r.vantage_id, r.source;

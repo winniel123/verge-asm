@@ -25,25 +25,42 @@ type rePoint struct {
 	after         map[string]bool
 }
 
+// One citing timeline, from the fold's own read or from the poll's at-instant one (#1818).
+
+type citerRef struct {
+	addr          string
+	subjectKey    string
+	discriminator string
+	vantageID     pgtype.Int8
+	source        string
+}
+
+func foldCiters(rows []db.ListResolutionCitersForAddressesRow) []citerRef {
+	out := make([]citerRef, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, citerRef{addr: r.Addr, subjectKey: r.SubjectKey, discriminator: r.Discriminator, vantageID: r.VantageID, source: r.Source})
+	}
+	return out
+}
+
+func citersAtInstant(rows []db.ListResolutionCitersForAddressesAtRow) []citerRef {
+	out := make([]citerRef, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, citerRef{addr: r.Addr, subjectKey: r.SubjectKey, discriminator: r.Discriminator, vantageID: r.VantageID, source: r.Source})
+	}
+	return out
+}
+
+// ADR-0026 §2's residue is read in the poll, so the fold writes the Address root alone (#1818).
+
 func rePointMessages(observedAt time.Time, changes []spanChange, moves []rePoint, in membershipInputs, citers []db.ListResolutionCitersForAddressesRow) []*message.Message {
 	if len(moves) == 0 {
 		return nil
 	}
-	fresh := addressesNewToEstate(moves, in, citers)
 	var msgs []*message.Message
-	for _, addr := range fresh {
+	for _, addr := range addressesNewToEstate(moves, in, foldCiters(citers)) {
 		root := spanChange{SubjectKind: subjectKindAddress, SubjectKey: addr}
 		if m := message.Membership(message.EntryAppeared, subjectKindAddress, addr, "", membershipCensus(changes, root), observedAt); m != nil {
-			msgs = append(msgs, m)
-		}
-	}
-	isFresh := make(map[string]bool, len(fresh))
-	for _, a := range fresh {
-		isFresh[a] = true
-	}
-	roots := foldMembershipRoots(changes)
-	for _, mv := range moves {
-		if m := message.RePoint(mv.name, rePointResidue(changes, mv, isFresh, roots), observedAt); m != nil {
 			msgs = append(msgs, m)
 		}
 	}
@@ -73,9 +90,9 @@ func rePoints(changes []spanChange) []rePoint {
 	return out
 }
 
-func (mv rePoint) sameTimeline(r db.ListResolutionCitersForAddressesRow) bool {
-	return r.SubjectKey == mv.name && r.Discriminator == mv.discriminator &&
-		r.VantageID == mv.vantageID && r.Source == mv.source
+func (mv rePoint) sameTimeline(r citerRef) bool {
+	return r.subjectKey == mv.name && r.discriminator == mv.discriminator &&
+		r.vantageID == mv.vantageID && r.source == mv.source
 }
 
 func rePointCandidateAddresses(moves []rePoint) []string {
@@ -101,7 +118,7 @@ func rePointCandidateAddresses(moves []rePoint) []string {
 	return keys
 }
 
-func addressesNewToEstate(moves []rePoint, in membershipInputs, citers []db.ListResolutionCitersForAddressesRow) []string {
+func addressesNewToEstate(moves []rePoint, in membershipInputs, citers []citerRef) []string {
 	keys := rePointCandidateAddresses(moves)
 	if len(keys) == 0 {
 		return nil
@@ -113,14 +130,14 @@ func addressesNewToEstate(moves []rePoint, in membershipInputs, citers []db.List
 	citedElsewhere := map[string]bool{}
 	for _, r := range citers {
 		// The read is shared, so it carries rows the other producer asked for (#1784).
-		if !want[r.Addr] {
+		if !want[r.addr] {
 			continue
 		}
 		// A timeline that moved here is open, so it is no prior citer of its address (#1730).
 		if movedTimeline(moves, r) {
 			continue
 		}
-		citedElsewhere[r.Addr] = true
+		citedElsewhere[r.addr] = true
 	}
 	var fresh []string
 	for _, a := range keys {
@@ -140,7 +157,7 @@ func addressesNewToEstate(moves []rePoint, in membershipInputs, citers []db.List
 	return fresh
 }
 
-func movedTimeline(moves []rePoint, r db.ListResolutionCitersForAddressesRow) bool {
+func movedTimeline(moves []rePoint, r citerRef) bool {
 	for _, mv := range moves {
 		if mv.sameTimeline(r) {
 			return true
@@ -149,14 +166,14 @@ func movedTimeline(moves []rePoint, r db.ListResolutionCitersForAddressesRow) bo
 	return false
 }
 
-func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool, roots []spanChange) message.Census {
+func rePointResidue(mv rePoint, subjects []subjectRef, fresh map[string]bool, roots []spanChange) message.Census {
 	seen := map[string]bool{}
 	var entries []message.CensusEntry
-	for _, c := range changes {
-		if !c.Opened || c.SubjectKind != subjectKindEndpoint || seen[c.SubjectKey] {
+	for _, s := range subjects {
+		if s.kind != subjectKindEndpoint || seen[s.key] {
 			continue
 		}
-		addr, ok := subjectAddress(c.SubjectKind, c.SubjectKey)
+		addr, ok := subjectAddress(s.kind, s.key)
 		if !ok {
 			continue
 		}
@@ -166,11 +183,11 @@ func rePointResidue(changes []spanChange, mv rePoint, fresh map[string]bool, roo
 			continue
 		}
 		// fresh covers an Address root, so a Name root needs its own test (ADR-0026 §2).
-		if coveredByFoldRoot(roots, c.SubjectKind, c.SubjectKey) {
+		if coveredByFoldRoot(roots, s.kind, s.key) {
 			continue
 		}
-		seen[c.SubjectKey] = true
-		entries = append(entries, message.CensusEntry{Kind: c.SubjectKind, Key: c.SubjectKey})
+		seen[s.key] = true
+		entries = append(entries, message.CensusEntry{Kind: s.kind, Key: s.key})
 	}
 	return message.NewCensus(entries...)
 }

@@ -46,6 +46,8 @@ type Dispatcher struct {
 
 	staleJobThreshold time.Duration // zero means the reaper is off, never unset (ADR-0137 §4)
 
+	devMode bool
+
 	// The enqueuer is injected because internal/delivery imports this package (ADR-0199 §1, #1316).
 
 	enqueue func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error)
@@ -65,8 +67,10 @@ func (d *Dispatcher) WithStaleJobThreshold(threshold time.Duration) *Dispatcher 
 
 // The fold enqueued no delivery for a held row, so the release poll owes it one (ADR-1806 §2).
 
-func (d *Dispatcher) WithMessages(enqueue func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error)) *Dispatcher {
+func (d *Dispatcher) WithMessages(enqueue func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error), devMode bool) *Dispatcher {
 	d.enqueue = enqueue
+	// The release poll routes what a live fold wrote, and the settle poll writes (ADR-0197 §1).
+	d.devMode = devMode
 	return d
 }
 
@@ -101,6 +105,75 @@ func (d *Dispatcher) tick(ctx context.Context) {
 	d.dispatchDue(ctx)
 	// A hot fan-out commits its jobs after its dispatch row, so this runs second (ADR-1806 §3).
 	d.releaseDue(ctx)
+	d.settleDue(ctx)
+}
+
+func (d *Dispatcher) settleDue(ctx context.Context) {
+	fired, err := d.settleRePoints(ctx)
+	if err != nil {
+		d.log.Printf("dispatcher: settle the re-point residue: %v", err)
+		return
+	}
+	if fired > 0 {
+		d.log.Printf("dispatcher: fired %d re-point message(s)", fired)
+	}
+}
+
+func (d *Dispatcher) settleRePoints(ctx context.Context) (int, error) {
+	// Settling on a Dispatcher that routes nothing would lose the message (ADR-0026 §2).
+	if d.enqueue == nil {
+		return 0, nil
+	}
+	// A dev install serves fixtures, so its folds page nobody either (ADR-0197 §1).
+	if d.devMode {
+		return 0, nil
+	}
+	rows, err := d.q.ListSettleableRePointBatches(ctx, !HotLagGateArmed(d.staleJobThreshold))
+	if err != nil {
+		return 0, fmt.Errorf("queue: list settleable re-point batches: %w", err)
+	}
+	settledAt := d.now().UTC()
+	folds, moveless := splitSettleableBatches(rows)
+	if len(moveless) > 0 {
+		if err := d.q.SettleMovelessRePointBatches(ctx, db.SettleMovelessRePointBatchesParams{
+			SettledAt: tstz(settledAt),
+			Ids:       moveless,
+		}); err != nil {
+			return 0, fmt.Errorf("queue: settle %d moveless batch(es): %w", len(moveless), err)
+		}
+	}
+	fired := 0
+	for _, id := range folds {
+		n, err := d.settleOne(ctx, id, settledAt)
+		if err != nil {
+			// One fold must not hold the rest back, so the pass logs and continues (ADR-0141).
+			d.log.Printf("dispatcher: settle re-point batch %d: %v", id, err)
+			continue
+		}
+		fired += n
+	}
+	return fired, nil
+}
+
+func (d *Dispatcher) settleOne(ctx context.Context, batchID int64, settledAt time.Time) (int, error) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	// One fold is one transaction, so its claim and the messages it owes commit together.
+	defer tx.Rollback(ctx)
+	qtx := d.q.WithTx(tx)
+
+	fired, err := settleRePointFold(ctx, qtx, batchID, settledAt, func(c context.Context, messageID int64, class message.Class) (int, error) {
+		return d.enqueue(c, qtx, messageID, class)
+	})
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return fired, nil
 }
 
 func (d *Dispatcher) releaseDue(ctx context.Context) {
