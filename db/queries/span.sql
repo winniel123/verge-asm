@@ -353,10 +353,9 @@ WHERE s.opened_batch_id >= sqlc.arg(batch_id)::bigint
   AND s.subject_kind IN ('service', 'endpoint')
 ORDER BY s.subject_kind, s.subject_key;
 
--- name: ListRePointMovesForBatches :many
+-- name: ListRePointMovesForBatch :many
 -- ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
-SELECT n.opened_batch_id,
-       n.subject_key, n.discriminator, n.vantage_id, n.source,
+SELECT n.subject_key, n.discriminator, n.vantage_id, n.source,
        n.opened_at, n.value, p.value AS previous
 FROM span n
 JOIN span p
@@ -367,13 +366,13 @@ JOIN span p
  AND p.source = n.source
    -- One fold closed p and opened n, so the pair is a move and never an opening.
  AND p.closed_batch_id = n.opened_batch_id
-WHERE n.opened_batch_id = ANY(sqlc.arg(batch_ids)::bigint[])
+WHERE n.opened_batch_id = sqlc.arg(batch_id)::bigint
   AND n.subject_kind = 'name'
   AND n.facet = 'resolution'
   -- A Gap-closing edge is coverage, which gapclose carries instead (ADR-0014).
   AND n.is_gap = FALSE
   AND p.is_gap = FALSE
-ORDER BY n.opened_batch_id, n.subject_key, n.id;
+ORDER BY n.subject_key, n.id;
 
 -- name: ListNameRootsOpenedInBatch :many
 -- The membership roots one fold rooted, so the residue drops what they cover (ADR-0026 §2).

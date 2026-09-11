@@ -15,28 +15,32 @@ import (
 const settleBatch = int64(70)
 
 type fakeSettleStore struct {
-	batches    []int64
-	moves      []db.ListRePointMovesForBatchesRow
+	moves      []db.ListRePointMovesForBatchRow
 	citers     []db.ListResolutionCitersForAddressesAtRow
 	roots      []db.ListNameRootsOpenedInBatchRow
 	opened     []db.ListSubjectsOpenedSinceBatchRow
 	seeds      []db.ListSeedsRow
 	exclusions []db.ListExclusionsRow
 
-	claimed    []db.ClaimSettleableRePointBatchesParams
+	refuseClaim bool
+	claimErr    error
+
+	claimed    []db.SettleRePointBatchParams
 	askedAt    []pgtype.Timestamptz
-	askedMoves [][]int64
+	askedMoves []int64
 	inserted   []db.InsertMessageParams
-	claimErr   error
 }
 
-func (f *fakeSettleStore) ClaimSettleableRePointBatches(_ context.Context, arg db.ClaimSettleableRePointBatchesParams) ([]int64, error) {
+func (f *fakeSettleStore) SettleRePointBatch(_ context.Context, arg db.SettleRePointBatchParams) (int64, error) {
 	f.claimed = append(f.claimed, arg)
-	return f.batches, f.claimErr
+	if f.refuseClaim || f.claimErr != nil {
+		return 0, f.claimErr
+	}
+	return 1, nil
 }
 
-func (f *fakeSettleStore) ListRePointMovesForBatches(_ context.Context, batchIDs []int64) ([]db.ListRePointMovesForBatchesRow, error) {
-	f.askedMoves = append(f.askedMoves, batchIDs)
+func (f *fakeSettleStore) ListRePointMovesForBatch(_ context.Context, batchID int64) ([]db.ListRePointMovesForBatchRow, error) {
+	f.askedMoves = append(f.askedMoves, batchID)
 	return f.moves, nil
 }
 
@@ -66,13 +70,12 @@ func (f *fakeSettleStore) InsertMessage(_ context.Context, arg db.InsertMessageP
 	return db.Message{ID: int64(len(f.inserted))}, nil
 }
 
-func moveRow(name string, prev, next []byte) db.ListRePointMovesForBatchesRow {
-	return db.ListRePointMovesForBatchesRow{
-		OpenedBatchID: pgtype.Int8{Int64: settleBatch, Valid: true},
-		SubjectKey:    name,
-		OpenedAt:      tstz(produceT0),
-		Value:         next,
-		Previous:      prev,
+func moveRow(name string, prev, next []byte) db.ListRePointMovesForBatchRow {
+	return db.ListRePointMovesForBatchRow{
+		SubjectKey: name,
+		OpenedAt:   tstz(produceT0),
+		Value:      next,
+		Previous:   prev,
 	}
 }
 
@@ -91,7 +94,7 @@ func beneath(name, addr, port string) []db.ListSubjectsOpenedSinceBatchRow {
 func settleFrom(t *testing.T, store *fakeSettleStore) ([]*message.Message, []routed) {
 	t.Helper()
 	var log []routed
-	n, err := settleRePoints(context.Background(), store, produceT0, false, fakeEnqueuer(1, &log))
+	n, err := settleRePointFold(context.Background(), store, settleBatch, produceT0, fakeEnqueuer(1, &log))
 	if err != nil {
 		t.Fatalf("settle: %v", err)
 	}
@@ -114,10 +117,9 @@ func settleFrom(t *testing.T, store *fakeSettleStore) ([]*message.Message, []rou
 	return msgs, log
 }
 
-func knownAddressStore(moves ...db.ListRePointMovesForBatchesRow) *fakeSettleStore {
+func knownAddressStore(moves ...db.ListRePointMovesForBatchRow) *fakeSettleStore {
 	return &fakeSettleStore{
-		batches: []int64{settleBatch},
-		moves:   moves,
+		moves: moves,
 		// A third Name already cites the address, so it entered the estate long ago.
 		citers: []db.ListResolutionCitersForAddressesAtRow{citerAt(rpNew, "cdn.example.com")},
 	}
@@ -177,9 +179,11 @@ func TestAnEmptyResidueFiresNothing(t *testing.T) {
 }
 
 func TestASettledFoldIsReadNoSecondTime(t *testing.T) {
-	// The guarded UPDATE is the claim, so the pass that arrives second takes no batch and the
+	// The guarded UPDATE is the claim, so the pass that arrives second takes no fold and the
 	// minute poll cannot re-announce a move it already fired (ADR-1806 §8).
-	store := &fakeSettleStore{opened: beneath(rpName, rpNew, "443")}
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = beneath(rpName, rpNew, "443")
+	store.refuseClaim = true
 
 	msgs, log := settleFrom(t, store)
 	if len(msgs) != 0 || len(log) != 0 {
@@ -190,16 +194,11 @@ func TestASettledFoldIsReadNoSecondTime(t *testing.T) {
 	}
 }
 
-func TestTheClaimCarriesTheSameDegradationTheReleaseReads(t *testing.T) {
-	// One tier, one bound: a reaper the operator disabled leaves the drain test unable to
-	// conclude on both paths at once (ADR-1806 §6).
-	store := &fakeSettleStore{}
-	var log []routed
-	if _, err := settleRePoints(context.Background(), store, produceT0, true, fakeEnqueuer(1, &log)); err != nil {
-		t.Fatalf("settle: %v", err)
-	}
-	if len(store.claimed) != 1 || !store.claimed[0].ReaperDisabled {
-		t.Errorf("the caller passes the reaper's state through, got %+v", store.claimed)
+func TestTheClaimCarriesTheCallersInstant(t *testing.T) {
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	settleFrom(t, store)
+	if len(store.claimed) != 1 || store.claimed[0].ID != settleBatch {
+		t.Fatalf("one fold is claimed once, by id; got %+v", store.claimed)
 	}
 	if !store.claimed[0].SettledAt.Time.Equal(produceT0) {
 		t.Errorf("the settled instant is the caller's clock, got %+v", store.claimed[0].SettledAt)
@@ -209,9 +208,8 @@ func TestTheClaimCarriesTheSameDegradationTheReleaseReads(t *testing.T) {
 func TestAnAddressNewToTheEstateLeavesTheResidueEmpty(t *testing.T) {
 	// The Address root covers the whole residue, so no second message fires (ADR-0026 §2).
 	store := &fakeSettleStore{
-		batches: []int64{settleBatch},
-		moves:   []db.ListRePointMovesForBatchesRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
-		opened:  beneath(rpName, rpNew, "443"),
+		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
+		opened: beneath(rpName, rpNew, "443"),
 	}
 	msgs, _ := settleFrom(t, store)
 	if len(msgs) != 0 {
@@ -246,10 +244,9 @@ func TestTheResidueIsOnlyBeneathTheNewlyCitedAddresses(t *testing.T) {
 
 func TestASeedCoveredAddressIsNoRootSoTheEndpointIsResidue(t *testing.T) {
 	store := &fakeSettleStore{
-		batches: []int64{settleBatch},
-		moves:   []db.ListRePointMovesForBatchesRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
-		opened:  beneath(rpName, rpNew, "443"),
-		seeds:   []db.ListSeedsRow{addressSeed("203.0.113.0/24")},
+		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
+		opened: beneath(rpName, rpNew, "443"),
+		seeds:  []db.ListSeedsRow{addressSeed("203.0.113.0/24")},
 	}
 	msgs, _ := settleFrom(t, store)
 	if len(msgs) != 1 || censusKinds(msgs[0])["endpoint"] != 1 {
@@ -282,8 +279,7 @@ func TestAFoldThatGainedNoAddressReadsNoEstate(t *testing.T) {
 	// Two Names swapped their addresses, so the fold as a whole cited nothing new. The residue
 	// is still each move's own, and no address is a root candidate (#1730).
 	store := &fakeSettleStore{
-		batches: []int64{settleBatch},
-		moves: []db.ListRePointMovesForBatchesRow{
+		moves: []db.ListRePointMovesForBatchRow{
 			moveRow(rpName, resolved(rpOld), resolved(rpNew)),
 			moveRow(rpOther, resolved(rpNew), resolved(rpOld)),
 		},
@@ -308,12 +304,45 @@ func TestTheCiterReadIsTakenAtTheMovesOwnInstant(t *testing.T) {
 }
 
 func TestAFailedClaimSettlesNothing(t *testing.T) {
-	store := &fakeSettleStore{claimErr: errors.New("boom")}
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = beneath(rpName, rpNew, "443")
+	store.claimErr = errors.New("boom")
+
 	var log []routed
-	if _, err := settleRePoints(context.Background(), store, produceT0, false, fakeEnqueuer(1, &log)); err == nil {
-		t.Fatal("a failed claim must fail the pass, so its transaction rolls back")
+	if _, err := settleRePointFold(context.Background(), store, settleBatch, produceT0, fakeEnqueuer(1, &log)); err == nil {
+		t.Fatal("a failed claim must fail the fold, so its transaction rolls back")
 	}
 	if len(store.inserted) != 0 {
-		t.Errorf("a pass that claimed nothing writes nothing, got %+v", store.inserted)
+		t.Errorf("a fold that claimed nothing writes nothing, got %+v", store.inserted)
+	}
+}
+
+func TestADevInstallSettlesNothing(t *testing.T) {
+	// A dev worker folds fixtures into real spans, and this poll reads spans rather than a fold's
+	// changes. Without the gate a fixture install would page the operator (ADR-0197 §1).
+	d := &Dispatcher{devMode: true}
+	d.enqueue = func(context.Context, *db.Queries, int64, message.Class) (int, error) {
+		t.Fatal("a dev install routes nothing")
+		return 0, nil
+	}
+	fired, err := d.settleRePoints(context.Background())
+	if err != nil || fired != 0 {
+		t.Fatalf("settleRePoints = %d, %v; want 0 and no read", fired, err)
+	}
+}
+
+func TestAFoldHoldingNoMoveSettlesBesideTheRest(t *testing.T) {
+	// One queue job is one Batch, so a pass claims far more folds than hold a move. Each of those
+	// would otherwise cost a transaction of its own.
+	folds, moveless := splitSettleableBatches([]db.ListSettleableRePointBatchesRow{
+		{ID: 1, HasMove: false},
+		{ID: 2, HasMove: true},
+		{ID: 3, HasMove: false},
+	})
+	if len(folds) != 1 || folds[0] != 2 {
+		t.Errorf("only a fold holding a move is read, got %v", folds)
+	}
+	if len(moveless) != 2 || moveless[0] != 1 || moveless[1] != 3 {
+		t.Errorf("the rest settle in one statement, got %v", moveless)
 	}
 }

@@ -5,17 +5,18 @@ import (
 	"testing"
 )
 
-// TestTheRePointClaimReadsTheSameDrainTheReleaseReads guards ADR-1806 §3 and §6 on the second
+// TestTheRePointReadReadsTheSameDrainTheReleaseReads guards ADR-1806 §3 and §6 on the second
 // path. A held membership row and a re-point move both wait for the tier that admits the
 // subtree, so the two must not disagree about when it has drained. The clauses below are
 // ListReleasableHeldMessages' own, and TestTheReleasePredicateIsADrainedHotDispatch holds the
 // other copy to the same list.
-func TestTheRePointClaimReadsTheSameDrainTheReleaseReads(t *testing.T) {
-	q := strings.ToLower(claimSettleableRePointBatches)
+func TestTheRePointReadReadsTheSameDrainTheReleaseReads(t *testing.T) {
+	q := strings.ToLower(listSettleableRePointBatches)
 	for _, want := range []struct {
 		clause, why string
 	}{
 		{"repoint_settled_at is null", "only an unread fold is a settle candidate"},
+		{"as has_move", "a fold holding no move owes no pass of its own"},
 		{"s.kind = 'hot'", "the bound names hot by Kind and does not derive the tier"},
 		{"d.status = 'fanned-out'", "a skipped tick enqueues no job and would read as drained"},
 		{"d.created_at >= b.created_at", "the dispatch must be one that fanned out after the batch"},
@@ -27,11 +28,11 @@ func TestTheRePointClaimReadsTheSameDrainTheReleaseReads(t *testing.T) {
 		{"hs.kind = 'hot' and hs.enabled", "a disabled hot tier opens nothing beneath the move, ever"},
 	} {
 		if !strings.Contains(q, want.clause) {
-			t.Errorf("claimSettleableRePointBatches must carry %q — %s (ADR-1806 §3), got:\n%s", want.clause, want.why, claimSettleableRePointBatches)
+			t.Errorf("listSettleableRePointBatches must carry %q — %s (ADR-1806 §3), got:\n%s", want.clause, want.why, listSettleableRePointBatches)
 		}
 	}
 	if strings.Contains(q, "interval") {
-		t.Errorf("the bound is a drained tier and never a clock (ADR-1806 §7, #27), got:\n%s", claimSettleableRePointBatches)
+		t.Errorf("the bound is a drained tier and never a clock (ADR-1806 §7, #27), got:\n%s", listSettleableRePointBatches)
 	}
 }
 
@@ -40,12 +41,15 @@ func TestTheRePointClaimReadsTheSameDrainTheReleaseReads(t *testing.T) {
 // (ADR-1806 §8). The guarded UPDATE takes the row lock and re-tests the column, so the pass that
 // arrives second claims no batch and writes no second message.
 func TestTwoPollPassesSettleAFoldOnce(t *testing.T) {
-	q := strings.ToLower(claimSettleableRePointBatches)
-	if !strings.Contains(q, "update batch b") || !strings.Contains(q, "set repoint_settled_at") {
-		t.Errorf("the claim must be the UPDATE itself, so a second pass takes no batch, got:\n%s", claimSettleableRePointBatches)
+	q := strings.ToLower(settleRePointBatch)
+	if !strings.Contains(q, "repoint_settled_at is null") {
+		t.Errorf("the claim must re-test the column, so a second pass takes no fold, got:\n%s", settleRePointBatch)
 	}
-	if !strings.Contains(q, "returning b.id") {
-		t.Errorf("the pass reads what it claimed and never what it merely saw, got:\n%s", claimSettleableRePointBatches)
+	if !strings.Contains(q, "set repoint_settled_at =") {
+		t.Errorf("the claim must be the UPDATE itself and never a read, got:\n%s", settleRePointBatch)
+	}
+	if !strings.Contains(strings.ToLower(settleMovelessRePointBatches), "repoint_settled_at is null") {
+		t.Errorf("the moveless settle must re-test the column too, got:\n%s", settleMovelessRePointBatches)
 	}
 }
 
@@ -54,7 +58,7 @@ func TestTwoPollPassesSettleAFoldOnce(t *testing.T) {
 // no fold-local state (#1818). The pair is a move rather than an opening because the fold that
 // opened one closed the other on the same timeline.
 func TestARePointMoveIsReadFromTheTwoAdjacentSpans(t *testing.T) {
-	q := strings.ToLower(listRePointMovesForBatches)
+	q := strings.ToLower(listRePointMovesForBatch)
 	for _, want := range []struct {
 		clause, why string
 	}{
@@ -66,7 +70,7 @@ func TestARePointMoveIsReadFromTheTwoAdjacentSpans(t *testing.T) {
 		{"p.is_gap = false", "a Gap-closing edge is coverage, which gapclose carries (ADR-0014)"},
 	} {
 		if !strings.Contains(q, want.clause) {
-			t.Errorf("listRePointMovesForBatches must carry %q — %s, got:\n%s", want.clause, want.why, listRePointMovesForBatches)
+			t.Errorf("listRePointMovesForBatch must carry %q — %s, got:\n%s", want.clause, want.why, listRePointMovesForBatch)
 		}
 	}
 }

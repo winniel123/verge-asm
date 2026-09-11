@@ -56,95 +56,6 @@ func (q *Queries) ClaimJob(ctx context.Context) (ClaimJobRow, error) {
 	return i, err
 }
 
-const claimSettleableRePointBatches = `-- name: ClaimSettleableRePointBatches :many
-WITH claimed AS (
-    UPDATE batch b
-    SET repoint_settled_at = $1
-    WHERE b.repoint_settled_at IS NULL
-      -- The arm below is ListReleasableHeldMessages', so both paths read one tier (ADR-1806 §3).
-      AND (
-          -- No reaper leaves the drain test reading a job set nothing reaps (ADR-1806 §6).
-          $2::boolean
-          -- A disabled hot tier opens nothing beneath the move, ever (ADR-1806 §6).
-          OR NOT EXISTS (
-              SELECT 1 FROM scan hs WHERE hs.kind = 'hot' AND hs.enabled
-          )
-          OR EXISTS (
-              SELECT 1
-              FROM (
-                  SELECT d.id
-                  FROM dispatch d
-                  JOIN scan s ON s.id = d.scan_id
-                  WHERE s.kind = 'hot'
-                    -- A skipped tick enqueues no job and reads as drained (ADR-1806 §2).
-                    AND d.status = 'fanned-out'
-                    AND d.created_at >= b.created_at
-                  ORDER BY d.created_at, d.id
-                  LIMIT 1
-              ) first_hot
-                -- An empty job set is a mid-fan-out dispatch and not a drained one (#1816).
-              WHERE EXISTS (
-                  SELECT 1 FROM queue_job j
-                  WHERE j.dispatch_id = first_hot.id
-              )
-              AND NOT EXISTS (
-                  -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
-                  SELECT 1 FROM queue_job j
-                  WHERE j.dispatch_id = first_hot.id
-                    AND j.state IN ('ready', 'running')
-              )
-          )
-      )
-    RETURNING b.id
-)
-SELECT c.id
-FROM claimed c
-WHERE EXISTS (
-    SELECT 1
-    FROM span n
-    JOIN span p
-      ON p.subject_key = n.subject_key
-     AND p.facet = n.facet
-     AND p.discriminator = n.discriminator
-     AND p.vantage_id IS NOT DISTINCT FROM n.vantage_id
-     AND p.source = n.source
-     AND p.closed_batch_id = n.opened_batch_id
-    WHERE n.opened_batch_id = c.id
-      AND n.subject_kind = 'name'
-      AND n.facet = 'resolution'
-      AND n.is_gap = FALSE
-      AND p.is_gap = FALSE
-)
-ORDER BY c.id
-`
-
-type ClaimSettleableRePointBatchesParams struct {
-	SettledAt      pgtype.Timestamptz `json:"settled_at"`
-	ReaperDisabled bool               `json:"reaper_disabled"`
-}
-
-// The guarded UPDATE is the claim, so one fold announces its moves once (ADR-1806 §8, #1818).
-// Every drained fold settles, and only one holding a move is returned (#1818).
-func (q *Queries) ClaimSettleableRePointBatches(ctx context.Context, arg ClaimSettleableRePointBatchesParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, claimSettleableRePointBatches, arg.SettledAt, arg.ReaperDisabled)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []int64{}
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const countObservationsForScan = `-- name: CountObservationsForScan :one
 SELECT count(*)
 FROM observation o
@@ -525,6 +436,88 @@ func (q *Queries) ListScans(ctx context.Context) ([]Scan, error) {
 	return items, nil
 }
 
+const listSettleableRePointBatches = `-- name: ListSettleableRePointBatches :many
+SELECT b.id,
+       EXISTS (
+           SELECT 1
+           FROM span n
+           JOIN span p
+             ON p.subject_key = n.subject_key
+            AND p.facet = n.facet
+            AND p.discriminator = n.discriminator
+            AND p.vantage_id IS NOT DISTINCT FROM n.vantage_id
+            AND p.source = n.source
+            AND p.closed_batch_id = n.opened_batch_id
+           WHERE n.opened_batch_id = b.id
+             AND n.subject_kind = 'name'
+             AND n.facet = 'resolution'
+             AND n.is_gap = FALSE
+             AND p.is_gap = FALSE
+       ) AS has_move
+FROM batch b
+WHERE b.repoint_settled_at IS NULL
+  AND (
+      -- No reaper leaves the drain test reading a job set nothing reaps (ADR-1806 §6).
+      $1::boolean
+      -- A disabled hot tier opens nothing beneath the move, ever (ADR-1806 §6).
+      OR NOT EXISTS (
+          SELECT 1 FROM scan hs WHERE hs.kind = 'hot' AND hs.enabled
+      )
+      OR EXISTS (
+          SELECT 1
+          FROM (
+              SELECT d.id
+              FROM dispatch d
+              JOIN scan s ON s.id = d.scan_id
+              WHERE s.kind = 'hot'
+                -- A skipped tick enqueues no job and reads as drained (ADR-1806 §2).
+                AND d.status = 'fanned-out'
+                AND d.created_at >= b.created_at
+              ORDER BY d.created_at, d.id
+              LIMIT 1
+          ) first_hot
+            -- An empty job set is a mid-fan-out dispatch and not a drained one (#1816).
+          WHERE EXISTS (
+              SELECT 1 FROM queue_job j
+              WHERE j.dispatch_id = first_hot.id
+          )
+          AND NOT EXISTS (
+              -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
+              SELECT 1 FROM queue_job j
+              WHERE j.dispatch_id = first_hot.id
+                AND j.state IN ('ready', 'running')
+          )
+      )
+  )
+ORDER BY b.id
+`
+
+type ListSettleableRePointBatchesRow struct {
+	ID      int64 `json:"id"`
+	HasMove bool  `json:"has_move"`
+}
+
+// The arm below is ListReleasableHeldMessages', so both paths read one tier (ADR-1806 §3).
+func (q *Queries) ListSettleableRePointBatches(ctx context.Context, reaperDisabled bool) ([]ListSettleableRePointBatchesRow, error) {
+	rows, err := q.db.Query(ctx, listSettleableRePointBatches, reaperDisabled)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSettleableRePointBatchesRow{}
+	for rows.Next() {
+		var i ListSettleableRePointBatchesRow
+		if err := rows.Scan(&i.ID, &i.HasMove); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVantagesForDispatch = `-- name: ListVantagesForDispatch :many
 SELECT id, name, class, resolver, egress, dialled_addr, created_at
 FROM vantage
@@ -860,6 +853,43 @@ UPDATE scan SET cadence_seconds = $1 WHERE kind = 'dns'
 func (q *Queries) SetDnsCadenceSeconds(ctx context.Context, cadenceSeconds int64) error {
 	_, err := q.db.Exec(ctx, setDnsCadenceSeconds, cadenceSeconds)
 	return err
+}
+
+const settleMovelessRePointBatches = `-- name: SettleMovelessRePointBatches :exec
+UPDATE batch
+SET repoint_settled_at = $1
+WHERE id = ANY($2::bigint[]) AND repoint_settled_at IS NULL
+`
+
+type SettleMovelessRePointBatchesParams struct {
+	SettledAt pgtype.Timestamptz `json:"settled_at"`
+	Ids       []int64            `json:"ids"`
+}
+
+// A fold that moved no resolution owes no message, so it needs no pass of its own (#1818).
+func (q *Queries) SettleMovelessRePointBatches(ctx context.Context, arg SettleMovelessRePointBatchesParams) error {
+	_, err := q.db.Exec(ctx, settleMovelessRePointBatches, arg.SettledAt, arg.Ids)
+	return err
+}
+
+const settleRePointBatch = `-- name: SettleRePointBatch :execrows
+UPDATE batch
+SET repoint_settled_at = $1
+WHERE id = $2 AND repoint_settled_at IS NULL
+`
+
+type SettleRePointBatchParams struct {
+	SettledAt pgtype.Timestamptz `json:"settled_at"`
+	ID        int64              `json:"id"`
+}
+
+// The guarded UPDATE is the claim, so one fold announces its moves once (ADR-1806 §8, #1818).
+func (q *Queries) SettleRePointBatch(ctx context.Context, arg SettleRePointBatchParams) (int64, error) {
+	result, err := q.db.Exec(ctx, settleRePointBatch, arg.SettledAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const tryFanOut = `-- name: TryFanOut :one

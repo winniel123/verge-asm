@@ -484,9 +484,8 @@ func (q *Queries) ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpans
 	return items, nil
 }
 
-const listRePointMovesForBatches = `-- name: ListRePointMovesForBatches :many
-SELECT n.opened_batch_id,
-       n.subject_key, n.discriminator, n.vantage_id, n.source,
+const listRePointMovesForBatch = `-- name: ListRePointMovesForBatch :many
+SELECT n.subject_key, n.discriminator, n.vantage_id, n.source,
        n.opened_at, n.value, p.value AS previous
 FROM span n
 JOIN span p
@@ -497,17 +496,16 @@ JOIN span p
  AND p.source = n.source
    -- One fold closed p and opened n, so the pair is a move and never an opening.
  AND p.closed_batch_id = n.opened_batch_id
-WHERE n.opened_batch_id = ANY($1::bigint[])
+WHERE n.opened_batch_id = $1::bigint
   AND n.subject_kind = 'name'
   AND n.facet = 'resolution'
   -- A Gap-closing edge is coverage, which gapclose carries instead (ADR-0014).
   AND n.is_gap = FALSE
   AND p.is_gap = FALSE
-ORDER BY n.opened_batch_id, n.subject_key, n.id
+ORDER BY n.subject_key, n.id
 `
 
-type ListRePointMovesForBatchesRow struct {
-	OpenedBatchID pgtype.Int8        `json:"opened_batch_id"`
+type ListRePointMovesForBatchRow struct {
 	SubjectKey    string             `json:"subject_key"`
 	Discriminator string             `json:"discriminator"`
 	VantageID     pgtype.Int8        `json:"vantage_id"`
@@ -518,17 +516,16 @@ type ListRePointMovesForBatchesRow struct {
 }
 
 // ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
-func (q *Queries) ListRePointMovesForBatches(ctx context.Context, batchIds []int64) ([]ListRePointMovesForBatchesRow, error) {
-	rows, err := q.db.Query(ctx, listRePointMovesForBatches, batchIds)
+func (q *Queries) ListRePointMovesForBatch(ctx context.Context, batchID int64) ([]ListRePointMovesForBatchRow, error) {
+	rows, err := q.db.Query(ctx, listRePointMovesForBatch, batchID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListRePointMovesForBatchesRow{}
+	items := []ListRePointMovesForBatchRow{}
 	for rows.Next() {
-		var i ListRePointMovesForBatchesRow
+		var i ListRePointMovesForBatchRow
 		if err := rows.Scan(
-			&i.OpenedBatchID,
 			&i.SubjectKey,
 			&i.Discriminator,
 			&i.VantageID,

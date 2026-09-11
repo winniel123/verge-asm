@@ -18,14 +18,17 @@
 ALTER TABLE batch
     ADD COLUMN repoint_settled_at TIMESTAMPTZ;
 
+-- A move that closed before this decision shipped is settled by the migration. Announcing the
+-- history on the first poll pass would page the operator for every move the estate ever folded.
+--
+-- The backfill runs BEFORE the index. Built first, the index would cover every row, and this
+-- UPDATE would then churn every entry back out of it.
+UPDATE batch SET repoint_settled_at = now();
+
 -- Every batch is a candidate, so the scan must be proportional to what is unsettled and never to
 -- the table. One queue job is one Batch (18803_measurement_batch.sql), so the table is the
 -- largest operational record the estate keeps.
 CREATE INDEX batch_repoint_unsettled_idx ON batch (id) WHERE repoint_settled_at IS NULL;
-
--- A move that closed before this decision shipped is settled by the migration. Announcing the
--- history on the first poll pass would page the operator for every move the estate ever folded.
-UPDATE batch SET repoint_settled_at = now();
 
 -- +goose Down
 DROP INDEX batch_repoint_unsettled_idx;

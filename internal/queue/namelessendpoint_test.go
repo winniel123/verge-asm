@@ -51,7 +51,8 @@ func TestMembershipCensusCountsTheNamelessEndpointBeneathACitedAddress(t *testin
 }
 
 func TestTheFoldStillRootsOnTheNamelessEndpointsAddress(t *testing.T) {
-	// #1812 dropped the owner test from the residue. The Address root keeps its own census.
+	// The root is the Address, and its census is its own fold's. In production that Endpoint opens
+	// in a later hot fold, so the census is empty and #1774's other half stands open.
 	changes := append([]spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, namelessBeneath(rpNew, "443")...)
 	store := &fakeMessageStore{}
 	got := byKind(rePointFrom(t, store, changes, membershipInputs{}))["address"]

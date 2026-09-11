@@ -23,9 +23,6 @@ type Querier interface {
 	ClaimDelivery(ctx context.Context) (ClaimDeliveryRow, error)
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
 	ClaimReportNotification(ctx context.Context) (ClaimReportNotificationRow, error)
-	// The guarded UPDATE is the claim, so one fold announces its moves once (ADR-1806 §8, #1818).
-	// Every drained fold settles, and only one holding a move is returned (#1818).
-	ClaimSettleableRePointBatches(ctx context.Context, arg ClaimSettleableRePointBatchesParams) ([]int64, error)
 	CloseSpan(ctx context.Context, arg CloseSpanParams) error
 	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
@@ -209,7 +206,7 @@ type Querier interface {
 	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)
 	ListPersonalTokens(ctx context.Context, accountID int64) ([]ListPersonalTokensRow, error)
 	// ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
-	ListRePointMovesForBatches(ctx context.Context, batchIds []int64) ([]ListRePointMovesForBatchesRow, error)
+	ListRePointMovesForBatch(ctx context.Context, batchID int64) ([]ListRePointMovesForBatchRow, error)
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
@@ -237,6 +234,8 @@ type Querier interface {
 	ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]ListServiceReachabilitySpansByClassForServicesRow, error)
 	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
+	// The arm below is ListReleasableHeldMessages', so both paths read one tier (ADR-1806 §3).
+	ListSettleableRePointBatches(ctx context.Context, reaperDisabled bool) ([]ListSettleableRePointBatchesRow, error)
 	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
 	ListSourceHealth(ctx context.Context) ([]SourceHealth, error)
 	ListSourceStates(ctx context.Context) ([]SourceState, error)
@@ -327,6 +326,10 @@ type Querier interface {
 	SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) (int64, error)
 	// A non-positive interval is refused by the table's CHECK, not by this statement.
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
+	// A fold that moved no resolution owes no message, so it needs no pass of its own (#1818).
+	SettleMovelessRePointBatches(ctx context.Context, arg SettleMovelessRePointBatchesParams) error
+	// The guarded UPDATE is the claim, so one fold announces its moves once (ADR-1806 §8, #1818).
+	SettleRePointBatch(ctx context.Context, arg SettleRePointBatchParams) (int64, error)
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	// Every dns job waits, not only older ones: a retry re-enqueues the frozen spec (ADR-0135 §5).
 	SpendNameSeedWithdrawals(ctx context.Context, arg SpendNameSeedWithdrawalsParams) error

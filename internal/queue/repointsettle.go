@@ -13,53 +13,64 @@ import (
 
 type rePointSettleStore interface {
 	membershipInputStore
-	ClaimSettleableRePointBatches(ctx context.Context, arg db.ClaimSettleableRePointBatchesParams) ([]int64, error)
-	ListRePointMovesForBatches(ctx context.Context, batchIDs []int64) ([]db.ListRePointMovesForBatchesRow, error)
+	SettleRePointBatch(ctx context.Context, arg db.SettleRePointBatchParams) (int64, error)
+	ListRePointMovesForBatch(ctx context.Context, batchID int64) ([]db.ListRePointMovesForBatchRow, error)
 	ListResolutionCitersForAddressesAt(ctx context.Context, arg db.ListResolutionCitersForAddressesAtParams) ([]db.ListResolutionCitersForAddressesAtRow, error)
 	ListNameRootsOpenedInBatch(ctx context.Context, batchID int64) ([]db.ListNameRootsOpenedInBatchRow, error)
 	ListSubjectsOpenedSinceBatch(ctx context.Context, batchID int64) ([]db.ListSubjectsOpenedSinceBatchRow, error)
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 }
 
-func settleRePoints(ctx context.Context, q rePointSettleStore, settledAt time.Time, reaperDisabled bool, enqueue enqueueFunc) (int, error) {
-	batches, err := q.ClaimSettleableRePointBatches(ctx, db.ClaimSettleableRePointBatchesParams{
-		SettledAt:      tstz(settledAt),
-		ReaperDisabled: reaperDisabled,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("queue: claim settleable re-point batches: %w", err)
+// A fold holding no move owes no message, so it settles in one statement beside the rest.
+
+func splitSettleableBatches(rows []db.ListSettleableRePointBatchesRow) (folds, moveless []int64) {
+	for _, r := range rows {
+		if r.HasMove {
+			folds = append(folds, r.ID)
+			continue
+		}
+		moveless = append(moveless, r.ID)
 	}
-	if len(batches) == 0 {
+	return folds, moveless
+}
+
+func settleRePointFold(ctx context.Context, q rePointSettleStore, batchID int64, settledAt time.Time, enqueue enqueueFunc) (int, error) {
+	// The guarded UPDATE is the claim, so a second pass takes no fold and owes no message.
+	claimed, err := q.SettleRePointBatch(ctx, db.SettleRePointBatchParams{SettledAt: tstz(settledAt), ID: batchID})
+	if err != nil {
+		return 0, fmt.Errorf("queue: claim re-point batch %d: %w", batchID, err)
+	}
+	if claimed == 0 {
 		return 0, nil
 	}
-	rows, err := q.ListRePointMovesForBatches(ctx, batches)
+	rows, err := q.ListRePointMovesForBatch(ctx, batchID)
 	if err != nil {
-		return 0, fmt.Errorf("queue: re-point moves of %d batch(es): %w", len(batches), err)
+		return 0, fmt.Errorf("queue: re-point moves of batch %d: %w", batchID, err)
 	}
+	fold := rePointFoldFrom(batchID, rows)
+	// A Seed or an Exclusion the operator moved since the fold is read here (ADR-1806 §8).
 	in, err := readMembershipInputs(ctx, q)
 	if err != nil {
-		return 0, fmt.Errorf("queue: declared inputs for the re-point residue: %w", err)
+		return 0, fmt.Errorf("queue: declared inputs for batch %d's residue: %w", batchID, err)
+	}
+	msgs, err := fold.messages(ctx, q, in)
+	if err != nil {
+		return 0, err
 	}
 	fired := 0
-	for _, fold := range rePointFolds(rows) {
-		msgs, err := fold.messages(ctx, q, in)
+	for _, m := range msgs {
+		params, err := insertParams(m)
 		if err != nil {
 			return 0, err
 		}
-		for _, m := range msgs {
-			params, err := insertParams(m)
-			if err != nil {
-				return 0, err
-			}
-			row, err := q.InsertMessage(ctx, params)
-			if err != nil {
-				return 0, fmt.Errorf("queue: write the re-point message for %s: %w", m.FiredAt, err)
-			}
-			if _, err := enqueue(ctx, row.ID, m.Class); err != nil {
-				return 0, fmt.Errorf("queue: enqueue delivery for message %d: %w", row.ID, err)
-			}
-			fired++
+		row, err := q.InsertMessage(ctx, params)
+		if err != nil {
+			return 0, fmt.Errorf("queue: write the re-point message for %s: %w", m.FiredAt, err)
 		}
+		if _, err := enqueue(ctx, row.ID, m.Class); err != nil {
+			return 0, fmt.Errorf("queue: enqueue delivery for message %d: %w", row.ID, err)
+		}
+		fired++
 	}
 	return fired, nil
 }
@@ -72,22 +83,12 @@ type rePointFold struct {
 	moves   []rePoint
 }
 
-func rePointFolds(rows []db.ListRePointMovesForBatchesRow) []rePointFold {
-	var out []rePointFold
-	index := map[int64]int{}
+func rePointFoldFrom(batchID int64, rows []db.ListRePointMovesForBatchRow) rePointFold {
+	out := rePointFold{batchID: batchID}
 	for _, r := range rows {
-		if !r.OpenedBatchID.Valid {
-			continue
-		}
-		id := r.OpenedBatchID.Int64
-		i, ok := index[id]
-		if !ok {
-			i = len(out)
-			index[id] = i
-			// One fold stamps one instant on every span it opened (internal/queue/worker.go).
-			out = append(out, rePointFold{batchID: id, instant: r.OpenedAt.Time})
-		}
-		out[i].moves = append(out[i].moves, rePoint{
+		// One fold stamps one instant on every span it opened (internal/queue/worker.go).
+		out.instant = r.OpenedAt.Time
+		out.moves = append(out.moves, rePoint{
 			name:          r.SubjectKey,
 			discriminator: r.Discriminator,
 			vantageID:     r.VantageID,
@@ -115,6 +116,7 @@ func (f rePointFold) messages(ctx context.Context, q rePointSettleStore, in memb
 			fresh[a] = true
 		}
 	}
+	// The roots are the move's own fold's, which is the unit ADR-0026 §2 words its test in.
 	rootRows, err := q.ListNameRootsOpenedInBatch(ctx, f.batchID)
 	if err != nil {
 		return nil, fmt.Errorf("queue: membership roots of batch %d: %w", f.batchID, err)
