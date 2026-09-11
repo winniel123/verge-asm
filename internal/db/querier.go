@@ -56,16 +56,19 @@ type Querier interface {
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
 	DeclineProposal(ctx context.Context, id int64) (int64, error)
 	DeleteAccount(ctx context.Context, id int64) error
-	DeleteAnnotation(ctx context.Context, id int64) error
+	// The pair rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+	DeleteAnnotation(ctx context.Context, id int64) (DeleteAnnotationRow, error)
 	DeleteChannel(ctx context.Context, id int64) error
-	DeleteExclusion(ctx context.Context, id int64) error
+	// The scope rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+	DeleteExclusion(ctx context.Context, id int64) (DeleteExclusionRow, error)
 	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
 	DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error)
 	DeleteExpiredTranscripts(ctx context.Context, capturedAt pgtype.Timestamptz) (int64, error)
 	DeleteIntegrationState(ctx context.Context, slug string) error
 	DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) error
 	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
-	DeleteReportSchedule(ctx context.Context, id int64) error
+	// The name rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+	DeleteReportSchedule(ctx context.Context, id int64) (string, error)
 	DeleteSSOIdentity(ctx context.Context, id int64) error
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
@@ -74,7 +77,8 @@ type Querier interface {
 	// A data-modifying CTE fires on its own, so nothing need select from lift (#1777).
 	// Every arm reads one snapshot, so kept is the row as it stood before lift (#1777).
 	DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (bool, error)
-	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
+	// The port rides the reset's own RETURNING, so a port carrying no edit returns nothing.
+	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) (int32, error)
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (FindCoveringAddressSeedRow, error)
@@ -275,8 +279,11 @@ type Querier interface {
 	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
 	NotifyJobProgress(ctx context.Context, payload string) error
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
-	OptInColdScope(ctx context.Context, arg OptInColdScopeParams) error
-	OptOutColdScope(ctx context.Context, seedID int64) error
+	// A data-modifying CTE fires on its own, so the SELECT need only read the scope back.
+	// The scope rides the enrolment's own RETURNING, so a repeat opt-in returns nothing.
+	OptInColdScope(ctx context.Context, arg OptInColdScopeParams) (OptInColdScopeRow, error)
+	// The scope rides the withdrawal's own RETURNING, so an unenrolled scope returns nothing.
+	OptOutColdScope(ctx context.Context, seedID int64) (OptOutColdScopeRow, error)
 	PinVantageHostKey(ctx context.Context, arg PinVantageHostKeyParams) error
 	// IPv4 subject keys only, so an IPv6 exclusion previews and withdraws nothing.
 	// A substring resolution test, so a resolution citing 10.0.0.10 also holds 10.0.0.1.
@@ -306,7 +313,8 @@ type Querier interface {
 	SetAPIEnabled(ctx context.Context, arg SetAPIEnabledParams) error
 	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error
 	// The seed CHECK rejects a true extension on an address scope, so an unguarded declare errors.
-	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
+	// The scope rides the move's own RETURNING, so an address id moves nothing and returns nothing.
+	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) (pgtype.Text, error)
 	SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error
 	// A non-positive interval is refused by the table's CHECK, not by this statement.
 	SetDnsCadenceSeconds(ctx context.Context, cadenceSeconds int64) error

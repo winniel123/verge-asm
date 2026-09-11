@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/proposer"
 	"github.com/winniel123/verge-asm/internal/seed"
@@ -295,6 +296,10 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "confirm proposal", err)
 		return
 	}
+	// What confirmation declares is the scope, so the seed's masked form is the subject (§2.1).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ProposalConfirmed{
+		SeedScope: act.SeedScope{Scope: cidr.String()},
+	})
 	s.backToScope(w, r)
 }
 
@@ -334,6 +339,10 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 			s.serverError(w, "record declined proposal as exclusion", err)
 			return
 		}
+		// One row per subject: this loop bails mid-batch, leaving the rest committed (spec §7.6).
+		s.recorder().Record(r.Context(), actingAccount(acct), act.ProposalDeclined{
+			ExclusionRef: act.ExclusionRef{Kind: "address", Scope: cidr.String()},
+		})
 	}
 	s.backToScope(w, r)
 }
@@ -353,7 +362,7 @@ func (s *server) declinedProposalScopes(ctx context.Context) map[string][]int64 
 	return out
 }
 
-func (s *server) undoDecline(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) undoDecline(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		http.Error(w, "bad proposal id", http.StatusBadRequest)
@@ -375,6 +384,10 @@ func (s *server) undoDecline(w http.ResponseWriter, r *http.Request, _ db.Accoun
 		s.serverError(w, "lift declined proposal exclusion", err)
 		return
 	}
+	// Both paths returned the scope to pending, so both recorded the lift (ADR-0022).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ProposalDeclineUndone{
+		ExclusionRef: act.ExclusionRef{Kind: "address", Scope: scope.String()},
+	})
 	if claimed {
 		// Both paths return the scope to pending, so both carry the rider (ADR-0022).
 		s.toastRedirectBack(w, r, "/scope", "neutral",

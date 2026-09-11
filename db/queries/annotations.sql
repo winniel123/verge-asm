@@ -9,5 +9,7 @@ SELECT id, subject_key, signal_name, reason, declared_at
 FROM annotation
 ORDER BY signal_name, subject_key;
 
--- name: DeleteAnnotation :exec
-DELETE FROM annotation WHERE id = $1;
+-- name: DeleteAnnotation :one
+-- The pair rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+DELETE FROM annotation WHERE id = $1
+RETURNING subject_key, signal_name;

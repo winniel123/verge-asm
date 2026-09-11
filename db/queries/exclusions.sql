@@ -21,8 +21,10 @@ FROM exclusion
 WHERE kind = 'address' AND address_cidr IS NOT NULL
 ORDER BY id;
 
--- name: DeleteExclusion :exec
-DELETE FROM exclusion WHERE id = $1;
+-- name: DeleteExclusion :one
+-- The scope rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+DELETE FROM exclusion WHERE id = $1
+RETURNING kind, name, address_cidr;
 
 -- name: DeleteUnclaimedAddressExclusion :one
 -- A data-modifying CTE fires on its own, so nothing need select from lift (#1777).

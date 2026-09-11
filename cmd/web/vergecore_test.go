@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
@@ -134,7 +136,11 @@ func (f *fakeStore) UpsertVergeCoreFrequencyEdit(_ context.Context, arg db.Upser
 	return nil
 }
 
-func (f *fakeStore) DeleteVergeCoreFrequencyEdit(_ context.Context, port int32) error {
+func (f *fakeStore) DeleteVergeCoreFrequencyEdit(_ context.Context, port int32) (int32, error) {
+	if _, ok := f.freqEdits[port]; !ok {
+		// The DELETE matches no row, so a port carrying no edit resets nothing.
+		return 0, pgx.ErrNoRows
+	}
 	delete(f.freqEdits, port)
-	return nil
+	return port, nil
 }

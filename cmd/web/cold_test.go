@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
@@ -132,14 +134,35 @@ func TestSetColdScopeRequiresLogin(t *testing.T) {
 	}
 }
 
-func (f *fakeStore) OptInColdScope(_ context.Context, arg db.OptInColdScopeParams) error {
+func (f *fakeStore) OptInColdScope(_ context.Context, arg db.OptInColdScopeParams) (db.OptInColdScopeRow, error) {
+	// ON CONFLICT DO NOTHING returns no row, so a repeat opt-in enrols nothing.
+	if f.coldScopes[arg.SeedID] {
+		return db.OptInColdScopeRow{}, pgx.ErrNoRows
+	}
+	sd, ok := f.seedByID(arg.SeedID)
+	if !ok {
+		return db.OptInColdScopeRow{}, pgx.ErrNoRows
+	}
 	f.coldScopes[arg.SeedID] = true
-	return nil
+	return db.OptInColdScopeRow{AddressCidr: sd.AddressCidr, NameDomain: sd.NameDomain}, nil
 }
 
-func (f *fakeStore) OptOutColdScope(_ context.Context, seedID int64) error {
+func (f *fakeStore) OptOutColdScope(_ context.Context, seedID int64) (db.OptOutColdScopeRow, error) {
+	sd, ok := f.seedByID(seedID)
+	if !f.coldScopes[seedID] || !ok {
+		return db.OptOutColdScopeRow{}, pgx.ErrNoRows
+	}
 	delete(f.coldScopes, seedID)
-	return nil
+	return db.OptOutColdScopeRow{AddressCidr: sd.AddressCidr, NameDomain: sd.NameDomain}, nil
+}
+
+func (f *fakeStore) seedByID(id int64) (db.Seed, bool) {
+	for _, s := range f.seeds {
+		if s.ID == id {
+			return s, true
+		}
+	}
+	return db.Seed{}, false
 }
 
 func (f *fakeStore) SyncColdScanEnabled(context.Context) error {

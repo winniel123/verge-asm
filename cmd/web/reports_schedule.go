@@ -13,13 +13,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/report"
 )
 
 type reportScheduleStore interface {
-	DeleteReportSchedule(ctx context.Context, id int64) error
+	DeleteReportSchedule(ctx context.Context, id int64) (string, error)
 	GetReportSchedule(ctx context.Context, id int64) (db.ReportSchedule, error)
 	InsertReportDelivery(ctx context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error)
 	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
@@ -308,8 +309,9 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		s.serverError(w, "marshal schedule sections", err)
 		return
 	}
+	name := strings.TrimSpace(v.Name)
 	if _, err := s.reportScheduleStore.InsertReportSchedule(r.Context(), db.InsertReportScheduleParams{
-		Name:           strings.TrimSpace(v.Name),
+		Name:           name,
 		Sections:       sections,
 		Cadence:        reportCadLabel(v.Cad, v.Cron),
 		Format:         reportScheduleFormat,
@@ -320,6 +322,9 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		s.serverError(w, "insert report schedule", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ScheduleDeclared{
+		ScheduleRef: act.ScheduleRef{Name: name},
+	})
 	s.redirectBack(w, r, reportsPath)
 }
 
@@ -361,15 +366,17 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 		s.serverError(w, "marshal schedule sections", err)
 		return
 	}
+	name := strings.TrimSpace(v.Name)
 	if _, err := s.reportScheduleStore.UpdateReportSchedule(r.Context(), db.UpdateReportScheduleParams{
 		ID:             v.ID,
-		Name:           strings.TrimSpace(v.Name),
+		Name:           name,
 		Sections:       sections,
 		Cadence:        reportCadLabel(v.Cad, v.Cron),
 		Format:         reportScheduleFormat,
 		DeliveryTarget: "",
 		ChannelID:      channelBinding(v.ChannelID),
 	}); err != nil {
+		// An unknown id edits nothing, and a refused act directed nothing (spec §7.6).
 		if errors.Is(err, pgx.ErrNoRows) {
 			s.redirectBack(w, r, reportsPath)
 			return
@@ -377,6 +384,9 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 		s.serverError(w, "update report schedule", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ScheduleEdited{
+		ScheduleRef: act.ScheduleRef{Name: name},
+	})
 	s.redirectBack(w, r, reportsPath)
 }
 
@@ -435,10 +445,20 @@ func (s *server) deleteReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		s.redirectBack(w, r, reportsPath)
 		return
 	}
-	if err := s.reportScheduleStore.DeleteReportSchedule(r.Context(), id); err != nil {
+	// The name rides the delete's RETURNING, so no read can blank the Act (spec §4.2).
+	name, err := s.reportScheduleStore.DeleteReportSchedule(r.Context(), id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// An unknown id withdraws nothing, and a refused act directed nothing (spec §7.6).
+		s.redirectBack(w, r, reportsPath)
+		return
+	}
+	if err != nil {
 		s.serverError(w, "delete report schedule", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ScheduleWithdrawn{
+		ScheduleRef: act.ScheduleRef{Name: name},
+	})
 	s.redirectBack(w, r, reportsPath)
 }
 

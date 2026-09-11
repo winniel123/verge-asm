@@ -63,13 +63,23 @@ func (q *Queries) CreateNameExclusion(ctx context.Context, arg CreateNameExclusi
 	return i, err
 }
 
-const deleteExclusion = `-- name: DeleteExclusion :exec
+const deleteExclusion = `-- name: DeleteExclusion :one
 DELETE FROM exclusion WHERE id = $1
+RETURNING kind, name, address_cidr
 `
 
-func (q *Queries) DeleteExclusion(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteExclusion, id)
-	return err
+type DeleteExclusionRow struct {
+	Kind        string        `json:"kind"`
+	Name        pgtype.Text   `json:"name"`
+	AddressCidr *netip.Prefix `json:"address_cidr"`
+}
+
+// The scope rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+func (q *Queries) DeleteExclusion(ctx context.Context, id int64) (DeleteExclusionRow, error) {
+	row := q.db.QueryRow(ctx, deleteExclusion, id)
+	var i DeleteExclusionRow
+	err := row.Scan(&i.Kind, &i.Name, &i.AddressCidr)
+	return i, err
 }
 
 const deleteUnclaimedAddressExclusion = `-- name: DeleteUnclaimedAddressExclusion :one

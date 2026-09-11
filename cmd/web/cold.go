@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -12,7 +13,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/seed"
@@ -29,8 +34,8 @@ type coldStore interface {
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
-	OptInColdScope(ctx context.Context, arg db.OptInColdScopeParams) error
-	OptOutColdScope(ctx context.Context, seedID int64) error
+	OptInColdScope(ctx context.Context, arg db.OptInColdScopeParams) (db.OptInColdScopeRow, error)
+	OptOutColdScope(ctx context.Context, seedID int64) (db.OptOutColdScopeRow, error)
 	SyncColdScanEnabled(ctx context.Context) error
 }
 
@@ -80,24 +85,51 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 	// A stale page re-sends its own state rather than flipping the scope.
 	optIn := r.FormValue("opt_in") == "true"
+	var scope string
+	// The scope rides the move's RETURNING, so no read can blank the Act (spec §4.2).
 	if optIn {
-		if err := s.coldStore.OptInColdScope(r.Context(), db.OptInColdScopeParams{
+		var row db.OptInColdScopeRow
+		row, err = s.coldStore.OptInColdScope(r.Context(), db.OptInColdScopeParams{
 			SeedID: id, CreatedBy: acct.ID,
-		}); err != nil {
-			s.serverError(w, "opt in cold scope", err)
-			return
-		}
+		})
+		scope = coldScope(row.AddressCidr, row.NameDomain)
 	} else {
-		if err := s.coldStore.OptOutColdScope(r.Context(), id); err != nil {
-			s.serverError(w, "opt out cold scope", err)
-			return
-		}
+		var row db.OptOutColdScopeRow
+		row, err = s.coldStore.OptOutColdScope(r.Context(), id)
+		scope = coldScope(row.AddressCidr, row.NameDomain)
+	}
+	// A repeat opt-in enrols nothing and an unenrolled opt-out withdraws nothing (spec §7.6).
+	moved := !errors.Is(err, pgx.ErrNoRows)
+	if err != nil && moved {
+		s.serverError(w, "move cold scope", err)
+		return
 	}
 	if err := s.coldStore.SyncColdScanEnabled(r.Context()); err != nil {
 		s.serverError(w, "sync cold scan enabled", err)
 		return
 	}
+	if moved {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.ColdMoved{
+			ColdMove: act.ColdMove{Scope: scope, Disposition: coldDisposition(optIn)},
+		})
+	}
 	s.backToSection(w, r, "scans")
+}
+
+// The pair toSeedViews renders, so the Act and the screen name one scope.
+
+func coldScope(cidr *netip.Prefix, domain pgtype.Text) string {
+	if cidr != nil {
+		return cidr.String()
+	}
+	return domain.String
+}
+
+func coldDisposition(optIn bool) string {
+	if optIn {
+		return "cold opt-in"
+	}
+	return "cold opt-out"
 }
 
 type coverageMeterView struct {

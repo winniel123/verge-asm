@@ -7,12 +7,15 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const setCustodyExtension = `-- name: SetCustodyExtension :exec
+const setCustodyExtension = `-- name: SetCustodyExtension :one
 UPDATE seed
 SET custody_extension = $2
 WHERE id = $1 AND kind = 'name'
+RETURNING name_domain
 `
 
 type SetCustodyExtensionParams struct {
@@ -21,7 +24,10 @@ type SetCustodyExtensionParams struct {
 }
 
 // The seed CHECK rejects a true extension on an address scope, so an unguarded declare errors.
-func (q *Queries) SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error {
-	_, err := q.db.Exec(ctx, setCustodyExtension, arg.ID, arg.CustodyExtension)
-	return err
+// The scope rides the move's own RETURNING, so an address id moves nothing and returns nothing.
+func (q *Queries) SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, setCustodyExtension, arg.ID, arg.CustodyExtension)
+	var name_domain pgtype.Text
+	err := row.Scan(&name_domain)
+	return name_domain, err
 }

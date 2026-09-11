@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -377,12 +378,14 @@ func (f *fakeStore) CreateAnnotation(_ context.Context, arg db.CreateAnnotationP
 	return a, nil
 }
 
-func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
+func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) (db.DeleteAnnotationRow, error) {
 	for i, a := range f.annotations {
 		if a.ID == id {
 			f.annotations = append(f.annotations[:i], f.annotations[i+1:]...)
-			return nil
+			f.actTrail = append(f.actTrail, "DeleteAnnotation")
+			return db.DeleteAnnotationRow{SubjectKey: a.SubjectKey, SignalName: a.SignalName}, nil
 		}
 	}
-	return nil
+	// The column returns no row for an unknown id, so the fake returns what sqlc's :one does.
+	return db.DeleteAnnotationRow{}, pgx.ErrNoRows
 }

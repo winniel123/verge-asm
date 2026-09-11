@@ -11,13 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const deleteVergeCoreFrequencyEdit = `-- name: DeleteVergeCoreFrequencyEdit :exec
+const deleteVergeCoreFrequencyEdit = `-- name: DeleteVergeCoreFrequencyEdit :one
 DELETE FROM verge_core_frequency_edit WHERE port = $1
+RETURNING port
 `
 
-func (q *Queries) DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error {
-	_, err := q.db.Exec(ctx, deleteVergeCoreFrequencyEdit, port)
-	return err
+// The port rides the reset's own RETURNING, so a port carrying no edit returns nothing.
+func (q *Queries) DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) (int32, error) {
+	row := q.db.QueryRow(ctx, deleteVergeCoreFrequencyEdit, port)
+	var port_2 int32
+	err := row.Scan(&port_2)
+	return port_2, err
 }
 
 const listVergeCoreFrequencyEditsWithAuthor = `-- name: ListVergeCoreFrequencyEditsWithAuthor :many

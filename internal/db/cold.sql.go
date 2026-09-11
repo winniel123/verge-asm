@@ -75,10 +75,16 @@ func (q *Queries) ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsR
 	return items, nil
 }
 
-const optInColdScope = `-- name: OptInColdScope :exec
-INSERT INTO cold_scan_scope (seed_id, created_by)
-VALUES ($1, $2)
-ON CONFLICT (seed_id) DO NOTHING
+const optInColdScope = `-- name: OptInColdScope :one
+WITH enrolled AS (
+    INSERT INTO cold_scan_scope (seed_id, created_by)
+    VALUES ($1, $2)
+    ON CONFLICT (seed_id) DO NOTHING
+    RETURNING seed_id
+)
+SELECT s.address_cidr, s.name_domain
+FROM enrolled e
+JOIN seed s ON s.id = e.seed_id
 `
 
 type OptInColdScopeParams struct {
@@ -86,18 +92,41 @@ type OptInColdScopeParams struct {
 	CreatedBy int64 `json:"created_by"`
 }
 
-func (q *Queries) OptInColdScope(ctx context.Context, arg OptInColdScopeParams) error {
-	_, err := q.db.Exec(ctx, optInColdScope, arg.SeedID, arg.CreatedBy)
-	return err
+type OptInColdScopeRow struct {
+	AddressCidr *netip.Prefix `json:"address_cidr"`
+	NameDomain  pgtype.Text   `json:"name_domain"`
 }
 
-const optOutColdScope = `-- name: OptOutColdScope :exec
-DELETE FROM cold_scan_scope WHERE seed_id = $1
+// A data-modifying CTE fires on its own, so the SELECT need only read the scope back.
+// The scope rides the enrolment's own RETURNING, so a repeat opt-in returns nothing.
+func (q *Queries) OptInColdScope(ctx context.Context, arg OptInColdScopeParams) (OptInColdScopeRow, error) {
+	row := q.db.QueryRow(ctx, optInColdScope, arg.SeedID, arg.CreatedBy)
+	var i OptInColdScopeRow
+	err := row.Scan(&i.AddressCidr, &i.NameDomain)
+	return i, err
+}
+
+const optOutColdScope = `-- name: OptOutColdScope :one
+WITH withdrawn AS (
+    DELETE FROM cold_scan_scope WHERE seed_id = $1
+    RETURNING seed_id
+)
+SELECT s.address_cidr, s.name_domain
+FROM withdrawn w
+JOIN seed s ON s.id = w.seed_id
 `
 
-func (q *Queries) OptOutColdScope(ctx context.Context, seedID int64) error {
-	_, err := q.db.Exec(ctx, optOutColdScope, seedID)
-	return err
+type OptOutColdScopeRow struct {
+	AddressCidr *netip.Prefix `json:"address_cidr"`
+	NameDomain  pgtype.Text   `json:"name_domain"`
+}
+
+// The scope rides the withdrawal's own RETURNING, so an unenrolled scope returns nothing.
+func (q *Queries) OptOutColdScope(ctx context.Context, seedID int64) (OptOutColdScopeRow, error) {
+	row := q.db.QueryRow(ctx, optOutColdScope, seedID)
+	var i OptOutColdScopeRow
+	err := row.Scan(&i.AddressCidr, &i.NameDomain)
+	return i, err
 }
 
 const syncColdScanEnabled = `-- name: SyncColdScanEnabled :exec

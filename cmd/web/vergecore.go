@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
+	"github.com/jackc/pgx/v5"
+
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
 type vergeCoreStore interface {
-	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
+	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) (int32, error)
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error
 }
 
@@ -67,7 +71,13 @@ func (s *server) editVergeCoreFrequency(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 	case "reset":
-		if err := s.vergeCoreStore.DeleteVergeCoreFrequencyEdit(r.Context(), int32(port)); err != nil { // #nosec G109 (port validated 1..65535 above)
+		_, err := s.vergeCoreStore.DeleteVergeCoreFrequencyEdit(r.Context(), int32(port)) // #nosec G109 (port validated 1..65535 above)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// A port carrying no edit resets nothing, so the act directed nothing (spec §7.6).
+			s.backToSection(w, r, "vergecore")
+			return
+		}
+		if err != nil {
 			s.serverError(w, "delete verge-core frequency edit", err)
 			return
 		}
@@ -75,5 +85,8 @@ func (s *server) editVergeCoreFrequency(w http.ResponseWriter, r *http.Request, 
 		fail("Choose add, remove or reset.")
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.FrequencyMoved{
+		FrequencyMove: act.FrequencyMove{Port: strconv.Itoa(port), Disposition: action},
+	})
 	s.backToSection(w, r, "vergecore")
 }
