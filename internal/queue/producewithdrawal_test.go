@@ -16,7 +16,7 @@ func TestProduceMeasuredAbsentDepartureWritesAnUnroutedWithdrawal(t *testing.T) 
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {
@@ -43,7 +43,7 @@ func TestProduceUncitedDepartureStaysSilent(t *testing.T) {
 	}
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 15, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 15, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 || len(log) != 0 {
@@ -57,7 +57,7 @@ func TestProduceMeasuredAbsentDepartureIsNoOpUnderDevMode(t *testing.T) {
 	}
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 16, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+	if err := produceMessages(context.Background(), store, 16, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), true, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 || len(log) != 0 {

@@ -27,7 +27,7 @@ func TestDeclaredAddressScopeFiresOneRevealedWithACount(t *testing.T) {
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 70, produceT0, changes, nil, nil, in, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 70, produceT0, changes, nil, nil, in, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestDeclaredAddressScopeSkipsAnOpeningANameCites(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
 
-	msgs, err := buildMessages(context.Background(), store, 71, produceT0, changes, nil, nil, in)
+	msgs, err := buildMessages(context.Background(), store, 71, produceT0, changes, nil, nil, in, true)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestAnExcludedAddressFiresNoScopeReveal(t *testing.T) {
 		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.0/28")},
 	}
 
-	msgs, err := buildMessages(context.Background(), store, 73, produceT0, changes, nil, nil, in)
+	msgs, err := buildMessages(context.Background(), store, 73, produceT0, changes, nil, nil, in, true)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestAnExclusionNarrowsTheScopeRevealCensus(t *testing.T) {
 		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.0/28")},
 	}
 
-	msgs, err := buildMessages(context.Background(), store, 74, produceT0, changes, nil, nil, in)
+	msgs, err := buildMessages(context.Background(), store, 74, produceT0, changes, nil, nil, in, true)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestDeclaredAddressScopeSkipsAnOpeningAnOpenSpanCites(t *testing.T) {
 	}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
 
-	msgs, err := buildMessages(context.Background(), store, 75, produceT0, changes, nil, nil, in)
+	msgs, err := buildMessages(context.Background(), store, 75, produceT0, changes, nil, nil, in, true)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestDeclaredAddressScopeReadsTheCitersOncePerFold(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
 
-	if _, err := buildMessages(context.Background(), store, 76, produceT0, changes, nil, nil, in); err != nil {
+	if _, err := buildMessages(context.Background(), store, 76, produceT0, changes, nil, nil, in, true); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	if len(store.citersAsked) != 1 {
@@ -203,7 +203,7 @@ func TestARePointAndADarkOpeningReadTheCitersOncePerFold(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
 
-	msgs, err := buildMessages(context.Background(), store, 77, produceT0, changes, nil, nil, in)
+	msgs, err := buildMessages(context.Background(), store, 77, produceT0, changes, nil, nil, in, true)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}

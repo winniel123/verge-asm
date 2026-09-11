@@ -73,13 +73,13 @@ type departure struct {
 	Timelines   int
 }
 
-func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
+func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode, holdCensus bool) error {
 	// A devMode worker produces nothing, so a fixture install never pages anyone (ADR-0197 §1).
 	if devMode {
 		return nil
 	}
 	// A message is computed once at the cause and committed with its spans (ADR-0064).
-	msgs, err := buildMessages(ctx, store, batchID, observedAt, changes, departures, narrowings, in)
+	msgs, err := buildMessages(ctx, store, batchID, observedAt, changes, departures, narrowings, in, holdCensus)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func insertParams(m *message.Message) (db.InsertMessageParams, error) {
 	return p, nil
 }
 
-func buildMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) ([]*message.Message, error) {
+func buildMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, holdCensus bool) ([]*message.Message, error) {
 	var msgs []*message.Message
 
 	legs, err := readBatchLegs(ctx, store, changes)
@@ -185,7 +185,7 @@ func buildMessages(ctx context.Context, store messageStore, batchID int64, obser
 	}
 	msgs = append(msgs, widened...)
 
-	msgs = append(msgs, membershipMessages(batchID, observedAt, changes, in)...)
+	msgs = append(msgs, membershipMessages(batchID, observedAt, changes, in, holdCensus)...)
 
 	openings := darkScopeOpenings(changes, in)
 	rePointed := rePoints(changes)
@@ -353,7 +353,7 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 	return msgs, nil
 }
 
-func membershipMessages(batchID int64, observedAt time.Time, changes []spanChange, in membershipInputs) []*message.Message {
+func membershipMessages(batchID int64, observedAt time.Time, changes []spanChange, in membershipInputs, holdCensus bool) []*message.Message {
 	var msgs []*message.Message
 	// Membership rides the resolution facet, so a dns-record opening is no second root (ADR-0031).
 	for _, root := range changes {
@@ -365,8 +365,14 @@ func membershipMessages(batchID int64, observedAt time.Time, changes []spanChang
 		if entry == message.EntryRevealed {
 			seedKey = coveringSeedKey(root.SubjectKind, root.SubjectKey, in)
 		}
-		// The subjects this census counts open in a later hot fold, so it is held (ADR-1806 §2).
-		m := message.HeldMembership(entry, root.SubjectKind, root.SubjectKey, seedKey, pendingCensus(batchID, root), observedAt)
+		var m *message.Message
+		if holdCensus {
+			// The subjects this counts open in a later hot fold, so the row is held (ADR-1806 §2).
+			m = message.HeldMembership(entry, root.SubjectKind, root.SubjectKey, seedKey, pendingCensus(batchID, root), observedAt)
+		} else {
+			// No reaper means no drain test, so a hold would never release (ADR-1806 §6 row 1).
+			m = message.Membership(entry, root.SubjectKind, root.SubjectKey, seedKey, membershipCensus(changes, root), observedAt)
+		}
 		if m != nil {
 			msgs = append(msgs, m)
 		}

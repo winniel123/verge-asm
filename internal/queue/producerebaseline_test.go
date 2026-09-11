@@ -33,7 +33,7 @@ func TestRebaselineFiresOncePerAlertingDerivationPerRelease(t *testing.T) {
 	}
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 20, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 20, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {

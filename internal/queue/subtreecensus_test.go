@@ -63,7 +63,7 @@ func TestAForeignEndpointKeepsItsOwnMessageBeneathAnApexRoot(t *testing.T) {
 	}
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 31, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 31, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	// The Endpoint entered on a Service the apex cites, so the census must reach it at release.

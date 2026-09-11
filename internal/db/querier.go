@@ -207,8 +207,8 @@ type Querier interface {
 	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
-	// A held row releases once the first hot dispatch after its root's batch has drained (ADR-1806 §3).
-	ListReleasableHeldMessages(ctx context.Context) ([]ListReleasableHeldMessagesRow, error)
+	// A held row releases on a drained hot dispatch, or where the tier cannot answer (ADR-1806 §6).
+	ListReleasableHeldMessages(ctx context.Context, reaperDisabled bool) ([]ListReleasableHeldMessagesRow, error)
 	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	// One row per citing timeline, so a fold drops its own span and keeps a sibling vantage (#1730).

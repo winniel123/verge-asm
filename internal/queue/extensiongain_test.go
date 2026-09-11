@@ -76,7 +76,7 @@ func TestExtensionGainFiresOnceAtTheScopeWithTheDifferenceAndTheCount(t *testing
 	changes := []spanChange{nameResolutionChange("api.example.com", "52.1.2.3", "52.1.2.4")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 30, produceT0, changes, nil, nil, in, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 30, produceT0, changes, nil, nil, in, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	got := extensionGainMessagesOf(t, store)
@@ -118,7 +118,7 @@ func TestExtensionGainReadsNothingWithoutALiveExtension(t *testing.T) {
 	store := &fakeMessageStore{citations: []citationSpan{citedSpan("api.example.com", produceT0, nil, "52.1.2.3")}}
 	changes := []spanChange{nameResolutionChange("api.example.com", "52.1.2.3")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{plainNameSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 31, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 31, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if store.citationsRead {
@@ -133,7 +133,7 @@ func TestExtensionGainReadsNothingWhenNoNameMoved(t *testing.T) {
 	store := &fakeMessageStore{citations: []citationSpan{citedSpan("api.example.com", produceT0, nil, "52.1.2.3")}}
 	changes := []spanChange{{SubjectKind: "service", SubjectKey: "52.1.2.3:443/tcp", Facet: "reachability", Opened: true, Value: reachValue("reached")}}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 32, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 32, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if store.citationsRead {
@@ -149,7 +149,7 @@ func TestExtensionGainIsSilentForAnAddressAnotherNameAlreadyCited(t *testing.T) 
 	}}
 	changes := []spanChange{nameResolutionChange("api.example.com", "52.1.2.3")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 33, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 33, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if got := extensionGainMessagesOf(t, store); len(got) != 0 {
@@ -167,7 +167,7 @@ func TestExtensionGainIsSilentForAReEntryWithinTheCurrencyBound(t *testing.T) {
 	}}
 	changes := []spanChange{nameResolutionChange("www.example.com", "52.1.2.3")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 34, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 34, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if got := extensionGainMessagesOf(t, store); len(got) != 0 {
@@ -183,7 +183,7 @@ func TestExtensionGainIsSilentOnADeparture(t *testing.T) {
 	}}
 	changes := []spanChange{nameResolutionChange("www.example.com", "52.1.2.3")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 35, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 35, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if got := extensionGainMessagesOf(t, store); len(got) != 0 {
@@ -200,7 +200,7 @@ func TestExtensionGainStopsWhereTheChainLeavesTheZone(t *testing.T) {
 	}}
 	changes := []spanChange{nameResolutionChange("shop.example.com", "13.32.0.1")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 36, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 36, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if got := extensionGainMessagesOf(t, store); len(got) != 0 {
@@ -214,7 +214,7 @@ func TestExtensionGainIgnoresANonGloballyReachableAddress(t *testing.T) {
 	}}
 	changes := []spanChange{nameResolutionChange("db.example.com", "10.1.2.3")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 37, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 37, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if got := extensionGainMessagesOf(t, store); len(got) != 0 {
@@ -232,7 +232,7 @@ func TestExtensionGainFiresPerScopeAndTheMostSpecificScopeClaimsANestedName(t *t
 	in := membershipInputs{seeds: []db.ListSeedsRow{
 		extendingSeed("example.com"), extendingSeed("api.example.com"), extendingSeed("example.org"),
 	}}
-	if err := produceMessages(context.Background(), store, 38, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 38, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	got := extensionGainMessagesOf(t, store)
@@ -269,7 +269,7 @@ func TestExtensionGainPairsAnOwnerWithTheSpanOpenBesideIt(t *testing.T) {
 	}}
 	changes := []spanChange{nameResolutionChange("www.example.com", "13.32.0.1")}
 	in := membershipInputs{seeds: []db.ListSeedsRow{extendingSeed("example.com")}}
-	if err := produceMessages(context.Background(), store, 39, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 39, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	got := extensionGainMessagesOf(t, store)

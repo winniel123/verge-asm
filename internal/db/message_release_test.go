@@ -69,3 +69,34 @@ func TestTheCensusReadIsBoundedByTheRootsOwnBatch(t *testing.T) {
 		t.Errorf("the query bounds on the opening batch and never on a timestamp (#1816), got:\n%s", listSubjectsOpenedSinceBatch)
 	}
 }
+
+// TestEachDegradationLeavesAPathOutOfTheHold guards ADR-1806 §6. The hold reads
+// the state of the hot tier, and two operator configurations make that state
+// meaningless. With no stale-running reaper the drain test reads a job set that
+// nothing reaps, so the caller passes the flag and every held row leaves at
+// once. With the hot Scan disabled nothing will ever open beneath the root, so
+// waiting for a drain waits forever. A held row that can never release is the
+// failure #1817 exists to prevent.
+//
+// Neither arm forces the census empty. The census read is bounded below by the
+// root's own batch, inclusive (#1816), so a released row still names whatever
+// the root's own fold opened beneath it. For a Name root that is nothing, since
+// its Service and Endpoint open in a later hot fold — which is the empty census
+// ADR-1806 §6 describes, reached by reading rather than by assertion.
+func TestEachDegradationLeavesAPathOutOfTheHold(t *testing.T) {
+	q := strings.ToLower(listReleasableHeldMessages)
+	for _, want := range []struct {
+		clause, why string
+	}{
+		{"$1::boolean", "the caller states that the reaper is disabled, so no drain test can conclude"},
+		{"not exists (\n          select 1 from scan hs where hs.kind = 'hot' and hs.enabled", "a disabled hot tier opens nothing beneath the root, ever"},
+	} {
+		if !strings.Contains(q, want.clause) {
+			t.Errorf("listReleasableHeldMessages must carry %q — %s (ADR-1806 §6), got:\n%s", want.clause, want.why, listReleasableHeldMessages)
+		}
+	}
+	// Each arm is an alternative to the drain test, never a narrowing of it.
+	if strings.Count(q, " or ") < 2 {
+		t.Errorf("the two degradations are disjuncts beside the drain test (ADR-1806 §6), got:\n%s", listReleasableHeldMessages)
+	}
+}
