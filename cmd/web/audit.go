@@ -28,39 +28,9 @@ type auditRow struct {
 	Subject      string
 }
 
-type auditPeriod struct {
-	Token  string
-	Label  string
-	Window time.Duration
-}
+// A 90d window over a corpus that is never deleted is itself unbounded (ADR-0178 §1).
 
-// The presets drift.tmpl and reports.tmpl already ship, so the third port adds no vocabulary.
-
-func auditPeriods() []auditPeriod {
-	return []auditPeriod{
-		{Token: "24h", Label: "Last 24h", Window: 24 * time.Hour},
-		{Token: "7d", Label: "Last 7d", Window: 7 * 24 * time.Hour},
-		{Token: "30d", Label: "Last 30d", Window: 30 * 24 * time.Hour},
-		{Token: "90d", Label: "Last 90d", Window: 90 * 24 * time.Hour},
-	}
-}
-
-const auditDefaultPeriod = "7d"
-
-func resolveAuditPeriod(token string) auditPeriod {
-	for _, p := range auditPeriods() {
-		if p.Token == token {
-			return p
-		}
-	}
-	// The design default is the second preset, not the first, so the fallback names it.
-	for _, p := range auditPeriods() {
-		if p.Token == auditDefaultPeriod {
-			return p
-		}
-	}
-	return auditPeriods()[0]
-}
+const auditFeedLimit int32 = 500
 
 // The scope is server-side because the corpus is unbounded (ADR-0158 limb 4, spec §6.2).
 
@@ -69,21 +39,20 @@ func (s *server) resolveAuditWindow(r *http.Request) (token, label string, from,
 	if tk, lb, f, u, ok := resolveCustomWindow(q); ok {
 		return tk, lb, f, u
 	}
-	p := resolveAuditPeriod(q.Get("period"))
+	p := resolvePeriodPreset(q.Get("period"))
 	// A preset carries no upper bound: a skew between this clock and now() would else hide
 	// the row the request before this one recorded.
-	return p.Token, p.Label, pgtype.Timestamptz{Time: s.now().UTC().Add(-p.Window), Valid: true},
-		pgtype.Timestamptz{}
+	return p.Token, p.Label, s.presetSince(p), pgtype.Timestamptz{}
 }
 
 func (s *server) fillAuditSection(r *http.Request, data map[string]any) error {
 	token, label, from, until := s.resolveAuditWindow(r)
-	data["Periods"] = auditPeriods()
+	data["Periods"] = periodPresets()
 	data["Period"] = token
 	data["PeriodLabel"] = label
 
 	rows, err := s.auditStore.ListActsInRange(r.Context(), db.ListActsInRangeParams{
-		FromTime: from, UntilTime: until,
+		FromTime: from, UntilTime: until, MaxActs: auditFeedLimit,
 	})
 	if err != nil {
 		return err
@@ -93,6 +62,8 @@ func (s *server) fillAuditSection(r *http.Request, data map[string]any) error {
 		return err
 	}
 	data["AuditRows"] = acts
+	data["AuditTruncated"] = int32(len(acts)) >= auditFeedLimit // #nosec G115 (len capped at auditFeedLimit=500 via MaxActs)
+	data["AuditCount"] = len(acts)
 	if len(acts) > 0 {
 		return nil
 	}

@@ -505,9 +505,9 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		// A dev-mode worker writes no Act, so the tab is honestly empty here (spec §5.5).
 		data["AuditRows"] = nil
 		data["AuditCorpusEmpty"] = true
-		data["Periods"] = auditPeriods()
-		data["Period"] = auditDefaultPeriod
-		data["PeriodLabel"] = resolveAuditPeriod(auditDefaultPeriod).Label
+		data["Periods"] = periodPresets()
+		data["Period"] = defaultPeriodPreset
+		data["PeriodLabel"] = resolvePeriodPreset(defaultPeriodPreset).Label
 	case "api":
 		data["API"] = fx.API
 	case "sources":

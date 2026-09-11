@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,9 @@ func recordActAt(t *testing.T, f *fakeStore, at time.Time, actor act.Actor, a ac
 	if err != nil {
 		t.Fatalf("encode subject: %v", err)
 	}
+	// Restored, or the next row a live recorder writes takes this instant instead of its own.
+	prior := f.actNow
+	defer func() { f.actNow = prior }()
 	f.actNow = at
 	f.appendActRow(db.InsertActParams{
 		ActorKind: kind, Actor: actorJSON, Action: action, Subject: subject,
@@ -171,6 +175,63 @@ func TestAuditCustomRangeBoundsBothEnds(t *testing.T) {
 	}
 }
 
+// A 90d window over a corpus that is never deleted is itself unbounded (ADR-0178 §1).
+
+func TestAuditReadsUnderACapAndSaysSo(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	for i := range int(auditFeedLimit) + 20 {
+		recordActAt(t, f, now.Add(-time.Duration(i)*time.Minute),
+			act.Account{AccountID: 1, UsernameSnapshot: "admin"},
+			act.ZoneDeclared{ZoneRef: act.ZoneRef{Zone: "z" + strconv.Itoa(i) + ".example.com"}})
+	}
+
+	base := startAt(t, f, now)
+	page := settingsTabBody(t, login(t, base, "admin", "hunter2hunter2"), base, "audit")
+
+	if got := strings.Count(page, "example.com</td>"); got != int(auditFeedLimit) {
+		t.Errorf("the tab rendered %d rows, want the cap of %d", got, auditFeedLimit)
+	}
+	if !strings.Contains(page, "Showing the most recent 500 acts for this period") {
+		t.Error("a capped read renders no truncation notice, so the page understates the record")
+	}
+	// The newest rows survive the cap, because the query orders newest first.
+	if !strings.Contains(page, "z0.example.com") {
+		t.Error("the cap dropped the newest act")
+	}
+	if strings.Contains(page, "z519.example.com") {
+		t.Error("the cap did not apply")
+	}
+}
+
+// A reversed pair selects nothing, and the empty state would then read as a fact.
+
+func TestAuditRefusesAReversedCustomRange(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	recordActAt(t, f, now.Add(-2*time.Hour), act.Account{AccountID: 1, UsernameSnapshot: "admin"},
+		act.SeedDeclared{SeedScope: act.SeedScope{Scope: "10.0.0.0/8"}})
+
+	base := startAt(t, f, now)
+	page := getBody(t, login(t, base, "admin", "hunter2hunter2"),
+		base+"/settings?tab=audit&start=2026-09-30&end=2026-09-01", http.StatusOK)
+
+	if strings.Contains(page, "2026-09-30 – 2026-09-01") {
+		t.Error("a reversed range is named as the resolved window")
+	}
+	if !strings.Contains(page, "Last 7d") || !strings.Contains(page, "10.0.0.0/8") {
+		t.Error("a reversed range did not fall back to the default preset")
+	}
+	// A single day is not reversed, so it must still resolve.
+	same := getBody(t, login(t, base, "admin", "hunter2hunter2"),
+		base+"/settings?tab=audit&start=2026-09-11&end=2026-09-11", http.StatusOK)
+	if !strings.Contains(same, "2026-09-11 – 2026-09-11") {
+		t.Error("a one-day custom range was refused")
+	}
+}
+
 // E.3 claims the whole record is empty, so a narrowed period may not borrow it (§8 · E.3).
 
 func TestAuditEmptyStatesAreTwoDifferentFacts(t *testing.T) {
@@ -269,11 +330,11 @@ func TestAuditPeriodChangesNoGate(t *testing.T) {
 		if got := validTab("audit"); got != "audit" {
 			t.Fatalf("validTab(%q) = %q", "audit", got)
 		}
-		if got := resolveAuditPeriod(token).Token; got == "" {
+		if got := resolvePeriodPreset(token).Token; got == "" {
 			t.Errorf("period %q resolved to an empty token", token)
 		}
 	}
-	if got := resolveAuditPeriod("").Token; got != auditDefaultPeriod {
-		t.Errorf("the empty token resolved to %q, want %q", got, auditDefaultPeriod)
+	if got := resolvePeriodPreset("").Token; got != defaultPeriodPreset {
+		t.Errorf("the empty token resolved to %q, want %q", got, defaultPeriodPreset)
 	}
 }

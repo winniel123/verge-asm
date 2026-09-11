@@ -9,7 +9,9 @@ SELECT id, created_at, actor_kind, actor, action, subject
 FROM act
 WHERE created_at >= @from_time
   AND (sqlc.narg('until_time')::timestamptz IS NULL OR created_at < sqlc.narg('until_time')::timestamptz)
-ORDER BY created_at DESC, id DESC;
+-- A 90d window on an unbounded corpus is itself unbounded, so the read caps (ADR-0178 §1).
+ORDER BY created_at DESC, id DESC
+LIMIT sqlc.arg(max_acts);
 
 -- name: AnyActRecorded :one
 -- The period's empty state and the corpus's are different facts, and E.3 claims the second.

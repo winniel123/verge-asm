@@ -140,6 +140,7 @@ type Querier interface {
 	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
 	ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error)
 	// A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 limb 4).
+	// A 90d window on an unbounded corpus is itself unbounded, so the read caps (ADR-0178 §1).
 	ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)

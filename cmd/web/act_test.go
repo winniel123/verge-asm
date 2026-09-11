@@ -79,6 +79,10 @@ func (f *fakeStore) ListActsInRange(ctx context.Context, arg db.ListActsInRangeP
 		}
 		return out[i].ID > out[j].ID
 	})
+	// The LIMIT applies after the sort, so the cap keeps the newest rows.
+	if n := int(arg.MaxActs); arg.MaxActs > 0 && len(out) > n {
+		out = out[:n]
+	}
 	return out, nil
 }
 

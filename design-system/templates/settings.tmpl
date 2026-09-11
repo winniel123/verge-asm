@@ -288,7 +288,8 @@
   if(ra&&ra.form){
     var ri=ra.form.querySelectorAll('input[name="start"],input[name="end"]');
     var raSync=function(){var ok=ri.length>0;[].forEach.call(ri,function(i){if(!i.value.trim())ok=false;});if(ok)ra.removeAttribute("disabled");else ra.setAttribute("disabled","");};
-    [].forEach.call(ri,function(i){i.addEventListener("input",raSync);});raSync();
+    // change too: a back-navigation refills both dates without firing input.
+    [].forEach.call(ri,function(i){i.addEventListener("input",raSync);i.addEventListener("change",raSync);});raSync();
   }
   var rs=document.getElementById("st-role-select");
   if(rs){var rb=document.getElementById("st-role-save");
@@ -888,6 +889,7 @@
 <span class="st-micro" style="padding:2px 4px 4px">Custom (ISO 8601)</span>
 <form method="get" action="/settings" style="display:flex;flex-direction:column;gap:6px;margin:0;padding:0 2px 2px">
 <input type="hidden" name="tab" value="audit">
+<input type="hidden" name="period" value="{{.Period}}">
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
 <span class="st-input"><span class="iw" style="height:28px;padding:0 8px;border-radius:8px"><input name="start" placeholder="2026-08-01" autocomplete="off" aria-label="Range start" style="font-size:11.5px"></span></span>
 <span class="st-input"><span class="iw" style="height:28px;padding:0 8px;border-radius:8px"><input name="end" placeholder="2026-08-22" autocomplete="off" aria-label="Range end" style="font-size:11.5px"></span></span>
@@ -898,6 +900,8 @@
 </span>
 </div>
 </header>
+{{if .AuditTruncated}}<div class="st-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="ct"><span>Showing the most recent {{.AuditCount}} acts for this period. Narrow the period to reach older acts — nothing is deleted.</span></span></div>{{end}}
 {{if .AuditRows}}
 <section class="st-card flush">
 <table class="st-table">

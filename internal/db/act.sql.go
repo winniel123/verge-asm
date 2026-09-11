@@ -52,16 +52,19 @@ FROM act
 WHERE created_at >= $1
   AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
 ORDER BY created_at DESC, id DESC
+LIMIT $3
 `
 
 type ListActsInRangeParams struct {
 	FromTime  pgtype.Timestamptz `json:"from_time"`
 	UntilTime pgtype.Timestamptz `json:"until_time"`
+	MaxActs   int32              `json:"max_acts"`
 }
 
 // A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 limb 4).
+// A 90d window on an unbounded corpus is itself unbounded, so the read caps (ADR-0178 §1).
 func (q *Queries) ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error) {
-	rows, err := q.db.Query(ctx, listActsInRange, arg.FromTime, arg.UntilTime)
+	rows, err := q.db.Query(ctx, listActsInRange, arg.FromTime, arg.UntilTime, arg.MaxActs)
 	if err != nil {
 		return nil, err
 	}

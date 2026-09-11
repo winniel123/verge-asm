@@ -813,7 +813,7 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 
 	return pageData(acct, "Drift", "drift", map[string]any{
 		"Kinds":           driftKinds(),
-		"Periods":         driftPeriods(),
+		"Periods":         periodPresets(),
 		"Period":          devDriftPeriod,
 		"PeriodLabel":     devDriftPeriodLabel,
 		"Groups":          groups,
