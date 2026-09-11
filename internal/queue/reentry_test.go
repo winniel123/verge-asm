@@ -210,7 +210,11 @@ func TestMembershipEntryReturnedIsADriftFiringAtTheName(t *testing.T) {
 	if m.Cause != string(message.CauseDrift) || m.SubjectKind != "name" || m.FiredAt != "back.example.com" {
 		t.Errorf("returned fires drift at the Name, got %+v", m)
 	}
-	if len(log) != 1 || log[0].class != message.ClassDrift {
-		t.Errorf("returned routes on the drift class, got %+v", log)
+	if m.Class != string(message.ClassDrift) {
+		t.Errorf("returned carries the drift class its release routes on, got %q", m.Class)
+	}
+	// The census is not real yet, so the release poll enqueues the delivery (ADR-1806 §2).
+	if len(log) != 0 {
+		t.Errorf("a held row routes nothing at the cause, got %+v", log)
 	}
 }

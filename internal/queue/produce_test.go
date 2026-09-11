@@ -194,7 +194,7 @@ func batchMovingBothSignals() (changes []spanChange, store *fakeMessageStore) {
 	return changes, store
 }
 
-func TestProduceWritesFlagshipAndMembershipAndEnqueues(t *testing.T) {
+func TestProduceWritesFlagshipAndMembershipAndHoldsTheMembership(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
@@ -232,22 +232,61 @@ func TestProduceWritesFlagshipAndMembershipAndEnqueues(t *testing.T) {
 	if membership.Cause != string(message.CauseDrift) || membership.FiredAt != "example.com" {
 		t.Errorf("appeared membership fires drift at the Name, got cause=%q fired=%q", membership.Cause, membership.FiredAt)
 	}
-	mc, _ := message.ParseCensus(membership.Census)
-	kinds := map[string]bool{}
-	for _, e := range mc.Entries {
-		kinds[e.Kind] = true
+	// The Service and Endpoint beneath this Name open in a later hot fold (ADR-1806 §2, #1774).
+	if membership.Census != nil {
+		t.Errorf("a held row carries no census, got %s", membership.Census)
 	}
-	if !kinds["service"] || !kinds["endpoint"] {
-		t.Errorf("membership census must enumerate the Service and Endpoint that entered beneath, got %+v", mc)
+	if !membership.CensusPendingAfterBatch.Valid || membership.CensusPendingAfterBatch.Int64 != 7 {
+		t.Errorf("the row is held on its own batch, got %+v", membership.CensusPendingAfterBatch)
+	}
+	if membership.Headline != "example.com entered the estate" {
+		t.Errorf("the headline holds the cause clause alone, got %q", membership.Headline)
 	}
 
-	if len(log) != 2 {
-		t.Fatalf("both messages must be routed to channels, got %d routings", len(log))
+	if len(log) != 1 || log[0].messageID != insertedID(store, "service") {
+		t.Fatalf("the flagship alone is routed at the cause, got %+v", log)
 	}
-	for _, r := range log {
-		if r.made != 1 {
-			t.Errorf("a bound channel receives one delivery, got %d", r.made)
+	if log[0].made != 1 {
+		t.Errorf("a bound channel receives one delivery, got %d", log[0].made)
+	}
+}
+
+func insertedID(store *fakeMessageStore, subjectKind string) int64 {
+	// The fake hands out ids in insertion order, as the identity column does.
+	for i := range store.inserted {
+		if store.inserted[i].SubjectKind == subjectKind {
+			return int64(i + 1)
 		}
+	}
+	return 0
+}
+
+func TestProduceRecordsTheBasisAMembershipCensusIsComputedFrom(t *testing.T) {
+	changes, store := batchMovingBothSignals()
+
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, nil, false); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+	var membership *db.InsertMessageParams
+	for i := range store.inserted {
+		if store.inserted[i].SubjectKind == "name" {
+			membership = &store.inserted[i]
+		}
+	}
+	if membership == nil {
+		t.Fatal("no membership message written")
+	}
+	basis, err := message.ParseCensusBasis(membership.CensusBasis)
+	if err != nil {
+		t.Fatalf("parse basis: %v", err)
+	}
+	if basis.RootKind != "name" || basis.RootKey != "example.com" {
+		t.Errorf("the basis names the root a revealed firing's fired_at cannot, got %+v", basis)
+	}
+	// A later re-point must add no subject to this message's census (ADR-1806 §4).
+	want := `{"outcome":"Resolved","addresses":["198.51.100.1"]}`
+	if string(basis.RootValue) != want {
+		t.Errorf("the basis is the root span's value at that batch\n got %s\nwant %s", basis.RootValue, want)
 	}
 }
 
@@ -307,8 +346,9 @@ func TestProduceUnboundConfigMakesNoDelivery(t *testing.T) {
 	if len(store.inserted) != 2 {
 		t.Fatalf("the messages are still written, got %d", len(store.inserted))
 	}
-	if len(log) != 2 {
-		t.Fatalf("each message is offered to the router, got %d", len(log))
+	// The held membership row is offered at release, so one message reaches the router here.
+	if len(log) != 1 {
+		t.Fatalf("each message that is not held is offered to the router, got %d", len(log))
 	}
 	for _, r := range log {
 		if r.made != 0 {

@@ -1,6 +1,9 @@
 package message
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Revealed is aperture, not membership, and rides here as an entry (CONTEXT.md Transition).
 
@@ -44,4 +47,50 @@ func Membership(entry Entry, rootKind, rootKey, seedKey string, census Census, i
 		Census:      &c,
 		Headline:    membershipHeadline(entry, rootKey, census),
 	}
+}
+
+// A fold's own census is empty, so the count waits for the admitting tier (ADR-1806 §2, #1774).
+
+func HeldMembership(entry Entry, rootKind, rootKey, seedKey string, pending CensusPending, instant time.Time) *Message {
+	m := Membership(entry, rootKind, rootKey, seedKey, NewCensus(), instant)
+	if m == nil {
+		return nil
+	}
+	// The census and the clause it renders are both computed at release (ADR-1806 §2).
+	m.Census = nil
+	m.Headline = membershipCauseClause(entry, rootKey)
+	p := pending
+	m.CensusPending = &p
+	return m
+}
+
+// The release poll reads what the fold saw, never live resolution (ADR-1806 §4).
+
+type CensusPending struct {
+	AfterBatch int64
+	Basis      CensusBasis
+}
+
+// A revealed firing fires at the Seed, so the root is named here and read nowhere else (§5.3).
+
+type CensusBasis struct {
+	RootKind string `json:"root_kind"`
+	RootKey  string `json:"root_key"`
+
+	// The root span's own value at that batch answers "beneath the root" (ADR-1806 §4).
+
+	RootValue json.RawMessage `json:"root_value,omitempty"`
+}
+
+func (b CensusBasis) Marshal() ([]byte, error) { return json.Marshal(b) }
+
+func ParseCensusBasis(b []byte) (CensusBasis, error) {
+	if len(b) == 0 {
+		return CensusBasis{}, nil
+	}
+	var out CensusBasis
+	if err := json.Unmarshal(b, &out); err != nil {
+		return CensusBasis{}, err
+	}
+	return out, nil
 }

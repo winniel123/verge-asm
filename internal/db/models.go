@@ -200,6 +200,7 @@ type Message struct {
 	ReadAt                  pgtype.Timestamptz `json:"read_at"`
 	CreatedAt               pgtype.Timestamptz `json:"created_at"`
 	CensusPendingAfterBatch pgtype.Int8        `json:"census_pending_after_batch"`
+	CensusBasis             []byte             `json:"census_basis"`
 }
 
 type MessageRead struct {

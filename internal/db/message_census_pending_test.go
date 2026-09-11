@@ -44,3 +44,13 @@ func TestMessageReadersCarryThePendingColumn(t *testing.T) {
 		}
 	}
 }
+
+// TestInsertMessageWritesTheFrozenBasis guards ADR-1806 §4. A held row's census
+// is computed by the release poll, and "beneath the root" must mean what the fold
+// saw. The write path is the only place that value exists, so an insert that drops
+// the column leaves the poll reading live resolution instead.
+func TestInsertMessageWritesTheFrozenBasis(t *testing.T) {
+	if !strings.Contains(strings.ToLower(insertMessage), "census_basis") {
+		t.Errorf("insertMessage must carry census_basis (ADR-1806 §4), got:\n%s", insertMessage)
+	}
+}

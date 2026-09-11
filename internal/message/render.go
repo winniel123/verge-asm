@@ -98,6 +98,12 @@ func rulesOpenedClause(census Census) string {
 }
 
 func membershipHeadline(entry Entry, rootKey string, census Census) string {
+	return membershipCauseClause(entry, rootKey) + membershipCensusClause(census)
+}
+
+// The census clause is appended when the census is real, so the two render apart (ADR-1806 §2).
+
+func membershipCauseClause(entry Entry, rootKey string) string {
 	verb := map[Entry]string{
 		EntryAppeared: "entered the estate",
 		EntryReturned: "returned to the estate",
@@ -106,8 +112,12 @@ func membershipHeadline(entry Entry, rootKey string, census Census) string {
 	if verb == "" {
 		verb = "entered the estate"
 	}
-	return fmt.Sprintf("%s %s · %s%s opened beneath it",
-		rootKey, verb, factorsClause(kindCountFactors(census)),
+	return fmt.Sprintf("%s %s", rootKey, verb)
+}
+
+func membershipCensusClause(census Census) string {
+	return fmt.Sprintf(" · %s%s opened beneath it",
+		factorsClause(kindCountFactors(census)),
 		plural(census.Len(), "timeline", "timelines"))
 }
 

@@ -1,6 +1,9 @@
 package message
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestMembershipHeadlineRendersFactorsThenTotal(t *testing.T) {
 	census := NewCensus(
@@ -38,6 +41,38 @@ func TestMembershipFactorsSumToTheTotal(t *testing.T) {
 	want := "example.com entered the estate · 1 address + 1 endpoint + 1 service · 3 timelines opened beneath it"
 	if got := membershipHeadline(EntryAppeared, "example.com", census); got != want {
 		t.Errorf("every kind present is a factor, so the factors sum to the total\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestMembershipHeadlineIsItsTwoClauses(t *testing.T) {
+	// The release path appends the census clause without recomputing the cause (ADR-1806 §2).
+	census := NewCensus(CensusEntry{Kind: "service", Key: "10.0.0.1:443/tcp"})
+	cause := membershipCauseClause(EntryAppeared, "example.com")
+	if cause != "example.com entered the estate" {
+		t.Errorf("the cause clause is a sentence on its own, got %q", cause)
+	}
+	if got := cause + membershipCensusClause(census); got != membershipHeadline(EntryAppeared, "example.com", census) {
+		t.Errorf("the two clauses compose the headline, got %q", got)
+	}
+}
+
+func TestAHeldMembershipStatesNoCount(t *testing.T) {
+	// A held row states no census, so its headline may not state one either (ADR-1806 §2).
+	m := HeldMembership(EntryAppeared, "name", "example.com", "", CensusPending{AfterBatch: 7}, time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
+	if m == nil {
+		t.Fatal("a Name root fires a membership message")
+	}
+	if m.Headline != "example.com entered the estate" {
+		t.Errorf("the headline holds the cause clause alone, got %q", m.Headline)
+	}
+	if m.Census != nil {
+		t.Errorf("a held firing carries no census, got %+v", m.Census)
+	}
+	if m.CensusPending == nil || m.CensusPending.AfterBatch != 7 {
+		t.Errorf("the firing states the batch its release waits on, got %+v", m.CensusPending)
+	}
+	if m.Class != ClassDrift || m.FiredAt != "example.com" {
+		t.Errorf("holding the census moves neither the class nor the subject, got %+v", m)
 	}
 }
 

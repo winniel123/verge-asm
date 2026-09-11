@@ -66,7 +66,7 @@ func TestRePointResidueLeavesAnEndpointAFoldRootAlreadyCovers(t *testing.T) {
 	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew)), entering}
 	changes = append(changes, namelessBeneath(rpNew, "443")...)
 	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer("cdn.example.com")}}}
-	if got := len(membershipMessages(produceT0, changes, membershipInputs{})); got != 1 {
+	if got := len(membershipMessages(7, produceT0, changes, membershipInputs{})); got != 1 {
 		t.Fatalf("the entering Name is one membership root, got %d", got)
 	}
 	for _, m := range byKind(rePointFrom(t, store, changes, membershipInputs{}))["name"] {

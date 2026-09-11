@@ -85,6 +85,10 @@ type Message struct {
 
 	Census *Census
 
+	// Non-nil holds the firing: it owes a census, and reaches no operator (ADR-1806 §2).
+
+	CensusPending *CensusPending
+
 	Headline string
 
 	Read bool
