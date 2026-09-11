@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -117,24 +118,35 @@ func parseCustomToken(token string) (start, end string, ok bool) {
 	return start, end, true
 }
 
-func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since, until pgtype.Timestamptz) {
-	q := r.URL.Query()
+// Every ported period panel resolves its custom half the same way, so it sits once.
+
+func resolveCustomWindow(q url.Values) (token, label string, from, until pgtype.Timestamptz, ok bool) {
 	start, end := q.Get("start"), q.Get("end")
 	if start == "" && end == "" {
-		if st, en, ok := parseCustomToken(q.Get("period")); ok {
+		if st, en, found := parseCustomToken(q.Get("period")); found {
 			start, end = st, en
 		}
 	}
-	if start != "" && end != "" {
-		sd, e1 := time.Parse("2006-01-02", start)
-		ed, e2 := time.Parse("2006-01-02", end)
-		if e1 == nil && e2 == nil {
-			return driftCustomPrefix + start + "_" + end,
-				start + " – " + end,
-				pgtype.Timestamptz{Time: sd.UTC(), Valid: true},
-				// The operator's end date is inclusive, so the bound is the next day's start.
-				pgtype.Timestamptz{Time: ed.UTC().Add(24 * time.Hour), Valid: true}
-		}
+	if start == "" || end == "" {
+		return "", "", pgtype.Timestamptz{}, pgtype.Timestamptz{}, false
+	}
+	sd, e1 := time.Parse("2006-01-02", start)
+	ed, e2 := time.Parse("2006-01-02", end)
+	if e1 != nil || e2 != nil {
+		return "", "", pgtype.Timestamptz{}, pgtype.Timestamptz{}, false
+	}
+	return driftCustomPrefix + start + "_" + end,
+		start + " – " + end,
+		pgtype.Timestamptz{Time: sd.UTC(), Valid: true},
+		// The operator's end date is inclusive, so the bound is the next day's start.
+		pgtype.Timestamptz{Time: ed.UTC().Add(24 * time.Hour), Valid: true},
+		true
+}
+
+func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since, until pgtype.Timestamptz) {
+	q := r.URL.Query()
+	if tk, lb, from, to, ok := resolveCustomWindow(q); ok {
+		return tk, lb, from, to
 	}
 	period := resolveDriftPeriod(q.Get("period"))
 	return period.Token, period.Label, s.driftSince(period), pgtype.Timestamptz{}

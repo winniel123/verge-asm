@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const anyActRecorded = `-- name: AnyActRecorded :one
+SELECT EXISTS (SELECT 1 FROM act)
+`
+
+// The period's empty state and the corpus's are different facts, and E.3 claims the second.
+func (q *Queries) AnyActRecorded(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, anyActRecorded)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const insertAct = `-- name: InsertAct :exec
 INSERT INTO act (actor_kind, actor, action, subject)
 VALUES ($1, $2, $3, $4)
@@ -37,7 +49,8 @@ func (q *Queries) InsertAct(ctx context.Context, arg InsertActParams) error {
 const listActsInRange = `-- name: ListActsInRange :many
 SELECT id, created_at, actor_kind, actor, action, subject
 FROM act
-WHERE created_at >= $1 AND created_at < $2
+WHERE created_at >= $1
+  AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
 ORDER BY created_at DESC, id DESC
 `
 

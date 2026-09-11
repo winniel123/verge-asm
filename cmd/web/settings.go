@@ -914,12 +914,6 @@ func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsFor
 	return nil
 }
 
-func (s *server) fillAuditSection(_ *http.Request, data map[string]any) error {
-	// No queryable log exists, so this ships an empty state, never fabricated data (ADR-0110).
-	data["AuditRows"] = nil
-	return nil
-}
-
 func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[string]any) error {
 	now := s.now()
 	rows, err := s.adminSessionStore.ListAllActiveSessions(r.Context(), pgtype.Timestamptz{Time: now, Valid: true})
