@@ -39,6 +39,12 @@ type fakeStore struct {
 	byName   map[string]int64
 	nextID   int64
 
+	// The recorder runs after the mutation, so this order is the assertion (spec §7.6).
+
+	acts     []db.InsertActParams
+	actTrail []string
+	actErr   error
+
 	seeds      []db.Seed
 	seedNextID int64
 
@@ -299,6 +305,7 @@ func (f *fakeStore) CreateAddressSeed(_ context.Context, arg db.CreateAddressSee
 	}
 	f.seeds = append(f.seeds, sd)
 	f.seedNextID++
+	f.actTrail = append(f.actTrail, "CreateAddressSeed")
 	return sd, nil
 }
 

@@ -331,6 +331,7 @@ type Querier interface {
 	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error
 	// A data-modifying CTE fires on its own, so dropping its count from the SELECT keeps the write.
+	// The scope rides the act's own RETURNING, so a separate read cannot leave the Act blank.
 	WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error)
 }
 
