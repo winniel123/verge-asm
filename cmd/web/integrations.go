@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/delivery"
 	"github.com/winniel123/verge-asm/internal/message"
@@ -274,6 +275,10 @@ func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct
 		s.serverError(w, "install integration", err)
 		return
 	}
+	// After the mutation, never before: an Act with no act can never be retracted (spec §7.6).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.IntegrationInstalled{
+		IntegrationRef: act.IntegrationRef{Slug: id},
+	})
 	// The submitting URL's query rides through, so the drawer re-opens as read (ADR-0130 §3).
 	s.backToSection(w, r, "integrations")
 }
@@ -284,11 +289,34 @@ func (s *server) removeIntegration(w http.ResponseWriter, r *http.Request, acct 
 		http.Error(w, "unknown integration", http.StatusBadRequest)
 		return
 	}
+	// The DELETE reports no row count, so an uninstalled slug is read before it (§7.6, §4.2).
+	installed, err := s.integrationInstalled(r.Context(), id)
+	if err != nil {
+		s.serverError(w, "remove integration: read state", err)
+		return
+	}
 	if err := s.integrationsStore.DeleteIntegrationState(r.Context(), id); err != nil {
 		s.serverError(w, "remove integration", err)
 		return
 	}
+	if installed {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.IntegrationRemoved{
+			IntegrationRef: act.IntegrationRef{Slug: id},
+		})
+	}
 	s.backToSection(w, r, "integrations")
+}
+
+// A slug in the catalog with no state row is not installed, so removing it removes nothing.
+
+func (s *server) integrationInstalled(ctx context.Context, slug string) (bool, error) {
+	if _, err := s.integrationsStore.GetIntegrationChannel(ctx, slug); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -301,13 +329,15 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 
 	channel := strings.TrimSpace(r.FormValue("channel"))
 	var binding pgtype.Int8
+	// The "Not connected" option is a real choice, and §4.4 leaves no Subject cell empty.
+	endpoint := "not connected"
 	if channel != "" {
 		chID, err := strconv.ParseInt(channel, 10, 64)
 		if err != nil {
 			http.Error(w, "invalid channel", http.StatusBadRequest)
 			return
 		}
-		ok, err := s.channelExists(r.Context(), chID)
+		label, ok, err := s.boundChannelEndpoint(r.Context(), chID)
 		if err != nil {
 			s.serverError(w, "bind integration channel: list channels", err)
 			return
@@ -319,28 +349,42 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 		binding = pgtype.Int8{Int64: chID, Valid: true}
+		endpoint = label
 	}
 
+	// The UPDATE is WHERE slug, so an uninstalled integration binds nothing (§7.6).
+	installed, err := s.integrationInstalled(r.Context(), id)
+	if err != nil {
+		s.serverError(w, "bind integration channel: read state", err)
+		return
+	}
 	if err := s.integrationsStore.SetIntegrationChannel(r.Context(), db.SetIntegrationChannelParams{
 		Slug: id, ChannelID: binding,
 	}); err != nil {
 		s.serverError(w, "bind integration channel", err)
 		return
 	}
+	if installed {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.IntegrationChannelBound{
+			IntegrationChannel: act.IntegrationChannel{Slug: id, Endpoint: endpoint},
+		})
+	}
 	s.redirectBack(w, r, dest)
 }
 
-func (s *server) channelExists(ctx context.Context, id int64) (bool, error) {
+// The bound endpoint is resolved from the same read that proves the Channel is still there (§4.2).
+
+func (s *server) boundChannelEndpoint(ctx context.Context, id int64) (string, bool, error) {
 	channels, err := s.integrationsStore.ListChannels(ctx)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	for _, c := range channels {
 		if c.ID == id {
-			return true, nil
+			return channelDeliveryLabel(c.Url), true, nil
 		}
 	}
-	return false, nil
+	return "", false, nil
 }
 
 func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {

@@ -956,6 +956,10 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "set zone cadence", err)
 		return
 	}
+	// After the mutation, never before: an Act with no act can never be retracted (spec §7.6).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ZoneCadenceSet{
+		DialMove: act.DialMove{Dial: "zone scan cadence", Value: dialDays(int64(days))},
+	})
 	s.backToScope(w, r)
 }
 
@@ -972,5 +976,8 @@ func (s *server) setDnsInterval(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "set dns cadence", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.DNSCadenceSet{
+		DialMove: act.DialMove{Dial: "dns scan cadence", Value: dialDays(int64(days))},
+	})
 	s.backToScope(w, r)
 }

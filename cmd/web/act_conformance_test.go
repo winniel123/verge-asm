@@ -79,20 +79,6 @@ var actAuditableNonPOST = map[string]string{
 // map empty and asserts that it is.
 
 var actPending = map[string]string{
-	"POST /seeds/zone/interval":              "#1832 zone.cadence.set",
-	"POST /seeds/dns/interval":               "#1832 dns.cadence.set",
-	"POST /settings/retention":               "#1832 transcript.currency.set",
-	"POST /coverage/retention":               "#1832 observation.currency.set and dispatch.cadence.set, two rows (§2.2)",
-	"POST /settings/address-cap":             "#1832 address.cap.set",
-	"POST /settings/updates/check":           "#1832 update.check.moved",
-	"POST /settings/channels":                "#1832 channel.declared",
-	"POST /settings/channels/update":         "#1832 channel.updated",
-	"POST /settings/channels/delete":         "#1832 channel.withdrawn",
-	"POST /settings/integrations/install":    "#1832 integration.installed",
-	"POST /settings/integrations/remove":     "#1832 integration.removed",
-	"POST /settings/integrations/disconnect": "#1832 integration.removed",
-	"POST /settings/integrations/channel":    "#1832 integration.channel.bound",
-
 	"POST /setup":                           "#1833 setup.completed",
 	"POST /reset":                           "#1833 password.reset",
 	"POST /invite":                          "#1833 invite.accepted",
