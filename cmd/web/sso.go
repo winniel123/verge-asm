@@ -18,12 +18,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/oauth2"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
 type ssoAuthStore interface {
-	DeleteSSOIdentityForAccount(ctx context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error)
+	DeleteSSOIdentityForAccount(ctx context.Context, arg db.DeleteSSOIdentityForAccountParams) (string, error)
 	GetAccountBySSOIdentity(ctx context.Context, arg db.GetAccountBySSOIdentityParams) (db.Account, error)
 	GetSSOIdentityBySub(ctx context.Context, arg db.GetSSOIdentityBySubParams) (db.GetSSOIdentityBySubRow, error)
 	GetSSOProviderForAuth(ctx context.Context, slug string) (db.GetSSOProviderForAuthRow, error)
@@ -358,6 +359,9 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "insert sso identity", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SSOBindingCreated{
+		BindingRef: act.BindingRef{Slug: prov.Slug, Username: acct.Username},
+	})
 	log.Printf("web: sso: account %d linked an identity via %q", acct.ID, logSafe(slug)) // #nosec G706 (sanitized via logSafe)
 	http.Redirect(w, r, "/profile?linked=1", http.StatusSeeOther)
 }
@@ -368,19 +372,23 @@ func (s *server) ssoUnlink(w http.ResponseWriter, r *http.Request, acct db.Accou
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
-	rows, err := s.ssoAuthStore.DeleteSSOIdentityForAccount(r.Context(), db.DeleteSSOIdentityForAccountParams{
+	// An id the caller does not hold unlinks nothing and returns no row (spec §4.2).
+	slug, err := s.ssoAuthStore.DeleteSSOIdentityForAccount(r.Context(), db.DeleteSSOIdentityForAccountParams{
 		ID: id, AccountID: acct.ID,
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
 	if err != nil {
 		s.serverError(w, "unlink sso identity", err)
 		return
 	}
-	if rows > 0 {
-		log.Printf("web: sso: account %d unlinked identity %d", acct.ID, id)
-		http.Redirect(w, r, "/profile?unlinked=1", http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SSOUnlinked{
+		ProviderRef: act.ProviderRef{Slug: slug},
+	})
+	log.Printf("web: sso: account %d unlinked identity %d", acct.ID, id)
+	http.Redirect(w, r, "/profile?unlinked=1", http.StatusSeeOther)
 }
 
 func (s *server) loginData(ctx context.Context, errMsg string) map[string]any {

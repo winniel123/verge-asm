@@ -27,8 +27,10 @@ SELECT count(*) FROM account WHERE role = 'admin';
 -- name: UpdateAccountRole :exec
 UPDATE account SET role = $2 WHERE id = $1;
 
--- name: UpdatePassword :exec
-UPDATE account SET password_hash = $2 WHERE id = $1;
+-- name: UpdatePassword :one
+-- The account rides the update's own RETURNING, so no read can blank the Act.
+UPDATE account SET password_hash = $2 WHERE id = $1
+RETURNING username;
 
 -- name: SetTOTPSecret :exec
 UPDATE account SET totp_secret = $2, totp_enabled = false WHERE id = $1;
@@ -43,5 +45,7 @@ WHERE id = $1 AND (totp_last_step IS NULL OR totp_last_step < $2);
 -- name: DeleteAccount :exec
 DELETE FROM account WHERE id = $1;
 
--- name: ResetAccountTOTP :exec
-UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1;
+-- name: ResetAccountTOTP :one
+-- The account rides the strip's own RETURNING, so an absent id strips nothing.
+UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1
+RETURNING username;

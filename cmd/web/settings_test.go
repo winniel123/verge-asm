@@ -498,15 +498,15 @@ func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {
 	return nil
 }
 
-func (f *fakeStore) ResetAccountTOTP(_ context.Context, id int64) error {
+func (f *fakeStore) ResetAccountTOTP(_ context.Context, id int64) (string, error) {
 	acct, ok := f.accounts[id]
 	if !ok {
-		return pgx.ErrNoRows
+		return "", pgx.ErrNoRows
 	}
 	acct.TotpSecret = pgtype.Text{}
 	acct.TotpEnabled = false
 	f.accounts[id] = acct
-	return nil
+	return acct.Username, nil
 }
 
 func (f *fakeStore) CountAdmins(context.Context) (int64, error) {
