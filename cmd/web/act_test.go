@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"net/url"
 	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -137,6 +139,45 @@ func TestDeleteSeedRecordsTheWithdrawal(t *testing.T) {
 	}
 }
 
+func TestWithdrawnScopeReadsTheActsOwnReturning(t *testing.T) {
+	p := netip.MustParsePrefix("10.0.0.0/8")
+	cases := []struct {
+		name string
+		row  db.WithdrawSeedRow
+		want string
+	}{
+		{"address", db.WithdrawSeedRow{SeedsRemoved: 1, AddressCidr: &p}, "10.0.0.0/8"},
+		{"name", db.WithdrawSeedRow{SeedsRemoved: 1, NameDomain: pgtype.Text{String: "example.com", Valid: true}}, "example.com"},
+		{"removed nothing", db.WithdrawSeedRow{}, ""},
+	}
+	for _, tc := range cases {
+		if got := withdrawnScope(tc.row); got != tc.want {
+			t.Errorf("%s: withdrawnScope = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestDeleteAddressSeedRecordsTheMaskedPrefix(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declareScope(t, ac, base, "10.0.0.1/24").Body.Close()
+	id := f.seeds[0].ID
+	f.acts = nil
+
+	postForm(t, ac, base+"/seeds/delete", url.Values{"id": {intStr(id)}}).Body.Close()
+
+	if len(f.acts) != 1 {
+		t.Fatalf("wrote %d acts, want 1", len(f.acts))
+	}
+	_, a := decodeAct(t, f.acts[0])
+	if got, want := a.Subject(), "10.0.0.0/24"; got != want {
+		t.Errorf("subject = %q, want %q (the masked form the row holds)", got, want)
+	}
+}
+
 func TestDeleteUnknownSeedRecordsNothing(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -192,14 +233,16 @@ func TestRecordRefusesAnUnregisteredActor(t *testing.T) {
 // The restore binds the same Record to its transaction, spec §7.6's one exception (#1834).
 
 type fakeTx struct {
-	sql  string
-	args []any
-	err  error
+	sql    string
+	args   []any
+	ctxErr error
+	err    error
 }
 
-func (tx *fakeTx) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+func (tx *fakeTx) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	tx.sql = sql
 	tx.args = args
+	tx.ctxErr = ctx.Err()
 	return pgconn.CommandTag{}, tx.err
 }
 
@@ -214,8 +257,10 @@ func (tx *fakeTx) QueryRow(context.Context, string, ...any) pgx.Row {
 func TestTxRecorderWritesThroughTheTransaction(t *testing.T) {
 	tx := &fakeTx{}
 
-	txRecorder(tx).Record(t.Context(), actingAccount(db.Account{ID: 7, Username: "admin"}),
-		act.SeedWithdrawn{SeedScope: act.SeedScope{Scope: "example.com"}})
+	if err := txRecorder(tx).Record(t.Context(), actingAccount(db.Account{ID: 7, Username: "admin"}),
+		act.SeedWithdrawn{SeedScope: act.SeedScope{Scope: "example.com"}}); err != nil {
+		t.Fatalf("Record: %v", err)
+	}
 
 	if tx.sql == "" {
 		t.Fatal("the tx-bound recorder wrote nothing to its transaction")
@@ -225,5 +270,32 @@ func TestTxRecorderWritesThroughTheTransaction(t *testing.T) {
 	}
 	if got, want := tx.args[2], "seed.withdrawn"; got != want {
 		t.Errorf("action = %v, want %q", got, want)
+	}
+}
+
+func TestTxRecorderReturnsTheInsertError(t *testing.T) {
+	want := errors.New("insert act: relation act does not exist")
+	tx := &fakeTx{err: want}
+
+	// A failed statement poisons the tx, so the restore must roll back (spec §7.6).
+	got := txRecorder(tx).Record(t.Context(), actingAccount(db.Account{ID: 7, Username: "admin"}),
+		act.SeedWithdrawn{SeedScope: act.SeedScope{Scope: "example.com"}})
+
+	if !errors.Is(got, want) {
+		t.Fatalf("Record returned %v, want %v", got, want)
+	}
+}
+
+func TestTxRecorderKeepsItsTransactionsCancellation(t *testing.T) {
+	tx := &fakeTx{}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	// Detaching a tx-bound insert outlives the rollback that is tearing its own tx down.
+	txRecorder(tx).Record(ctx, actingAccount(db.Account{ID: 7, Username: "admin"}),
+		act.SeedWithdrawn{SeedScope: act.SeedScope{Scope: "example.com"}})
+
+	if tx.ctxErr == nil {
+		t.Fatal("the tx-bound recorder detached its transaction's context")
 	}
 }

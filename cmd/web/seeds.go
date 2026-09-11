@@ -345,8 +345,6 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.flashScopeBack(w, r, seedsForms{seedError: "That scope could not be found."})
 		return
 	}
-	// The subject is read before the act, because its row is about to be gone (spec §4.3).
-	scope, _ := s.seedScopeByID(r, id)
 	// A delete and its tombstone commit as one, so no withdrawn scope lacks a mover (ADR-0135 §2).
 	row, err := s.seedsStore.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
@@ -355,6 +353,8 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.serverError(w, "withdraw seed", err)
 		return
 	}
+	// The act names its own subject, so no failed read can write a blank Act (spec §4.3).
+	scope := withdrawnScope(row)
 	// An unknown id removes nothing, and a refused act directed nothing (spec §7.6).
 	if row.SeedsRemoved > 0 {
 		s.recorder().Record(r.Context(), actingAccount(acct), act.SeedWithdrawn{SeedScope: act.SeedScope{Scope: scope}})
@@ -364,6 +364,15 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		return
 	}
 	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope))
+}
+
+// The pair toSeedViews renders, so the Act and the screen name one scope.
+
+func withdrawnScope(row db.WithdrawSeedRow) string {
+	if row.AddressCidr != nil {
+		return row.AddressCidr.String()
+	}
+	return row.NameDomain.String
 }
 
 func removalFlash(scope string) string {

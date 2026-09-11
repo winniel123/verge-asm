@@ -127,7 +127,9 @@ tombstone AS (
 )
 SELECT
     (SELECT count(*) FROM removed)::bigint   AS seeds_removed,
-    (SELECT count(*) FROM tombstone)::bigint AS tombstones_written
+    (SELECT count(*) FROM tombstone)::bigint AS tombstones_written,
+    (SELECT r.address_cidr FROM removed r)   AS address_cidr,
+    (SELECT r.name_domain FROM removed r)    AS name_domain
 `
 
 type WithdrawSeedParams struct {
@@ -136,14 +138,22 @@ type WithdrawSeedParams struct {
 }
 
 type WithdrawSeedRow struct {
-	SeedsRemoved      int64 `json:"seeds_removed"`
-	TombstonesWritten int64 `json:"tombstones_written"`
+	SeedsRemoved      int64         `json:"seeds_removed"`
+	TombstonesWritten int64         `json:"tombstones_written"`
+	AddressCidr       *netip.Prefix `json:"address_cidr"`
+	NameDomain        pgtype.Text   `json:"name_domain"`
 }
 
 // A data-modifying CTE fires on its own, so dropping its count from the SELECT keeps the write.
+// The scope rides the act's own RETURNING, so a separate read cannot leave the Act blank.
 func (q *Queries) WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error) {
 	row := q.db.QueryRow(ctx, withdrawSeed, arg.SeedID, arg.CreatedBy)
 	var i WithdrawSeedRow
-	err := row.Scan(&i.SeedsRemoved, &i.TombstonesWritten)
+	err := row.Scan(
+		&i.SeedsRemoved,
+		&i.TombstonesWritten,
+		&i.AddressCidr,
+		&i.NameDomain,
+	)
 	return i, err
 }
