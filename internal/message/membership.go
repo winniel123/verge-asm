@@ -94,3 +94,9 @@ func ParseCensusBasis(b []byte) (CensusBasis, error) {
 	}
 	return out, nil
 }
+
+// The cause clause is the fold's own bytes, so release appends and recomputes none (ADR-1806 §2).
+
+func ReleasedMembershipHeadline(causeClause string, census Census) string {
+	return causeClause + membershipCensusClause(census)
+}

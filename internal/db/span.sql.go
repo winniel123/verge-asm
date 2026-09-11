@@ -995,6 +995,41 @@ func (q *Queries) ListSubjectFirstAppearances(ctx context.Context, since pgtype.
 	return items, nil
 }
 
+const listSubjectsOpenedSinceBatch = `-- name: ListSubjectsOpenedSinceBatch :many
+SELECT DISTINCT s.subject_kind, s.subject_key
+FROM span s
+  -- The residue suppresses a subject the root's own fold covers, so the bound includes it (#1816).
+WHERE s.opened_batch_id >= $1::bigint
+  AND s.subject_kind IN ('service', 'endpoint')
+ORDER BY s.subject_kind, s.subject_key
+`
+
+type ListSubjectsOpenedSinceBatchRow struct {
+	SubjectKind string `json:"subject_kind"`
+	SubjectKey  string `json:"subject_key"`
+}
+
+// What opened beneath a held message's root, read at release (ADR-1806 §3).
+func (q *Queries) ListSubjectsOpenedSinceBatch(ctx context.Context, batchID int64) ([]ListSubjectsOpenedSinceBatchRow, error) {
+	rows, err := q.db.Query(ctx, listSubjectsOpenedSinceBatch, batchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSubjectsOpenedSinceBatchRow{}
+	for rows.Next() {
+		var i ListSubjectsOpenedSinceBatchRow
+		if err := rows.Scan(&i.SubjectKind, &i.SubjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWithdrawalLifespans = `-- name: ListWithdrawalLifespans :many
 SELECT DISTINCT ON (w.subject_kind, w.subject_key, w.closed_at)
     w.subject_kind AS subject_kind,

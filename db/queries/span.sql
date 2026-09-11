@@ -343,3 +343,12 @@ JOIN span r
       ))
  )
 ORDER BY a.addr, r.subject_key, r.discriminator, r.vantage_id, r.source;
+
+-- name: ListSubjectsOpenedSinceBatch :many
+-- What opened beneath a held message's root, read at release (ADR-1806 §3).
+SELECT DISTINCT s.subject_kind, s.subject_key
+FROM span s
+  -- The residue suppresses a subject the root's own fold covers, so the bound includes it (#1816).
+WHERE s.opened_batch_id >= sqlc.arg(batch_id)::bigint
+  AND s.subject_kind IN ('service', 'endpoint')
+ORDER BY s.subject_kind, s.subject_key;

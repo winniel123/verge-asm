@@ -308,6 +308,74 @@ func (q *Queries) ListReadMessageIDs(ctx context.Context, accountID int64) ([]in
 	return items, nil
 }
 
+const listReleasableHeldMessages = `-- name: ListReleasableHeldMessages :many
+SELECT m.id, m.class, m.headline, m.census_pending_after_batch, m.census_basis
+FROM message m
+JOIN batch b ON b.id = m.census_pending_after_batch
+WHERE m.census_pending_after_batch IS NOT NULL
+  AND EXISTS (
+      SELECT 1
+      FROM (
+          SELECT d.id
+          FROM dispatch d
+          JOIN scan s ON s.id = d.scan_id
+          WHERE s.kind = 'hot'
+            -- A skipped tick enqueues no job, so a drain test alone reads it drained (ADR-1806 §2).
+            AND d.status = 'fanned-out'
+            AND d.created_at >= b.created_at
+          ORDER BY d.created_at, d.id
+          LIMIT 1
+      ) first_hot
+        -- hot commits its dispatch row before its jobs, so an empty set is not drained (#1816).
+      WHERE EXISTS (
+          SELECT 1 FROM queue_job j
+          WHERE j.dispatch_id = first_hot.id
+      )
+      AND NOT EXISTS (
+          -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
+          SELECT 1 FROM queue_job j
+          WHERE j.dispatch_id = first_hot.id
+            AND j.state IN ('ready', 'running')
+      )
+  )
+ORDER BY m.id
+`
+
+type ListReleasableHeldMessagesRow struct {
+	ID                      int64       `json:"id"`
+	Class                   string      `json:"class"`
+	Headline                string      `json:"headline"`
+	CensusPendingAfterBatch pgtype.Int8 `json:"census_pending_after_batch"`
+	CensusBasis             []byte      `json:"census_basis"`
+}
+
+// A held row releases once the first hot dispatch after its root's batch has drained (ADR-1806 §3).
+func (q *Queries) ListReleasableHeldMessages(ctx context.Context) ([]ListReleasableHeldMessagesRow, error) {
+	rows, err := q.db.Query(ctx, listReleasableHeldMessages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReleasableHeldMessagesRow{}
+	for rows.Next() {
+		var i ListReleasableHeldMessagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Class,
+			&i.Headline,
+			&i.CensusPendingAfterBatch,
+			&i.CensusBasis,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSeedWithdrawalCandidates = `-- name: ListSeedWithdrawalCandidates :many
 WITH withdrawn_addr AS (
     SELECT DISTINCT s.subject_key
@@ -488,6 +556,30 @@ func (q *Queries) PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExc
 	var i PreviewExclusionWithdrawalRow
 	err := row.Scan(&i.SubjectsWithdrawn, &i.TimelinesRemoved)
 	return i, err
+}
+
+const releaseHeldMessage = `-- name: ReleaseHeldMessage :execrows
+UPDATE message
+SET census = $1,
+    headline = $2,
+    census_pending_after_batch = NULL
+  -- A released row keeps the basis its census was computed from (25600_message_census_basis.sql).
+WHERE id = $3 AND census_pending_after_batch IS NOT NULL
+`
+
+type ReleaseHeldMessageParams struct {
+	Census   []byte `json:"census"`
+	Headline string `json:"headline"`
+	ID       int64  `json:"id"`
+}
+
+// The guarded update is the claim: a second pass takes no row and owes no delivery (ADR-1806 §2).
+func (q *Queries) ReleaseHeldMessage(ctx context.Context, arg ReleaseHeldMessageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, releaseHeldMessage, arg.Census, arg.Headline, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const spendNameSeedWithdrawals = `-- name: SpendNameSeedWithdrawals :exec
