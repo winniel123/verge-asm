@@ -84,7 +84,11 @@ func produceMessages(ctx context.Context, store messageStore, batchID int64, obs
 		return err
 	}
 	for _, m := range msgs {
-		row, err := store.InsertMessage(ctx, insertParams(m))
+		params, err := insertParams(m)
+		if err != nil {
+			return err
+		}
+		row, err := store.InsertMessage(ctx, params)
 		if err != nil {
 			return err
 		}
@@ -98,7 +102,11 @@ func produceMessages(ctx context.Context, store messageStore, batchID int64, obs
 	}
 	// A membership withdrawal is written and never routed, so it skips the enqueue (ADR-0087).
 	for _, m := range withdrawalMessages(observedAt, departures) {
-		if _, err := store.InsertMessage(ctx, insertParams(m)); err != nil {
+		params, err := insertParams(m)
+		if err != nil {
+			return err
+		}
+		if _, err := store.InsertMessage(ctx, params); err != nil {
 			return err
 		}
 	}
@@ -130,7 +138,7 @@ func mergeAddressKeys(sets ...[]string) []string {
 	return out
 }
 
-func insertParams(m *message.Message) db.InsertMessageParams {
+func insertParams(m *message.Message) (db.InsertMessageParams, error) {
 	p := db.InsertMessageParams{
 		Cause:       string(m.Cause),
 		Class:       string(m.Class),
@@ -145,12 +153,15 @@ func insertParams(m *message.Message) db.InsertMessageParams {
 		}
 	}
 	if m.CensusPending != nil {
-		p.CensusPendingAfterBatch = pgInt8(m.CensusPending.AfterBatch)
-		if b, err := m.CensusPending.Basis.Marshal(); err == nil {
-			p.CensusBasis = b
+		b, err := m.CensusPending.Basis.Marshal()
+		if err != nil {
+			// A held row with no basis breaks the CHECK, which rolls the whole fold back.
+			return db.InsertMessageParams{}, fmt.Errorf("census basis for %s %s: %w", m.SubjectKind, m.FiredAt, err)
 		}
+		p.CensusPendingAfterBatch = pgInt8(m.CensusPending.AfterBatch)
+		p.CensusBasis = b
 	}
-	return p
+	return p, nil
 }
 
 func buildMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) ([]*message.Message, error) {

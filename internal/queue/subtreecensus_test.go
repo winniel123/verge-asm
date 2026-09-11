@@ -2,7 +2,10 @@ package queue
 
 import (
 	"context"
+	"strings"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/message"
 )
 
 const (
@@ -63,14 +66,21 @@ func TestAForeignEndpointKeepsItsOwnMessageBeneathAnApexRoot(t *testing.T) {
 	if err := produceMessages(context.Background(), store, 31, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
+	// The Endpoint entered on a Service the apex cites, so the census must reach it at release.
+	if c := membershipCensus(changes, changes[0]); c.Len() != 1 || c.Entries[0].Key != ep {
+		t.Errorf("the Endpoint is beneath the apex, got %+v", c.Entries)
+	}
 	var membership, own int
 	for _, m := range store.inserted {
 		switch {
 		case m.SubjectKind == "name" && m.FiredAt == apexName:
 			membership++
-			c := membershipCensus(changes, changes[0])
-			if c.Len() != 1 || c.Entries[0].Key != ep {
-				t.Errorf("the Endpoint entered on a cited Service, so the census carries it; got %+v", c.Entries)
+			basis, err := message.ParseCensusBasis(m.CensusBasis)
+			if err != nil {
+				t.Fatalf("parse basis: %v", err)
+			}
+			if basis.RootKey != apexName || !strings.Contains(string(basis.RootValue), "198.51.100.1") {
+				t.Errorf("the basis names the apex and the address it cites, got %+v", basis)
 			}
 		case m.FiredAt == ep:
 			own++
