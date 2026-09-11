@@ -625,18 +625,26 @@ func TestNoLimb2SecretValueReachesAStoredSubject(t *testing.T) {
 		"id": {itoa(f.ssoProviders[0].id)}, "client_secret": {"rotated-secret-value"},
 	}).Body.Close()
 	page := body(t, postForm(t, ac, base+"/profile/tokens", url.Values{"name": {"ci reader"}}))
-	postForm(t, ac, base+"/account/totp/enable", nil).Body.Close()
+	enrol := body(t, postForm(t, ac, base+"/account/totp/enable", nil))
+	totpSecret := secretRE.FindStringSubmatch(enrol)[1]
+	code, err := auth.TOTPCode(totpSecret, serverClock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {code}}).Body.Close()
 
 	minted := mintedTokenRE.FindAllString(page, -1)
 	if len(minted) == 0 {
 		t.Fatal("the mint revealed no token, so this proves nothing")
 	}
-	if len(f.acts) < 3 {
-		t.Fatalf("recorded %v, want the three secret-adjacent acts", actClasses(f))
+	if len(f.acts) != 4 {
+		t.Fatalf("recorded %v, want the four secret-adjacent acts", actClasses(f))
 	}
 	for _, a := range f.acts {
 		payload := string(a.Subject) + string(a.Actor)
-		for _, secret := range []string{"super-secret-value", "rotated-secret-value", "hunter2hunter2"} {
+		for _, secret := range []string{
+			"super-secret-value", "rotated-secret-value", "hunter2hunter2", totpSecret,
+		} {
 			if strings.Contains(payload, secret) {
 				t.Errorf("%s carries the secret %q in its payload: %s", a.Action, secret, payload)
 			}
