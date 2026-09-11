@@ -29,6 +29,7 @@ type addressCapStore interface {
 type store interface {
 	// Each handler group states its own reach, so this sums them and names no query (ADR-0149 §3).
 
+	actStore
 	addressCapStore
 	adminSessionStore
 	annotationsStore
@@ -89,6 +90,7 @@ type store interface {
 type server struct {
 	// A field per group binds the split at compile time (ADR-0149 §3).
 
+	actStore               actStore
 	addressCapStore        addressCapStore
 	adminSessionStore      adminSessionStore
 	annotationsStore       annotationsStore
@@ -210,6 +212,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 	// A nil key fails closed rather than admitting cleartext to Postgres (ADR-0172 §2, #337).
 	totpKey, _ := auth.DeriveTOTPKey(key)
 	return &server{
+		actStore:               s,
 		addressCapStore:        s,
 		adminSessionStore:      s,
 		annotationsStore:       s,

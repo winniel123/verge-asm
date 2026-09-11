@@ -306,6 +306,7 @@ func (f *fakeStore) CreateNameSeed(_ context.Context, arg db.CreateNameSeedParam
 	}
 	f.seeds = append(f.seeds, sd)
 	f.seedNextID++
+	f.actTrail = append(f.actTrail, "CreateNameSeed")
 	return sd, nil
 }
 
@@ -315,6 +316,7 @@ func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (
 			continue
 		}
 		f.seeds = append(f.seeds[:i], f.seeds[i+1:]...)
+		f.actTrail = append(f.actTrail, "WithdrawSeed")
 		w := db.SeedWithdrawal{
 			ID:        int64(len(f.seedWithdrawals) + 1),
 			Kind:      s.Kind,
