@@ -84,18 +84,18 @@ func main() {
 	// The dispatcher's cadence-lag gate and the reaper must never disagree here (#1114).
 	staleThreshold := durationOrDefault("VERGE_STALE_JOB_TIMEOUT", queue.DefaultStaleJobThreshold, logger)
 
+	// A dev install serves fixtures, never live estate, so it writes no message (ADR-0197 §1).
+	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
 	dispatcher := queue.NewDispatcher(pool, time.Now, logger).
 		WithCTSource(ctSource.Slug()).
 		WithStaleJobThreshold(staleThreshold).
-		WithMessages(delivery.EnqueueForMessage)
+		WithMessages(delivery.EnqueueForMessage, devMode)
 	router := newRemoteProberRouter(
 		db.New(pool),
 		remoteexec.DirBinaryProvider{Dir: proberDir, Fallback: proberPath},
 		stateDir,
 		logger,
 	)
-	// A dev install serves fixtures, never live estate, so it writes no message (ADR-0197 §1).
-	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
 	// A hung prober would block the single-threaded drain loop without this bound (#853).
 	probeTimeout := durationOrDefault("VERGE_PROBE_TIMEOUT", queue.DefaultProbeTimeout, logger)
 	// The hook is injected so internal/queue never imports internal/delivery (ADR-0199 §1, #1316).

@@ -196,6 +196,8 @@ type Querier interface {
 	ListNameCitationSpansWithinCurrency(ctx context.Context, arg ListNameCitationSpansWithinCurrencyParams) ([]ListNameCitationSpansWithinCurrencyRow, error)
 	ListNameDNSRecords(ctx context.Context, arg ListNameDNSRecordsParams) ([]ListNameDNSRecordsRow, error)
 	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)
+	// The membership roots one fold rooted, so the residue drops what they cover (ADR-0026 §2).
+	ListNameRootsOpenedInBatch(ctx context.Context, batchID int64) ([]ListNameRootsOpenedInBatchRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
 	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
@@ -207,6 +209,8 @@ type Querier interface {
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
 	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)
 	ListPersonalTokens(ctx context.Context, accountID int64) ([]ListPersonalTokensRow, error)
+	// ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
+	ListRePointMovesForBatch(ctx context.Context, batchID int64) ([]ListRePointMovesForBatchRow, error)
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
@@ -217,6 +221,8 @@ type Querier interface {
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	// One row per citing timeline, so a fold drops its own span and keeps a sibling vantage (#1730).
 	ListResolutionCitersForAddresses(ctx context.Context, addresses []string) ([]ListResolutionCitersForAddressesRow, error)
+	// ListResolutionCitersForAddresses as the fold read it, at the move's own instant (#1818).
+	ListResolutionCitersForAddressesAt(ctx context.Context, arg ListResolutionCitersForAddressesAtParams) ([]ListResolutionCitersForAddressesAtRow, error)
 	ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error)
 	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error)
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)
@@ -232,6 +238,8 @@ type Querier interface {
 	ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]ListServiceReachabilitySpansByClassForServicesRow, error)
 	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
+	// The arm below is ListReleasableHeldMessages', so both paths read one tier (ADR-1806 §3).
+	ListSettleableRePointBatches(ctx context.Context, reaperDisabled bool) ([]ListSettleableRePointBatchesRow, error)
 	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
 	ListSourceHealth(ctx context.Context) ([]SourceHealth, error)
 	ListSourceStates(ctx context.Context) ([]SourceState, error)
@@ -326,6 +334,10 @@ type Querier interface {
 	SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) (int64, error)
 	// A non-positive interval is refused by the table's CHECK, not by this statement.
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
+	// A fold that moved no resolution owes no message, so it needs no pass of its own (#1818).
+	SettleMovelessRePointBatches(ctx context.Context, arg SettleMovelessRePointBatchesParams) error
+	// The guarded UPDATE is the claim, so one fold announces its moves once (ADR-1806 §8, #1818).
+	SettleRePointBatch(ctx context.Context, arg SettleRePointBatchParams) (int64, error)
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	// Every dns job waits, not only older ones: a retry re-enqueues the frozen spec (ADR-0135 §5).
 	SpendNameSeedWithdrawals(ctx context.Context, arg SpendNameSeedWithdrawalsParams) error

@@ -1,10 +1,6 @@
 package queue
 
-import (
-	"testing"
-
-	"github.com/winniel123/verge-asm/internal/db"
-)
+import "testing"
 
 // Every Endpoint a dispatcher opens carries an absent Name leg (ADR-0205, #1774).
 
@@ -17,62 +13,28 @@ func namelessBeneath(addr, port string) []spanChange {
 }
 
 func TestRePointResidueCountsTheNamelessEndpoint(t *testing.T) {
-	changes := append([]spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, namelessBeneath(rpNew, "443")...)
-	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
-	msgs := rePointFrom(t, store, changes, membershipInputs{})
-	got := byKind(msgs)
-	if len(got["name"]) != 1 {
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = beneath("", rpNew, "443")
+
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 1 {
 		t.Fatalf("the move admits ground beneath a known address, so §2 fires; got %+v", msgs)
 	}
-	if k := censusKinds(got["name"][0]); k["endpoint"] != 1 {
+	if k := censusKinds(msgs[0]); k["endpoint"] != 1 {
 		t.Errorf("the residue is the nameless Endpoint beneath the newly cited address, got %v", k)
 	}
 }
 
 func TestRePointResidueCountsAForeignNamedEndpointOnTheNewGround(t *testing.T) {
-	changes := append([]spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, openedBeneath(rpOther, rpNew, "443")...)
-	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
-	msgs := rePointFrom(t, store, changes, membershipInputs{})
-	got := byKind(msgs)["name"]
-	if len(got) != 1 {
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = beneath(rpOther, rpNew, "443")
+
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 1 {
 		t.Fatalf("the move admits ground beneath a known address, so §2 fires; got %+v", msgs)
 	}
-	if k := censusKinds(got[0]); k["endpoint"] != 1 {
+	if k := censusKinds(msgs[0]); k["endpoint"] != 1 {
 		t.Errorf("ADR-0026 §2 residues every Endpoint no membership message covers, whatever its Name leg; got %v", k)
-	}
-}
-
-func TestRePointResidueNamesOneDispatcherEndpointUnderEveryMove(t *testing.T) {
-	changes := []spanChange{
-		rePointMove(rpName, resolved(rpOld), resolved(rpNew)),
-		rePointMove(rpOther, resolved(rpOld), resolved(rpNew)),
-	}
-	changes = append(changes, namelessBeneath(rpNew, "443")...)
-	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer("cdn.example.com")}}}
-	msgs := rePointFrom(t, store, changes, membershipInputs{})
-	got := byKind(msgs)["name"]
-	if len(got) != 2 {
-		t.Fatalf("each Name's move is its own cause, so each fires (ADR-0026 §2); got %+v", msgs)
-	}
-	for _, m := range got {
-		if censusKinds(m)["endpoint"] != 1 {
-			t.Errorf("both Names gained the dispatcher's ground, so both residues name it, got %+v", m.Census)
-		}
-	}
-}
-
-func TestRePointResidueLeavesAnEndpointAFoldRootAlreadyCovers(t *testing.T) {
-	entering := spanChange{SubjectKind: "name", SubjectKey: rpOther, Facet: "resolution", Opened: true, Value: resolved(rpNew)}
-	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew)), entering}
-	changes = append(changes, namelessBeneath(rpNew, "443")...)
-	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer("cdn.example.com")}}}
-	if got := len(membershipMessages(7, produceT0, changes, membershipInputs{}, true)); got != 1 {
-		t.Fatalf("the entering Name is one membership root, got %d", got)
-	}
-	for _, m := range byKind(rePointFrom(t, store, changes, membershipInputs{}))["name"] {
-		if censusKinds(m)["endpoint"] != 0 {
-			t.Errorf("a membership message in this fold already covers it (ADR-0026 §2), got %+v", m.Census)
-		}
 	}
 }
 
@@ -85,5 +47,19 @@ func TestMembershipCensusCountsTheNamelessEndpointBeneathACitedAddress(t *testin
 	}
 	if kinds["service"] != 1 || kinds["endpoint"] != 1 {
 		t.Errorf("the census enumerates the Service and the nameless Endpoint beneath the cited address, got %v", kinds)
+	}
+}
+
+func TestTheFoldStillRootsOnTheNamelessEndpointsAddress(t *testing.T) {
+	// The root is the Address, and its census is its own fold's. In production that Endpoint opens
+	// in a later hot fold, so the census is empty and #1774's other half stands open.
+	changes := append([]spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, namelessBeneath(rpNew, "443")...)
+	store := &fakeMessageStore{}
+	got := byKind(rePointFrom(t, store, changes, membershipInputs{}))["address"]
+	if len(got) != 1 {
+		t.Fatalf("an address no other Name cites is the root, got %+v", got)
+	}
+	if k := censusKinds(got[0]); k["endpoint"] != 1 || k["service"] != 1 {
+		t.Errorf("the root's census carries the nameless Endpoint and its Service, got %v", k)
 	}
 }

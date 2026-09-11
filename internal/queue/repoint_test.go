@@ -77,7 +77,7 @@ func TestRePointToANewAddressFiresAddressAppeared(t *testing.T) {
 	msgs := rePointFrom(t, store, rePointChanges(rpNew, resolved(rpOld)), membershipInputs{})
 	got := byKind(msgs)
 	if len(got["address"]) != 1 || len(got["name"]) != 0 {
-		t.Fatalf("a new address is the root and the residue is empty, got %+v", msgs)
+		t.Fatalf("a new address is the root, and the fold writes no residue (#1818); got %+v", msgs)
 	}
 	m := got["address"][0]
 	if m.FiredAt != rpNew || m.Cause != message.CauseDrift || m.Class != message.ClassDrift {
@@ -91,19 +91,12 @@ func TestRePointToANewAddressFiresAddressAppeared(t *testing.T) {
 	}
 }
 
-func TestRePointOntoAKnownAddressFiresTheNameResidue(t *testing.T) {
+func TestRePointOntoAKnownAddressRootsNothingInTheFold(t *testing.T) {
+	// ADR-0026 §2's residue is the poll's, so the fold writes neither root nor residue (#1818).
 	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
 	msgs := rePointFrom(t, store, rePointChanges(rpNew, resolved(rpOld)), membershipInputs{})
-	got := byKind(msgs)
-	if len(got["address"]) != 0 || len(got["name"]) != 1 {
-		t.Fatalf("an address another Name cites is no root, and the Endpoint is residue (ADR-0026 §2); got %+v", msgs)
-	}
-	m := got["name"][0]
-	if m.FiredAt != rpName || censusKinds(m)["endpoint"] != 1 || m.Census.Len() != 1 {
-		t.Errorf("the residue is exactly the Endpoint beneath the known address, got %+v", m)
-	}
-	if !strings.Contains(m.Headline, "re-pointed within the estate") {
-		t.Errorf("headline = %q", m.Headline)
+	if len(msgs) != 0 {
+		t.Fatalf("an address another Name cites is no root (ADR-0026 §2), got %+v", msgs)
 	}
 }
 
@@ -128,8 +121,7 @@ func TestRePointStandingCitationAtAnotherVantageIsNotNew(t *testing.T) {
 	other.VantageID = pgtype.Int8{Int64: 2, Valid: true}
 	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpName), other}}}
 	msgs := rePointFrom(t, store, rePointChanges(rpNew, resolved(rpOld)), membershipInputs{})
-	got := byKind(msgs)
-	if len(got["address"]) != 0 || len(got["name"]) != 1 {
+	if len(msgs) != 0 {
 		t.Fatalf("only the moved timeline is dropped, so a sibling vantage keeps the address in the estate; got %+v", msgs)
 	}
 }
@@ -138,9 +130,8 @@ func TestRePointSwapWithinOneFoldIsNotNewGround(t *testing.T) {
 	changes := append(rePointChanges(rpNew, resolved(rpOld)), rePointMove(rpOther, resolved(rpNew), resolved(rpOld)))
 	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpName)}}}
 	msgs := rePointFrom(t, store, changes, membershipInputs{})
-	got := byKind(msgs)
-	if len(got["address"]) != 0 || len(got["name"]) != 1 || got["name"][0].FiredAt != rpName {
-		t.Fatalf("an address a sibling just dropped was in the estate, so the move is residue; got %+v", msgs)
+	if len(msgs) != 0 {
+		t.Fatalf("an address a sibling just dropped was in the estate, so it is no root; got %+v", msgs)
 	}
 }
 
@@ -148,9 +139,8 @@ func TestRePointIntoADeclaredScopeIsNoRoot(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("203.0.113.0/24")}}
 	msgs := rePointFrom(t, store, rePointChanges(rpNew, resolved(rpOld)), in)
-	got := byKind(msgs)
-	if len(got["address"]) != 0 || len(got["name"]) != 1 {
-		t.Fatalf("a Seed-covered address never appears (ADR-0047), so the Endpoint is residue; got %+v", msgs)
+	if len(msgs) != 0 {
+		t.Fatalf("a Seed-covered address never appears (ADR-0047), so the fold roots nothing; got %+v", msgs)
 	}
 }
 
@@ -182,22 +172,6 @@ func TestRePointReCitedAddressIsNotNew(t *testing.T) {
 	}
 	if len(store.citersAsked) != 0 {
 		t.Errorf("no candidate means no estate read, got %v", store.citersAsked)
-	}
-}
-
-func TestRePointResidueIsOnlyBeneathTheNewlyCitedAddresses(t *testing.T) {
-	// The move keeps rpOld and adds rpNew, which another Name already cites.
-	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpOld, rpNew))}
-	changes = append(changes, openedBeneath(rpName, rpOld, "8443")...)
-	changes = append(changes, openedBeneath(rpName, rpNew, "443")...)
-	store := &fakeMessageStore{citers: map[string][]db.ListResolutionCitersForAddressesRow{rpNew: {citer(rpOther)}}}
-	msgs := rePointFrom(t, store, changes, membershipInputs{})
-	got := byKind(msgs)
-	if len(got["name"]) != 1 || got["name"][0].Census.Len() != 1 {
-		t.Fatalf("a new port on an address the Name already cited is not the move's consequence; got %+v", msgs)
-	}
-	if e := got["name"][0].Census.Entries[0]; !strings.Contains(e.Key, rpNew) {
-		t.Errorf("the residue is the Endpoint beneath the newly cited address, got %+v", e)
 	}
 }
 
