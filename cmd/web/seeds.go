@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/queue"
@@ -140,15 +141,23 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	declared := make(map[string]bool, len(tokens))
 	var refusals []refusalView
-	successes := 0
+	var scopes []string
 	for _, tok := range tokens {
-		if ref := s.declareOneScope(r, acct, tok, declared, addrCap); ref != nil {
+		scope, ref := s.declareOneScope(r, acct, tok, declared, addrCap)
+		if ref != nil {
 			refusals = append(refusals, *ref)
-		} else {
-			successes++
+			continue
 		}
+		scopes = append(scopes, scope)
 	}
 
+	// After the mutation, never before: an Act with no act can never be retracted (spec §7.6).
+	for _, scope := range scopes {
+		// One row per scope, because a refused token leaves the batch partial (spec §7.6).
+		s.recorder().Record(r.Context(), actingAccount(acct), act.SeedDeclared{SeedScope: act.SeedScope{Scope: scope}})
+	}
+
+	successes := len(scopes)
 	if successes > 0 {
 		title := fmt.Sprintf("%d %s declared", successes, plural(successes, "scope", "scopes"))
 		desc := ""
@@ -173,46 +182,49 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 	})
 }
 
-func (s *server) declareOneScope(r *http.Request, acct db.Account, value string, declared map[string]bool, addrCap int) *refusalView {
+// The scope comes back, so the mutation and the Record sit in two functions (spec §7.5).
+
+func (s *server) declareOneScope(r *http.Request, acct db.Account, value string, declared map[string]bool, addrCap int) (string, *refusalView) {
 	value = strings.TrimSpace(value)
 	if isAddressValue(value) {
 		if _, err := seed.ParseCIDR(cidrForm(value)); err != nil {
-			return &refusalView{Input: value, Reason: err.Error()}
+			return "", &refusalView{Input: value, Reason: err.Error()}
 		}
 		// The unmasked form is kept so the callout echoes the operator's own base, not the network.
 		rawP, _ := netip.ParsePrefix(strings.TrimSpace(cidrForm(value)))
 		if !seed.WithinCap(rawP, addrCap) {
 			ref := refusalOverCap(value, rawP, addrCap)
-			return &ref
+			return "", &ref
 		}
 		p := rawP.Masked()
 		key := "addr:" + p.String()
 		if declared[key] {
-			return &refusalView{Input: value, Reason: alreadyDeclaredReason}
+			return "", &refusalView{Input: value, Reason: alreadyDeclaredReason}
 		}
 		if _, err := s.seedsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 			AddressCidr: &p, CreatedBy: acct.ID,
 		}); err != nil {
-			return createRefusal(value, err)
+			return "", createRefusal(value, err)
 		}
 		declared[key] = true
-		return nil
+		// The masked form is what the row holds and what toSeedViews renders.
+		return p.String(), nil
 	}
 	domain, err := seed.NormalizeDomain(value)
 	if err != nil {
-		return nameRefusal(value, err)
+		return "", nameRefusal(value, err)
 	}
 	key := "name:" + domain
 	if declared[key] {
-		return &refusalView{Input: value, Reason: alreadyDeclaredReason}
+		return "", &refusalView{Input: value, Reason: alreadyDeclaredReason}
 	}
 	if _, err := s.seedsStore.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
 		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
 	}); err != nil {
-		return createRefusal(value, err)
+		return "", createRefusal(value, err)
 	}
 	declared[key] = true
-	return nil
+	return domain, nil
 }
 
 const alreadyDeclaredReason = "already declared"
@@ -333,19 +345,34 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.flashScopeBack(w, r, seedsForms{seedError: "That scope could not be found."})
 		return
 	}
-	scope, _ := s.seedScopeByID(r, id)
 	// A delete and its tombstone commit as one, so no withdrawn scope lacks a mover (ADR-0135 §2).
-	if _, err := s.seedsStore.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
+	row, err := s.seedsStore.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
+	})
+	if err != nil {
 		s.serverError(w, "withdraw seed", err)
 		return
+	}
+	// The act names its own subject, so no failed read can write a blank Act (spec §4.3).
+	scope := withdrawnScope(row)
+	// An unknown id removes nothing, and a refused act directed nothing (spec §7.6).
+	if row.SeedsRemoved > 0 {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.SeedWithdrawn{SeedScope: act.SeedScope{Scope: scope}})
 	}
 	if scope == "" {
 		s.backToScope(w, r)
 		return
 	}
 	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope))
+}
+
+// The pair toSeedViews renders, so the Act and the screen name one scope.
+
+func withdrawnScope(row db.WithdrawSeedRow) string {
+	if row.AddressCidr != nil {
+		return row.AddressCidr.String()
+	}
+	return row.NameDomain.String
 }
 
 func removalFlash(scope string) string {

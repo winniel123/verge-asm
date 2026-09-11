@@ -306,6 +306,7 @@ func (f *fakeStore) CreateNameSeed(_ context.Context, arg db.CreateNameSeedParam
 	}
 	f.seeds = append(f.seeds, sd)
 	f.seedNextID++
+	f.actTrail = append(f.actTrail, "CreateNameSeed")
 	return sd, nil
 }
 
@@ -315,21 +316,25 @@ func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (
 			continue
 		}
 		f.seeds = append(f.seeds[:i], f.seeds[i+1:]...)
+		f.actTrail = append(f.actTrail, "WithdrawSeed")
 		w := db.SeedWithdrawal{
 			ID:        int64(len(f.seedWithdrawals) + 1),
 			Kind:      s.Kind,
 			CreatedBy: arg.CreatedBy,
 		}
+		// The scope rides the DELETE's own RETURNING, so it comes back even with no tombstone.
+		out := db.WithdrawSeedRow{SeedsRemoved: 1, AddressCidr: s.AddressCidr, NameDomain: s.NameDomain}
 		switch {
 		case s.Kind == "address" && s.AddressCidr != nil:
 			w.AddressCidr = s.AddressCidr
 		case s.Kind == "name" && s.NameDomain.Valid:
 			w.NameDomain = s.NameDomain
 		default:
-			return db.WithdrawSeedRow{SeedsRemoved: 1}, nil
+			return out, nil
 		}
 		f.seedWithdrawals = append(f.seedWithdrawals, w)
-		return db.WithdrawSeedRow{SeedsRemoved: 1, TombstonesWritten: 1}, nil
+		out.TombstonesWritten = 1
+		return out, nil
 	}
 	return db.WithdrawSeedRow{}, nil
 }

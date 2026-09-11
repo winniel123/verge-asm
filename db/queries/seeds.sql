@@ -29,6 +29,9 @@ tombstone AS (
        OR (r.kind = 'name' AND r.name_domain IS NOT NULL)
     RETURNING 1 AS written
 )
+-- The scope rides the act's own RETURNING, so a separate read cannot leave the Act blank.
 SELECT
     (SELECT count(*) FROM removed)::bigint   AS seeds_removed,
-    (SELECT count(*) FROM tombstone)::bigint AS tombstones_written;
+    (SELECT count(*) FROM tombstone)::bigint AS tombstones_written,
+    (SELECT r.address_cidr FROM removed r)   AS address_cidr,
+    (SELECT r.name_domain FROM removed r)    AS name_domain;
