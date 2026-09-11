@@ -69,9 +69,12 @@ type Querier interface {
 	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
 	// The name rides the act's own RETURNING, so a separate read cannot leave the Act blank.
 	DeleteReportSchedule(ctx context.Context, id int64) (string, error)
-	DeleteSSOIdentity(ctx context.Context, id int64) error
-	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
-	DeleteSSOProvider(ctx context.Context, id int64) error
+	// Both names ride the removal's own RETURNING, so neither is read after its row is gone.
+	DeleteSSOIdentity(ctx context.Context, id int64) (DeleteSSOIdentityRow, error)
+	// The provider rides the unlink's own RETURNING, so the binding is named while it exists.
+	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (string, error)
+	// The provider rides the delete's own RETURNING, so an absent id withdraws nothing.
+	DeleteSSOProvider(ctx context.Context, id int64) (string, error)
 	// Nothing else purges the table, so the request path bounds it to the live grants (#1651).
 	DeleteSpentPasswordResets(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	// A data-modifying CTE fires on its own, so nothing need select from lift (#1777).
@@ -301,7 +304,8 @@ type Querier interface {
 	// A ct-tail job outlives the stale threshold, so the owner renews off any transaction (#1709).
 	RenewJobLease(ctx context.Context, id int64) (int64, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
-	ResetAccountTOTP(ctx context.Context, id int64) error
+	// The account rides the strip's own RETURNING, so an absent id strips nothing.
+	ResetAccountTOTP(ctx context.Context, id int64) (ResetAccountTOTPRow, error)
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
 	RetryReportNotification(ctx context.Context, arg RetryReportNotificationParams) error
 	RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAllSessionsForAccountParams) error
@@ -321,7 +325,8 @@ type Querier interface {
 	SetIntegrationChannel(ctx context.Context, arg SetIntegrationChannelParams) error
 	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
 	SetReleaseCache(ctx context.Context, arg SetReleaseCacheParams) error
-	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
+	// The provider rides the set's own RETURNING, so an absent id sets nothing.
+	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) (string, error)
 	// The operator cap has no upper bound; a large scope is priced at policy time (ADR-0127).
 	SetSeedAddressCap(ctx context.Context, arg SetSeedAddressCapParams) error
 	SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) (int64, error)
@@ -351,7 +356,8 @@ type Querier interface {
 	UndoDeclineProposal(ctx context.Context, id int64) (netip.Prefix, error)
 	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
-	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
+	// The account rides the update's own RETURNING, so no read can blank the Act.
+	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) (string, error)
 	UpdatePersonalTokenLastUsed(ctx context.Context, id int64) error
 	UpdateReportSchedule(ctx context.Context, arg UpdateReportScheduleParams) (ReportSchedule, error)
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error

@@ -684,16 +684,19 @@ func (f *fakeStore) GetSSOIdentityBySub(_ context.Context, arg db.GetSSOIdentity
 	return db.GetSSOIdentityBySubRow{}, pgx.ErrNoRows
 }
 
-func (f *fakeStore) DeleteSSOIdentityForAccount(_ context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error) {
+func (f *fakeStore) DeleteSSOIdentityForAccount(_ context.Context, arg db.DeleteSSOIdentityForAccountParams) (string, error) {
 	var kept []fakeSSOIdentity
-	var removed int64
+	slug, found := "", false
 	for _, i := range f.ssoIdentities {
 		if i.id == arg.ID && i.accountID == arg.AccountID {
-			removed++
+			slug, found = f.ssoProviderSlug(i.providerID), true
 			continue
 		}
 		kept = append(kept, i)
 	}
 	f.ssoIdentities = kept
-	return removed, nil
+	if !found {
+		return "", pgx.ErrNoRows
+	}
+	return slug, nil
 }

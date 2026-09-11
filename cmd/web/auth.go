@@ -24,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/buildinfo"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -61,7 +62,7 @@ type passwordStore interface {
 	GetPasswordResetByHash(ctx context.Context, tokenHash string) (db.PasswordReset, error)
 	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
 	RevokeOtherSessionsForAccount(ctx context.Context, arg db.RevokeOtherSessionsForAccountParams) error
-	UpdatePassword(ctx context.Context, arg db.UpdatePasswordParams) error
+	UpdatePassword(ctx context.Context, arg db.UpdatePasswordParams) (string, error)
 }
 
 type inviteAcceptStore interface {
@@ -221,10 +222,15 @@ func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": msg}))
 		return
 	}
-	if _, err := s.createAccountRow(r, username, roleAdmin, password); err != nil {
+	admin, err := s.createAccountRow(r, username, roleAdmin, password)
+	if err != nil {
 		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)}))
 		return
 	}
+	// No account existed, and the instance cannot say who read the token (spec §3.2).
+	s.recorder().Record(r.Context(), act.GrantHolder{Grant: act.SetupToken{}}, act.SetupCompleted{
+		AccountAtRole: act.AccountAtRole{Username: admin.Username, Role: roleAdmin},
+	})
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
@@ -944,7 +950,7 @@ func (s *server) accountPage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
 }
 
-func (s *server) createAccount(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	role := r.FormValue("role")
@@ -957,10 +963,14 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, _ db.Acco
 		s.renderFormError(w, r, msg)
 		return
 	}
-	if _, err := s.createAccountRow(r, username, role, password); err != nil {
+	created, err := s.createAccountRow(r, username, role, password)
+	if err != nil {
 		s.renderFormError(w, r, createError(err))
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.AccountCreated{
+		AccountAtRole: act.AccountAtRole{Username: created.Username, Role: role},
+	})
 	stashFormFlash(s, r, settingsForms{flashTab: "team", notice: "Account " + username + " created."})
 	s.backToSection(w, r, "team")
 }
@@ -1048,6 +1058,9 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	fresh.TotpEnabled = true
+	s.recorder().Record(r.Context(), actingAccount(acct), act.TOTPEnrolled{
+		AccountRef: act.AccountRef{Username: acct.Username},
+	})
 
 	// A silent skip here would leave two-factor on with no recovery path, so it is fatal.
 	plain, hashes, err := s.recoveryCodes()
@@ -1143,7 +1156,8 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, "reset: hash password", err)
 		return
 	}
-	if err := s.passwordStore.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: pr.AccountID, PasswordHash: hash}); err != nil {
+	username, err := s.passwordStore.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: pr.AccountID, PasswordHash: hash})
+	if err != nil {
 		s.serverError(w, "reset: update password", err)
 		return
 	}
@@ -1157,6 +1171,10 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		log.Printf("web: reset: revoke all sessions: %v", err)
 	}
+	// The link rides this instance's own web log, so a holder acted (spec §3.3).
+	s.recorder().Record(r.Context(), act.GrantHolder{Grant: act.PasswordReset{}}, act.PasswordResetCompleted{
+		AccountRef: act.AccountRef{Username: username},
+	})
 	s.render(w, r, "reset-done", s.signinData(map[string]any{"Title": "Password updated"}))
 }
 
@@ -1227,6 +1245,10 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
 		return
 	}
+	// The id joins the acceptance to the mint that POST /settings/accounts records (spec §3.3).
+	s.recorder().Record(r.Context(), act.GrantHolder{Grant: act.Invite{InviteID: inv.ID}}, act.InviteAccepted{
+		AccountAtRole: act.AccountAtRole{Username: acct.Username, Role: inv.Role},
+	})
 	// No session is minted here, so a bare invite token never yields privileged state.
 	http.Redirect(w, r, "/login?invited=1", http.StatusSeeOther)
 }
@@ -1611,7 +1633,8 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "profile: hash password", err)
 		return
 	}
-	if err := s.passwordStore.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: acct.ID, PasswordHash: hash}); err != nil {
+	username, err := s.passwordStore.UpdatePassword(r.Context(), db.UpdatePasswordParams{ID: acct.ID, PasswordHash: hash})
+	if err != nil {
 		s.serverError(w, "profile: update password", err)
 		return
 	}
@@ -1630,6 +1653,10 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
 		desc = "Other sessions were left in place."
 	}
+	// A stalled insert must not hold the revoke that kills every other session (ADR-0117).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.PasswordChanged{
+		AccountRef: act.AccountRef{Username: username},
+	})
 	s.toastRedirect(w, r, profilePath, "ok", "Password changed", desc)
 }
 
@@ -1658,6 +1685,9 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "profile: create token", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.TokenMinted{
+		TokenRef: act.TokenRef{Label: name, Prefix: prefix},
+	})
 	s.revealMintedToken(w, r, acct, plaintext, name)
 }
 
@@ -1675,10 +1705,10 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "profile: list tokens", err)
 		return
 	}
-	name := ""
+	name, prefix := "", ""
 	for _, t := range rows {
 		if t.ID == id {
-			name = t.Name
+			name, prefix = t.Name, t.Prefix
 			break
 		}
 	}
@@ -1690,6 +1720,10 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "profile: revoke token", err)
 		return
 	}
+	// The listing read above is the subject, so nothing is read after the row is gone (spec §4.2).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.TokenRevoked{
+		TokenRef: act.TokenRef{Label: name, Prefix: prefix},
+	})
 	s.toastRedirect(w, r, "/profile", "neutral", "Token revoked", name)
 }
 

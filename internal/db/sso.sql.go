@@ -11,17 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const deleteSSOIdentity = `-- name: DeleteSSOIdentity :exec
-DELETE FROM sso_identity WHERE id = $1
+const deleteSSOIdentity = `-- name: DeleteSSOIdentity :one
+WITH removed AS (
+    DELETE FROM sso_identity i WHERE i.id = $1
+    RETURNING i.provider_id, i.account_id
+)
+SELECT p.slug, a.username
+FROM removed rm
+JOIN sso_provider p ON p.id = rm.provider_id
+JOIN account a ON a.id = rm.account_id
 `
 
-func (q *Queries) DeleteSSOIdentity(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteSSOIdentity, id)
-	return err
+type DeleteSSOIdentityRow struct {
+	Slug     string `json:"slug"`
+	Username string `json:"username"`
 }
 
-const deleteSSOIdentityForAccount = `-- name: DeleteSSOIdentityForAccount :execrows
-DELETE FROM sso_identity WHERE id = $1 AND account_id = $2
+// Both names ride the removal's own RETURNING, so neither is read after its row is gone.
+func (q *Queries) DeleteSSOIdentity(ctx context.Context, id int64) (DeleteSSOIdentityRow, error) {
+	row := q.db.QueryRow(ctx, deleteSSOIdentity, id)
+	var i DeleteSSOIdentityRow
+	err := row.Scan(&i.Slug, &i.Username)
+	return i, err
+}
+
+const deleteSSOIdentityForAccount = `-- name: DeleteSSOIdentityForAccount :one
+WITH unlinked AS (
+    DELETE FROM sso_identity i WHERE i.id = $1 AND i.account_id = $2
+    RETURNING i.provider_id
+)
+SELECT p.slug
+FROM unlinked u
+JOIN sso_provider p ON p.id = u.provider_id
 `
 
 type DeleteSSOIdentityForAccountParams struct {
@@ -29,21 +50,25 @@ type DeleteSSOIdentityForAccountParams struct {
 	AccountID int64 `json:"account_id"`
 }
 
-func (q *Queries) DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteSSOIdentityForAccount, arg.ID, arg.AccountID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+// The provider rides the unlink's own RETURNING, so the binding is named while it exists.
+func (q *Queries) DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (string, error) {
+	row := q.db.QueryRow(ctx, deleteSSOIdentityForAccount, arg.ID, arg.AccountID)
+	var slug string
+	err := row.Scan(&slug)
+	return slug, err
 }
 
-const deleteSSOProvider = `-- name: DeleteSSOProvider :exec
+const deleteSSOProvider = `-- name: DeleteSSOProvider :one
 DELETE FROM sso_provider WHERE id = $1
+RETURNING slug
 `
 
-func (q *Queries) DeleteSSOProvider(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteSSOProvider, id)
-	return err
+// The provider rides the delete's own RETURNING, so an absent id withdraws nothing.
+func (q *Queries) DeleteSSOProvider(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRow(ctx, deleteSSOProvider, id)
+	var slug string
+	err := row.Scan(&slug)
+	return slug, err
 }
 
 const getAccountBySSOIdentity = `-- name: GetAccountBySSOIdentity :one
@@ -403,8 +428,9 @@ func (q *Queries) ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, 
 	return items, nil
 }
 
-const setSSOProviderSecret = `-- name: SetSSOProviderSecret :exec
+const setSSOProviderSecret = `-- name: SetSSOProviderSecret :one
 UPDATE sso_provider SET client_secret = $2, updated_at = now() WHERE id = $1
+RETURNING slug
 `
 
 type SetSSOProviderSecretParams struct {
@@ -412,9 +438,12 @@ type SetSSOProviderSecretParams struct {
 	ClientSecret pgtype.Text `json:"client_secret"`
 }
 
-func (q *Queries) SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error {
-	_, err := q.db.Exec(ctx, setSSOProviderSecret, arg.ID, arg.ClientSecret)
-	return err
+// The provider rides the set's own RETURNING, so an absent id sets nothing.
+func (q *Queries) SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) (string, error) {
+	row := q.db.QueryRow(ctx, setSSOProviderSecret, arg.ID, arg.ClientSecret)
+	var slug string
+	err := row.Scan(&slug)
+	return slug, err
 }
 
 const updateSSOProvider = `-- name: UpdateSSOProvider :execrows

@@ -21,14 +21,14 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-func (f *fakeStore) UpdatePassword(_ context.Context, arg db.UpdatePasswordParams) error {
+func (f *fakeStore) UpdatePassword(_ context.Context, arg db.UpdatePasswordParams) (string, error) {
 	acct, ok := f.accounts[arg.ID]
 	if !ok {
-		return pgx.ErrNoRows
+		return "", pgx.ErrNoRows
 	}
 	acct.PasswordHash = arg.PasswordHash
 	f.accounts[arg.ID] = acct
-	return nil
+	return acct.Username, nil
 }
 
 func (f *fakeStore) CreatePersonalToken(_ context.Context, arg db.CreatePersonalTokenParams) (db.PersonalToken, error) {
