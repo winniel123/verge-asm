@@ -154,7 +154,7 @@ func headlineFor(t *testing.T, change spanChange) string {
 	t.Helper()
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 30, produceT0, []spanChange{change}, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 30, produceT0, []spanChange{change}, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {
@@ -203,7 +203,7 @@ func TestMembershipEntryReturnedIsADriftFiringAtTheName(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 	change := reEntryChange(&drift.Span{Reason: drift.ReasonMeasuredAbsent}, false, false)
-	if err := produceMessages(context.Background(), store, 31, produceT0, []spanChange{change}, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 31, produceT0, []spanChange{change}, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	m := store.inserted[0]

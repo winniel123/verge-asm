@@ -18,7 +18,7 @@ func TestFacetMoveOpeningARuleAtFiredFiresOneDriftMessage(t *testing.T) {
 	}
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 22, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 22, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {
@@ -50,7 +50,7 @@ func TestFacetMoveInsideAFlagshipFiresNoSeparateMessage(t *testing.T) {
 	}
 	store := flagshipStore(sensitiveSvc)
 	var log []routed
-	if err := produceMessages(context.Background(), store, 25, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 25, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	// The residue clause: the flagship's census already carries the opening (ADR-0033 §3).
@@ -74,7 +74,7 @@ func TestFacetMoveReadsTheUnchangedFacetsFromTheStore(t *testing.T) {
 		},
 	}}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 23, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 23, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {
@@ -96,7 +96,7 @@ func TestAGapEdgeIsNoMoveSoOnlyGapcloseCarriesIt(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			store := &fakeMessageStore{}
 			var log []routed
-			if err := produceMessages(context.Background(), store, 25, produceT0, []spanChange{c}, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+			if err := produceMessages(context.Background(), store, 25, produceT0, []spanChange{c}, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 				t.Fatalf("produce: %v", err)
 			}
 			for _, m := range store.inserted {
@@ -124,7 +124,7 @@ func TestFacetMoveOpeningNoRuleIsSilent(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			store := &fakeMessageStore{}
 			var log []routed
-			if err := produceMessages(context.Background(), store, 24, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+			if err := produceMessages(context.Background(), store, 24, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 				t.Fatalf("produce: %v", err)
 			}
 			if len(store.inserted) != 0 {

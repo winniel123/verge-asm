@@ -198,7 +198,7 @@ func TestProduceWritesFlagshipAndMembershipAndHoldsTheMembership(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -264,7 +264,7 @@ func insertedID(store *fakeMessageStore, subjectKind string) int64 {
 func TestProduceRecordsTheBasisAMembershipCensusIsComputedFrom(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	var membership *db.InsertMessageParams
@@ -303,7 +303,7 @@ func TestProduceReadsOnlyTheBatchesCandidateServices(t *testing.T) {
 		at:      []db.ListServiceReachabilitySpansByClassAtForServicesRow{internetReachAtRow(svc, "not-reached")},
 	}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 9, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 9, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.askedFor) != 2 {
@@ -320,7 +320,7 @@ func TestProduceIsNoOpUnderDevMode(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), true, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -339,7 +339,7 @@ func TestProduceUnboundConfigMakesNoDelivery(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(0, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(0, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -367,7 +367,7 @@ func TestProduceOpeningAtReachedIsNotFlagship(t *testing.T) {
 		current: []db.ListServiceReachabilitySpansByClassForServicesRow{internetReachRow(svc, "reached")},
 	}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 1, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 1, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 {
@@ -388,7 +388,7 @@ func TestProduceInternalLegNeverFlagship(t *testing.T) {
 		at:      []db.ListServiceReachabilitySpansByClassAtForServicesRow{internalReachAtRow(svc, "not-reached")},
 	}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 2, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 2, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 {
@@ -403,7 +403,7 @@ func TestProduceDescopedDepartureFiresDeclaredInput(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 9, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 9, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -435,7 +435,7 @@ func TestProduceMeasuredAbsentDepartureFiresNoDeclaredInput(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	for _, m := range store.inserted {
@@ -455,7 +455,7 @@ func TestProduceDescopedDepartureIsNoOpUnderDevMode(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 11, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+	if err := produceMessages(context.Background(), store, 11, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), true, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 || len(log) != 0 {
@@ -470,7 +470,7 @@ func TestProduceNarrowingFiresOnceAtTheScope(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 12, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 12, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -505,7 +505,7 @@ func TestProduceNarrowingSilentOverUninhabitedGround(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 13, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 13, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 || len(log) != 0 {
@@ -520,7 +520,7 @@ func TestProduceNarrowingIsNoOpUnderDevMode(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 14, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+	if err := produceMessages(context.Background(), store, 14, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), true, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 || len(log) != 0 {

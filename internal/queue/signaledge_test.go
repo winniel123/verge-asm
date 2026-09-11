@@ -35,7 +35,7 @@ func TestSignalEdgeOnACertificateMoveFiresOneDriftMessagePerRule(t *testing.T) {
 	}
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 30, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 30, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {
@@ -68,7 +68,7 @@ func TestSignalEdgeOnATLSAcceptanceMoveFiresAtTheService(t *testing.T) {
 	}
 	store := &fakeMessageStore{}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 31, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 31, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {
@@ -90,7 +90,7 @@ func TestSignalEdgeBeneathAFlagshipRidesItsCensus(t *testing.T) {
 	}
 	store := flagshipStore(sensitiveSvc)
 	var log []routed
-	if err := produceMessages(context.Background(), store, 32, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 32, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 || store.inserted[0].SubjectKind != "service" {
@@ -127,7 +127,7 @@ func TestSignalEdgeOnAnAnnotatedPairIsRecordedAndNotAMessage(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			store := &fakeMessageStore{annotations: tc.annotations}
 			var log []routed
-			if err := produceMessages(context.Background(), store, 33, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+			if err := produceMessages(context.Background(), store, 33, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 				t.Fatalf("produce: %v", err)
 			}
 			if got := len(signalEdgeMessagesOf(store)); got != tc.want {
@@ -159,7 +159,7 @@ func TestSignalEdgeIsSilentWhereNoRuleCrossedIt(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			store := &fakeMessageStore{}
 			var log []routed
-			if err := produceMessages(context.Background(), store, 34, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+			if err := produceMessages(context.Background(), store, 34, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 				t.Fatalf("produce: %v", err)
 			}
 			if got := signalEdgeMessagesOf(store); len(got) != 0 {
@@ -189,7 +189,7 @@ func TestSignalEdgeReadsAnnotationsOnlyWhenAnEdgeExists(t *testing.T) {
 		{SubjectKind: "endpoint", SubjectKey: sensitiveEp, Facet: "certificate", Value: []byte(certExpired), Previous: []byte(certExpired)},
 	}
 	store := &fakeMessageStore{}
-	if err := produceMessages(context.Background(), store, 35, produceT0, changes, nil, nil, membershipInputs{}, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 35, produceT0, changes, nil, nil, membershipInputs{}, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if store.annotationReads != 0 {

@@ -119,7 +119,8 @@ func (d *Dispatcher) releaseHeld(ctx context.Context) (int, error) {
 	if d.enqueue == nil {
 		return 0, nil
 	}
-	rows, err := d.q.ListReleasableHeldMessages(ctx)
+	// With no reaper the drain test can never conclude, so the hold is off here too (ADR-1806 §6).
+	rows, err := d.q.ListReleasableHeldMessages(ctx, !HotLagGateArmed(d.staleJobThreshold))
 	if err != nil {
 		return 0, fmt.Errorf("queue: list releasable held messages: %w", err)
 	}

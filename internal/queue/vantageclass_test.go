@@ -74,7 +74,7 @@ func TestVantageClassWideningFiresOnceAtTheClassWithTheFoldsCensus(t *testing.T)
 	store.classUnfolded = true
 	changes := []spanChange{reachOpening(svc1), reachOpening(svc2)}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 40, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 40, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	widen := wideningMessages(store)
@@ -114,7 +114,7 @@ func TestVantageClassWideningIsSilentWhereTheClassAlreadyFolded(t *testing.T) {
 	const svc = "10.1.0.9:443/tcp"
 	// A fresh Service has no prev leg, so the bounded read shortlists its class (ADR-0226).
 	store := widenStore([]classLeg{{subject: svc, class: "internet", outcome: "reached"}}, nil)
-	if err := produceMessages(context.Background(), store, 41, produceT0, []spanChange{reachOpening(svc)}, nil, nil, membershipInputs{}, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 41, produceT0, []spanChange{reachOpening(svc)}, nil, nil, membershipInputs{}, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.foldedAsked) != 1 {
@@ -129,7 +129,7 @@ func TestVantageClassWideningReadsNothingWhereNoClassIsNew(t *testing.T) {
 	const svc = "10.1.0.1:443/tcp"
 	legs := []classLeg{{subject: svc, class: "internet", outcome: "not-reached"}}
 	store := widenStore(legs, legs)
-	if err := produceMessages(context.Background(), store, 40, produceT0, []spanChange{reachOpening(svc)}, nil, nil, membershipInputs{}, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 40, produceT0, []spanChange{reachOpening(svc)}, nil, nil, membershipInputs{}, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if store.vantageReads != 0 || len(store.foldedAsked) != 0 {
@@ -141,7 +141,7 @@ func TestVantageClassWideningNeedsAReachabilityOpening(t *testing.T) {
 	store := widenStore([]classLeg{{subject: "10.1.0.1:443/tcp", class: "internet", outcome: "reached"}}, nil)
 	store.classUnfolded = true
 	changes := []spanChange{{SubjectKind: "name", SubjectKey: "www.example.com", Facet: "resolution", Opened: true}}
-	if err := produceMessages(context.Background(), store, 40, produceT0, changes, nil, nil, membershipInputs{}, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 40, produceT0, changes, nil, nil, membershipInputs{}, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if store.vantageReads != 0 {
@@ -158,7 +158,7 @@ func TestVantageClassWideningStatesAnEmptyCensus(t *testing.T) {
 	store := widenStore([]classLeg{{subject: svc, class: "internal", outcome: "reached"}}, nil)
 	store.prev = pgtype.Timestamptz{}
 	store.classUnfolded = true
-	if err := produceMessages(context.Background(), store, 1, produceT0, []spanChange{reachOpening(svc)}, nil, nil, membershipInputs{}, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 1, produceT0, []spanChange{reachOpening(svc)}, nil, nil, membershipInputs{}, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	widen := wideningMessages(store)

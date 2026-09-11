@@ -130,6 +130,15 @@ type Worker struct {
 	transcriptKey      []byte
 
 	probeTimeout time.Duration
+
+	staleJobThreshold time.Duration // zero means the reaper is off, never unset (ADR-0137 §4)
+}
+
+// The reaper and the dispatcher's gate must never disagree with this knob (#1114, ADR-1806 §6).
+
+func (w *Worker) WithStaleJobThreshold(threshold time.Duration) *Worker {
+	w.staleJobThreshold = threshold
+	return w
 }
 
 func (w *Worker) WithTranscripts(key []byte, devMode bool) *Worker {
@@ -196,7 +205,7 @@ func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, ob
 			return w.enqueue(c, qtx, messageID, class)
 		}
 	}
-	return produceMessages(ctx, qtx, batchID, observedAt, changes, departures, narrowings, in, enqueue, w.devMode)
+	return produceMessages(ctx, qtx, batchID, observedAt, changes, departures, narrowings, in, enqueue, w.devMode, HotLagGateArmed(w.staleJobThreshold))
 }
 
 // A provisioned Vantage measures from its own position; handled=false runs it locally (ADR-0103).
@@ -213,7 +222,7 @@ func NewWorker(pool *pgxpool.Pool, prober Prober, now func() time.Time, logger *
 	if now == nil {
 		now = time.Now
 	}
-	return &Worker{pool: pool, q: db.New(pool), prober: prober, now: now, log: logger, probeTimeout: DefaultProbeTimeout}
+	return &Worker{pool: pool, q: db.New(pool), prober: prober, now: now, log: logger, probeTimeout: DefaultProbeTimeout, staleJobThreshold: DefaultStaleJobThreshold}
 }
 
 func (w *Worker) WithProbeTimeout(d time.Duration) *Worker {

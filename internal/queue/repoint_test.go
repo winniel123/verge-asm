@@ -234,7 +234,7 @@ func TestRePointReadsTheEstateOnceForEveryCandidate(t *testing.T) {
 func TestProduceWritesAnAddressAppearedAndRoutesItAsDrift(t *testing.T) {
 	store := &fakeMessageStore{prev: prevAt(produceT0.Add(-time.Hour))}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 31, produceT0, rePointChanges(rpNew, resolved(rpOld)), nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 31, produceT0, rePointChanges(rpNew, resolved(rpOld)), nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	var found *db.InsertMessageParams
