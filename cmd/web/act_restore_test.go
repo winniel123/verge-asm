@@ -3,12 +3,75 @@ package main
 import (
 	"bufio"
 	"errors"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
+	"github.com/winniel123/verge-asm/db/migrations"
 	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 )
+
+// serial_number is a column name and X.509 serial is prose, so the type needs its own anchor.
+
+var serialColumnRe = regexp.MustCompile(`(?m)^\s*\w+\s+(?:big|small)?serial\b`)
+
+// A serial id and an identity id differ in pg_attribute, and the restore reads that column.
+
+func serialTablesInMigrations(t *testing.T) map[string]bool {
+	t.Helper()
+	entries, err := migrations.FS.ReadDir(".")
+	if err != nil {
+		t.Fatalf("read the migrations dir: %v", err)
+	}
+	out := map[string]bool{}
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".sql") {
+			continue
+		}
+		data, err := migrations.FS.ReadFile(e.Name())
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		for _, stmt := range strings.Split(stripSQLComments(string(data)), ";") {
+			name, ok := createdTableName(stmt)
+			if ok && serialColumnRe.MatchString(stmt) {
+				out[name] = true
+			}
+		}
+	}
+	if len(out) == 0 {
+		t.Fatal("no SERIAL column found in any migration, so this test proves nothing")
+	}
+	return out
+}
+
+func stripSQLComments(sql string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(strings.ToLower(sql), "\n") {
+		if body, _, found := strings.Cut(line, "--"); found {
+			line = body
+		}
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func createdTableName(stmt string) (string, bool) {
+	_, after, ok := strings.Cut(stmt, "create table ")
+	if !ok {
+		return "", false
+	}
+	after = strings.TrimPrefix(after, "if not exists ")
+	name, _, ok := strings.Cut(after, "(")
+	if !ok {
+		return "", false
+	}
+	return strings.TrimSpace(name), true
+}
 
 var (
 	testRestoreActor = actingAccount(db.Account{ID: 7, Username: "admin"})
@@ -150,6 +213,81 @@ func TestAFailedDiscontinuityRecordRefusesTheReplay(t *testing.T) {
 
 	if err := replayTestArchive(t, tx); !errors.Is(err, want) {
 		t.Fatalf("replayArchive returned %v, want %v; the restore would commit unrecorded", err, want)
+	}
+}
+
+// The replay writes explicit ids, so a sequence the resync skips collides on the next insert.
+
+func TestTheResyncCoversEveryBackedUpGeneratedID(t *testing.T) {
+	serial := serialTablesInMigrations(t)
+	for _, tbl := range backupTables {
+		if !serial[tbl] {
+			continue
+		}
+		if strings.Contains(stripSQLComments(resyncIdentitySequencesSQL), "attidentity") {
+			t.Errorf("%s declares a SERIAL id and the resync filters on attidentity, "+
+				"which is empty for a serial column, so its sequence is never resynced", tbl)
+		}
+	}
+}
+
+// An archive taken before act joined the allowlist names no act, and its rows must still go.
+
+func TestTheTruncateAlwaysReachesTheActCorpus(t *testing.T) {
+	tx := &fakeTx{}
+	man, sc := testArchiveCursor(t,
+		buildTestArchive(t, 23000, []string{`{"subject_key":"a.example.com","closed_at":null}`}))
+	// An archive from before act joined the allowlist, which the schema gate still accepts.
+	man.Tables = []string{"account", "span"}
+
+	if err := replayArchive(t.Context(), tx, man, sc, nil, testRestoreActor, testRestoreRef); err != nil {
+		t.Fatalf("replayArchive: %v", err)
+	}
+
+	at := stepOf(tx.trail, "TRUNCATE ")
+	if at < 0 {
+		t.Fatal("the replay truncated nothing")
+	}
+	if !strings.Contains(tx.trail[at], `"act"`) {
+		t.Errorf("TRUNCATE ran as %q, which leaves the old corpus beside the new one", tx.trail[at])
+	}
+}
+
+// TRUNCATE names each table once, and the current manifest already carries act.
+
+func TestTheTruncateNamesTheActCorpusOnce(t *testing.T) {
+	man := backupManifest{Tables: []string{"account", "act", "span"}}
+	if got := slices.Sorted(slices.Values(truncateTables(man))); !slices.Equal(got,
+		[]string{"account", "act", "span"}) {
+		t.Errorf("truncateTables = %v, want each table once", got)
+	}
+}
+
+func TestTheArchiveNameIsBoundedBeforeItReachesTheCorpus(t *testing.T) {
+	for _, tc := range []struct{ name, in, want string }{
+		{"a plain name", "verge-2026-09-08.tar.zst", "verge-2026-09-08.tar.zst"},
+		{"a posix path", "/home/admin/verge.ndjson", "verge.ndjson"},
+		{"a windows path", `C:\Users\admin\verge.ndjson`, "verge.ndjson"},
+		{"an empty name", "", "backup.ndjson"},
+		{"a control character", "verge\n\t\x00.ndjson", "verge.ndjson"},
+		{"only control characters", "\n\x00", "backup.ndjson"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := archiveName(tc.in); got != tc.want {
+				t.Errorf("archiveName(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+
+	long := archiveName(strings.Repeat("a", 5000) + ".ndjson")
+	if len(long) > archiveNameMax {
+		t.Errorf("archiveName kept %d bytes, want at most %d", len(long), archiveNameMax)
+	}
+
+	// A cut mid-rune would otherwise store bytes the renderer cannot read back.
+	cut := archiveName(strings.Repeat("é", 200))
+	if !utf8.ValidString(cut) {
+		t.Errorf("archiveName returned invalid UTF-8: %q", cut)
 	}
 }
 
