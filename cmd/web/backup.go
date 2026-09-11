@@ -58,6 +58,8 @@ var backupTables = []string{ // FK-parent-first, so a naive in-order restore is 
 	"personal_token",
 	"sso_provider",
 	"sso_identity",
+	// An Act holds no secret, and excluding it would erase the history on restore (spec §5.3).
+	"act",
 }
 
 // The two lists partition the schema, so a new table must be classified (ADR-0161 §1, #1367).

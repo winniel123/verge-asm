@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 )
@@ -253,7 +254,8 @@ func (s *server) restoreApply(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 
-	if err := s.applyRestore(ctx, stg.archive); err != nil {
+	ref := act.RestoreRef{Archive: stg.file, TakenAt: stg.takenAt}
+	if err := s.applyRestore(ctx, stg.archive, actingAccount(acct), ref); err != nil {
 		log.Printf("web: restore: apply: %v", err)
 		s.restoreErrorRedirect(w, r, "apply")
 		return
@@ -269,15 +271,23 @@ func (s *server) restoreApply(w http.ResponseWriter, r *http.Request, acct db.Ac
 	http.Redirect(w, r, "/login?notice=restored", http.StatusSeeOther)
 }
 
-func (s *server) applyRestore(ctx context.Context, archive []byte) error {
+func openArchive(archive []byte) (backupManifest, *bufio.Scanner, error) {
 	sc := bufio.NewScanner(bytes.NewReader(archive))
 	sc.Buffer(make([]byte, 0, 1<<20), restoreMaxUpload)
 	if !sc.Scan() {
-		return errRestoreBadManifest
+		return backupManifest{}, nil, errRestoreBadManifest
 	}
 	var man backupManifest
 	if err := json.Unmarshal(sc.Bytes(), &man); err != nil {
-		return errRestoreBadManifest
+		return backupManifest{}, nil, errRestoreBadManifest
+	}
+	return man, sc, nil
+}
+
+func (s *server) applyRestore(ctx context.Context, archive []byte, actor act.Actor, ref act.RestoreRef) error {
+	man, sc, err := openArchive(archive)
+	if err != nil {
+		return err
 	}
 	if man.Type != "manifest" || man.Format != backupFormat || man.Version != backupFormatVersion {
 		return errRestoreBadFormat
@@ -304,6 +314,24 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	if err := replayArchive(ctx, tx, man, sc, identity, actor, ref); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// The one handler in cmd/web holding a transaction, so its Act is atomic (spec §7.6).
+
+func replayArchive(
+	ctx context.Context,
+	tx db.DBTX,
+	man backupManifest,
+	sc *bufio.Scanner,
+	identity map[string]bool,
+	actor act.Actor,
+	ref act.RestoreRef,
+) error {
 	// CASCADE also clears ephemeral tables the archive never carried, which a restore must drop.
 	if len(man.Tables) > 0 {
 		var qn []string
@@ -370,7 +398,13 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		return fmt.Errorf("restore: resync sequences: %w", err)
 	}
 
-	return tx.Commit(ctx)
+	// The apply truncated the corpus and reset its sequence, so this row is written last.
+	// created_at defaults to now(), transaction-start, so the row marks where the break began.
+	if err := txRecorder(tx).Record(ctx, actor, act.RestoreApplied{RestoreRef: ref}); err != nil {
+		return fmt.Errorf("restore: record the discontinuity: %w", err)
+	}
+
+	return nil
 }
 
 const resyncIdentitySequencesSQL = `
@@ -518,13 +552,8 @@ func restoreErrorMessage(code string) string {
 }
 
 func formatArchiveTakenAt(archive []byte) string {
-	sc := bufio.NewScanner(bytes.NewReader(archive))
-	sc.Buffer(make([]byte, 0, 1<<20), restoreMaxUpload)
-	if !sc.Scan() {
-		return ""
-	}
-	var man backupManifest
-	if err := json.Unmarshal(sc.Bytes(), &man); err != nil {
+	man, _, err := openArchive(archive)
+	if err != nil {
 		return ""
 	}
 	if t, err := time.Parse(time.RFC3339, man.CreatedAt); err == nil {

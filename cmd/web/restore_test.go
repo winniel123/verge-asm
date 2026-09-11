@@ -75,7 +75,8 @@ func TestApplyRestoreRefusesForgedManifestTable(t *testing.T) {
 		strconv.Itoa(backupFormatVersion) + `,"schema_version":23000,"created_at":"2026-08-26T12:00:00Z","tables":["goose_db_version"]}` + "\n"
 
 	// A dropped gate panics on the nil pool rather than returning (ADR-0174 §6).
-	if err := (&server{}).applyRestore(context.Background(), []byte(manifest)); err != errRestoreUnknownTbl {
+	if err := (&server{}).applyRestore(context.Background(), []byte(manifest),
+		testRestoreActor, testRestoreRef); err != errRestoreUnknownTbl {
 		t.Fatalf("applyRestore on a forged manifest table: err = %v, want errRestoreUnknownTbl", err)
 	}
 }
@@ -91,7 +92,8 @@ func TestApplyRestoreRefusesForgedRowTable(t *testing.T) {
 	if _, err := preflightArchive(bytes.NewReader(buf.Bytes())); err != nil {
 		t.Fatalf("preflightArchive: %v, want the manifest gate to pass this archive", err)
 	}
-	if err := (&server{}).applyRestore(context.Background(), buf.Bytes()); err != errRestoreUnknownTbl {
+	if err := (&server{}).applyRestore(context.Background(), buf.Bytes(),
+		testRestoreActor, testRestoreRef); err != errRestoreUnknownTbl {
 		t.Fatalf("applyRestore on a forged row table: err = %v, want errRestoreUnknownTbl", err)
 	}
 }
