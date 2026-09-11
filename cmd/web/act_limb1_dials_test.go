@@ -120,8 +120,8 @@ func TestCoverageRetentionWritesTwoRowsWhenBothDialsMove(t *testing.T) {
 	if s := actSubjects(t, f, "observation.currency.set")[0]; s != "observation currency · 30 days" {
 		t.Errorf("observation subject = %q", s)
 	}
-	// A cadence multiple is a count of generations, so the cell carries no unit (ADR-0044).
-	if s := actSubjects(t, f, "dispatch.cadence.set")[0]; s != "dispatch cadence · 8" {
+	// The unit is the panel's own, so the cell cannot be misread as a day count (ADR-0081).
+	if s := actSubjects(t, f, "dispatch.cadence.set")[0]; s != "dispatch cadence · 8 cadences" {
 		t.Errorf("dispatch subject = %q", s)
 	}
 }
@@ -137,7 +137,7 @@ func TestCoverageRetentionWritesOneRowWhenOneDialMoves(t *testing.T) {
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"8"},
 	}).Body.Close()
 
-	wantOneAct(t, f, "dispatch.cadence.set", "dispatch cadence · 8")
+	wantOneAct(t, f, "dispatch.cadence.set", "dispatch cadence · 8 cadences")
 }
 
 func TestCoverageRetentionWritesNothingWhenNeitherDialMoves(t *testing.T) {
@@ -172,14 +172,14 @@ func TestCoverageRetentionRecordsTheClampedValueAndNotTheTypedOne(t *testing.T) 
 	if s := actSubjects(t, f, "observation.currency.set")[0]; s != "observation currency · 2 days" {
 		t.Errorf("observation subject = %q, want the floor the store took", s)
 	}
-	if s := actSubjects(t, f, "dispatch.cadence.set")[0]; s != "dispatch cadence · 2" {
+	if s := actSubjects(t, f, "dispatch.cadence.set")[0]; s != "dispatch cadence · 2 cadences" {
 		t.Errorf("dispatch subject = %q, want the floor the store took", s)
 	}
 }
 
 // The Subject cell carries the dial name, so the shared label reads once and not twice (§2.1).
 
-func TestTheFiveDialMovedClassesShareOneLabelAndKeepDistinctTokens(t *testing.T) {
+func TestTheDialMovedClassesShareOneLabelAndKeepDistinctTokens(t *testing.T) {
 	dials := []act.Act{
 		act.ZoneCadenceSet{}, act.DNSCadenceSet{}, act.TranscriptCurrencySet{},
 		act.ObservationCurrencySet{}, act.DispatchCadenceSet{}, act.AddressCapSet{},
@@ -197,6 +197,33 @@ func TestTheFiveDialMovedClassesShareOneLabelAndKeepDistinctTokens(t *testing.T)
 	// update.check.moved shares the payload and not the label, so it is held apart (§2.1).
 	if got := (act.UpdateCheckMoved{}).Label(); got != "Update check moved" {
 		t.Errorf("update.check.moved renders %q", got)
+	}
+}
+
+// Zero is the unbounded stop on all three retention dials, never a same-day retirement (ADR-0081).
+
+func TestAnUnboundedRetentionDialDoesNotRecordAsZeroDays(t *testing.T) {
+	f := newFakeStore()
+	seedRetentionPanel(f)
+	f.retention.TranscriptCurrencyDays = 30
+	f.retention.ObservationCurrencyDays, f.retention.DispatchCadenceMultiple = 90, 4
+	base, ac := adminSession(t, f)
+	f.acts = nil
+
+	postForm(t, ac, base+"/settings/retention", url.Values{
+		"transcript_currency_days": {"0"},
+	}).Body.Close()
+	wantOneAct(t, f, "transcript.currency.set", "transcript currency · keep everything")
+
+	f.acts = nil
+	postForm(t, ac, base+"/coverage/retention", url.Values{
+		"observation_currency_days": {"0"}, "dispatch_cadence_multiple": {"0"},
+	}).Body.Close()
+	if s := actSubjects(t, f, "observation.currency.set")[0]; s != "observation currency · keep everything" {
+		t.Errorf("observation subject = %q", s)
+	}
+	if s := actSubjects(t, f, "dispatch.cadence.set")[0]; s != "dispatch cadence · keep everything" {
+		t.Errorf("dispatch subject = %q", s)
 	}
 }
 

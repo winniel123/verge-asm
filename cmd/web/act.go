@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/act"
@@ -70,15 +69,6 @@ func (rec recorder) Record(ctx context.Context, actor act.Actor, a act.Act) erro
 		return err
 	}
 	return nil
-}
-
-// Every cadence and currency dial takes whole days from the operator, so the cell reads in days.
-
-func dialDays(n int64) string {
-	if n == 1 {
-		return "1 day"
-	}
-	return strconv.FormatInt(n, 10) + " days"
 }
 
 // A toggle's cell reads as the switch the operator threw, never as true or false.

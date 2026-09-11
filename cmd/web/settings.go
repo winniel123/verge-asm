@@ -563,6 +563,10 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "update channel", err)
 		return
 	}
+	// Recorded here, because the secret legs below return after this write has committed (§7.6).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ChannelUpdated{
+		ChannelRef: act.ChannelRef{Endpoint: channelDeliveryLabel(normURL)},
+	})
 	switch {
 	case r.FormValue("clear_secret") != "":
 		if err := s.channelsStore.SetChannelSecret(r.Context(), db.SetChannelSecretParams{ID: id}); err != nil {
@@ -581,10 +585,6 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 			return
 		}
 	}
-	// The endpoint the operator declared, never the secret the same form may carry (§4.2).
-	s.recorder().Record(r.Context(), actingAccount(acct), act.ChannelUpdated{
-		ChannelRef: act.ChannelRef{Endpoint: channelDeliveryLabel(normURL)},
-	})
 	s.backToSection(w, r, "channels")
 }
 
@@ -621,12 +621,17 @@ func (s *server) channelEndpoint(ctx context.Context, id int64) (string, bool, e
 	if err != nil {
 		return "", false, err
 	}
+	endpoint, found := channelEndpointIn(channels, id)
+	return endpoint, found, nil
+}
+
+func channelEndpointIn(channels []db.ListChannelsRow, id int64) (string, bool) {
 	for _, c := range channels {
 		if c.ID == id {
-			return channelDeliveryLabel(c.Url), true, nil
+			return channelDeliveryLabel(c.Url), true
 		}
 	}
-	return "", false, nil
+	return "", false
 }
 
 // The floor is derived from the tightest bound in force, never an operator choice (ADR-0094).
@@ -660,8 +665,9 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "update retention", err)
 		return
 	}
+	// Zero is the unbounded stop, so the panel's own renderer reads it back (ADR-0081).
 	s.recorder().Record(r.Context(), actingAccount(acct), act.TranscriptCurrencySet{
-		DialMove: act.DialMove{Dial: "transcript currency", Value: dialDays(trans)},
+		DialMove: act.DialMove{Dial: "transcript currency", Value: humanDays(trans)},
 	})
 	s.backToSection(w, r, "retention")
 }

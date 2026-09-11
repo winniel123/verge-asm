@@ -290,7 +290,7 @@ func (s *server) removeIntegration(w http.ResponseWriter, r *http.Request, acct 
 		return
 	}
 	// The DELETE reports no row count, so an uninstalled slug is read before it (§7.6, §4.2).
-	installed, err := s.integrationInstalled(r.Context(), id)
+	installed, err := s.integrationHasState(r.Context(), id)
 	if err != nil {
 		s.serverError(w, "remove integration: read state", err)
 		return
@@ -309,7 +309,7 @@ func (s *server) removeIntegration(w http.ResponseWriter, r *http.Request, acct 
 
 // A slug in the catalog with no state row is not installed, so removing it removes nothing.
 
-func (s *server) integrationInstalled(ctx context.Context, slug string) (bool, error) {
+func (s *server) integrationHasState(ctx context.Context, slug string) (bool, error) {
 	if _, err := s.integrationsStore.GetIntegrationChannel(ctx, slug); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
@@ -353,7 +353,7 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 	}
 
 	// The UPDATE is WHERE slug, so an uninstalled integration binds nothing (§7.6).
-	installed, err := s.integrationInstalled(r.Context(), id)
+	installed, err := s.integrationHasState(r.Context(), id)
 	if err != nil {
 		s.serverError(w, "bind integration channel: read state", err)
 		return
@@ -379,12 +379,8 @@ func (s *server) boundChannelEndpoint(ctx context.Context, id int64) (string, bo
 	if err != nil {
 		return "", false, err
 	}
-	for _, c := range channels {
-		if c.ID == id {
-			return channelDeliveryLabel(c.Url), true, nil
-		}
-	}
-	return "", false, nil
+	endpoint, found := channelEndpointIn(channels, id)
+	return endpoint, found, nil
 }
 
 func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {

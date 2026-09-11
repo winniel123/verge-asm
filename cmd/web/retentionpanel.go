@@ -550,13 +550,13 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 	// One Subject cell holding both dials is the list-valued subject §4.1 bars (spec §2.2).
 	if obs != settings.ObservationCurrencyDays {
 		s.recorder().Record(ctx, actingAccount(acct), act.ObservationCurrencySet{
-			DialMove: act.DialMove{Dial: "observation currency", Value: dialDays(obs)},
+			DialMove: act.DialMove{Dial: "observation currency", Value: humanDays(obs)},
 		})
 	}
 	// A submit that leaves a dial where it stood moved nothing, so it writes no row (spec §2.2).
 	if disp != settings.DispatchCadenceMultiple {
 		s.recorder().Record(ctx, actingAccount(acct), act.DispatchCadenceSet{
-			DialMove: act.DialMove{Dial: "dispatch cadence", Value: strconv.FormatInt(disp, 10)},
+			DialMove: act.DialMove{Dial: "dispatch cadence", Value: humanCadences(disp)},
 		})
 	}
 	s.redirectBack(w, r, "/coverage")
