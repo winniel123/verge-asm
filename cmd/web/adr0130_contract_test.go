@@ -16,6 +16,7 @@ type contractPkg struct {
 	fset         *token.FileSet
 	methods      map[string]*ast.FuncDecl
 	funcs        map[string]*ast.FuncDecl
+	routes       map[string]string
 	postHandlers map[string]string
 	consts       map[string]string
 }
@@ -27,13 +28,6 @@ func parseWebPackage(t *testing.T) *contractPkg {
 		t.Fatalf("read cmd/web: %v", err)
 	}
 	fset := token.NewFileSet()
-	c := &contractPkg{
-		fset:         fset,
-		methods:      map[string]*ast.FuncDecl{},
-		funcs:        map[string]*ast.FuncDecl{},
-		postHandlers: map[string]string{},
-		consts:       map[string]string{},
-	}
 	var files []*ast.File
 	for _, e := range entries {
 		name := e.Name()
@@ -45,6 +39,22 @@ func parseWebPackage(t *testing.T) *contractPkg {
 			t.Fatalf("parse %s: %v", name, perr)
 		}
 		files = append(files, f)
+	}
+	c := newContractPkg(fset, files)
+	if len(c.postHandlers) == 0 {
+		t.Fatalf("found no POST routes; the route reader is broken, not the tree")
+	}
+	return c
+}
+
+func newContractPkg(fset *token.FileSet, files []*ast.File) *contractPkg {
+	c := &contractPkg{
+		fset:         fset,
+		methods:      map[string]*ast.FuncDecl{},
+		funcs:        map[string]*ast.FuncDecl{},
+		routes:       map[string]string{},
+		postHandlers: map[string]string{},
+		consts:       map[string]string{},
 	}
 	for _, f := range files {
 		for _, d := range f.Decls {
@@ -89,24 +99,29 @@ func parseWebPackage(t *testing.T) *contractPkg {
 				return true
 			}
 			pattern, ok := stringLit(call.Args[0])
-			if !ok || !strings.HasPrefix(pattern, "POST ") {
+			if !ok {
 				return true
 			}
-			if name := handlerMethodName(call.Args[1]); name != "" {
+			name := handlerMethodName(call.Args[1])
+			if name == "" {
+				return true
+			}
+			// Two acts are not POST, so a POST-only harvest sees neither (spec §7.2).
+			c.routes[pattern] = name
+			if strings.HasPrefix(pattern, "POST ") {
 				c.postHandlers[pattern] = name
 			}
 			return true
 		})
 	}
-	if len(c.postHandlers) == 0 {
-		t.Fatalf("found no POST routes; the route reader is broken, not the tree")
-	}
 	return c
 }
 
+// Without apiBearer every /api/v1 route resolves to the wrapper's own name (spec §7.2).
+
 var gateMethods = map[string]bool{
 	"requireLogin": true, "requireAdmin": true, "requireSettingsAdmin": true,
-	"requireAPIAuth": true, "redirectTo": true,
+	"requireAPIAuth": true, "redirectTo": true, "apiBearer": true,
 }
 
 func handlerMethodName(e ast.Expr) string {
