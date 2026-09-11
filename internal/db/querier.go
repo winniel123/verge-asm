@@ -207,6 +207,8 @@ type Querier interface {
 	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
+	// A held row releases once the first hot dispatch after its root's batch has drained (ADR-1806 §3).
+	ListReleasableHeldMessages(ctx context.Context) ([]ListReleasableHeldMessagesRow, error)
 	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	// One row per citing timeline, so a fold drops its own span and keeps a sibling vantage (#1730).
@@ -232,6 +234,8 @@ type Querier interface {
 	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
 	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error)
 	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]ListSubjectFirstAppearancesRow, error)
+	// What opened beneath a held message's root, read at release (ADR-1806 §3).
+	ListSubjectsOpenedSinceBatch(ctx context.Context, batchID int64) ([]ListSubjectsOpenedSinceBatchRow, error)
 	ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error)
 	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]ListUnusedRecoveryCodeHashesRow, error)
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
@@ -277,6 +281,8 @@ type Querier interface {
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	RecordSourceAttempt(ctx context.Context, arg RecordSourceAttemptParams) (SourceHealth, error)
+	// The guarded update is the claim: a second pass takes no row and owes no delivery (ADR-1806 §2).
+	ReleaseHeldMessage(ctx context.Context, arg ReleaseHeldMessageParams) (int64, error)
 	// A ct-tail job outlives the stale threshold, so the owner renews off any transaction (#1709).
 	RenewJobLease(ctx context.Context, id int64) (int64, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)

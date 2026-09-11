@@ -86,7 +86,8 @@ func main() {
 
 	dispatcher := queue.NewDispatcher(pool, time.Now, logger).
 		WithCTSource(ctSource.Slug()).
-		WithStaleJobThreshold(staleThreshold)
+		WithStaleJobThreshold(staleThreshold).
+		WithMessages(delivery.EnqueueForMessage)
 	router := newRemoteProberRouter(
 		db.New(pool),
 		remoteexec.DirBinaryProvider{Dir: proberDir, Fallback: proberPath},

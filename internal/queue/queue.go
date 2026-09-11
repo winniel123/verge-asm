@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
@@ -44,6 +45,10 @@ type Dispatcher struct {
 	ctSource string
 
 	staleJobThreshold time.Duration // zero means the reaper is off, never unset (ADR-0137 §4)
+
+	// The enqueuer is injected because internal/delivery imports this package (ADR-0199 §1, #1316).
+
+	enqueue func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error)
 }
 
 func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger) *Dispatcher {
@@ -55,6 +60,13 @@ func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger)
 
 func (d *Dispatcher) WithStaleJobThreshold(threshold time.Duration) *Dispatcher {
 	d.staleJobThreshold = threshold
+	return d
+}
+
+// The fold enqueued no delivery for a held row, so the release poll owes it one (ADR-1806 §2).
+
+func (d *Dispatcher) WithMessages(enqueue func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error)) *Dispatcher {
+	d.enqueue = enqueue
 	return d
 }
 
@@ -74,15 +86,77 @@ func (d *Dispatcher) selectedCTSource() string {
 func (d *Dispatcher) Run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
-	d.dispatchDue(ctx)
+	d.tick(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			d.dispatchDue(ctx)
+			d.tick(ctx)
 		}
 	}
+}
+
+func (d *Dispatcher) tick(ctx context.Context) {
+	d.dispatchDue(ctx)
+	// A hot fan-out commits its jobs after its dispatch row, so this runs second (ADR-1806 §3).
+	d.releaseDue(ctx)
+}
+
+func (d *Dispatcher) releaseDue(ctx context.Context) {
+	released, err := d.releaseHeld(ctx)
+	if err != nil {
+		d.log.Printf("dispatcher: release held message: %v", err)
+		return
+	}
+	if released > 0 {
+		d.log.Printf("dispatcher: released %d held message(s)", released)
+	}
+}
+
+func (d *Dispatcher) releaseHeld(ctx context.Context) (int, error) {
+	// Clearing the hold on a Dispatcher that routes nothing would lose the delivery (ADR-1806 §2).
+	if d.enqueue == nil {
+		return 0, nil
+	}
+	rows, err := d.q.ListReleasableHeldMessages(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("queue: list releasable held messages: %w", err)
+	}
+	released := 0
+	for _, row := range rows {
+		took, err := d.releaseOne(ctx, row)
+		if err != nil {
+			// One row must not hold the rest back, so the pass logs and continues (ADR-0141).
+			d.log.Printf("dispatcher: release message %d: %v", row.ID, err)
+			continue
+		}
+		if took {
+			released++
+		}
+	}
+	return released, nil
+}
+
+func (d *Dispatcher) releaseOne(ctx context.Context, row db.ListReleasableHeldMessagesRow) (bool, error) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	// One row is one transaction, so the census and its delivery commit together (ADR-1806 §2).
+	defer tx.Rollback(ctx)
+	qtx := d.q.WithTx(tx)
+
+	took, err := releaseHeldMessage(ctx, qtx, row, func(c context.Context, messageID int64, class message.Class) (int, error) {
+		return d.enqueue(c, qtx, messageID, class)
+	})
+	if err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return took, nil
 }
 
 func (d *Dispatcher) dispatchDue(ctx context.Context) {
