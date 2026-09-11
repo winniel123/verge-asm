@@ -1814,6 +1814,19 @@ ships it unbounded**, one row per firing being nothing to retire. See
 [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
 _Avoid_: scan run, run, execution, job group
 
+**Drained**:
+A `Dispatch` whose **fan-out finished**, and whose every enqueued job sits in a terminal state.
+Both halves carry weight, and the model held only the second. A streamed fan-out commits its
+`Dispatch` row before its jobs, so an empty job set reads as *not yet* or as *none, ever*. Nothing
+on the record separates the two. A tier that is enabled and admits nothing is **drained and not
+pending** — every candidate address refused by `Custody`, or no `Vantage` provisioned. The openings
+it would carry never arrive. A census bound on the second half alone therefore holds its `Message`
+forever, unseen, and [#1851](https://github.com/winniel123/verge-asm/issues/1851) records the
+defect. Draining is a property of one `Dispatch` and never of a `Scan`. The bound names a tier by
+Kind, and does not derive it from the estate. See
+[ADR-1806](./docs/adr/1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md) §3.
+_Avoid_: complete, finished, idle, settled (a re-point batch **settles**, which is a different move)
+
 **Message**:
 One firing of one cause, computed **once** and never recomputed — recomputing one would reach
 back across a `Break`. At the cause, except for the census: a fold is one job with one Kind, so
