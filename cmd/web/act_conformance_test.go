@@ -327,14 +327,83 @@ func TestActExemptionsAndPendingEntriesAreLive(t *testing.T) {
 	}
 }
 
+// The stop set hides a call from both directions, so a Record on a refusal path would be
+// invisible to the exempt-route rule too. Once the route's own Record lands, nothing else can
+// see the stray one, and every refused form writes a false Act (spec §7.3).
+
+func TestNoAnswerHelperReachesARecordCall(t *testing.T) {
+	c := parseWebPackage(t)
+	var bad []string
+	for name := range actStop() {
+		if _, ok := c.decl(name); !ok {
+			continue
+		}
+		c.reach(name, map[string]bool{}, func(short string, fn *ast.FuncDecl) {
+			if callsRecord(fn) {
+				bad = append(bad, name+" → "+short)
+			}
+		})
+	}
+	if len(bad) > 0 {
+		t.Errorf("these answer helpers reach a Record call (spec §7.3):\n  %s\n"+
+			"A body answer and a back helper are refusal paths. Record the act in the handler.",
+			strings.Join(uniqSorted(bad), "\n  "))
+	}
+}
+
+// The gate reads one selector name, so §7.1's free-token premise is what makes it sound. Nothing
+// else keeps that token free, and a foreign Record would grant a silent pass to every route
+// reaching it while failing the exempt-route rule with a message naming the wrong cause.
+
+func TestTheRecordTokenStaysFreeInThisPackage(t *testing.T) {
+	c := parseWebPackage(t)
+	var foreign []string
+	visit := func(owner string, fn *ast.FuncDecl) {
+		ast.Inspect(fn, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "Record" || fromRecorder(sel.X) {
+				return true
+			}
+			foreign = append(foreign, owner)
+			return true
+		})
+	}
+	for name, fn := range c.methods {
+		visit("s."+name, fn)
+	}
+	for name, fn := range c.funcs {
+		visit(name, fn)
+	}
+	if len(foreign) > 0 {
+		t.Errorf("these hold a Record call on no recorder (spec §7.1):\n  %s\n"+
+			"The gate keys on the bare method name. Rename the other Record, or widen fromRecorder\n"+
+			"deliberately and say in the PR what the gate now reads.",
+			strings.Join(uniqSorted(foreign), "\n  "))
+	}
+}
+
+func fromRecorder(e ast.Expr) bool {
+	call, ok := e.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	if isSelector(call.Fun, "s", "recorder") {
+		return true
+	}
+	id, ok := call.Fun.(*ast.Ident)
+	return ok && id.Name == "txRecorder"
+}
+
 func TestTheHarvestReadsEveryMethodAndNamesTheThreeNonPOSTActs(t *testing.T) {
 	c := parseWebPackage(t)
-	// 144 registrations less the four that carry no s.<handler> name (spec §7.2).
-	if len(c.routes) != 140 {
-		t.Errorf("the harvest read %d routes, want 140; a POST-only harvest sees none of the three non-POST acts", len(c.routes))
-	}
-	if len(c.postHandlers) != 81 {
-		t.Errorf("the harvest read %d POST routes, want 81", len(c.postHandlers))
+	// A count would go red on any PR that adds a route, which is no part of this property.
+	if len(c.routes) <= len(c.postHandlers) {
+		t.Errorf("the harvest read %d routes and %d POST routes; it still stops at POST (spec §7.2)",
+			len(c.routes), len(c.postHandlers))
 	}
 	for _, pattern := range []string{
 		"GET /profile/sso/{slug}/link/callback", "GET /run/{id}/raw", "GET /runs/{id}/raw",
