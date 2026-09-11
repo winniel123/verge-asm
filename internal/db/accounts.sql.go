@@ -164,16 +164,29 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]ListAccountsRow, error) {
 }
 
 const resetAccountTOTP = `-- name: ResetAccountTOTP :one
-UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1
-RETURNING username
+WITH before AS (
+    -- Every sub-statement reads one snapshot, so this is the enrolment the strip found.
+    SELECT a.id, a.username, a.totp_enabled FROM account a WHERE a.id = $1
+), stripped AS (
+    UPDATE account a SET totp_secret = NULL, totp_enabled = false WHERE a.id = $1
+    RETURNING a.id
+)
+SELECT b.username, b.totp_enabled
+FROM before b
+JOIN stripped s ON s.id = b.id
 `
 
+type ResetAccountTOTPRow struct {
+	Username    string `json:"username"`
+	TotpEnabled bool   `json:"totp_enabled"`
+}
+
 // The account rides the strip's own RETURNING, so an absent id strips nothing.
-func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) (string, error) {
+func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) (ResetAccountTOTPRow, error) {
 	row := q.db.QueryRow(ctx, resetAccountTOTP, id)
-	var username string
-	err := row.Scan(&username)
-	return username, err
+	var i ResetAccountTOTPRow
+	err := row.Scan(&i.Username, &i.TotpEnabled)
+	return i, err
 }
 
 const setTOTPLastStep = `-- name: SetTOTPLastStep :execrows

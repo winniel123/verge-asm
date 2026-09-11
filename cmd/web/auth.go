@@ -1161,10 +1161,6 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, "reset: update password", err)
 		return
 	}
-	// The link rides this instance's own web log, so a holder acted (spec §3.3).
-	s.recorder().Record(r.Context(), act.GrantHolder{Grant: act.PasswordReset{}}, act.PasswordResetCompleted{
-		AccountRef: act.AccountRef{Username: username},
-	})
 	if err := s.passwordStore.ConsumePasswordReset(r.Context(), db.ConsumePasswordResetParams{ID: pr.ID, ConsumedAt: s.obsAsOf()}); err != nil {
 		log.Printf("web: reset: consume token: %v", err)
 	}
@@ -1175,6 +1171,10 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		log.Printf("web: reset: revoke all sessions: %v", err)
 	}
+	// The link rides this instance's own web log, so a holder acted (spec §3.3).
+	s.recorder().Record(r.Context(), act.GrantHolder{Grant: act.PasswordReset{}}, act.PasswordResetCompleted{
+		AccountRef: act.AccountRef{Username: username},
+	})
 	s.render(w, r, "reset-done", s.signinData(map[string]any{"Title": "Password updated"}))
 }
 
@@ -1638,9 +1638,6 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "profile: update password", err)
 		return
 	}
-	s.recorder().Record(r.Context(), actingAccount(acct), act.PasswordChanged{
-		AccountRef: act.AccountRef{Username: username},
-	})
 	// A changed password kills every other session, so a stolen old one is dead (ADR-0117, #408).
 	desc := "Every other session was signed out."
 	if curID, ok := s.currentSessionID(r); ok {
@@ -1656,6 +1653,10 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
 		desc = "Other sessions were left in place."
 	}
+	// A stalled insert must not hold the revoke that kills every other session (ADR-0117).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.PasswordChanged{
+		AccountRef: act.AccountRef{Username: username},
+	})
 	s.toastRedirect(w, r, profilePath, "ok", "Password changed", desc)
 }
 

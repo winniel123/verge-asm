@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/auth"
 )
@@ -302,11 +304,35 @@ func TestStrippingTOTPRecordsTheAccountItStripped(t *testing.T) {
 	f := newFakeStore()
 	base, ac := adminSession(t, f)
 	bob := seedAccount(t, f, "bob", roleViewer, "hunter2hunter2")
+	enrolTOTP(f, bob.ID)
 	f.acts = nil
 
 	postForm(t, ac, base+"/settings/accounts/reenroll", url.Values{"id": {itoa(bob.ID)}}).Body.Close()
 
 	wantOneActBy(t, f, "totp.stripped", "@admin", "bob")
+}
+
+// The Team menu offers "Require re-enrollment" on an account the same row badges as not
+// enrolled, and stripping no second factor is not an act (spec §7.6 ruling 2).
+
+func TestStrippingTOTPOnANeverEnrolledAccountRecordsNothing(t *testing.T) {
+	f := newFakeStore()
+	base, ac := adminSession(t, f)
+	bob := seedAccount(t, f, "bob", roleViewer, "hunter2hunter2")
+	f.acts = nil
+
+	postForm(t, ac, base+"/settings/accounts/reenroll", url.Values{"id": {itoa(bob.ID)}}).Body.Close()
+
+	if got := actClasses(f); len(got) != 0 {
+		t.Fatalf("stripping a never-enrolled account recorded %v, want nothing", got)
+	}
+}
+
+func enrolTOTP(f *fakeStore, id int64) {
+	acct := f.accounts[id]
+	acct.TotpEnabled = true
+	acct.TotpSecret = pgtype.Text{String: "sealed", Valid: true}
+	f.accounts[id] = acct
 }
 
 func TestStrippingTOTPOnAnUnknownAccountRecordsNothing(t *testing.T) {

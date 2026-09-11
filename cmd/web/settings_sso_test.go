@@ -72,11 +72,11 @@ func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProvide
 }
 
 func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) (string, error) {
-	slug := ""
+	slug, found := "", false
 	kept := f.ssoProviders[:0]
 	for _, p := range f.ssoProviders {
 		if p.id == id {
-			slug = p.slug
+			slug, found = p.slug, true
 			continue
 		}
 		kept = append(kept, p)
@@ -89,7 +89,7 @@ func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) (string, erro
 		}
 	}
 	f.ssoIdentities = keptIdents
-	if slug == "" {
+	if !found {
 		return "", pgx.ErrNoRows
 	}
 	return slug, nil

@@ -305,7 +305,7 @@ type Querier interface {
 	RenewJobLease(ctx context.Context, id int64) (int64, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
 	// The account rides the strip's own RETURNING, so an absent id strips nothing.
-	ResetAccountTOTP(ctx context.Context, id int64) (string, error)
+	ResetAccountTOTP(ctx context.Context, id int64) (ResetAccountTOTPRow, error)
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
 	RetryReportNotification(ctx context.Context, arg RetryReportNotificationParams) error
 	RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAllSessionsForAccountParams) error

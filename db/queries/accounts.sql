@@ -46,6 +46,14 @@ WHERE id = $1 AND (totp_last_step IS NULL OR totp_last_step < $2);
 DELETE FROM account WHERE id = $1;
 
 -- name: ResetAccountTOTP :one
+WITH before AS (
+    -- Every sub-statement reads one snapshot, so this is the enrolment the strip found.
+    SELECT a.id, a.username, a.totp_enabled FROM account a WHERE a.id = $1
+), stripped AS (
+    UPDATE account a SET totp_secret = NULL, totp_enabled = false WHERE a.id = $1
+    RETURNING a.id
+)
 -- The account rides the strip's own RETURNING, so an absent id strips nothing.
-UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1
-RETURNING username;
+SELECT b.username, b.totp_enabled
+FROM before b
+JOIN stripped s ON s.id = b.id;
