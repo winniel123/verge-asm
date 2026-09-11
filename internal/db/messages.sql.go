@@ -30,21 +30,24 @@ func (q *Queries) CountUnreadMessages(ctx context.Context, accountID int64) (int
 }
 
 const insertMessage = `-- name: InsertMessage :one
-INSERT INTO message (cause, class, subject_kind, fired_at, instant, census, headline)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch
+INSERT INTO message (cause, class, subject_kind, fired_at, instant, census, headline, census_pending_after_batch, census_basis)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch, census_basis
 `
 
 type InsertMessageParams struct {
-	Cause       string             `json:"cause"`
-	Class       string             `json:"class"`
-	SubjectKind string             `json:"subject_kind"`
-	FiredAt     string             `json:"fired_at"`
-	Instant     pgtype.Timestamptz `json:"instant"`
-	Census      []byte             `json:"census"`
-	Headline    string             `json:"headline"`
+	Cause                   string             `json:"cause"`
+	Class                   string             `json:"class"`
+	SubjectKind             string             `json:"subject_kind"`
+	FiredAt                 string             `json:"fired_at"`
+	Instant                 pgtype.Timestamptz `json:"instant"`
+	Census                  []byte             `json:"census"`
+	Headline                string             `json:"headline"`
+	CensusPendingAfterBatch pgtype.Int8        `json:"census_pending_after_batch"`
+	CensusBasis             []byte             `json:"census_basis"`
 }
 
+// A held row states the batch it waits on and the basis its census is read from (ADR-1806 §2).
 func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error) {
 	row := q.db.QueryRow(ctx, insertMessage,
 		arg.Cause,
@@ -54,6 +57,8 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		arg.Instant,
 		arg.Census,
 		arg.Headline,
+		arg.CensusPendingAfterBatch,
+		arg.CensusBasis,
 	)
 	var i Message
 	err := row.Scan(
@@ -68,6 +73,7 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		&i.ReadAt,
 		&i.CreatedAt,
 		&i.CensusPendingAfterBatch,
+		&i.CensusBasis,
 	)
 	return i, err
 }
@@ -131,7 +137,7 @@ func (q *Queries) ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAd
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch
+SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch, census_basis
 FROM message
   -- A held row carries no census yet, so no operator surface may render it (ADR-1806 §2).
 WHERE census_pending_after_batch IS NULL
@@ -159,6 +165,7 @@ func (q *Queries) ListMessages(ctx context.Context) ([]Message, error) {
 			&i.ReadAt,
 			&i.CreatedAt,
 			&i.CensusPendingAfterBatch,
+			&i.CensusBasis,
 		); err != nil {
 			return nil, err
 		}

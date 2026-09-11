@@ -3,8 +3,6 @@ package queue
 import (
 	"context"
 	"testing"
-
-	"github.com/winniel123/verge-asm/internal/message"
 )
 
 const (
@@ -28,29 +26,28 @@ func apexFold() []spanChange {
 }
 
 func TestMembershipCensusCarriesAnEndpointOnACitedService(t *testing.T) {
-	msgs := membershipMessages(produceT0, apexFold(), membershipInputs{})
-	if len(msgs) != 1 {
-		t.Fatalf("the apex is the one root that opened a resolution, got %+v", msgs)
-	}
+	// The fold holds the message and computes no census, so the rule is read here (ADR-1806 §2).
+	changes := apexFold()
+	census := membershipCensus(changes, changes[0])
 	keys := map[string]bool{}
-	for _, e := range msgs[0].Census.Entries {
+	for _, e := range census.Entries {
 		keys[e.Key] = true
 	}
 	if !keys[apexSvc] || !keys[apexName+"@"+apexSvc] {
-		t.Errorf("the cited Service and the apex's own Endpoint are beneath it, got %+v", msgs[0].Census.Entries)
+		t.Errorf("the cited Service and the apex's own Endpoint are beneath it, got %+v", census.Entries)
 	}
 	// ADR-0033 §2 names this census the carrier for an Endpoint that entered (#1776).
 	if !keys[subName+"@"+apexSvc] {
-		t.Errorf("a sub-name's Endpoint entered on the apex's Service, got %+v", msgs[0].Census.Entries)
+		t.Errorf("a sub-name's Endpoint entered on the apex's Service, got %+v", census.Entries)
 	}
 	if !keys[lookalike+"@"+apexSvc] {
-		t.Errorf("a foreign Name's Endpoint entered on the apex's Service too, got %+v", msgs[0].Census.Entries)
+		t.Errorf("a foreign Name's Endpoint entered on the apex's Service too, got %+v", census.Entries)
 	}
 	if keys[subName+"@"+uncitedSvc] {
-		t.Errorf("the apex cites no address of that Service, so nothing puts it beneath (#1773), got %+v", msgs[0].Census.Entries)
+		t.Errorf("the apex cites no address of that Service, so nothing puts it beneath (#1773), got %+v", census.Entries)
 	}
-	if msgs[0].Census.Len() != 4 {
-		t.Errorf("census = %+v, want the Service and the three Endpoints on it", msgs[0].Census.Entries)
+	if census.Len() != 4 {
+		t.Errorf("census = %+v, want the Service and the three Endpoints on it", census.Entries)
 	}
 }
 
@@ -71,10 +68,7 @@ func TestAForeignEndpointKeepsItsOwnMessageBeneathAnApexRoot(t *testing.T) {
 		switch {
 		case m.SubjectKind == "name" && m.FiredAt == apexName:
 			membership++
-			c, err := message.ParseCensus(m.Census)
-			if err != nil {
-				t.Fatalf("parse census: %v", err)
-			}
+			c := membershipCensus(changes, changes[0])
 			if c.Len() != 1 || c.Entries[0].Key != ep {
 				t.Errorf("the Endpoint entered on a cited Service, so the census carries it; got %+v", c.Entries)
 			}

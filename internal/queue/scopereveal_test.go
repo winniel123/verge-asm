@@ -90,8 +90,12 @@ func TestDeclaredAddressScopeSkipsAnOpeningANameCites(t *testing.T) {
 			root = m
 		}
 	}
-	if root == nil || root.CensusLen() != 1 {
-		t.Fatalf("the Name root still carries the Service it cites, got %+v", root)
+	// The root's own census is computed at release, so the partition is read off the basis.
+	if root == nil || root.CensusPending == nil {
+		t.Fatalf("the Name root still fires, and it is held for its census, got %+v", root)
+	}
+	if !strings.Contains(string(root.CensusPending.Basis.RootValue), "198.51.100.9") {
+		t.Errorf("the basis carries the address the root cites, got %s", root.CensusPending.Basis.RootValue)
 	}
 	if scope == nil {
 		t.Fatal("the dark address still owes one message at the scope")

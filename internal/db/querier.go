@@ -124,6 +124,7 @@ type Querier interface {
 	InsertCertificateMaterial(ctx context.Context, arg InsertCertificateMaterialParams) error
 	InsertDelivery(ctx context.Context, arg InsertDeliveryParams) error
 	InsertEdgeFanoutObservation(ctx context.Context, arg InsertEdgeFanoutObservationParams) error
+	// A held row states the batch it waits on and the basis its census is read from (ADR-1806 §2).
 	InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error)
 	InsertObservation(ctx context.Context, arg InsertObservationParams) error
 	InsertReportDelivery(ctx context.Context, arg InsertReportDeliveryParams) (ReportDelivery, error)

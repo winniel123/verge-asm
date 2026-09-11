@@ -1,10 +1,11 @@
 -- name: InsertMessage :one
-INSERT INTO message (cause, class, subject_kind, fired_at, instant, census, headline)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch;
+-- A held row states the batch it waits on and the basis its census is read from (ADR-1806 §2).
+INSERT INTO message (cause, class, subject_kind, fired_at, instant, census, headline, census_pending_after_batch, census_basis)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch, census_basis;
 
 -- name: ListMessages :many
-SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch
+SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at, census_pending_after_batch, census_basis
 FROM message
   -- A held row carries no census yet, so no operator surface may render it (ADR-1806 §2).
 WHERE census_pending_after_batch IS NULL

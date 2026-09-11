@@ -88,7 +88,8 @@ func produceMessages(ctx context.Context, store messageStore, batchID int64, obs
 		if err != nil {
 			return err
 		}
-		if enqueue == nil {
+		// A held row is routed by the release poll, once its census is real (ADR-1806 §2).
+		if enqueue == nil || m.CensusPending != nil {
 			continue
 		}
 		if _, err := enqueue(ctx, row.ID, m.Class); err != nil {
@@ -143,6 +144,12 @@ func insertParams(m *message.Message) db.InsertMessageParams {
 			p.Census = b
 		}
 	}
+	if m.CensusPending != nil {
+		p.CensusPendingAfterBatch = pgInt8(m.CensusPending.AfterBatch)
+		if b, err := m.CensusPending.Basis.Marshal(); err == nil {
+			p.CensusBasis = b
+		}
+	}
 	return p
 }
 
@@ -167,7 +174,7 @@ func buildMessages(ctx context.Context, store messageStore, batchID int64, obser
 	}
 	msgs = append(msgs, widened...)
 
-	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
+	msgs = append(msgs, membershipMessages(batchID, observedAt, changes, in)...)
 
 	openings := darkScopeOpenings(changes, in)
 	rePointed := rePoints(changes)
@@ -335,7 +342,7 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 	return msgs, nil
 }
 
-func membershipMessages(observedAt time.Time, changes []spanChange, in membershipInputs) []*message.Message {
+func membershipMessages(batchID int64, observedAt time.Time, changes []spanChange, in membershipInputs) []*message.Message {
 	var msgs []*message.Message
 	// Membership rides the resolution facet, so a dns-record opening is no second root (ADR-0031).
 	for _, root := range changes {
@@ -347,12 +354,22 @@ func membershipMessages(observedAt time.Time, changes []spanChange, in membershi
 		if entry == message.EntryRevealed {
 			seedKey = coveringSeedKey(root.SubjectKind, root.SubjectKey, in)
 		}
-		m := message.Membership(entry, root.SubjectKind, root.SubjectKey, seedKey, membershipCensus(changes, root), observedAt)
+		// The subjects this census counts open in a later hot fold, so it is held (ADR-1806 §2).
+		m := message.HeldMembership(entry, root.SubjectKind, root.SubjectKey, seedKey, pendingCensus(batchID, root), observedAt)
 		if m != nil {
 			msgs = append(msgs, m)
 		}
 	}
 	return msgs
+}
+
+func pendingCensus(batchID int64, root spanChange) message.CensusPending {
+	basis := message.CensusBasis{RootKind: root.SubjectKind, RootKey: root.SubjectKey}
+	// An unparseable value would fail the basis marshal, and the row owes a basis (ADR-1806 §4).
+	if json.Valid(root.Value) {
+		basis.RootValue = append(json.RawMessage(nil), root.Value...)
+	}
+	return message.CensusPending{AfterBatch: batchID, Basis: basis}
 }
 
 type classLeg struct {
