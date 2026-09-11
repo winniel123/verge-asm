@@ -44,7 +44,7 @@ func clockMessagesOf(store *fakeMessageStore) []db.InsertMessageParams {
 func runFold(t *testing.T, store *fakeMessageStore, observedAt time.Time, changes []spanChange, devMode bool) []routed {
 	t.Helper()
 	var log []routed
-	if err := produceMessages(context.Background(), store, 40, observedAt, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), devMode); err != nil {
+	if err := produceMessages(context.Background(), store, 40, observedAt, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), devMode, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	return log

@@ -30,7 +30,7 @@ func TestGapCloseFiresOnceAtTheCoveringScopeWithThePair(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("10.1.0.0/24")}}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 40, produceT0, changes, nil, nil, in, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 40, produceT0, changes, nil, nil, in, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 {
@@ -142,7 +142,7 @@ func TestGapCloseCarriesTheRulesThatOpenedAtFiredBeneathIt(t *testing.T) {
 		current: []db.ListServiceReachabilitySpansByClassForServicesRow{internetReachRow(svc, "reached")},
 	}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("10.1.0.0/24")}}
-	if err := produceMessages(context.Background(), store, 41, produceT0, changes, nil, nil, in, nil, false); err != nil {
+	if err := produceMessages(context.Background(), store, 41, produceT0, changes, nil, nil, in, nil, false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 1 || !strings.Contains(store.inserted[0].Headline, "sight restored") {

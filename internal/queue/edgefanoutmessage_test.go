@@ -23,7 +23,7 @@ func TestDeclineFiresNoMessage(t *testing.T) {
 		t.Fatalf("Derive on a declined edge = %q, want %q — the veto did not hold", got, custody.ThirdParty)
 	}
 	// The last link alone would pass over an empty change set for any reason at all.
-	msgs := membershipMessages(7, time.Unix(0, 0).UTC(), nil, membershipInputs{})
+	msgs := membershipMessages(7, time.Unix(0, 0).UTC(), nil, membershipInputs{}, true)
 	if len(msgs) != 0 {
 		t.Errorf("messages = %+v on a batch that probed a declined edge, want none", msgs)
 	}
@@ -36,7 +36,7 @@ func TestRepointOntoSharedEdgeFiresNoMessage(t *testing.T) {
 		Facet:       resolutionwalk.FacetResolution,
 		Opened:      false,
 	}}
-	if msgs := membershipMessages(7, time.Unix(0, 0).UTC(), closed, membershipInputs{}); len(msgs) != 0 {
+	if msgs := membershipMessages(7, time.Unix(0, 0).UTC(), closed, membershipInputs{}, true); len(msgs) != 0 {
 		t.Errorf("messages = %+v on a re-point off a dedicated origin, want none", msgs)
 	}
 }

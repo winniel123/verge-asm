@@ -106,7 +106,8 @@ func main() {
 		WithRouter(router).
 		WithMessages(delivery.EnqueueForMessage, devMode).
 		WithTranscripts(transcriptKey, devMode).
-		WithProbeTimeout(probeTimeout)
+		WithProbeTimeout(probeTimeout).
+		WithStaleJobThreshold(staleThreshold)
 
 	if *trigger != "" {
 		n, skip, err := dispatcher.Trigger(ctx, *trigger)

@@ -35,7 +35,9 @@ func hotTickLags(ctx context.Context, q HotLagStore, scanID, dispatchID int64, s
 	if !HotLagGateArmed(staleJobThreshold) {
 		if logger != nil {
 			logger.Printf("dispatcher: the stale-running reaper is disabled (stale job timeout %s), so the cadence-lag gate is not armed; "+
-				"a hot tick that overtakes an undrained dispatch can double the rate at one target, and a ct-tail tick stacks a second dispatch", staleJobThreshold)
+				"a hot tick that overtakes an undrained dispatch can double the rate at one target, and a ct-tail tick stacks a second dispatch; "+
+				"a membership census is also written at its cause, so it counts only what its own fold opened and names no service or endpoint "+
+				"the hot tier opens later", staleJobThreshold)
 		}
 		return false, nil
 	}
