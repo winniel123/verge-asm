@@ -536,7 +536,7 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("transition_count %d != movement sum %d", devDriftTransitionCount, sum)
 	}
 
-	periods := driftPeriods()
+	periods := periodPresets()
 	if len(d.Periods) != len(periods) {
 		t.Fatalf("periods length drift: fixtures.json = %d, driftPeriods = %d", len(d.Periods), len(periods))
 	}

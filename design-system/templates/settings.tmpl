@@ -74,12 +74,15 @@
 .st-pop { position: relative; display: inline-flex; }
 .st-panel { position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 95; min-width: 200px; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: st-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; gap: 2px; }
 .st-panel[hidden] { display: none; }
+.st-panel.range { min-width: 232px; }
 .st-mi { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); text-decoration: none; box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
 .st-mi:hover { background: var(--surface-sunken); }
 .st-mi.danger { color: var(--danger); }
 .st-mi.danger:hover { background: var(--danger-soft); }
 .st-mi .mic { display: inline-flex; color: var(--text-secondary); flex: none; }
 .st-mi.danger .mic { color: var(--danger); }
+.st-mi.on { background: var(--accent-soft); color: var(--link); font-weight: 600; }
+.st-mi .ck { margin-left: auto; display: inline-flex; color: var(--link); }
 .st-sep { height: 1px; background: var(--row-sep); margin: 5px 4px; }
 .st-error { padding: 10px 14px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; font: 400 12.5px/1.5 var(--font-ui); color: var(--danger); }
 .st-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border-default); background: var(--surface-sunken); }
@@ -277,6 +280,16 @@
   if(cc&&cs){
     var csSync=function(){if(cc.checked)cs.removeAttribute("disabled");else cs.setAttribute("disabled","");};
     cc.addEventListener("change",csSync);csSync();
+  }
+  // The range submit ships ENABLED and is disabled here on load, never in the markup
+  // (ADR-0130 ticket #975). With JavaScript off the operator can still type both dates
+  // and submit, and a half-filled range falls back to the preset rather than 404ing.
+  var ra=document.querySelector("[data-st-range-apply]");
+  if(ra&&ra.form){
+    var ri=ra.form.querySelectorAll('input[name="start"],input[name="end"]');
+    var raSync=function(){var ok=ri.length>0;[].forEach.call(ri,function(i){if(!i.value.trim())ok=false;});if(ok)ra.removeAttribute("disabled");else ra.setAttribute("disabled","");};
+    // change too: a back-navigation refills both dates without firing input.
+    [].forEach.call(ri,function(i){i.addEventListener("input",raSync);i.addEventListener("change",raSync);});raSync();
   }
   var rs=document.getElementById("st-role-select");
   if(rs){var rb=document.getElementById("st-role-save");
@@ -861,26 +874,57 @@
 
 
 {{define "settings-audit"}}
-<header style="display:flex;flex-direction:column;gap:6px">
+<header style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px;min-width:0">
 <span class="st-micro">Access · operational record</span>
 <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Audit log</h2>
-<p class="st-lede">Who did what, when. This build keeps no separate queryable log of admin acts — source enablement, for one, keeps no log line of its own and is dated by the batch whose recorded source set it moved.</p>
+<p class="st-lede">Who did what, when.</p>
+</div>
+<div style="margin-left:auto">
+<span class="st-pop">
+<button type="button" class="st-btn sec" style="height:30px;padding:0 12px;border-radius:10px;font-size:12px" data-st-menu aria-haspopup="true" aria-expanded="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg><span class="mono">{{.PeriodLabel}}</span></button>
+<div class="st-panel range" hidden>
+{{range .Periods}}<a class="st-mi{{if eq .Token $.Period}} on{{end}}" href="/settings?tab=audit&period={{.Token}}">{{.Label}}{{if eq .Token $.Period}}<span class="ck"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>{{end}}</a>{{end}}
+<div class="st-sep"></div>
+<span class="st-micro" style="padding:2px 4px 4px">Custom (ISO 8601)</span>
+<form method="get" action="/settings" style="display:flex;flex-direction:column;gap:6px;margin:0;padding:0 2px 2px">
+<input type="hidden" name="tab" value="audit">
+<input type="hidden" name="period" value="{{.Period}}">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+<span class="st-input"><span class="iw" style="height:28px;padding:0 8px;border-radius:8px"><input name="start" placeholder="2026-08-01" autocomplete="off" aria-label="Range start" style="font-size:11.5px"></span></span>
+<span class="st-input"><span class="iw" style="height:28px;padding:0 8px;border-radius:8px"><input name="end" placeholder="2026-08-22" autocomplete="off" aria-label="Range end" style="font-size:11.5px"></span></span>
+</div>
+<button type="submit" class="st-btn pri" style="height:30px;padding:0 12px;border-radius:10px;font-size:12px" data-st-range-apply>Apply range</button>
+</form>
+</div>
+</span>
+</div>
 </header>
+{{if .AuditTruncated}}<div class="st-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="ct"><span>Showing the most recent {{.AuditCount}} acts for this period. Narrow the period to reach older acts — nothing is deleted.</span></span></div>{{end}}
 {{if .AuditRows}}
 <section class="st-card flush">
 <table class="st-table">
 <thead><tr><th style="width:160px">When</th><th style="width:170px">Actor</th><th style="width:170px">Action</th><th>Subject</th></tr></thead>
 <tbody>
 {{range .AuditRows}}<tr>
-<td class="mono">{{.When}}</td><td class="mono">{{.Actor}}</td><td class="mono">{{.Action}}</td><td class="mono">{{.Subject}}</td>
+<td class="mono" title="{{.ISO}}">{{.When}}</td>
+<td class="mono">{{if .ActorIsGrant}}<span class="st-tag">{{.Actor}}</span>{{else}}{{.Actor}}{{end}}</td>
+<td class="mono">{{.Action}}</td>
+<td class="mono" style="overflow:hidden;text-overflow:ellipsis;max-width:320px" title="{{.Subject}}">{{.Subject}}</td>
 </tr>{{end}}
 </tbody>
 </table>
 </section>
+{{else if .AuditCorpusEmpty}}
+<section class="st-card"><div class="st-body"><div class="st-empty">
+<span class="msg">No acts recorded yet</span>
+<span class="det">This instance has taken no auditable act since the record began. Your next seed, scan or team change lands here.</span>
+</div></div></section>
 {{else}}
 <section class="st-card"><div class="st-body"><div class="st-empty">
-<span class="msg">No audit log</span>
-<span class="det">The operational records this build does keep are the <a href="/settings?tab=delivery">delivery record</a> and the <a href="/settings?tab=messages">message store</a> — each fact is legible where it fired.</span>
+<span class="msg">No acts in this period</span>
+<span class="det">This instance recorded no auditable act in the selected period. Widen the range to reach the rest of the record.</span>
 </div></div></section>
 {{end}}
 {{end}}

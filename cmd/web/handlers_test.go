@@ -45,6 +45,14 @@ type fakeStore struct {
 	actTrail []string
 	actErr   error
 
+	// The reader scopes what the recorder wrote, so the fake defaults created_at as the
+	// column does and holds the rows it would return.
+
+	actRows    []db.Act
+	actNextID  int64
+	actNow     time.Time
+	actListErr error
+
 	seeds      []db.Seed
 	seedNextID int64
 

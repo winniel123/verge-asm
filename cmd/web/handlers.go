@@ -36,6 +36,7 @@ type store interface {
 	apertureSettingsStore
 	apiAuthStore
 	apiV1Store
+	auditStore
 	backupStore
 	channelSendTestStore
 	channelsStore
@@ -97,6 +98,7 @@ type server struct {
 	apertureSettingsStore  apertureSettingsStore
 	apiAuthStore           apiAuthStore
 	apiV1Store             apiV1Store
+	auditStore             auditStore
 	backupStore            backupStore
 	channelSendTestStore   channelSendTestStore
 	channelsStore          channelsStore
@@ -219,6 +221,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		apertureSettingsStore:  s,
 		apiAuthStore:           s,
 		apiV1Store:             s,
+		auditStore:             s,
 		backupStore:            s,
 		channelSendTestStore:   s,
 		channelsStore:          s,
