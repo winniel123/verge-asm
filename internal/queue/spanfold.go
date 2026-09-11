@@ -21,7 +21,18 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation, in membershipInputs, changes *[]spanChange) error {
+// The proof of ADR-1806 folds real observations with no Postgres behind them (#1819).
+
+type spanFoldStore interface {
+	GetOpenSpan(ctx context.Context, arg db.GetOpenSpanParams) (db.GetOpenSpanRow, error)
+	CloseSpan(ctx context.Context, arg db.CloseSpanParams) error
+	OpenSpan(ctx context.Context, arg db.OpenSpanParams) (int64, error)
+	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
+}
+
+var _ spanFoldStore = (*db.Queries)(nil)
+
+func foldObservationsIntoSpans(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation, in membershipInputs, changes *[]spanChange) error {
 	// Ingest is an incremental fold over completed batches, never a diff of two runs (ADR-0007).
 	for _, o := range obs {
 		if o.Facet == "" {
@@ -34,7 +45,7 @@ func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, batchID int
 	return nil
 }
 
-func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation, in membershipInputs, changes *[]spanChange) error {
+func foldOne(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation, in membershipInputs, changes *[]spanChange) error {
 	source := sourceFor(o.Facet)
 	key := drift.TimelineKey{
 		SubjectKind:   subjectKindFor(o.Facet),
