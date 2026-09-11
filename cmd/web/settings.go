@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/db/migrations"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
@@ -520,6 +521,10 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "create channel", err)
 		return
 	}
+	// The sealed secret reaches no payload: ChannelRef has one field and it is the endpoint (§4.2).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ChannelDeclared{
+		ChannelRef: act.ChannelRef{Endpoint: channelDeliveryLabel(normURL)},
+	})
 	s.backToSection(w, r, "channels")
 }
 
@@ -543,6 +548,14 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		fail("Choose at least one routing class.")
 		return
 	}
+	// An UPDATE that matches no row moved nothing, and a phantom Act can never be retracted (§7.6).
+	if _, found, err := s.channelEndpoint(r.Context(), id); err != nil {
+		s.serverError(w, "update channel: list channels", err)
+		return
+	} else if !found {
+		fail("That channel could not be found.")
+		return
+	}
 	if err := s.channelsStore.UpdateChannel(r.Context(), db.UpdateChannelParams{
 		ID: id, Url: normURL, RouteDrift: drift, RouteCoverage: coverage,
 		RouteClock: clock, Enabled: r.FormValue("enabled") != "",
@@ -550,6 +563,10 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "update channel", err)
 		return
 	}
+	// Recorded here, because the secret legs below return after this write has committed (§7.6).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ChannelUpdated{
+		ChannelRef: act.ChannelRef{Endpoint: channelDeliveryLabel(normURL)},
+	})
 	switch {
 	case r.FormValue("clear_secret") != "":
 		if err := s.channelsStore.SetChannelSecret(r.Context(), db.SetChannelSecretParams{ID: id}); err != nil {
@@ -577,11 +594,44 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.failSettings(w, r, settingsForms{section: "channels", chanError: "That channel could not be found."})
 		return
 	}
+	// Resolved before the delete, because the row that holds the endpoint is about to go (§4.2).
+	endpoint, found, err := s.channelEndpoint(r.Context(), id)
+	if err != nil {
+		s.serverError(w, "delete channel: list channels", err)
+		return
+	}
+	if !found {
+		s.backToSection(w, r, "channels")
+		return
+	}
 	if err := s.channelsStore.DeleteChannel(r.Context(), id); err != nil {
 		s.serverError(w, "delete channel", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ChannelWithdrawn{
+		ChannelRef: act.ChannelRef{Endpoint: endpoint},
+	})
 	s.backToSection(w, r, "channels")
+}
+
+// A DELETE and an UPDATE by id report no row count, so the endpoint is resolved first (§4.2).
+
+func (s *server) channelEndpoint(ctx context.Context, id int64) (string, bool, error) {
+	channels, err := s.channelsStore.ListChannels(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	endpoint, found := channelEndpointIn(channels, id)
+	return endpoint, found, nil
+}
+
+func channelEndpointIn(channels []db.ListChannelsRow, id int64) (string, bool) {
+	for _, c := range channels {
+		if c.ID == id {
+			return channelDeliveryLabel(c.Url), true
+		}
+	}
+	return "", false
 }
 
 // The floor is derived from the tightest bound in force, never an operator choice (ADR-0094).
@@ -615,6 +665,10 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "update retention", err)
 		return
 	}
+	// Zero is the unbounded stop, so the panel's own renderer reads it back (ADR-0081).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.TranscriptCurrencySet{
+		DialMove: act.DialMove{Dial: "transcript currency", Value: humanDays(trans)},
+	})
 	s.backToSection(w, r, "retention")
 }
 
@@ -637,6 +691,10 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 		s.serverError(w, "update address cap", err)
 		return
 	}
+	// A count of addresses carries no unit, so the cell shows the bare number (§2.1).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.AddressCapSet{
+		DialMove: act.DialMove{Dial: "address-scope cap", Value: strconv.FormatInt(n, 10)},
+	})
 	s.backToSection(w, r, "addresscap")
 }
 
@@ -1229,6 +1287,9 @@ func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "set update check enabled", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.UpdateCheckMoved{
+		DialMove: act.DialMove{Dial: "update check", Value: onOff(enabled)},
+	})
 	s.backToSection(w, r, "instance")
 }
 

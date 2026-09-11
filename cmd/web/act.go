@@ -70,3 +70,12 @@ func (rec recorder) Record(ctx context.Context, actor act.Actor, a act.Act) erro
 	}
 	return nil
 }
+
+// A toggle's cell reads as the switch the operator threw, never as true or false.
+
+func onOff(enabled bool) string {
+	if enabled {
+		return "on"
+	}
+	return "off"
+}

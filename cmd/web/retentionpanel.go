@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/seed"
@@ -545,6 +546,18 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 	}); err != nil {
 		s.serverError(w, "update retention", err)
 		return
+	}
+	// One Subject cell holding both dials is the list-valued subject §4.1 bars (spec §2.2).
+	if obs != settings.ObservationCurrencyDays {
+		s.recorder().Record(ctx, actingAccount(acct), act.ObservationCurrencySet{
+			DialMove: act.DialMove{Dial: "observation currency", Value: humanDays(obs)},
+		})
+	}
+	// A submit that leaves a dial where it stood moved nothing, so it writes no row (spec §2.2).
+	if disp != settings.DispatchCadenceMultiple {
+		s.recorder().Record(ctx, actingAccount(acct), act.DispatchCadenceSet{
+			DialMove: act.DialMove{Dial: "dispatch cadence", Value: humanCadences(disp)},
+		})
 	}
 	s.redirectBack(w, r, "/coverage")
 }
