@@ -79,25 +79,6 @@ var actAuditableNonPOST = map[string]string{
 // map empty and asserts that it is.
 
 var actPending = map[string]string{
-	"POST /seeds/custody":              "#1831 seed.custody.moved",
-	"POST /seeds/zone":                 "#1831 zone.declared",
-	"POST /exclusions":                 "#1831 exclusion.declared",
-	"POST /exclusions/delete":          "#1831 exclusion.lifted",
-	"POST /settings/cold":              "#1831 cold.moved",
-	"POST /settings/probers":           "#1831 vantage.declared",
-	"POST /settings/vantages/resolver": "#1831 vantage.resolver.set",
-	"POST /reports/schedule/new":       "#1831 schedule.declared",
-	"POST /reports/schedule/{id}/edit": "#1831 schedule.edited",
-	"POST /reports/schedule/delete":    "#1831 schedule.withdrawn",
-	"POST /annotations":                "#1831 annotation.declared",
-	"POST /annotations/withdraw":       "#1831 annotation.withdrawn",
-	"POST /proposals/confirm":          "#1831 proposal.confirmed",
-	"POST /proposals/decline":          "#1831 proposal.declined",
-	"POST /proposals/undo-decline":     "#1831 proposal.decline.undone",
-	"POST /verge-core/frequency":       "#1831 frequency.moved",
-	"POST /sources/toggle":             "#1831 source.moved",
-	"POST /settings/sources":           "#1831 source.moved",
-
 	"POST /seeds/zone/interval":              "#1832 zone.cadence.set",
 	"POST /seeds/dns/interval":               "#1832 dns.cadence.set",
 	"POST /settings/retention":               "#1832 transcript.currency.set",

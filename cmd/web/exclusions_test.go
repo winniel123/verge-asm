@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -181,14 +182,16 @@ func (f *fakeStore) CreateNameExclusion(_ context.Context, arg db.CreateNameExcl
 	return ex, nil
 }
 
-func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
+func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) (db.DeleteExclusionRow, error) {
 	for i, e := range f.exclusions {
 		if e.ID == id {
 			f.exclusions = append(f.exclusions[:i], f.exclusions[i+1:]...)
-			return nil
+			f.actTrail = append(f.actTrail, "DeleteExclusion")
+			return db.DeleteExclusionRow{Kind: e.Kind, Name: e.Name, AddressCidr: e.AddressCidr}, nil
 		}
 	}
-	return nil
+	// The column returns no row for an unknown id, so the fake returns what sqlc's :one does.
+	return db.DeleteExclusionRow{}, pgx.ErrNoRows
 }
 
 func (f *fakeStore) PreviewExclusionWithdrawal(_ context.Context, _ db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error) {

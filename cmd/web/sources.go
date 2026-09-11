@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/scan"
 )
@@ -537,10 +538,13 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "upsert source state", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SourceMoved{
+		SourceMove: act.SourceMove{Slug: slug, Disposition: sourceDisposition(enabled)},
+	})
 	s.redirectBack(w, r, "/sources")
 }
 
-func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id := r.FormValue("id")
 	c, ok := catalogBySlug(id)
 	if !ok || c.Barred || c.NoRunner {
@@ -566,5 +570,15 @@ func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, _ db.Ac
 		s.serverError(w, "upsert source state", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SourceMoved{
+		SourceMove: act.SourceMove{Slug: id, Disposition: sourceDisposition(enable)},
+	})
 	s.backToSection(w, r, "sources")
+}
+
+func sourceDisposition(enabled bool) string {
+	if enabled {
+		return "enabled"
+	}
+	return "disabled"
 }

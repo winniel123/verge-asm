@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
@@ -148,12 +151,13 @@ func TestSetCustodyRequiresLogin(t *testing.T) {
 	}
 }
 
-func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) error {
+func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) (pgtype.Text, error) {
 	for i, s := range f.seeds {
 		if s.ID == arg.ID && s.Kind == "name" {
 			f.seeds[i].CustodyExtension = arg.CustodyExtension
-			return nil
+			return s.NameDomain, nil
 		}
 	}
-	return nil
+	// The UPDATE names kind = 'name', so an address id matches no row.
+	return pgtype.Text{}, pgx.ErrNoRows
 }

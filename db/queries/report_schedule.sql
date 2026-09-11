@@ -19,5 +19,7 @@ SET name = $2, sections = $3, cadence = $4, format = $5, delivery_target = $6, c
 WHERE id = $1
 RETURNING id, name, sections, cadence, format, delivery_target, created_by, created_at, channel_id;
 
--- name: DeleteReportSchedule :exec
-DELETE FROM report_schedule WHERE id = $1;
+-- name: DeleteReportSchedule :one
+-- The name rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+DELETE FROM report_schedule WHERE id = $1
+RETURNING name;

@@ -11,13 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const deleteReportSchedule = `-- name: DeleteReportSchedule :exec
+const deleteReportSchedule = `-- name: DeleteReportSchedule :one
 DELETE FROM report_schedule WHERE id = $1
+RETURNING name
 `
 
-func (q *Queries) DeleteReportSchedule(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteReportSchedule, id)
-	return err
+// The name rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+func (q *Queries) DeleteReportSchedule(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRow(ctx, deleteReportSchedule, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const getReportSchedule = `-- name: GetReportSchedule :one

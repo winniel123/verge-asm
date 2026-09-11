@@ -51,15 +51,23 @@ func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportS
 	return db.ReportSchedule{}, pgx.ErrNoRows
 }
 
-func (f *fakeStore) DeleteReportSchedule(_ context.Context, id int64) error {
+func (f *fakeStore) DeleteReportSchedule(_ context.Context, id int64) (string, error) {
+	name := ""
 	out := f.reportSchedules[:0]
 	for _, rs := range f.reportSchedules {
-		if rs.ID != id {
-			out = append(out, rs)
+		if rs.ID == id {
+			name = rs.Name
+			continue
 		}
+		out = append(out, rs)
 	}
 	f.reportSchedules = out
-	return nil
+	if name == "" {
+		// The column returns no row for an unknown id, so the fake returns what sqlc's :one does.
+		return "", pgx.ErrNoRows
+	}
+	f.actTrail = append(f.actTrail, "DeleteReportSchedule")
+	return name, nil
 }
 
 func (f *fakeStore) NextReportDeliveryNo(_ context.Context, scheduleID int64) (int32, error) {

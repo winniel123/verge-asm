@@ -2,17 +2,21 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 type annotationsStore interface {
 	CreateAnnotation(ctx context.Context, arg db.CreateAnnotationParams) (db.Annotation, error)
-	DeleteAnnotation(ctx context.Context, id int64) error
+	DeleteAnnotation(ctx context.Context, id int64) (db.DeleteAnnotationRow, error)
 }
 
 func normalizeSubjectKey(input string) string {
@@ -54,7 +58,7 @@ func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct 
 		return
 	}
 
-	// An operator dial carries no author, so neither act records who declared it (ADR-0073).
+	// The row carries no author; the act does (ADR-0073, #1786).
 	if _, err := s.annotationsStore.CreateAnnotation(r.Context(), db.CreateAnnotationParams{
 		SubjectKey: subject, SignalName: sigName, Reason: reason,
 	}); err != nil {
@@ -66,6 +70,10 @@ func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "create annotation", err)
 		return
 	}
+	// The pair and no prose: prose is #127 §5's one reopening condition (spec §8 · D.6).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.AnnotationDeclared{
+		AnnotationRef: act.AnnotationRef{SubjectKey: subject, Signal: sigName},
+	})
 	s.redirectBack(w, r, "/signals")
 }
 
@@ -77,10 +85,19 @@ func (s *server) withdrawAnnotation(w http.ResponseWriter, r *http.Request, acct
 		return
 	}
 	// A dial's movement is not one of the four causes, so neither act mints a Message (ADR-0092).
-	if err := s.annotationsStore.DeleteAnnotation(r.Context(), id); err != nil {
+	row, err := s.annotationsStore.DeleteAnnotation(r.Context(), id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// An unknown id withdraws nothing, and a refused act directed nothing (spec §7.6).
+		s.redirectBack(w, r, "/signals")
+		return
+	}
+	if err != nil {
 		s.serverError(w, "delete annotation", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.AnnotationWithdrawn{
+		AnnotationRef: act.AnnotationRef{SubjectKey: row.SubjectKey, Signal: row.SignalName},
+	})
 	s.redirectBack(w, r, "/signals")
 }
 

@@ -70,9 +70,10 @@ type fakeStore struct {
 
 	edgeFanoutBounds [][]string
 
-	exclusions    []db.Exclusion
-	exclNextID    int64
-	exclusionsErr error
+	exclusions        []db.Exclusion
+	exclNextID        int64
+	exclusionsErr     error
+	addrExclFailScope string
 
 	annotations []db.Annotation
 	annoNextID  int64
@@ -411,6 +412,9 @@ func (f *fakeStore) ScanHasCompletedBatch(_ context.Context, kind string) (bool,
 }
 
 func (f *fakeStore) CreateAddressExclusion(_ context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error) {
+	if f.addrExclFailScope != "" && arg.AddressCidr != nil && arg.AddressCidr.String() == f.addrExclFailScope {
+		return db.Exclusion{}, errors.New("create address exclusion: connection reset")
+	}
 	for _, e := range f.exclusions {
 		if e.Kind == "address" && e.AddressCidr != nil && arg.AddressCidr != nil && e.AddressCidr.String() == arg.AddressCidr.String() {
 			return db.Exclusion{}, &pgconn.PgError{Code: "23505", Message: "duplicate exclusion"}

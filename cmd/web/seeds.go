@@ -809,15 +809,24 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 	// Equal instants tie-break by insertion order (zone.sql), so the last file for an apex wins.
 	now := s.now().UTC()
 	var zoneErrors []zoneErrorView
-	accepted := 0
+	var apexes []string
 	for _, fh := range files {
-		if ref := s.uploadOneZoneFile(r, acct, fh, now); ref != nil {
+		apex, ref := s.uploadOneZoneFile(r, acct, fh, now)
+		if ref != nil {
 			zoneErrors = append(zoneErrors, *ref)
-		} else {
-			accepted++
+			continue
 		}
+		apexes = append(apexes, apex)
 	}
 
+	// One row per apex, because a refused file leaves the batch partial (spec §7.6).
+	for _, apex := range apexes {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.ZoneDeclared{
+			ZoneRef: act.ZoneRef{Zone: apex},
+		})
+	}
+
+	accepted := len(apexes)
 	if accepted > 0 {
 		title := fmt.Sprintf("%d zone %s supplied", accepted, plural(accepted, "file", "files"))
 		desc := ""
@@ -834,31 +843,33 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 	s.flashScopeBack(w, r, seedsForms{zoneErrors: zoneErrors})
 }
 
-func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipart.FileHeader, now time.Time) *zoneErrorView {
+// The apex comes back, so the mutation and the Record sit in two functions (spec §7.5).
+
+func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipart.FileHeader, now time.Time) (string, *zoneErrorView) {
 	name := fh.Filename
 	file, err := fh.Open()
 	if err != nil {
-		return &zoneErrorView{File: name, Reason: "could not be read"}
+		return "", &zoneErrorView{File: name, Reason: "could not be read"}
 	}
 	defer file.Close()
 	content, err := io.ReadAll(io.LimitReader(file, maxZoneUpload+1))
 	if err != nil {
-		return &zoneErrorView{File: name, Reason: "could not be read"}
+		return "", &zoneErrorView{File: name, Reason: "could not be read"}
 	}
 	if len(content) == 0 {
-		return &zoneErrorView{File: name, Reason: "the file is empty"}
+		return "", &zoneErrorView{File: name, Reason: "the file is empty"}
 	}
 	if len(content) > maxZoneUpload {
-		return &zoneErrorView{File: name, Reason: "over the 8 MB cap"}
+		return "", &zoneErrorView{File: name, Reason: "over the 8 MB cap"}
 	}
 	// An apex outside every declared name scope is refused, never attached to a scope nobody named.
 	apex := zoneApex(string(content))
 	if apex == "" {
-		return &zoneErrorView{File: name, Reason: "not a zone file"}
+		return "", &zoneErrorView{File: name, Reason: "not a zone file"}
 	}
 	seedID, ok := s.nameSeedForApex(r, apex)
 	if !ok {
-		return &zoneErrorView{File: name, Reason: fmt.Sprintf(
+		return "", &zoneErrorView{File: name, Reason: fmt.Sprintf(
 			"the zone's apex %s is outside every declared name scope — declare it as a name scope first, or upload the zone for a scope you hold.", apex)}
 	}
 	if _, err := s.seedsStore.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
@@ -867,9 +878,9 @@ func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipa
 		Content:    string(content),
 		UploadedBy: acct.ID,
 	}); err != nil {
-		return &zoneErrorView{File: name, Reason: "could not be stored"}
+		return "", &zoneErrorView{File: name, Reason: "could not be stored"}
 	}
-	return nil
+	return apex, nil
 }
 
 func zoneApex(content string) string {

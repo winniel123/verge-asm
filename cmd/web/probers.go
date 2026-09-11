@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
@@ -61,8 +62,9 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail(err.Error())
 		return
 	}
+	endpoint := fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port)
 	if _, err := s.probersStore.CreateVantage(r.Context(), db.CreateVantageParams{
-		Name: fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port), Resolver: res,
+		Name: endpoint, Resolver: res,
 		Host: ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID, // #nosec G115 (ep.Port validated 1..65535 by vantage.ParseEndpoint)
 	}); err != nil {
 		if isUniqueViolation(err) {
@@ -72,10 +74,13 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail("Could not provision the prober.")
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.VantageDeclared{
+		VantageRef: act.VantageRef{Endpoint: endpoint},
+	})
 	s.backToSection(w, r, "vantages")
 }
 
-func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "vantages", resolverError: "Unknown vantage."})
@@ -106,6 +111,9 @@ func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, _ db
 		fail(resolverFixedMessage)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.VantageResolverSet{
+		ResolverRef: act.ResolverRef{Resolver: res},
+	})
 	s.backToSection(w, r, "vantages")
 }
 

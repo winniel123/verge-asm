@@ -34,13 +34,22 @@ func (q *Queries) CreateAnnotation(ctx context.Context, arg CreateAnnotationPara
 	return i, err
 }
 
-const deleteAnnotation = `-- name: DeleteAnnotation :exec
+const deleteAnnotation = `-- name: DeleteAnnotation :one
 DELETE FROM annotation WHERE id = $1
+RETURNING subject_key, signal_name
 `
 
-func (q *Queries) DeleteAnnotation(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteAnnotation, id)
-	return err
+type DeleteAnnotationRow struct {
+	SubjectKey string `json:"subject_key"`
+	SignalName string `json:"signal_name"`
+}
+
+// The pair rides the act's own RETURNING, so a separate read cannot leave the Act blank.
+func (q *Queries) DeleteAnnotation(ctx context.Context, id int64) (DeleteAnnotationRow, error) {
+	row := q.db.QueryRow(ctx, deleteAnnotation, id)
+	var i DeleteAnnotationRow
+	err := row.Scan(&i.SubjectKey, &i.SignalName)
+	return i, err
 }
 
 const listAnnotations = `-- name: ListAnnotations :many
