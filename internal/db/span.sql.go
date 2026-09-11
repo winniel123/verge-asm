@@ -285,6 +285,52 @@ func (q *Queries) ListNameCitationSpansWithinCurrency(ctx context.Context, arg L
 	return items, nil
 }
 
+const listNameRootsOpenedInBatch = `-- name: ListNameRootsOpenedInBatch :many
+SELECT n.subject_key, n.value
+FROM span n
+WHERE n.opened_batch_id = $1::bigint
+  AND n.subject_kind = 'name'
+  AND n.facet = 'resolution'
+  -- A timeline the same fold closed moved, so it roots nothing.
+  AND NOT EXISTS (
+      SELECT 1
+      FROM span p
+      WHERE p.closed_batch_id = n.opened_batch_id
+        AND p.subject_key = n.subject_key
+        AND p.facet = n.facet
+        AND p.discriminator = n.discriminator
+        AND p.vantage_id IS NOT DISTINCT FROM n.vantage_id
+        AND p.source = n.source
+  )
+ORDER BY n.subject_key, n.id
+`
+
+type ListNameRootsOpenedInBatchRow struct {
+	SubjectKey string `json:"subject_key"`
+	Value      []byte `json:"value"`
+}
+
+// The membership roots one fold rooted, so the residue drops what they cover (ADR-0026 §2).
+func (q *Queries) ListNameRootsOpenedInBatch(ctx context.Context, batchID int64) ([]ListNameRootsOpenedInBatchRow, error) {
+	rows, err := q.db.Query(ctx, listNameRootsOpenedInBatch, batchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListNameRootsOpenedInBatchRow{}
+	for rows.Next() {
+		var i ListNameRootsOpenedInBatchRow
+		if err := rows.Scan(&i.SubjectKey, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenEndpointCertificateSpans = `-- name: ListOpenEndpointCertificateSpans :many
 SELECT s.subject_key, s.vantage_id, s.value, o.observed_at
 FROM span s
@@ -427,6 +473,69 @@ func (q *Queries) ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpans
 			&i.OpenedAt,
 			&i.ClosedAt,
 			&i.ClosureReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRePointMovesForBatches = `-- name: ListRePointMovesForBatches :many
+SELECT n.opened_batch_id,
+       n.subject_key, n.discriminator, n.vantage_id, n.source,
+       n.opened_at, n.value, p.value AS previous
+FROM span n
+JOIN span p
+  ON p.subject_key = n.subject_key
+ AND p.facet = n.facet
+ AND p.discriminator = n.discriminator
+ AND p.vantage_id IS NOT DISTINCT FROM n.vantage_id
+ AND p.source = n.source
+   -- One fold closed p and opened n, so the pair is a move and never an opening.
+ AND p.closed_batch_id = n.opened_batch_id
+WHERE n.opened_batch_id = ANY($1::bigint[])
+  AND n.subject_kind = 'name'
+  AND n.facet = 'resolution'
+  -- A Gap-closing edge is coverage, which gapclose carries instead (ADR-0014).
+  AND n.is_gap = FALSE
+  AND p.is_gap = FALSE
+ORDER BY n.opened_batch_id, n.subject_key, n.id
+`
+
+type ListRePointMovesForBatchesRow struct {
+	OpenedBatchID pgtype.Int8        `json:"opened_batch_id"`
+	SubjectKey    string             `json:"subject_key"`
+	Discriminator string             `json:"discriminator"`
+	VantageID     pgtype.Int8        `json:"vantage_id"`
+	Source        string             `json:"source"`
+	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
+	Value         []byte             `json:"value"`
+	Previous      []byte             `json:"previous"`
+}
+
+// ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
+func (q *Queries) ListRePointMovesForBatches(ctx context.Context, batchIds []int64) ([]ListRePointMovesForBatchesRow, error) {
+	rows, err := q.db.Query(ctx, listRePointMovesForBatches, batchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRePointMovesForBatchesRow{}
+	for rows.Next() {
+		var i ListRePointMovesForBatchesRow
+		if err := rows.Scan(
+			&i.OpenedBatchID,
+			&i.SubjectKey,
+			&i.Discriminator,
+			&i.VantageID,
+			&i.Source,
+			&i.OpenedAt,
+			&i.Value,
+			&i.Previous,
 		); err != nil {
 			return nil, err
 		}
@@ -684,6 +793,85 @@ func (q *Queries) ListResolutionCitersForAddresses(ctx context.Context, addresse
 	items := []ListResolutionCitersForAddressesRow{}
 	for rows.Next() {
 		var i ListResolutionCitersForAddressesRow
+		if err := rows.Scan(
+			&i.Addr,
+			&i.SubjectKey,
+			&i.Discriminator,
+			&i.VantageID,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResolutionCitersForAddressesAt = `-- name: ListResolutionCitersForAddressesAt :many
+SELECT a.addr::text AS addr,
+       r.subject_key, r.discriminator, r.vantage_id, r.source
+FROM unnest($1::text[]) AS a(addr)
+JOIN span r
+  -- The fold read what was open at its commit, so a span it closed is no citer (#1730).
+  ON r.opened_at <= $2::timestamptz
+ AND (r.closed_at IS NULL OR r.closed_at > $2::timestamptz)
+ AND r.subject_kind = 'name'
+ AND r.facet = 'resolution'
+ AND (
+      (r.is_gap = FALSE
+       AND jsonb_typeof(r.value -> 'addresses') = 'array'
+       AND r.value -> 'addresses' @> to_jsonb(a.addr))
+   -- A gapped Name still cites its pre-Gap value, as the withdrawal fold reads it (ADR-0006).
+   OR (r.is_gap = TRUE AND EXISTS (
+          SELECT 1
+          FROM (
+              SELECT q.value
+              FROM span q
+              WHERE q.subject_kind = 'name'
+                AND q.facet = 'resolution'
+                AND q.subject_key = r.subject_key
+                AND q.discriminator = r.discriminator
+                AND q.vantage_id IS NOT DISTINCT FROM r.vantage_id
+                AND q.source = r.source
+                AND q.closed_at IS NOT NULL
+                AND q.closed_at <= $2::timestamptz
+                AND q.is_gap = FALSE
+              ORDER BY q.closed_at DESC, q.id DESC
+              LIMIT 1
+          ) p
+          WHERE jsonb_typeof(p.value -> 'addresses') = 'array'
+            AND p.value -> 'addresses' @> to_jsonb(a.addr)
+      ))
+ )
+ORDER BY a.addr, r.subject_key, r.discriminator, r.vantage_id, r.source
+`
+
+type ListResolutionCitersForAddressesAtParams struct {
+	Addresses []string           `json:"addresses"`
+	At        pgtype.Timestamptz `json:"at"`
+}
+
+type ListResolutionCitersForAddressesAtRow struct {
+	Addr          string      `json:"addr"`
+	SubjectKey    string      `json:"subject_key"`
+	Discriminator string      `json:"discriminator"`
+	VantageID     pgtype.Int8 `json:"vantage_id"`
+	Source        string      `json:"source"`
+}
+
+// ListResolutionCitersForAddresses as the fold read it, at the move's own instant (#1818).
+func (q *Queries) ListResolutionCitersForAddressesAt(ctx context.Context, arg ListResolutionCitersForAddressesAtParams) ([]ListResolutionCitersForAddressesAtRow, error) {
+	rows, err := q.db.Query(ctx, listResolutionCitersForAddressesAt, arg.Addresses, arg.At)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListResolutionCitersForAddressesAtRow{}
+	for rows.Next() {
+		var i ListResolutionCitersForAddressesAtRow
 		if err := rows.Scan(
 			&i.Addr,
 			&i.SubjectKey,

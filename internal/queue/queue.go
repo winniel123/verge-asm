@@ -101,6 +101,43 @@ func (d *Dispatcher) tick(ctx context.Context) {
 	d.dispatchDue(ctx)
 	// A hot fan-out commits its jobs after its dispatch row, so this runs second (ADR-1806 §3).
 	d.releaseDue(ctx)
+	d.settleDue(ctx)
+}
+
+func (d *Dispatcher) settleDue(ctx context.Context) {
+	fired, err := d.settleRePoints(ctx)
+	if err != nil {
+		d.log.Printf("dispatcher: settle the re-point residue: %v", err)
+		return
+	}
+	if fired > 0 {
+		d.log.Printf("dispatcher: fired %d re-point message(s)", fired)
+	}
+}
+
+func (d *Dispatcher) settleRePoints(ctx context.Context) (int, error) {
+	// Settling on a Dispatcher that routes nothing would lose the message (ADR-0026 §2).
+	if d.enqueue == nil {
+		return 0, nil
+	}
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	// The claim and the messages it owes commit together, so a lost pass re-derives them.
+	defer tx.Rollback(ctx)
+	qtx := d.q.WithTx(tx)
+
+	fired, err := settleRePoints(ctx, qtx, d.now().UTC(), !HotLagGateArmed(d.staleJobThreshold), func(c context.Context, messageID int64, class message.Class) (int, error) {
+		return d.enqueue(c, qtx, messageID, class)
+	})
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return fired, nil
 }
 
 func (d *Dispatcher) releaseDue(ctx context.Context) {

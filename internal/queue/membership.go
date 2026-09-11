@@ -22,7 +22,14 @@ type membershipInputs struct {
 	exclusions []db.ListExclusionsRow
 }
 
-func readMembershipInputs(ctx context.Context, qtx *db.Queries) (membershipInputs, error) {
+// The release poll reads the same declared inputs the fold read (ADR-0026 §2, #1818).
+
+type membershipInputStore interface {
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
+}
+
+func readMembershipInputs(ctx context.Context, qtx membershipInputStore) (membershipInputs, error) {
 	// A partial declared input would fake a departure, so a read error fails the fold (ADR-0001).
 	seeds, err := qtx.ListSeeds(ctx)
 	if err != nil {

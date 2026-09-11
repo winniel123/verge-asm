@@ -23,6 +23,9 @@ type Querier interface {
 	ClaimDelivery(ctx context.Context) (ClaimDeliveryRow, error)
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
 	ClaimReportNotification(ctx context.Context) (ClaimReportNotificationRow, error)
+	// The guarded UPDATE is the claim, so one fold announces its moves once (ADR-1806 §8, #1818).
+	// Every drained fold settles, and only one holding a move is returned (#1818).
+	ClaimSettleableRePointBatches(ctx context.Context, arg ClaimSettleableRePointBatchesParams) ([]int64, error)
 	CloseSpan(ctx context.Context, arg CloseSpanParams) error
 	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
@@ -192,6 +195,8 @@ type Querier interface {
 	ListNameCitationSpansWithinCurrency(ctx context.Context, arg ListNameCitationSpansWithinCurrencyParams) ([]ListNameCitationSpansWithinCurrencyRow, error)
 	ListNameDNSRecords(ctx context.Context, arg ListNameDNSRecordsParams) ([]ListNameDNSRecordsRow, error)
 	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)
+	// The membership roots one fold rooted, so the residue drops what they cover (ADR-0026 §2).
+	ListNameRootsOpenedInBatch(ctx context.Context, batchID int64) ([]ListNameRootsOpenedInBatchRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
 	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
@@ -203,6 +208,8 @@ type Querier interface {
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
 	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)
 	ListPersonalTokens(ctx context.Context, accountID int64) ([]ListPersonalTokensRow, error)
+	// ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
+	ListRePointMovesForBatches(ctx context.Context, batchIds []int64) ([]ListRePointMovesForBatchesRow, error)
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
@@ -213,6 +220,8 @@ type Querier interface {
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	// One row per citing timeline, so a fold drops its own span and keeps a sibling vantage (#1730).
 	ListResolutionCitersForAddresses(ctx context.Context, addresses []string) ([]ListResolutionCitersForAddressesRow, error)
+	// ListResolutionCitersForAddresses as the fold read it, at the move's own instant (#1818).
+	ListResolutionCitersForAddressesAt(ctx context.Context, arg ListResolutionCitersForAddressesAtParams) ([]ListResolutionCitersForAddressesAtRow, error)
 	ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error)
 	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error)
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)

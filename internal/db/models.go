@@ -48,15 +48,16 @@ type Annotation struct {
 }
 
 type Batch struct {
-	ID            int64              `json:"id"`
-	ScanID        int64              `json:"scan_id"`
-	DispatchID    pgtype.Int8        `json:"dispatch_id"`
-	VantageID     pgtype.Int8        `json:"vantage_id"`
-	Kind          string             `json:"kind"`
-	Outcome       string             `json:"outcome"`
-	Offers        []byte             `json:"offers"`
-	RecordedScope []byte             `json:"recorded_scope"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ID               int64              `json:"id"`
+	ScanID           int64              `json:"scan_id"`
+	DispatchID       pgtype.Int8        `json:"dispatch_id"`
+	VantageID        pgtype.Int8        `json:"vantage_id"`
+	Kind             string             `json:"kind"`
+	Outcome          string             `json:"outcome"`
+	Offers           []byte             `json:"offers"`
+	RecordedScope    []byte             `json:"recorded_scope"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	RepointSettledAt pgtype.Timestamptz `json:"repoint_settled_at"`
 }
 
 type CertificateMaterial struct {
