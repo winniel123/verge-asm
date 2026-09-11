@@ -182,9 +182,9 @@ type apiDriftEvent struct {
 }
 
 func (s *server) apiDrift(w http.ResponseWriter, r *http.Request, _ db.Account) {
-	period := resolveDriftPeriod(driftDefaultPeriod)
+	period := resolvePeriodPreset(defaultPeriodPreset)
 	rows, err := s.apiV1Store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: s.driftSince(period), MaxEvents: driftFeedLimit,
+		Since: s.presetSince(period), MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
 		apiReadError(w, "drift: list recent drift events", err)

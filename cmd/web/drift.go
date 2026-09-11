@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -71,14 +72,17 @@ type driftBatch struct {
 	Events    []driftEvent
 }
 
-type driftPeriod struct {
+// One preset set for every ported period panel, so a fifth preset cannot reach one screen
+// and miss another.
+
+type periodPreset struct {
 	Token  string
 	Label  string
 	Window time.Duration
 }
 
-func driftPeriods() []driftPeriod {
-	return []driftPeriod{
+func periodPresets() []periodPreset {
+	return []periodPreset{
 		{Token: "24h", Label: "Last 24h", Window: 24 * time.Hour},
 		{Token: "7d", Label: "Last 7d", Window: 7 * 24 * time.Hour},
 		{Token: "30d", Label: "Last 30d", Window: 30 * 24 * time.Hour},
@@ -86,21 +90,21 @@ func driftPeriods() []driftPeriod {
 	}
 }
 
-const driftDefaultPeriod = "7d"
+const defaultPeriodPreset = "7d"
 
-func resolveDriftPeriod(token string) driftPeriod {
-	for _, p := range driftPeriods() {
+func resolvePeriodPreset(token string) periodPreset {
+	for _, p := range periodPresets() {
 		if p.Token == token {
 			return p
 		}
 	}
 	// The design default is the second preset, not the first, so the fallback names it explicitly.
-	for _, p := range driftPeriods() {
-		if p.Token == driftDefaultPeriod {
+	for _, p := range periodPresets() {
+		if p.Token == defaultPeriodPreset {
 			return p
 		}
 	}
-	return driftPeriods()[0]
+	return periodPresets()[0]
 }
 
 const driftCustomPrefix = "custom_"
@@ -117,32 +121,47 @@ func parseCustomToken(token string) (start, end string, ok bool) {
 	return start, end, true
 }
 
-func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since, until pgtype.Timestamptz) {
-	q := r.URL.Query()
+// Every ported period panel resolves its custom half the same way, so it sits once.
+
+func resolveCustomWindow(q url.Values) (token, label string, from, until pgtype.Timestamptz, ok bool) {
 	start, end := q.Get("start"), q.Get("end")
 	if start == "" && end == "" {
-		if st, en, ok := parseCustomToken(q.Get("period")); ok {
+		if st, en, found := parseCustomToken(q.Get("period")); found {
 			start, end = st, en
 		}
 	}
-	if start != "" && end != "" {
-		sd, e1 := time.Parse("2006-01-02", start)
-		ed, e2 := time.Parse("2006-01-02", end)
-		if e1 == nil && e2 == nil {
-			return driftCustomPrefix + start + "_" + end,
-				start + " – " + end,
-				pgtype.Timestamptz{Time: sd.UTC(), Valid: true},
-				// The operator's end date is inclusive, so the bound is the next day's start.
-				pgtype.Timestamptz{Time: ed.UTC().Add(24 * time.Hour), Valid: true}
-		}
+	if start == "" || end == "" {
+		return "", "", pgtype.Timestamptz{}, pgtype.Timestamptz{}, false
 	}
-	period := resolveDriftPeriod(q.Get("period"))
-	return period.Token, period.Label, s.driftSince(period), pgtype.Timestamptz{}
+	sd, e1 := time.Parse("2006-01-02", start)
+	ed, e2 := time.Parse("2006-01-02", end)
+	if e1 != nil || e2 != nil {
+		return "", "", pgtype.Timestamptz{}, pgtype.Timestamptz{}, false
+	}
+	// A reversed pair selects nothing, and an empty state would then read as a fact.
+	if ed.Before(sd) {
+		return "", "", pgtype.Timestamptz{}, pgtype.Timestamptz{}, false
+	}
+	return driftCustomPrefix + start + "_" + end,
+		start + " – " + end,
+		pgtype.Timestamptz{Time: sd.UTC(), Valid: true},
+		// The operator's end date is inclusive, so the bound is the next day's start.
+		pgtype.Timestamptz{Time: ed.UTC().Add(24 * time.Hour), Valid: true},
+		true
+}
+
+func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since, until pgtype.Timestamptz) {
+	q := r.URL.Query()
+	if tk, lb, from, to, ok := resolveCustomWindow(q); ok {
+		return tk, lb, from, to
+	}
+	period := resolvePeriodPreset(q.Get("period"))
+	return period.Token, period.Label, s.presetSince(period), pgtype.Timestamptz{}
 }
 
 const driftFeedLimit int32 = 500
 
-func (s *server) driftSince(p driftPeriod) pgtype.Timestamptz {
+func (s *server) presetSince(p periodPreset) pgtype.Timestamptz {
 	if p.Window == 0 {
 		return pgtype.Timestamptz{Time: time.Time{}, Valid: true}
 	}
@@ -185,7 +204,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		"Kinds":           driftKinds(),
 		"Groups":          groups,
 		"Movement":        movement,
-		"Periods":         driftPeriods(),
+		"Periods":         periodPresets(),
 		"Period":          token,
 		"PeriodLabel":     periodLabel,
 		"HasEvents":       len(groups) > 0,

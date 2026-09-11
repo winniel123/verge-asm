@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -26,7 +27,63 @@ func (f *fakeStore) InsertAct(ctx context.Context, arg db.InsertActParams) error
 		return f.actErr
 	}
 	f.acts = append(f.acts, arg)
+	f.appendActRow(arg)
 	return nil
+}
+
+// created_at and id are defaulted in the column, so the fake defaults them too (spec §4.1).
+
+func (f *fakeStore) appendActRow(arg db.InsertActParams) db.Act {
+	at := f.actNow
+	if at.IsZero() {
+		at = fixedClock()()
+	}
+	f.actNextID++
+	row := db.Act{
+		ID:        f.actNextID,
+		CreatedAt: pgtype.Timestamptz{Time: at, Valid: true},
+		ActorKind: arg.ActorKind,
+		Actor:     arg.Actor,
+		Action:    arg.Action,
+		Subject:   arg.Subject,
+	}
+	f.actRows = append(f.actRows, row)
+	return row
+}
+
+func (f *fakeStore) AnyActRecorded(ctx context.Context) (bool, error) {
+	if f.actListErr != nil {
+		return false, f.actListErr
+	}
+	return len(f.actRows) > 0, nil
+}
+
+func (f *fakeStore) ListActsInRange(ctx context.Context, arg db.ListActsInRangeParams) ([]db.Act, error) {
+	if f.actListErr != nil {
+		return nil, f.actListErr
+	}
+	out := []db.Act{}
+	for _, row := range f.actRows {
+		if arg.FromTime.Valid && row.CreatedAt.Time.Before(arg.FromTime.Time) {
+			continue
+		}
+		if arg.UntilTime.Valid && !row.CreatedAt.Time.Before(arg.UntilTime.Time) {
+			continue
+		}
+		out = append(out, row)
+	}
+	// Newest first, the order the query and the render both take.
+	sort.SliceStable(out, func(i, j int) bool {
+		if !out[i].CreatedAt.Time.Equal(out[j].CreatedAt.Time) {
+			return out[i].CreatedAt.Time.After(out[j].CreatedAt.Time)
+		}
+		return out[i].ID > out[j].ID
+	})
+	// The LIMIT applies after the sort, so the cap keeps the newest rows.
+	if n := int(arg.MaxActs); arg.MaxActs > 0 && len(out) > n {
+		out = out[:n]
+	}
+	return out, nil
 }
 
 func decodeAct(t *testing.T, arg db.InsertActParams) (act.Actor, act.Act) {

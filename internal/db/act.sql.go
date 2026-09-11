@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const anyActRecorded = `-- name: AnyActRecorded :one
+SELECT EXISTS (SELECT 1 FROM act)
+`
+
+// The period's empty state and the corpus's are different facts, and E.3 claims the second.
+func (q *Queries) AnyActRecorded(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, anyActRecorded)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const insertAct = `-- name: InsertAct :exec
 INSERT INTO act (actor_kind, actor, action, subject)
 VALUES ($1, $2, $3, $4)
@@ -37,18 +49,22 @@ func (q *Queries) InsertAct(ctx context.Context, arg InsertActParams) error {
 const listActsInRange = `-- name: ListActsInRange :many
 SELECT id, created_at, actor_kind, actor, action, subject
 FROM act
-WHERE created_at >= $1 AND created_at < $2
+WHERE created_at >= $1
+  AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
 ORDER BY created_at DESC, id DESC
+LIMIT $3
 `
 
 type ListActsInRangeParams struct {
 	FromTime  pgtype.Timestamptz `json:"from_time"`
 	UntilTime pgtype.Timestamptz `json:"until_time"`
+	MaxActs   int32              `json:"max_acts"`
 }
 
 // A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 limb 4).
+// A 90d window on an unbounded corpus is itself unbounded, so the read caps (ADR-0178 §1).
 func (q *Queries) ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error) {
-	rows, err := q.db.Query(ctx, listActsInRange, arg.FromTime, arg.UntilTime)
+	rows, err := q.db.Query(ctx, listActsInRange, arg.FromTime, arg.UntilTime, arg.MaxActs)
 	if err != nil {
 		return nil, err
 	}
