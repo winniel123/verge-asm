@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -9,19 +10,22 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
 type ssoAdminStore interface {
-	DeleteSSOIdentity(ctx context.Context, id int64) error
-	DeleteSSOProvider(ctx context.Context, id int64) error
+	DeleteSSOIdentity(ctx context.Context, id int64) (db.DeleteSSOIdentityRow, error)
+	DeleteSSOProvider(ctx context.Context, id int64) (string, error)
 	InsertSSOProvider(ctx context.Context, arg db.InsertSSOProviderParams) (int64, error)
 	ListSSOBindings(ctx context.Context) ([]db.ListSSOBindingsRow, error)
 
 	// A secret is read only where its act is performed, so no listing read selects it (ADR-0053).
 
 	ListSSOProviders(ctx context.Context) ([]db.ListSSOProvidersRow, error)
-	SetSSOProviderSecret(ctx context.Context, arg db.SetSSOProviderSecretParams) error
+	SetSSOProviderSecret(ctx context.Context, arg db.SetSSOProviderSecretParams) (string, error)
 	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) (int64, error)
 }
 
@@ -144,10 +148,13 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "create sso provider", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SSOProviderDeclared{
+		ProviderRef: act.ProviderRef{Slug: v.slug},
+	})
 	s.backToSection(w, r, "sso")
 }
 
-func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// The row's disclosure re-renders each field from the stored row, so a refusal echoes nothing.
 	fail := func(msg string) {
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: msg})
@@ -178,47 +185,77 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, _ db.
 		fail("That provider could not be found.")
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SSOProviderUpdated{
+		ProviderRef: act.ProviderRef{Slug: v.slug},
+	})
 	s.backToSection(w, r, "sso")
 }
 
-func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
 	// A default arm would clear the stored secret when the box is unchecked and the field blank.
+	slug, set := "", false
 	switch {
 	case r.FormValue("clear_secret") != "":
-		if err := s.ssoAdminStore.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{ID: id}); err != nil {
+		cleared, err := s.ssoAdminStore.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{ID: id})
+		if errors.Is(err, pgx.ErrNoRows) {
+			s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
+			return
+		}
+		if err != nil {
 			s.serverError(w, "clear sso provider secret", err)
 			return
 		}
+		slug, set = cleared, true
 	case strings.TrimSpace(r.FormValue("client_secret")) != "":
 		sealed, ok := s.sealFormSecret(w, s.ssoSecretKey, r.FormValue("client_secret"), "seal sso provider secret")
 		if !ok {
 			return
 		}
-		if err := s.ssoAdminStore.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{
+		stored, err := s.ssoAdminStore.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{
 			ID: id, ClientSecret: sealed,
-		}); err != nil {
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
+			return
+		}
+		if err != nil {
 			s.serverError(w, "set sso provider secret", err)
 			return
 		}
+		slug, set = stored, true
+	}
+	if set {
+		// The slug is the whole subject, so no field fits the secret value (spec §4.2).
+		s.recorder().Record(r.Context(), actingAccount(acct), act.SSOProviderSecretSet{
+			ProviderRef: act.ProviderRef{Slug: slug},
+		})
 	}
 	s.backToSection(w, r, "sso")
 }
 
-func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
-	if err := s.ssoAdminStore.DeleteSSOProvider(r.Context(), id); err != nil {
+	slug, err := s.ssoAdminStore.DeleteSSOProvider(r.Context(), id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
+		return
+	}
+	if err != nil {
 		s.serverError(w, "delete sso provider", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SSOProviderWithdrawn{
+		ProviderRef: act.ProviderRef{Slug: slug},
+	})
 	s.backToSection(w, r, "sso")
 }
 
@@ -229,10 +266,18 @@ func (s *server) removeSSOBinding(w http.ResponseWriter, r *http.Request, acct d
 		return
 	}
 	// A departed or recycled identity must stop authenticating as the account it bound (ADR-0113).
-	if err := s.ssoAdminStore.DeleteSSOIdentity(r.Context(), id); err != nil {
+	gone, err := s.ssoAdminStore.DeleteSSOIdentity(r.Context(), id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That identity could not be found."})
+		return
+	}
+	if err != nil {
 		s.serverError(w, "remove sso binding", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.SSOBindingRemoved{
+		BindingRef: act.BindingRef{Slug: gone.Slug, Username: gone.Username},
+	})
 	log.Printf("web: sso: admin %d removed identity binding %d", acct.ID, id)
 	s.backToSection(w, r, "sso")
 }

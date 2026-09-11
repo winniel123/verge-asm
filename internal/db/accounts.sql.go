@@ -163,13 +163,30 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]ListAccountsRow, error) {
 	return items, nil
 }
 
-const resetAccountTOTP = `-- name: ResetAccountTOTP :exec
-UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1
+const resetAccountTOTP = `-- name: ResetAccountTOTP :one
+WITH before AS (
+    -- Every sub-statement reads one snapshot, so this is the enrolment the strip found.
+    SELECT a.id, a.username, a.totp_enabled FROM account a WHERE a.id = $1
+), stripped AS (
+    UPDATE account a SET totp_secret = NULL, totp_enabled = false WHERE a.id = $1
+    RETURNING a.id
+)
+SELECT b.username, b.totp_enabled
+FROM before b
+JOIN stripped s ON s.id = b.id
 `
 
-func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, resetAccountTOTP, id)
-	return err
+type ResetAccountTOTPRow struct {
+	Username    string `json:"username"`
+	TotpEnabled bool   `json:"totp_enabled"`
+}
+
+// The account rides the strip's own RETURNING, so an absent id strips nothing.
+func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) (ResetAccountTOTPRow, error) {
+	row := q.db.QueryRow(ctx, resetAccountTOTP, id)
+	var i ResetAccountTOTPRow
+	err := row.Scan(&i.Username, &i.TotpEnabled)
+	return i, err
 }
 
 const setTOTPLastStep = `-- name: SetTOTPLastStep :execrows
@@ -218,8 +235,9 @@ func (q *Queries) UpdateAccountRole(ctx context.Context, arg UpdateAccountRolePa
 	return err
 }
 
-const updatePassword = `-- name: UpdatePassword :exec
+const updatePassword = `-- name: UpdatePassword :one
 UPDATE account SET password_hash = $2 WHERE id = $1
+RETURNING username
 `
 
 type UpdatePasswordParams struct {
@@ -227,7 +245,10 @@ type UpdatePasswordParams struct {
 	PasswordHash string `json:"password_hash"`
 }
 
-func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
-	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
-	return err
+// The account rides the update's own RETURNING, so no read can blank the Act.
+func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) (string, error) {
+	row := q.db.QueryRow(ctx, updatePassword, arg.ID, arg.PasswordHash)
+	var username string
+	err := row.Scan(&username)
+	return username, err
 }

@@ -36,11 +36,15 @@ UPDATE sso_provider
 SET slug = $2, name = $3, issuer = $4, client_id = $5, enabled = $6, updated_at = now()
 WHERE id = $1;
 
--- name: SetSSOProviderSecret :exec
-UPDATE sso_provider SET client_secret = $2, updated_at = now() WHERE id = $1;
+-- name: SetSSOProviderSecret :one
+-- The provider rides the set's own RETURNING, so an absent id sets nothing.
+UPDATE sso_provider SET client_secret = $2, updated_at = now() WHERE id = $1
+RETURNING slug;
 
--- name: DeleteSSOProvider :exec
-DELETE FROM sso_provider WHERE id = $1;
+-- name: DeleteSSOProvider :one
+-- The provider rides the delete's own RETURNING, so an absent id withdraws nothing.
+DELETE FROM sso_provider WHERE id = $1
+RETURNING slug;
 
 -- name: InsertSSOIdentity :exec
 INSERT INTO sso_identity (provider_id, account_id, sub, display_name)
@@ -65,8 +69,15 @@ JOIN sso_provider p ON p.id = i.provider_id
 WHERE i.account_id = $1
 ORDER BY i.id DESC;
 
--- name: DeleteSSOIdentityForAccount :execrows
-DELETE FROM sso_identity WHERE id = $1 AND account_id = $2;
+-- name: DeleteSSOIdentityForAccount :one
+WITH unlinked AS (
+    DELETE FROM sso_identity i WHERE i.id = $1 AND i.account_id = $2
+    RETURNING i.provider_id
+)
+-- The provider rides the unlink's own RETURNING, so the binding is named while it exists.
+SELECT p.slug
+FROM unlinked u
+JOIN sso_provider p ON p.id = u.provider_id;
 
 -- name: ListSSOBindings :many
 SELECT i.id, i.provider_id, p.slug AS provider_slug, p.name AS provider_name,
@@ -76,5 +87,13 @@ JOIN sso_provider p ON p.id = i.provider_id
 JOIN account a ON a.id = i.account_id
 ORDER BY i.id DESC;
 
--- name: DeleteSSOIdentity :exec
-DELETE FROM sso_identity WHERE id = $1;
+-- name: DeleteSSOIdentity :one
+WITH removed AS (
+    DELETE FROM sso_identity i WHERE i.id = $1
+    RETURNING i.provider_id, i.account_id
+)
+-- Both names ride the removal's own RETURNING, so neither is read after its row is gone.
+SELECT p.slug, a.username
+FROM removed rm
+JOIN sso_provider p ON p.id = rm.provider_id
+JOIN account a ON a.id = rm.account_id;

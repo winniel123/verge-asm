@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -59,23 +60,26 @@ func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProvide
 	return 0, nil
 }
 
-func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProviderSecretParams) error {
+func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProviderSecretParams) (string, error) {
 	for i := range f.ssoProviders {
 		if f.ssoProviders[i].id == arg.ID {
 			f.ssoProviders[i].secret = arg.ClientSecret.String
 			f.ssoProviders[i].hasSecret = arg.ClientSecret.Valid
-			return nil
+			return f.ssoProviders[i].slug, nil
 		}
 	}
-	return nil
+	return "", pgx.ErrNoRows
 }
 
-func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
+func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) (string, error) {
+	slug, found := "", false
 	kept := f.ssoProviders[:0]
 	for _, p := range f.ssoProviders {
-		if p.id != id {
-			kept = append(kept, p)
+		if p.id == id {
+			slug, found = p.slug, true
+			continue
 		}
+		kept = append(kept, p)
 	}
 	f.ssoProviders = kept
 	var keptIdents []fakeSSOIdentity
@@ -85,7 +89,10 @@ func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
 		}
 	}
 	f.ssoIdentities = keptIdents
-	return nil
+	if !found {
+		return "", pgx.ErrNoRows
+	}
+	return slug, nil
 }
 
 func (f *fakeStore) ListSSOBindings(_ context.Context) ([]db.ListSSOBindingsRow, error) {
@@ -102,13 +109,32 @@ func (f *fakeStore) ListSSOBindings(_ context.Context) ([]db.ListSSOBindingsRow,
 	return out, nil
 }
 
-func (f *fakeStore) DeleteSSOIdentity(_ context.Context, id int64) error {
+func (f *fakeStore) DeleteSSOIdentity(_ context.Context, id int64) (db.DeleteSSOIdentityRow, error) {
 	var kept []fakeSSOIdentity
+	var gone db.DeleteSSOIdentityRow
+	found := false
 	for _, i := range f.ssoIdentities {
-		if i.id != id {
-			kept = append(kept, i)
+		if i.id == id {
+			gone = db.DeleteSSOIdentityRow{
+				Slug: f.ssoProviderSlug(i.providerID), Username: f.usernameForID(i.accountID),
+			}
+			found = true
+			continue
 		}
+		kept = append(kept, i)
 	}
 	f.ssoIdentities = kept
-	return nil
+	if !found {
+		return db.DeleteSSOIdentityRow{}, pgx.ErrNoRows
+	}
+	return gone, nil
+}
+
+func (f *fakeStore) ssoProviderSlug(id int64) string {
+	for _, p := range f.ssoProviders {
+		if p.id == id {
+			return p.slug
+		}
+	}
+	return ""
 }

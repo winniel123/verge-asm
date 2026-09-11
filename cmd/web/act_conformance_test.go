@@ -79,27 +79,6 @@ var actAuditableNonPOST = map[string]string{
 // map empty and asserts that it is.
 
 var actPending = map[string]string{
-	"POST /setup":                           "#1833 setup.completed",
-	"POST /reset":                           "#1833 password.reset",
-	"POST /invite":                          "#1833 invite.accepted",
-	"POST /profile/password":                "#1833 password.changed",
-	"POST /profile/tokens":                  "#1833 token.minted",
-	"POST /profile/tokens/revoke":           "#1833 token.revoked",
-	"POST /profile/sso/unlink":              "#1833 sso.unlinked",
-	"POST /accounts":                        "#1833 account.created",
-	"POST /account/totp/confirm":            "#1833 totp.enrolled",
-	"POST /settings/accounts":               "#1833 invite.minted",
-	"POST /settings/accounts/role":          "#1833 account.role.moved",
-	"POST /settings/accounts/reenroll":      "#1833 totp.stripped",
-	"POST /settings/accounts/remove":        "#1833 account.removed",
-	"POST /settings/api":                    "#1833 api.access.moved",
-	"POST /settings/sso":                    "#1833 sso.provider.declared",
-	"POST /settings/sso/update":             "#1833 sso.provider.updated",
-	"POST /settings/sso/secret":             "#1833 sso.provider.secret.set",
-	"POST /settings/sso/delete":             "#1833 sso.provider.withdrawn",
-	"POST /settings/sso/identity/remove":    "#1833 sso.binding.removed",
-	"GET /profile/sso/{slug}/link/callback": "#1833 sso.binding.created",
-
 	"POST /settings/restore": "#1834 restore.applied, the one tx-bound recorder (§7.6 ruling 4)",
 
 	"POST /onboarding/finish":          "#1835 onboarding.finished",

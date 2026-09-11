@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/db/migrations"
@@ -29,7 +31,7 @@ type teamAdminStore interface {
 	DeleteAccount(ctx context.Context, id int64) error
 	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
-	ResetAccountTOTP(ctx context.Context, id int64) error
+	ResetAccountTOTP(ctx context.Context, id int64) (db.ResetAccountTOTPRow, error)
 	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
 	UpdateAccountRole(ctx context.Context, arg db.UpdateAccountRoleParams) error
 }
@@ -379,6 +381,10 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "create invite", err)
 		return
 	}
+	// The mint creates no account, so the subject names the role alone (spec §2.1).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.InviteMinted{
+		InviteMint: act.InviteMint{Role: role},
+	})
 	link := s.inviteLink(r, plaintext)
 	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL) // #nosec G706 (role is enum-validated admin|viewer; link is server-constructed)
 	stashFormFlash(s, r, settingsForms{flashTab: "team", inviteOpen: true, inviteLink: link})
@@ -428,6 +434,9 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "update account role", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.AccountRoleMoved{
+		AccountAtRole: act.AccountAtRole{Username: target.Username, Role: role},
+	})
 	s.backToSection(w, r, "team")
 }
 
@@ -437,9 +446,21 @@ func (s *server) reenrollAccount(w http.ResponseWriter, r *http.Request, acct db
 		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
 		return
 	}
-	if err := s.teamAdminStore.ResetAccountTOTP(r.Context(), id); err != nil {
+	// Both cells ride the strip's own RETURNING, so no read can blank the Act (spec §4.2).
+	target, err := s.teamAdminStore.ResetAccountTOTP(r.Context(), id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
+		return
+	}
+	if err != nil {
 		s.serverError(w, "reset account totp", err)
 		return
+	}
+	if target.TotpEnabled {
+		// The menu offers this on a never-enrolled account, and that strips no second factor.
+		s.recorder().Record(r.Context(), actingAccount(acct), act.TOTPStripped{
+			AccountRef: act.AccountRef{Username: target.Username},
+		})
 	}
 	s.backToSection(w, r, "team")
 }
@@ -487,6 +508,10 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "delete account", err)
 		return
 	}
+	// The captured name outlives the account it names (spec §5.4).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.AccountRemoved{
+		AccountRef: act.AccountRef{Username: target.Username},
+	})
 	s.backToSection(w, r, "team")
 }
 
@@ -1303,6 +1328,9 @@ func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.serverError(w, "set api enabled", err)
 		return
 	}
+	s.recorder().Record(r.Context(), actingAccount(acct), act.APIAccessMoved{
+		DialMove: act.DialMove{Dial: "API access", Value: onOff(enabled)},
+	})
 	if enabled {
 		s.toastRedirectBack(w, r, "/settings?tab=api", "ok", "API access enabled",
 			"Personal tokens now answer GET /api/v1/… — read-only, always.")
