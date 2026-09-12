@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/queue"
 	"github.com/winniel123/verge-asm/internal/scan"
@@ -43,18 +44,20 @@ type triggerOutcome struct {
 	Description string
 }
 
-func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutcome, bool) {
+// A nil profile means Trigger was never reached, so the instance directed nothing (spec §7.6).
+
+func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutcome, *act.ScanProfile, bool) {
 	ctx := r.Context()
 	kind := r.FormValue("kind")
 
 	sc, err := s.scanTriggerStore.GetScanByKind(ctx, kind)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return triggerOutcome{"danger", "That scan is not one this deployment runs",
-			"Nothing was dispatched."}, true
+			"Nothing was dispatched."}, nil, true
 	}
 	if err != nil {
 		s.serverError(w, "trigger scan: get scan", err)
-		return triggerOutcome{}, false
+		return triggerOutcome{}, nil, false
 	}
 
 	// Triggering a disabled scan is the one-off ADR-0044 forbids, so the flag is read to name it.
@@ -64,34 +67,36 @@ func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutc
 			detail = "It runs the full-range sweep. Enable it by opting an address scope " +
 				"into the full-range tier on Scope."
 		}
-		return triggerOutcome{"danger", "The " + kind + " scan is disabled", detail}, true
+		return triggerOutcome{"danger", "The " + kind + " scan is disabled", detail}, nil, true
 	}
 
 	// The (scan, tick) key collapses same-second presses alone, so a long run needs this guard.
 	active, err := s.activeDispatchKinds(ctx)
 	if err != nil {
 		s.serverError(w, "trigger scan: active dispatches", err)
-		return triggerOutcome{}, false
+		return triggerOutcome{}, nil, false
 	}
 	if active[kind] {
 		return triggerOutcome{"warn", "A " + kind + " scan is already in flight",
-			"It was not dispatched again. Watch its progress in Running now."}, true
+			"It was not dispatched again. Watch its progress in Running now."}, nil, true
 	}
 
 	n, skip, err := s.dispatcher.Trigger(ctx, kind)
 	if err != nil {
 		s.serverError(w, "trigger scan: dispatch", err)
-		return triggerOutcome{}, false
+		return triggerOutcome{}, nil, false
 	}
+	// The boundary is whether Trigger was reached, never how many jobs came out (spec §7.6).
+	dispatched := &act.ScanProfile{Profile: kind}
 	if out, skipped := triggerSkipOutcome(kind, skip); skipped {
-		return out, true
+		return out, dispatched, true
 	}
 	if n == 0 {
 		return triggerOutcome{"warn", "The " + kind + " scan enqueued no jobs",
-			"Nothing covers it yet — no scope or vantage. The tick is recorded as a dispatch with no jobs."}, true
+			"Nothing covers it yet — no scope or vantage. The tick is recorded as a dispatch with no jobs."}, dispatched, true
 	}
 	return triggerOutcome{"neutral", kind + " scan dispatched",
-		strconv.Itoa(n) + " " + plural(n, "job", "jobs") + " fanned out"}, true
+		strconv.Itoa(n) + " " + plural(n, "job", "jobs") + " fanned out"}, dispatched, true
 }
 
 func triggerSkipOutcome(kind string, skip queue.SkipReason) (triggerOutcome, bool) {
@@ -109,19 +114,27 @@ func triggerSkipOutcome(kind string, skip queue.SkipReason) (triggerOutcome, boo
 }
 
 func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	out, ok := s.runTrigger(w, r)
+	out, dispatched, ok := s.runTrigger(w, r)
 	if !ok {
 		return
+	}
+	if dispatched != nil {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.ScanTriggered{ScanProfile: *dispatched})
 	}
 	s.flash.set(acct.ID, toastVM{Tone: out.Tone, Title: out.Title, Description: out.Description})
 	// A trigger answers no confirm, so unlike stop and terminate it keeps the dialog params.
 	s.redirectBack(w, r, "/settings?tab=scans")
 }
 
+// One helper, two classes: the wizard's dispatch is its own act (spec §2.1).
+
 func (s *server) finishOnboarding(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	out, ok := s.runTrigger(w, r)
+	out, dispatched, ok := s.runTrigger(w, r)
 	if !ok {
 		return
+	}
+	if dispatched != nil {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.OnboardingFinished{ScanProfile: *dispatched})
 	}
 	// Leaving the wizard is the point, so classEExempt exempts this route (ADR-0130).
 	s.flashRedirect(w, r, acct.ID, "/scans", out.Tone, out.Title, out.Description)

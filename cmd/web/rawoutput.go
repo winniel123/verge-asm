@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/transcript"
 )
@@ -89,15 +90,12 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 		JobID:   jobID,
 	}
 
-	if jobRows, jerr := s.rawOutputStore.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: runID, Valid: true}); jerr == nil {
-		for _, j := range jobRows {
-			if j.ID == jobID {
-				view.Kind = j.Kind
-				if j.VantageName.Valid {
-					view.Vantage = j.VantageName.String
-				}
-				break
-			}
+	jobRows, jerr := s.rawOutputStore.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: runID, Valid: true})
+	job, ofRun := findDispatchJob(jobRows, jobID)
+	if ofRun {
+		view.Kind = job.Kind
+		if job.VantageName.Valid {
+			view.Vantage = job.VantageName.String
 		}
 	}
 
@@ -111,16 +109,48 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "raw output: get transcript", err)
 		return
 	}
+	// An unread job list cannot say where the probe ran, and the subject outlives it (spec §4.3).
+	if jerr != nil {
+		s.serverError(w, "raw output: list jobs", jerr)
+		return
+	}
+	// GetTranscriptByJob keys on the job alone, so the run in the path is otherwise unchecked.
+	if !ofRun {
+		s.renderMissingRun(w, r, acct, raw)
+		return
+	}
 
 	if err := s.fillRawOutputView(&view, row); err != nil {
 		s.serverError(w, "raw output: open transcript", err)
 		return
 	}
+	// The opened transcript is the disclosure, so the miss above records nothing (spec §1.4).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.TranscriptDisclosed{
+		TranscriptRef: act.TranscriptRef{JobID: jobID, RunID: runID, Vantage: rawVantage(job)},
+	})
 	view.Captured = true
 	if view.Kind == "" {
 		view.Kind = row.Kind
 	}
 	s.render(w, r, "runraw", s.rawOutputData(acct, view))
+}
+
+func findDispatchJob(rows []db.ListJobsForDispatchRow, jobID int64) (db.ListJobsForDispatchRow, bool) {
+	for _, j := range rows {
+		if j.ID == jobID {
+			return j, true
+		}
+	}
+	return db.ListJobsForDispatchRow{}, false
+}
+
+// A ct or zone job runs on no vantage, and a blank third cell would outlive the transcript (§4.3).
+
+func rawVantage(job db.ListJobsForDispatchRow) string {
+	if job.VantageName.Valid && job.VantageName.String != "" {
+		return job.VantageName.String
+	}
+	return "local"
 }
 
 func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]any {
