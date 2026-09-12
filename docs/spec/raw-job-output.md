@@ -382,10 +382,10 @@ excluded tables and states the reason.
 Controls: admin-only read (`requireAdmin`), encrypted at rest (instance key on service volume, key
 never in DB or backup), excluded from backups. Accepted gaps carried forward:
 
-1. **A `Transcript` disclosure is audited. Every other read is not.** A disclosure at
+1. **Every read but one is unaudited.** A `Transcript` disclosure at
    `GET /run/{id}/raw` or `GET /runs/{id}/raw` writes an `Act`, so *which of us three opened that
    transcript* is answerable ([#1786](https://github.com/winniel123/verge-asm/issues/1786), SPEC
-   [`audit-act.md`](./audit-act.md) §1.4). It is the **one** auditable read in v1, and what selects
+   [`audit-act.md`](./audit-act.md) §1.4). That is the **one** auditable read in v1, and what selects
    it is this corpus being the first Postgres holds a secret for — not an absent facility. Every
    other read stays unaudited on that named ground. `[thin]` The recorder is not atomic with the
    disclosure, so a disclosure with no `Act` is the named failure mode.
@@ -513,7 +513,8 @@ The build followed it, one ticket per step, from [#862](https://github.com/winni
 ## 10. Where this is thin, stated rather than smoothed
 
 These were the open edges the map did **not** close. They were noted, not decided. The build closed
-two of them. Three stand, and each line below says which.
+two of them, and [#1786](https://github.com/winniel123/verge-asm/issues/1786) closed a third later.
+Two stand, and each line below says which.
 
 1. **Closed.** The ADR-0053-reversal vehicle (§7) was unchosen. #842 left it as "a new ADR, or an
    extension of ADR-0126". [#871](https://github.com/winniel123/verge-asm/issues/871) extended ADR-0126, whose title now
