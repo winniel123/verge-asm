@@ -1474,6 +1474,11 @@
           "kind": "amends",
           "from": 1806,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1809,
+          "clause": null
         }
       ],
       "sections": [],
@@ -1481,6 +1486,11 @@
         {
           "kind": "amends",
           "from": 1806,
+          "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1809,
           "clause": null
         }
       ],
@@ -11101,6 +11111,11 @@
       ],
       "incoming": [
         {
+          "kind": "rests-on",
+          "from": 1809,
+          "clause": "4"
+        },
+        {
           "kind": "amends",
           "from": 1851,
           "clause": "6"
@@ -11127,6 +11142,49 @@
       "decision": {
         "words": 147,
         "text": "A census is computed once, from a basis frozen at its cause, when the tier that admits the subtree has drained.\n\nA fold is one job with one Kind, so a resolution move and the openings beneath it never share a fold, and a census read there is empty. `produceMessages` writes the membership row at the cause and defers the census. The dispatcher's minute poll releases the row once one `hot` dispatch that fanned out after the root's batch has drained. It computes the census, appends the census clause to the headline, and enqueues delivery. A deferred row reaches no panel and no unread badge.\n\nThe basis is the root span's own value at that batch, so a later re-point adds no subject to an earlier census.\n\nRejected: a duration window, which [#27](https://github.com/winniel123/verge-asm/issues/27) refuses in a safety path.\n\nReversal costs a migration and every message already released."
+      }
+    },
+    {
+      "number": 1809,
+      "file": "docs/adr/1809-a-name-roots-census-counts-on-the-address-it-cites-not-beneath-the-name.md",
+      "title": "A `Name` root's census counts on the address it cites, not beneath the `Name`",
+      "slug": "a-name-roots-census-counts-on-the-address-it-cites-not-beneath-the-name",
+      "date": "2026-09-12",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "internal/message/censusownership_test.go::TestASecondNameOnOneAddressClaimsNoMoreThanTheFirst"
+      },
+      "ticket": 1809,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 31
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1806,
+          "clause": "4"
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 148,
+        "text": "**A membership headline names the ground it counted over. A `Name` root that counted at least one\nmember reads `timelines opened on an address it cites`. An `Address` root keeps\n`opened beneath it`, and so does an empty census.**\n\nOne address carries many `Name`s. Every `Name` citing it censuses every `Service` and `Endpoint`\non it, so `k` roots each report the same `n` subjects. \"Beneath it\" reads as a claim about the\n`Name`, and no `Name` owns that ground.\n\nThe census keeps every member, and the citation axis still decides membership.\n\nRejected: splitting the census into an owned group and a shared one. `internal/scan/hot.go` sets\nno `Scope.Names`, so every `Endpoint` the hot tier opens is nameless. That group is empty in\nproduction. Rejected: deduplicating across roots, which silences `k-1` of them.\n\nReversal cost: a sent headline is immutable, so a third wording leaves three shapes in one inbox."
       }
     },
     {

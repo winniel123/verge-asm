@@ -98,7 +98,7 @@ func TestReleaseNamesWhatOpenedBeneathTheRoot(t *testing.T) {
 		t.Errorf("a census admits a Service or an Endpoint only, got %+v", census.Entries)
 	}
 
-	want := message.ReleasedMembershipHeadline(heldCause, census)
+	want := message.ReleasedMembershipHeadline(heldCause, subjectKindName, census)
 	if got := store.released[0].Headline; got != want {
 		t.Errorf("headline = %q, want the cause clause plus the census clause %q", got, want)
 	}

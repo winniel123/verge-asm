@@ -14,6 +14,8 @@ proof: {none: "predates the governance SPEC"}
 
 > **Amended** by [ADR-1806: A census is computed once from a cause-frozen basis, when the admitting tier has drained](./1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md), 2026-09-10. <!-- adr-marker amends 1806 -->
 
+> **Amended** by [ADR-1809: A `Name` root's census counts on the address it cites, not beneath the `Name`](./1809-a-name-roots-census-counts-on-the-address-it-cites-not-beneath-the-name.md), 2026-09-12. <!-- adr-marker amends 1809 -->
+
 ## Context
 
 [ADR-0006](./0006-subjects-leave-by-measurement.md) split appearance into `appeared` and
