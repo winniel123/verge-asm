@@ -428,6 +428,18 @@ func (f *fakeStore) CreateAddressExclusion(_ context.Context, arg db.CreateAddre
 	return ex, nil
 }
 
+func (f *fakeStore) CreateDeclinedProposalExclusion(ctx context.Context, arg db.CreateDeclinedProposalExclusionParams) (db.Exclusion, error) {
+	ex, err := f.CreateAddressExclusion(ctx, db.CreateAddressExclusionParams{
+		AddressCidr: arg.AddressCidr, CreatedBy: arg.CreatedBy,
+	})
+	if err != nil {
+		return db.Exclusion{}, err
+	}
+	f.exclusions[len(f.exclusions)-1].ProposalID = arg.ProposalID
+	ex.ProposalID = arg.ProposalID
+	return ex, nil
+}
+
 func (f *fakeStore) ListAddressExclusionCidrs(context.Context) ([]*netip.Prefix, error) {
 	out := []*netip.Prefix{}
 	for _, e := range f.exclusions {

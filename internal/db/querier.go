@@ -40,10 +40,13 @@ type Querier interface {
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
+	// proposal_id stays NULL, so an undo may not lift what the operator declared (#1799).
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
 	CreateAnnotation(ctx context.Context, arg CreateAnnotationParams) (Annotation, error)
 	CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error)
+	// The decline names the proposal it answered, which is the row the undo may lift (#1799).
+	CreateDeclinedProposalExclusion(ctx context.Context, arg CreateDeclinedProposalExclusionParams) (Exclusion, error)
 	CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error)
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
@@ -81,7 +84,7 @@ type Querier interface {
 	DeleteSpentPasswordResets(ctx context.Context, expiresAt pgtype.Timestamptz) error
 	// A data-modifying CTE fires on its own, so nothing need select from lift (#1777).
 	// Every arm reads one snapshot, so kept is the row as it stood before lift (#1777).
-	DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (bool, error)
+	DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (DeleteUnclaimedAddressExclusionRow, error)
 	// The port rides the reset's own RETURNING, so a port carrying no edit returns nothing.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) (int32, error)
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
