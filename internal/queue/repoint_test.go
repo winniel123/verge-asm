@@ -127,21 +127,25 @@ func TestTheAddressRootHoldsItsCensusForTheAdmittingTier(t *testing.T) {
 	}
 }
 
-func TestWithNoReaperTheAddressRootCountsItsOwnFold(t *testing.T) {
+func TestWithNoReaperTheAddressRootWritesItsCensusAtTheCause(t *testing.T) {
 	// The drain test reads a job set nothing reaps, so one wedged row would hold every message
 	// forever. The census is written at the cause instead (ADR-1806 §6 row 1).
 	store := &fakeMessageStore{}
-	msgs := rePointHeld(t, store, rePointChanges(rpNew, resolved(rpOld)), membershipInputs{}, false)
-	got := byKind(msgs)
-	if len(got["address"]) != 1 {
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}
+	msgs := rePointHeld(t, store, changes, membershipInputs{}, false)
+	if len(msgs) != 1 {
 		t.Fatalf("the root fires on either configuration, got %+v", msgs)
 	}
-	m := got["address"][0]
+	m := msgs[0]
 	if m.CensusPending != nil {
 		t.Errorf("this configuration holds nothing, got %+v", m.CensusPending)
 	}
-	if k := censusKinds(m); k["service"] != 1 || k["endpoint"] != 1 {
-		t.Errorf("the census carries the Service and the Endpoint that opened beneath, got %v", k)
+	// The dns fold that moved the Name opened nothing, which is the price §6 row 1 accepts.
+	if m.Census == nil || m.Census.Len() != 0 {
+		t.Errorf("the census is this fold's own, and this fold opened nothing; got %+v", m.Census)
+	}
+	if m.Headline != rpNew+" entered the estate · 0 timelines opened beneath it" {
+		t.Errorf("headline = %q, want the count the degraded arm can reach", m.Headline)
 	}
 }
 
@@ -265,26 +269,23 @@ func TestProduceHoldsAnAddressAppearedAndRoutesItNowhere(t *testing.T) {
 	if err := produceMessages(context.Background(), store, 31, produceT0, rePointChanges(rpNew, resolved(rpOld)), nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
-	var found *db.InsertMessageParams
-	id := int64(0)
-	for i := range store.inserted {
-		if store.inserted[i].SubjectKind == "address" {
-			found = &store.inserted[i]
-			id = int64(i + 1)
+	var found []db.InsertMessageParams
+	for _, p := range store.inserted {
+		if p.SubjectKind == "address" {
+			found = append(found, p)
 		}
 	}
-	if found == nil {
-		t.Fatalf("no Address appeared written, got %+v", store.inserted)
+	if len(found) != 1 {
+		t.Fatalf("one new address is one root, got %+v", store.inserted)
 	}
-	if found.FiredAt != rpNew || found.Class != string(message.ClassDrift) {
-		t.Errorf("fires drift at the Address, got %+v", found)
+	if found[0].FiredAt != rpNew || found[0].Class != string(message.ClassDrift) {
+		t.Errorf("fires drift at the Address, got %+v", found[0])
 	}
-	if found.CensusPendingAfterBatch.Int64 != 31 || len(found.CensusBasis) == 0 {
-		t.Errorf("the row is held on its own batch and owes its basis, got %+v", found)
+	if found[0].CensusPendingAfterBatch.Int64 != 31 || len(found[0].CensusBasis) == 0 {
+		t.Errorf("the row is held on its own batch and owes its basis, got %+v", found[0])
 	}
-	for _, r := range log {
-		if r.messageID == id {
-			t.Errorf("the release poll alone routes a held row (ADR-1806 §2), got %+v", log)
-		}
+	// The held row is this fold's only message, so an empty log is the whole claim (ADR-1806 §2).
+	if len(log) != 0 {
+		t.Errorf("the release poll alone routes a held row, got %+v", log)
 	}
 }
