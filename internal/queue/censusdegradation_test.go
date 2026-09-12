@@ -44,7 +44,7 @@ func TestNoReaperWritesTheCensusAtTheCause(t *testing.T) {
 	if census.Len() != 2 || census.Entries[0].Key != "example.com@198.51.100.1:443/tcp" || census.Entries[1].Key != "198.51.100.1:443/tcp" {
 		t.Errorf("the census counts what this fold opened beneath the root, got %+v", census.Entries)
 	}
-	if membership.Headline != "example.com entered the estate · 1 endpoint + 1 service · 2 timelines opened beneath it" {
+	if membership.Headline != "example.com entered the estate · 1 endpoint + 1 service · 2 timelines opened on an address it cites" {
 		t.Errorf("the headline carries the cause clause and the census clause, got %q", membership.Headline)
 	}
 }

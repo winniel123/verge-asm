@@ -33,7 +33,7 @@ func releaseHeldMessage(ctx context.Context, q releaseStore, row db.ListReleasab
 	n, err := q.ReleaseHeldMessage(ctx, db.ReleaseHeldMessageParams{
 		ID:       row.ID,
 		Census:   payload,
-		Headline: message.ReleasedMembershipHeadline(row.Headline, census),
+		Headline: message.ReleasedMembershipHeadline(row.Headline, basis.RootKind, census),
 	})
 	if err != nil {
 		return false, fmt.Errorf("queue: release message %d: %w", row.ID, err)
