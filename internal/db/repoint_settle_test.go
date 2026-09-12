@@ -23,7 +23,7 @@ func TestTheRePointReadReadsTheSameDrainTheReleaseReads(t *testing.T) {
 		{"limit 1", "the bound is the FIRST such dispatch, not any of them"},
 		{"state in ('ready', 'running')", "drained means no job of that dispatch is non-terminal"},
 		{"not exists", "the drain test is the complement of the cadence-lag gate's query"},
-		{"where exists", "hot commits its dispatch row before its jobs, so an empty job set is not a drained one"},
+		{"first_hot.fanout_complete", "a streamed tier commits its dispatch row before its jobs, so the row carries that half"},
 		{"::boolean", "the reaper's state is the caller's argument, as it is on the release path"},
 		{"hs.kind = 'hot' and hs.enabled", "a disabled hot tier opens nothing beneath the move, ever"},
 	} {
@@ -34,6 +34,7 @@ func TestTheRePointReadReadsTheSameDrainTheReleaseReads(t *testing.T) {
 	if strings.Contains(q, "interval") {
 		t.Errorf("the bound is a drained tier and never a clock (ADR-1806 §7, #27), got:\n%s", listSettleableRePointBatches)
 	}
+	assertNoJobCountProxy(t, "listSettleableRePointBatches", listSettleableRePointBatches)
 }
 
 // TestTwoPollPassesSettleAFoldOnce guards the claim. The spans ADR-0026 §2 reads stay true after

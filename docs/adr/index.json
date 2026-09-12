@@ -7525,6 +7525,11 @@
           "kind": "sibling",
           "from": 165,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1851,
+          "clause": "1"
         }
       ],
       "sections": [
@@ -11073,7 +11078,7 @@
       "date": "2026-09-10",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -11094,7 +11099,13 @@
           "adr": 31
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 1851,
+          "clause": "6"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11106,10 +11117,61 @@
         "8",
         "9"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1851,
+          "clause": "6"
+        }
+      ],
       "decision": {
         "words": 147,
         "text": "A census is computed once, from a basis frozen at its cause, when the tier that admits the subtree has drained.\n\nA fold is one job with one Kind, so a resolution move and the openings beneath it never share a fold, and a census read there is empty. `produceMessages` writes the membership row at the cause and defers the census. The dispatcher's minute poll releases the row once one `hot` dispatch that fanned out after the root's batch has drained. It computes the census, appends the census clause to the headline, and enqueues delivery. A deferred row reaches no panel and no unread badge.\n\nThe basis is the root span's own value at that batch, so a later re-point adds no subject to an earlier census.\n\nRejected: a duration window, which [#27](https://github.com/winniel123/verge-asm/issues/27) refuses in a safety path.\n\nReversal costs a migration and every message already released."
+      }
+    },
+    {
+      "number": 1851,
+      "file": "docs/adr/1851-a-dispatch-records-that-its-fan-out-finished-and-a-later-tick-retires-one-that-never-did.md",
+      "title": "A dispatch records that its fan-out finished, and a later tick retires one that never did",
+      "slug": "a-dispatch-records-that-its-fan-out-finished-and-a-later-tick-retires-one-that-never-did",
+      "date": "2026-09-12",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "internal/db/message_release_test.go::TestTheFanOutMarkIsWrittenOnceAndCarriesNoInstant"
+      },
+      "ticket": 1851,
+      "map": 1811,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1806,
+          "clause": "6"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 164,
+          "clause": "1"
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 141,
+        "text": "A `dispatch` carries a boolean recording that its fan-out finished. Both release predicates read\nthat column for the first half of ADR-1806 §3's bound, in place of the job-existence proxy #1816\nused.\n\nA streamed tier commits its dispatch row before its jobs, so a job count cannot separate a fan-out\nstill streaming from one that finished with nothing to enqueue. A `hot` tier that is enabled and\nadmits nothing is the second case, and the proxy held its membership message forever.\n\nA crashed fan-out marks itself never. The next claimed `hot` tick marks it abandoned in a second\ncolumn, and the bound skips such a row. A tick is a cadence, so no clock enters the predicate.\n\nRejected: an age bound on a jobless dispatch, which ADR-1806 §7 and\n[#27](https://github.com/winniel123/verge-asm/issues/27) both refuse.\n\nReversal costs a migration and every census already computed."
       }
     }
   ]

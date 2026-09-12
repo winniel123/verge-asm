@@ -323,21 +323,20 @@ WHERE m.census_pending_after_batch IS NOT NULL
       OR EXISTS (
           SELECT 1
           FROM (
-              SELECT d.id
+              SELECT d.id, d.fanout_complete
               FROM dispatch d
               JOIN scan s ON s.id = d.scan_id
               WHERE s.kind = 'hot'
                 -- A skipped tick enqueues no job, so a drain test reads it drained (ADR-1806 §2).
                 AND d.status = 'fanned-out'
+                -- Abandonment is recorded, so this skips no dispatch still streaming (ADR-1851 §3).
+                AND d.fanout_abandoned = false
                 AND d.created_at >= b.created_at
               ORDER BY d.created_at, d.id
               LIMIT 1
           ) first_hot
-            -- hot commits its dispatch row before its jobs, so an empty set is not drained (#1816).
-          WHERE EXISTS (
-              SELECT 1 FROM queue_job j
-              WHERE j.dispatch_id = first_hot.id
-          )
+            -- A job count cannot answer the fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
+          WHERE first_hot.fanout_complete
           AND NOT EXISTS (
               -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
               SELECT 1 FROM queue_job j

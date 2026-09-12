@@ -1817,12 +1817,15 @@ _Avoid_: scan run, run, execution, job group
 **Drained**:
 A `Dispatch` whose **fan-out finished**, and whose every enqueued job sits in a terminal state.
 Both halves carry weight, and the model held only the second. A streamed fan-out commits its
-`Dispatch` row before its jobs, so an empty job set reads as *not yet* or as *none, ever*. Nothing
-on the record separates the two. A tier that is enabled and admits nothing is **drained and not
+`Dispatch` row before its jobs, so an empty job set reads as *not yet* or as *none, ever*. A census
+bound on the second half alone therefore held its `Message` forever, unseen, and
+[#1851](https://github.com/winniel123/verge-asm/issues/1851) records that defect. The record now
+carries the first half, so the two readings separate, and a fan-out that never finishes is retired
+by a later tick rather than by a clock
+([ADR-1851](./docs/adr/1851-a-dispatch-records-that-its-fan-out-finished-and-a-later-tick-retires-one-that-never-did.md)).
+A tier that is enabled and admits nothing is **drained and not
 pending** — every candidate address refused by `Custody`, or no `Vantage` provisioned. The openings
-it would carry never arrive. A census bound on the second half alone therefore holds its `Message`
-forever, unseen, and [#1851](https://github.com/winniel123/verge-asm/issues/1851) records the
-defect. Draining is a property of one `Dispatch` and never of a `Scan`. The bound names a tier by
+it would carry never arrive. Draining is a property of one `Dispatch` and never of a `Scan`. The bound names a tier by
 Kind, and does not derive it from the estate. See
 [ADR-1806](./docs/adr/1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md) §3.
 _Avoid_: complete, finished, idle, settled (a re-point batch **settles**, which is a different move)

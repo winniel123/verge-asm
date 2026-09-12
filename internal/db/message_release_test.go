@@ -24,7 +24,7 @@ func TestTheReleasePredicateIsADrainedHotDispatch(t *testing.T) {
 		{"limit 1", "the bound is the FIRST such dispatch, not any of them"},
 		{"state in ('ready', 'running')", "drained means no job of that dispatch is non-terminal"},
 		{"not exists", "the drain test is the complement of the cadence-lag gate's query"},
-		{"where exists", "hot commits its dispatch row before its jobs, so an empty job set is not a drained one"},
+		{"first_hot.fanout_complete", "a streamed tier commits its dispatch row before its jobs, so the row carries that half"},
 	} {
 		if !strings.Contains(q, want.clause) {
 			t.Errorf("listReleasableHeldMessages must carry %q — %s (ADR-1806 §3), got:\n%s", want.clause, want.why, listReleasableHeldMessages)
@@ -33,6 +33,87 @@ func TestTheReleasePredicateIsADrainedHotDispatch(t *testing.T) {
 	for _, forbidden := range []string{"interval", "now()"} {
 		if strings.Contains(q, forbidden) {
 			t.Errorf("the bound is a drained tier and never a clock, so %q may not appear (ADR-1806 §7, #27), got:\n%s", forbidden, listReleasableHeldMessages)
+		}
+	}
+	assertNoJobCountProxy(t, "listReleasableHeldMessages", listReleasableHeldMessages)
+}
+
+// assertNoJobCountProxy catches the one spelling of the proxy #1816 used for the fan-out-finished
+// half of ADR-1806 §3's bound, and it catches no other. A rewrite under a different alias or as a
+// count comparison passes it. The load-bearing half is the positive assertion the two callers make
+// on first_hot.fanout_complete; this one names the exact shape #1851 removed, so a revert of that
+// commit fails a test rather than passing every one.
+func assertNoJobCountProxy(t *testing.T, name, query string) {
+	t.Helper()
+	flat := strings.Join(strings.Fields(strings.ToLower(query)), " ")
+	// The drain half keeps its own EXISTS, so the proxy is the one carrying no job-state test.
+	if strings.Contains(flat, "exists ( select 1 from queue_job j where j.dispatch_id = first_hot.id )") {
+		t.Errorf("%s must not read a job count for the fan-out-finished half (ADR-1851 §2, #1851), got:\n%s", name, query)
+	}
+}
+
+// TestTheFanOutMarkIsWrittenOnceAndCarriesNoInstant guards ADR-1851 §2. The column answers the
+// first half of ADR-1806 §3's bound, and it answers nothing else. A timestamp here would invite
+// the duration test ADR-1806 §7 and #27 both refuse, so the column is a boolean and the mark is
+// an unconditional write that the caller places after its last chunk commits.
+func TestTheFanOutMarkIsWrittenOnceAndCarriesNoInstant(t *testing.T) {
+	q := strings.ToLower(markFanOutComplete)
+	if !strings.Contains(q, "fanout_complete = true") {
+		t.Errorf("the mark sets the fan-out-finished half (ADR-1851 §2), got:\n%s", markFanOutComplete)
+	}
+	for _, forbidden := range []string{"now()", "interval", "fanout_completed_at"} {
+		if strings.Contains(q, forbidden) {
+			t.Errorf("the mark carries no instant, so %q may not appear (ADR-1806 §7, #27), got:\n%s", forbidden, markFanOutComplete)
+		}
+	}
+}
+
+// TestAnAbandonedDispatchIsRetiredByATickAndNeverByAClock guards ADR-1851 §3. A streamed
+// fan-out that crashes marks itself never, so its dispatch would hold the release bound for
+// good. The next claimed tick of the same Scan marks it abandoned, and a tick is a cadence
+// rather than a duration, so no clock reaches the release predicate. Three clauses keep a live
+// fan-out safe: the claimed dispatch is excluded by id, a dispatch still streaming holds ready
+// jobs, and an already-abandoned row is not re-marked.
+//
+// The mark is a column of its own and never a fifth dispatch.status token, because ADR-0164 §1
+// rules that status carries the operator's disposition. stopped and terminated each cancel jobs
+// and mean a person acted, and abandonment does neither.
+func TestAnAbandonedDispatchIsRetiredByATickAndNeverByAClock(t *testing.T) {
+	q := strings.ToLower(abandonUnfinishedDispatches)
+	for _, want := range []struct {
+		clause, why string
+	}{
+		{"set fanout_abandoned = true", "the mark is a column, so no operator disposition is minted"},
+		{"dispatch.status = 'fanned-out'", "a skipped row or an operator's disposition is not an abandoned fan-out"},
+		{"dispatch.fanout_complete = false", "a finished fan-out is never abandoned"},
+		{"dispatch.id <> ", "the tick doing the marking may never mark itself"},
+		{"dispatch.fanout_abandoned = false", "an already-abandoned row is not re-marked"},
+		{"j.state in ('ready', 'running')", "a fan-out still streaming holds ready jobs, so it is left alone"},
+	} {
+		if !strings.Contains(q, want.clause) {
+			t.Errorf("abandonUnfinishedDispatches must carry %q — %s (ADR-1851 §3), got:\n%s", want.clause, want.why, abandonUnfinishedDispatches)
+		}
+	}
+	for _, forbidden := range []string{"now()", "interval", "age(", "status = 'terminated'", "status = 'stopped'"} {
+		if strings.Contains(q, forbidden) {
+			t.Errorf("a tick marks a column, never a clock and never a disposition, so %q may not appear (ADR-0164 §1, ADR-1851 §3), got:\n%s", forbidden, abandonUnfinishedDispatches)
+		}
+	}
+}
+
+// TestTheBoundPassesOverAnAbandonedDispatch guards the other half of ADR-1851 §3. Marking a
+// dispatch abandoned moves nothing on its own: the inner select that picks the first hot
+// dispatch has to skip it, or the bound still names a row that will never be marked complete.
+// This is not #1817's reverted shape. That one skipped a dispatch for holding no job, which a
+// dispatch mid-fan-out also does. This one skips a dispatch for a recorded fact, so no dispatch
+// still streaming is ever passed over.
+func TestTheBoundPassesOverAnAbandonedDispatch(t *testing.T) {
+	for _, c := range []struct{ name, query string }{
+		{"listReleasableHeldMessages", listReleasableHeldMessages},
+		{"listSettleableRePointBatches", listSettleableRePointBatches},
+	} {
+		if !strings.Contains(strings.ToLower(c.query), "d.fanout_abandoned = false") {
+			t.Errorf("%s must skip an abandoned dispatch when choosing the first hot one (ADR-1851 §3), got:\n%s", c.name, c.query)
 		}
 	}
 }

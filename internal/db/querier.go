@@ -12,6 +12,8 @@ import (
 )
 
 type Querier interface {
+	// A crashed fan-out marks itself never, so the next claimed tick retires it (ADR-1851 §3).
+	AbandonUnfinishedDispatches(ctx context.Context, arg AbandonUnfinishedDispatchesParams) (int64, error)
 	AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error
 	// The period's empty state and the corpus's are different facts, and E.3 claims the second.
 	AnyActRecorded(ctx context.Context) (bool, error)
@@ -265,6 +267,8 @@ type Querier interface {
 	MarkAllMessagesRead(ctx context.Context, arg MarkAllMessagesReadParams) error
 	MarkDeliveryDelivered(ctx context.Context, arg MarkDeliveryDeliveredParams) error
 	MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error
+	// The release bound reads this as its fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
+	MarkFanOutComplete(ctx context.Context, id int64) error
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) (int64, error)
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) (int64, error)
 	MarkJobRetried(ctx context.Context, id int64) (int64, error)

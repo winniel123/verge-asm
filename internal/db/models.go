@@ -123,11 +123,13 @@ type Delivery struct {
 }
 
 type Dispatch struct {
-	ID            int64              `json:"id"`
-	ScanID        int64              `json:"scan_id"`
-	ScheduledTime pgtype.Timestamptz `json:"scheduled_time"`
-	Status        string             `json:"status"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ID              int64              `json:"id"`
+	ScanID          int64              `json:"scan_id"`
+	ScheduledTime   pgtype.Timestamptz `json:"scheduled_time"`
+	Status          string             `json:"status"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	FanoutComplete  bool               `json:"fanout_complete"`
+	FanoutAbandoned bool               `json:"fanout_abandoned"`
 }
 
 type EdgeFanoutObservation struct {
