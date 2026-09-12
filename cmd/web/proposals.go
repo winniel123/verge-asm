@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -354,17 +355,38 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 	s.backToScope(w, r)
 }
 
-func (s *server) declinedProposalScopes(ctx context.Context) map[string][]int64 {
+type undoControlView struct {
+	ProposalID int64
+	Source     string
+	Record     string
+	Rel        string
+	ISO        string
+}
+
+func (s *server) declinedProposalScopes(ctx context.Context) map[string][]undoControlView {
 	// No screen lists the declined tail, so the decline's own exclusion row carries it (#1721).
 	rows, err := s.proposalsStore.ListDeclinedProposalScopes(ctx)
 	if err != nil {
 		return nil
 	}
-	out := make(map[string][]int64, len(rows))
+	return toUndoControls(rows, s.now().UTC())
+}
+
+func toUndoControls(rows []db.ListDeclinedProposalScopesRow, now time.Time) map[string][]undoControlView {
+	out := make(map[string][]undoControlView, len(rows))
 	for _, row := range rows {
+		// One lookup answers with both record kinds, so source and instant alone tie (#1803).
+		v := undoControlView{
+			ProposalID: row.ID, Source: row.SourceSlug, Record: recordLabel(row.RecordKind),
+		}
+		if row.LookupAt.Valid {
+			at := row.LookupAt.Time.UTC()
+			v.Rel = relTime(at, now)
+			v.ISO = at.Format("2006-01-02 15:04 UTC")
+		}
 		// A proposal scope has no unique constraint, so one range holds two declines (#1777).
 		scope := row.AddressCidr.String()
-		out[scope] = append(out[scope], row.ID)
+		out[scope] = append(out[scope], v)
 	}
 	return out
 }

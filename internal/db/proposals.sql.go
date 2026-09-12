@@ -143,15 +143,19 @@ func (q *Queries) GetPendingProposal(ctx context.Context, id int64) (Proposal, e
 }
 
 const listDeclinedProposalScopes = `-- name: ListDeclinedProposalScopes :many
-SELECT id, address_cidr
-FROM proposal
-WHERE status = 'declined'
-ORDER BY id
+SELECT p.id, p.address_cidr, p.source_slug, p.record_kind, l.created_at AS lookup_at
+FROM proposal p
+JOIN proposer_lookup l ON l.id = p.lookup_id
+WHERE p.status = 'declined'
+ORDER BY p.id
 `
 
 type ListDeclinedProposalScopesRow struct {
-	ID          int64        `json:"id"`
-	AddressCidr netip.Prefix `json:"address_cidr"`
+	ID          int64              `json:"id"`
+	AddressCidr netip.Prefix       `json:"address_cidr"`
+	SourceSlug  string             `json:"source_slug"`
+	RecordKind  string             `json:"record_kind"`
+	LookupAt    pgtype.Timestamptz `json:"lookup_at"`
 }
 
 func (q *Queries) ListDeclinedProposalScopes(ctx context.Context) ([]ListDeclinedProposalScopesRow, error) {
@@ -163,7 +167,13 @@ func (q *Queries) ListDeclinedProposalScopes(ctx context.Context) ([]ListDecline
 	items := []ListDeclinedProposalScopesRow{}
 	for rows.Next() {
 		var i ListDeclinedProposalScopesRow
-		if err := rows.Scan(&i.ID, &i.AddressCidr); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.AddressCidr,
+			&i.SourceSlug,
+			&i.RecordKind,
+			&i.LookupAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

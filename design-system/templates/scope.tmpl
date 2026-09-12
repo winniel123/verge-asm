@@ -127,8 +127,9 @@ button.sc-trow { cursor: pointer; }
 .sc-prow .pv { font: 500 12.5px var(--font-mono); color: var(--text-ink); }
 .sc-prow .psrc { font: 400 11.5px var(--font-ui); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-prow form { margin: 0 0 0 auto; flex: none; }
-.sc-xrow { display: flex; align-items: center; gap: 10px; padding: 7px 10px; background: var(--surface-sunken); border-radius: 10px; }
+.sc-xrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 7px 10px; background: var(--surface-sunken); border-radius: 10px; }
 .sc-xrow .xv { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.sc-xrow .und { font: 400 11.5px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
 .sc-xrow form { margin: 0 0 0 auto; }
 .sc-xrow form + form { margin-left: 0; }
 .sc-xrow .rm { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; }
@@ -407,7 +408,7 @@ button.sc-trow { cursor: pointer; }
 <div class="sc-xrow">
 <span class="sc-tag">{{.Kind}}</span>
 <span class="xv">{{if eq .Kind "subtree"}}*.{{end}}{{.Value}}</span>
-{{if $.IsAdmin}}{{range .UndoProposalIDs}}<form method="post" action="/proposals/undo-decline"><input type="hidden" name="id" value="{{.}}">{{template "backfield" $}}<button type="submit" class="sc-btn-ghost">Undo decline</button></form>{{end}}{{end}}
+{{if $.IsAdmin}}{{range .UndoControls}}<form method="post" action="/proposals/undo-decline"><input type="hidden" name="id" value="{{.ProposalID}}">{{template "backfield" $}}<button type="submit" class="sc-btn-ghost"{{if .ISO}} title="{{.Source}} proposed this scope in a lookup at {{.ISO}}"{{end}}>Undo decline<span class="und">{{.Source}} · {{.Record}}{{if .Rel}} · {{.Rel}}{{end}}</span></button></form>{{end}}{{end}}
 {{if $.IsAdmin}}<form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button class="rm" type="submit" aria-label="Remove exclusion"><svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}
 </div>
 {{else}}

@@ -31,7 +31,7 @@ type exclusionView struct {
 	Value string
 	At    string
 
-	UndoProposalIDs []int64
+	UndoControls []undoControlView
 }
 
 func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -169,13 +169,13 @@ func hasAddressExclusion(rows []db.Exclusion) bool {
 	return false
 }
 
-func toExclusionViews(rows []db.Exclusion, declined map[string][]int64) []exclusionView {
+func toExclusionViews(rows []db.Exclusion, declined map[string][]undoControlView) []exclusionView {
 	out := make([]exclusionView, 0, len(rows))
 	for _, row := range rows {
 		v := exclusionView{ID: row.ID, Kind: row.Kind}
 		if row.Kind == "address" && row.AddressCidr != nil {
 			v.Value = row.AddressCidr.String()
-			v.UndoProposalIDs = declined[v.Value]
+			v.UndoControls = declined[v.Value]
 		} else {
 			v.Value = row.Name.String
 		}
