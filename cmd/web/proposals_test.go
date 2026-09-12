@@ -559,10 +559,17 @@ func (f *fakeStore) UndoDeclineProposal(_ context.Context, id int64) (netip.Pref
 
 func (f *fakeStore) ListDeclinedProposalScopes(context.Context) ([]db.ListDeclinedProposalScopesRow, error) {
 	f.declinedRead++
+	lookupAt := map[int64]pgtype.Timestamptz{}
+	for _, l := range f.lookups {
+		lookupAt[l.ID] = l.CreatedAt
+	}
 	out := []db.ListDeclinedProposalScopesRow{}
 	for _, p := range f.proposals {
 		if p.Status == "declined" {
-			out = append(out, db.ListDeclinedProposalScopesRow{ID: p.ID, AddressCidr: p.AddressCidr})
+			out = append(out, db.ListDeclinedProposalScopesRow{
+				ID: p.ID, AddressCidr: p.AddressCidr, SourceSlug: p.SourceSlug,
+				RecordKind: p.RecordKind, LookupAt: lookupAt[p.LookupID],
+			})
 		}
 	}
 	return out, nil
@@ -721,6 +728,119 @@ func TestBothDeclinesOfOneScopeRenderAnUndoControl(t *testing.T) {
 	for _, id := range []int64{first, second} {
 		if !strings.Contains(page, `<input type="hidden" name="id" value="`+itoa(id)+`">`) {
 			t.Errorf("no undo control carries declined proposal %d; body: %s", id, page)
+		}
+	}
+}
+
+func undoControlFor(t *testing.T, page string, id int64) string {
+	t.Helper()
+	const open = `<form method="post" action="/proposals/undo-decline">`
+	for _, chunk := range strings.Split(page, open)[1:] {
+		form, _, ok := strings.Cut(chunk, "</form>")
+		if ok && strings.Contains(form, `name="id" value="`+itoa(id)+`"`) {
+			return form
+		}
+	}
+	t.Fatalf("no undo control carries declined proposal %d; body: %s", id, page)
+	return ""
+}
+
+func TestUndoControlsDateEveryDeclineOfOneScope(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	ago := func(h int) pgtype.Timestamptz {
+		return pgtype.Timestamptz{Time: now.Add(-time.Duration(h) * time.Hour), Valid: true}
+	}
+	crowded := netip.MustParsePrefix("203.0.113.0/24")
+	lone := netip.MustParsePrefix("198.51.100.0/24")
+
+	got := toUndoControls([]db.ListDeclinedProposalScopesRow{
+		{ID: 1, AddressCidr: crowded, SourceSlug: proposer.SlugARIN,
+			RecordKind: proposer.RecordRIRDelegation, LookupAt: ago(3)},
+		{ID: 2, AddressCidr: crowded, SourceSlug: proposer.SlugAPNIC,
+			RecordKind: proposer.RecordRIRDelegation, LookupAt: ago(3)},
+		// One ARIN lookup answers with both kinds, so this row ties with row 1 on every other axis.
+		{ID: 3, AddressCidr: crowded, SourceSlug: proposer.SlugARIN,
+			RecordKind: proposer.RecordCompelledReassignment, LookupAt: ago(3)},
+		{ID: 4, AddressCidr: crowded, SourceSlug: proposer.SlugARIN,
+			RecordKind: proposer.RecordRIRDelegation, LookupAt: ago(50)},
+		{ID: 5, AddressCidr: lone, SourceSlug: proposer.SlugARIN,
+			RecordKind: proposer.RecordRIRDelegation},
+	}, now)
+
+	if len(got) != 2 {
+		t.Fatalf("scopes = %d, want 2", len(got))
+	}
+	want := map[string][]undoControlView{
+		crowded.String(): {
+			{ProposalID: 1, Source: proposer.SlugARIN, Record: "RIR delegation", Rel: "3h", ISO: "2026-08-15 09:00 UTC"},
+			{ProposalID: 2, Source: proposer.SlugAPNIC, Record: "RIR delegation", Rel: "3h", ISO: "2026-08-15 09:00 UTC"},
+			{ProposalID: 3, Source: proposer.SlugARIN, Record: "compelled reassignment", Rel: "3h", ISO: "2026-08-15 09:00 UTC"},
+			{ProposalID: 4, Source: proposer.SlugARIN, Record: "RIR delegation", Rel: "2d", ISO: "2026-08-13 10:00 UTC"},
+		},
+		// A lookup with no instant still reaches its decline, so the control drops the date alone.
+		lone.String(): {{ProposalID: 5, Source: proposer.SlugARIN, Record: "RIR delegation"}},
+	}
+	for scope, controls := range want {
+		if len(got[scope]) != len(controls) {
+			t.Fatalf("controls for %s = %+v, want %+v", scope, got[scope], controls)
+		}
+		for i, c := range controls {
+			if got[scope][i] != c {
+				t.Errorf("control %d of %s = %+v, want %+v", i, scope, got[scope][i], c)
+			}
+		}
+	}
+
+	for scope, controls := range got {
+		seen := map[undoControlView]bool{}
+		for _, c := range controls {
+			label := c
+			label.ProposalID = 0
+			if seen[label] {
+				t.Errorf("two controls on the %s row read alike, so the choice is a guess: %+v", scope, label)
+			}
+			seen[label] = true
+		}
+	}
+}
+
+func TestUndoControlNamesTheSourceThatProposedItsScope(t *testing.T) {
+	f := newFakeStore()
+	base, ac, first, second := declineOneScopeFromTwoSources(t, f)
+
+	page := seedsBody(t, ac, base)
+	for _, c := range []struct {
+		id      int64
+		mine    string
+		sibling string
+	}{
+		{first, proposer.SlugARIN, proposer.SlugAPNIC},
+		{second, proposer.SlugAPNIC, proposer.SlugARIN},
+	} {
+		control := undoControlFor(t, page, c.id)
+		if !strings.Contains(control, c.mine) {
+			t.Errorf("undo control for proposal %d does not name %q: %s", c.id, c.mine, control)
+		}
+		if strings.Contains(control, c.sibling) {
+			t.Errorf("undo control for proposal %d names the sibling source %q: %s", c.id, c.sibling, control)
+		}
+	}
+}
+
+func TestUndoControlCarriesTheLookupInstantItsProposalCameFrom(t *testing.T) {
+	f := newFakeStore()
+	base, ac, first, second := declineOneScopeFromTwoSources(t, f)
+
+	if len(f.lookups) != 1 {
+		t.Fatalf("lookups = %d, want 1", len(f.lookups))
+	}
+	want := `at ` + f.lookups[0].CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + `"`
+
+	page := seedsBody(t, ac, base)
+	for _, id := range []int64{first, second} {
+		control := undoControlFor(t, page, id)
+		if !strings.Contains(control, want) {
+			t.Errorf("undo control for proposal %d carries no %s: %s", id, want, control)
 		}
 	}
 }
