@@ -144,34 +144,31 @@ const listVantages = `-- name: ListVantages :many
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
        v.latency_ms, v.platform, v.egress, v.dialled_addr,
-       a.username AS created_by_username,
        (EXISTS (SELECT 1 FROM observation o WHERE o.vantage_id = v.id)
         OR EXISTS (SELECT 1 FROM span sp WHERE sp.vantage_id = v.id))::boolean AS observed
 FROM vantage v
-JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
 ORDER BY v.created_at DESC, v.id DESC
 `
 
 type ListVantagesRow struct {
-	ID                int64              `json:"id"`
-	Name              string             `json:"name"`
-	Class             string             `json:"class"`
-	Resolver          string             `json:"resolver"`
-	Host              pgtype.Text        `json:"host"`
-	Port              pgtype.Int4        `json:"port"`
-	Username          pgtype.Text        `json:"username"`
-	Availability      pgtype.Text        `json:"availability"`
-	PublicKey         pgtype.Text        `json:"public_key"`
-	HostKey           pgtype.Text        `json:"host_key"`
-	CreatedBy         pgtype.Int8        `json:"created_by"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	LatencyMs         pgtype.Int4        `json:"latency_ms"`
-	Platform          pgtype.Text        `json:"platform"`
-	Egress            pgtype.Text        `json:"egress"`
-	DialledAddr       pgtype.Text        `json:"dialled_addr"`
-	CreatedByUsername string             `json:"created_by_username"`
-	Observed          bool               `json:"observed"`
+	ID           int64              `json:"id"`
+	Name         string             `json:"name"`
+	Class        string             `json:"class"`
+	Resolver     string             `json:"resolver"`
+	Host         pgtype.Text        `json:"host"`
+	Port         pgtype.Int4        `json:"port"`
+	Username     pgtype.Text        `json:"username"`
+	Availability pgtype.Text        `json:"availability"`
+	PublicKey    pgtype.Text        `json:"public_key"`
+	HostKey      pgtype.Text        `json:"host_key"`
+	CreatedBy    pgtype.Int8        `json:"created_by"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	LatencyMs    pgtype.Int4        `json:"latency_ms"`
+	Platform     pgtype.Text        `json:"platform"`
+	Egress       pgtype.Text        `json:"egress"`
+	DialledAddr  pgtype.Text        `json:"dialled_addr"`
+	Observed     bool               `json:"observed"`
 }
 
 func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
@@ -200,7 +197,6 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 			&i.Platform,
 			&i.Egress,
 			&i.DialledAddr,
-			&i.CreatedByUsername,
 			&i.Observed,
 		); err != nil {
 			return nil, err

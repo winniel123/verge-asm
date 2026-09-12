@@ -171,13 +171,13 @@ func TestGraphPageRendersScopeSelector(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	if _, err := f.CreateNameSeed(context.Background(), db.CreateNameSeedParams{
-		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: admin.ID,
+		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	p := netip.MustParsePrefix("162.222.48.0/22")
 	if _, err := f.CreateAddressSeed(context.Background(), db.CreateAddressSeedParams{
-		AddressCidr: &p, CreatedBy: admin.ID,
+		AddressCidr: &p, CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +253,7 @@ func TestGraphPageEmptyScopeStatesItsOwnEmptiness(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	if _, err := f.CreateNameSeed(context.Background(), db.CreateNameSeedParams{
-		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: admin.ID,
+		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

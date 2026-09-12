@@ -11,7 +11,7 @@ SELECT p.id, p.slug, p.name, p.issuer, p.client_id, p.enabled,
        p.created_by, p.created_at, p.updated_at,
        a.username AS created_by_username
 FROM sso_provider p
-JOIN account a ON a.id = p.created_by
+LEFT JOIN account a ON a.id = p.created_by
 ORDER BY p.id DESC;
 
 -- name: ListEnabledSSOProviders :many

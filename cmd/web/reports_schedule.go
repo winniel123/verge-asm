@@ -317,7 +317,7 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		Format:         reportScheduleFormat,
 		DeliveryTarget: "",
 		ChannelID:      channelBinding(v.ChannelID),
-		CreatedBy:      acct.ID,
+		CreatedBy:      pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "insert report schedule", err)
 		return

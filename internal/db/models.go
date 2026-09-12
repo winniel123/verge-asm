@@ -75,7 +75,7 @@ type Channel struct {
 	RouteCoverage bool               `json:"route_coverage"`
 	RouteClock    bool               `json:"route_clock"`
 	Enabled       bool               `json:"enabled"`
-	CreatedBy     int64              `json:"created_by"`
+	CreatedBy     pgtype.Int8        `json:"created_by"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
@@ -83,7 +83,7 @@ type Channel struct {
 type ColdScanScope struct {
 	ID        int64              `json:"id"`
 	SeedID    int64              `json:"seed_id"`
-	CreatedBy int64              `json:"created_by"`
+	CreatedBy pgtype.Int8        `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -146,7 +146,7 @@ type Exclusion struct {
 	Kind        string             `json:"kind"`
 	Name        pgtype.Text        `json:"name"`
 	AddressCidr *netip.Prefix      `json:"address_cidr"`
-	CreatedBy   int64              `json:"created_by"`
+	CreatedBy   pgtype.Int8        `json:"created_by"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -260,7 +260,7 @@ type Proposal struct {
 type ProposerLookup struct {
 	ID        int64              `json:"id"`
 	Query     string             `json:"query"`
-	CreatedBy int64              `json:"created_by"`
+	CreatedBy pgtype.Int8        `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -321,7 +321,7 @@ type ReportSchedule struct {
 	Cadence        string             `json:"cadence"`
 	Format         string             `json:"format"`
 	DeliveryTarget string             `json:"delivery_target"`
-	CreatedBy      int64              `json:"created_by"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	ChannelID      pgtype.Int8        `json:"channel_id"`
 }
@@ -348,7 +348,7 @@ type Seed struct {
 	Kind             string             `json:"kind"`
 	NameDomain       pgtype.Text        `json:"name_domain"`
 	AddressCidr      *netip.Prefix      `json:"address_cidr"`
-	CreatedBy        int64              `json:"created_by"`
+	CreatedBy        pgtype.Int8        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	CustodyExtension bool               `json:"custody_extension"`
 }
@@ -432,7 +432,7 @@ type SsoProvider struct {
 	ClientID     string             `json:"client_id"`
 	ClientSecret pgtype.Text        `json:"client_secret"`
 	Enabled      bool               `json:"enabled"`
-	CreatedBy    int64              `json:"created_by"`
+	CreatedBy    pgtype.Int8        `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
@@ -474,7 +474,7 @@ type VergeCoreFrequencyEdit struct {
 	ID        int64              `json:"id"`
 	Port      int32              `json:"port"`
 	Action    string             `json:"action"`
-	CreatedBy int64              `json:"created_by"`
+	CreatedBy pgtype.Int8        `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -483,6 +483,6 @@ type ZoneFile struct {
 	SeedID     int64              `json:"seed_id"`
 	SuppliedAt pgtype.Timestamptz `json:"supplied_at"`
 	Content    string             `json:"content"`
-	UploadedBy int64              `json:"uploaded_by"`
+	UploadedBy pgtype.Int8        `json:"uploaded_by"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }

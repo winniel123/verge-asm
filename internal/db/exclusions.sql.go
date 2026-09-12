@@ -20,7 +20,7 @@ RETURNING id, kind, name, address_cidr, created_by, created_at
 
 type CreateAddressExclusionParams struct {
 	AddressCidr *netip.Prefix `json:"address_cidr"`
-	CreatedBy   int64         `json:"created_by"`
+	CreatedBy   pgtype.Int8   `json:"created_by"`
 }
 
 func (q *Queries) CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error) {
@@ -46,7 +46,7 @@ RETURNING id, kind, name, address_cidr, created_by, created_at
 type CreateNameExclusionParams struct {
 	Kind      string      `json:"kind"`
 	Name      pgtype.Text `json:"name"`
-	CreatedBy int64       `json:"created_by"`
+	CreatedBy pgtype.Int8 `json:"created_by"`
 }
 
 func (q *Queries) CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error) {
@@ -135,32 +135,20 @@ func (q *Queries) ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefi
 }
 
 const listExclusions = `-- name: ListExclusions :many
-SELECT e.id, e.kind, e.name, e.address_cidr, e.created_by, e.created_at,
-       a.username AS created_by_username
+SELECT e.id, e.kind, e.name, e.address_cidr, e.created_by, e.created_at
 FROM exclusion e
-JOIN account a ON a.id = e.created_by
 ORDER BY e.created_at DESC, e.id DESC
 `
 
-type ListExclusionsRow struct {
-	ID                int64              `json:"id"`
-	Kind              string             `json:"kind"`
-	Name              pgtype.Text        `json:"name"`
-	AddressCidr       *netip.Prefix      `json:"address_cidr"`
-	CreatedBy         int64              `json:"created_by"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	CreatedByUsername string             `json:"created_by_username"`
-}
-
-func (q *Queries) ListExclusions(ctx context.Context) ([]ListExclusionsRow, error) {
+func (q *Queries) ListExclusions(ctx context.Context) ([]Exclusion, error) {
 	rows, err := q.db.Query(ctx, listExclusions)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListExclusionsRow{}
+	items := []Exclusion{}
 	for rows.Next() {
-		var i ListExclusionsRow
+		var i Exclusion
 		if err := rows.Scan(
 			&i.ID,
 			&i.Kind,
@@ -168,7 +156,6 @@ func (q *Queries) ListExclusions(ctx context.Context) ([]ListExclusionsRow, erro
 			&i.AddressCidr,
 			&i.CreatedBy,
 			&i.CreatedAt,
-			&i.CreatedByUsername,
 		); err != nil {
 			return nil, err
 		}

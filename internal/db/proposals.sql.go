@@ -75,8 +75,8 @@ RETURNING id, query, created_by, created_at
 `
 
 type CreateProposerLookupParams struct {
-	Query     string `json:"query"`
-	CreatedBy int64  `json:"created_by"`
+	Query     string      `json:"query"`
+	CreatedBy pgtype.Int8 `json:"created_by"`
 }
 
 func (q *Queries) CreateProposerLookup(ctx context.Context, arg CreateProposerLookupParams) (ProposerLookup, error) {
@@ -176,10 +176,9 @@ func (q *Queries) ListDeclinedProposalScopes(ctx context.Context) ([]ListDecline
 
 const listPendingProposals = `-- name: ListPendingProposals :many
 SELECT p.id, p.lookup_id, p.source_slug, p.record_kind, p.address_cidr, p.org_name,
-       l.query AS lookup_query, l.created_at AS lookup_at, a.username AS lookup_by
+       l.query AS lookup_query, l.created_at AS lookup_at
 FROM proposal p
 JOIN proposer_lookup l ON l.id = p.lookup_id
-JOIN account a ON a.id = l.created_by
 WHERE p.status = 'pending'
 ORDER BY l.created_at DESC, l.id DESC, p.id ASC
 `
@@ -193,7 +192,6 @@ type ListPendingProposalsRow struct {
 	OrgName     string             `json:"org_name"`
 	LookupQuery string             `json:"lookup_query"`
 	LookupAt    pgtype.Timestamptz `json:"lookup_at"`
-	LookupBy    string             `json:"lookup_by"`
 }
 
 func (q *Queries) ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error) {
@@ -214,7 +212,6 @@ func (q *Queries) ListPendingProposals(ctx context.Context) ([]ListPendingPropos
 			&i.OrgName,
 			&i.LookupQuery,
 			&i.LookupAt,
-			&i.LookupBy,
 		); err != nil {
 			return nil, err
 		}

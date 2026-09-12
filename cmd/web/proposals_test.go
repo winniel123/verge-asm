@@ -502,7 +502,7 @@ func (f *fakeStore) ListPendingProposals(context.Context) ([]db.ListPendingPropo
 		rows = append(rows, db.ListPendingProposalsRow{
 			ID: p.ID, LookupID: p.LookupID, SourceSlug: p.SourceSlug,
 			RecordKind: p.RecordKind, AddressCidr: p.AddressCidr, OrgName: p.OrgName,
-			LookupQuery: l.Query, LookupAt: l.CreatedAt, LookupBy: f.accounts[l.CreatedBy].Username,
+			LookupQuery: l.Query, LookupAt: l.CreatedAt,
 		})
 	}
 	sort.SliceStable(rows, func(i, j int) bool {
@@ -1029,7 +1029,7 @@ func TestLookupSkipsCandidateInsideAnExclusionButOffersAWiderOne(t *testing.T) {
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	for _, raw := range []string{"198.51.100.0/24", "203.0.113.0/25"} {
 		p := netip.MustParsePrefix(raw)
-		f.exclusions = append(f.exclusions, db.Exclusion{ID: f.exclNextID, Kind: "address", AddressCidr: &p, CreatedBy: 1})
+		f.exclusions = append(f.exclusions, db.Exclusion{ID: f.exclNextID, Kind: "address", AddressCidr: &p, CreatedBy: pgtype.Int8{Int64: 1, Valid: true}})
 		f.exclNextID++
 	}
 	fp := &fakeProposer{candidates: twoCandidates()}

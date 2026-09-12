@@ -311,7 +311,7 @@ LIMIT 1;
 -- name: FindCoveringAddressSeed :one
 SELECT s.id, s.address_cidr, s.created_at, a.username AS created_by_username
 FROM seed s
-JOIN account a ON a.id = s.created_by
+LEFT JOIN account a ON a.id = s.created_by
 WHERE s.kind = 'address' AND s.address_cidr IS NOT NULL
   AND s.address_cidr >>= @address::inet
 ORDER BY masklen(s.address_cidr) DESC
@@ -320,7 +320,7 @@ LIMIT 1;
 -- name: FindCoveringNameSeed :one
 SELECT s.id, s.name_domain, s.created_at, a.username AS created_by_username
 FROM seed s
-JOIN account a ON a.id = s.created_by
+LEFT JOIN account a ON a.id = s.created_by
 WHERE s.kind = 'name' AND s.name_domain IS NOT NULL
   -- A declared domain is LDH-validated at declaration, so it carries no LIKE metacharacter.
   AND (@name::text = s.name_domain OR @name::text LIKE '%.' || s.name_domain)
@@ -330,5 +330,5 @@ LIMIT 1;
 -- name: FindNameSeedByID :one
 SELECT s.id, s.name_domain, s.created_at, a.username AS created_by_username
 FROM seed s
-JOIN account a ON a.id = s.created_by
+LEFT JOIN account a ON a.id = s.created_by
 WHERE s.kind = 'name' AND s.id = @seed_id;

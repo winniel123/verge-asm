@@ -9,7 +9,6 @@ DELETE FROM verge_core_frequency_edit WHERE port = $1
 RETURNING port;
 
 -- name: ListVergeCoreFrequencyEditsWithAuthor :many
-SELECT e.id, e.port, e.action, e.created_at, a.username AS created_by_username
+SELECT e.id, e.port, e.action, e.created_at
 FROM verge_core_frequency_edit e
-JOIN account a ON a.id = e.created_by
 ORDER BY e.port;

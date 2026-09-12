@@ -75,7 +75,6 @@ type proposalView struct {
 type proposalLookupView struct {
 	LookupID  int64
 	Query     string
-	By        string
 	At        string
 	Count     int
 	Proposals []proposalView
@@ -122,7 +121,7 @@ func toProposalLookups(rows []db.ListPendingProposalsRow, addrCap int) []proposa
 				at = row.LookupAt.Time.UTC().Format("2006-01-02 15:04 UTC")
 			}
 			out = append(out, proposalLookupView{
-				LookupID: row.LookupID, Query: row.LookupQuery, By: row.LookupBy, At: at,
+				LookupID: row.LookupID, Query: row.LookupQuery, At: at,
 			})
 			idx = len(out) - 1
 			byLookup[row.LookupID] = idx
@@ -227,7 +226,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 
 	lookup, err := s.proposalsStore.CreateProposerLookup(r.Context(), db.CreateProposerLookupParams{
-		Query: query, CreatedBy: acct.ID,
+		Query: query, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	})
 	if err != nil {
 		s.serverError(w, "create lookup", err)
@@ -286,7 +285,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 	}
 
 	sd, err := s.proposalsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
-		AddressCidr: &cidr, CreatedBy: acct.ID,
+		AddressCidr: &cidr, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -340,7 +339,7 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 		cidr := p.AddressCidr
 		// A decline records an exclusion, so the same range is not proposed again (ADR-0012).
 		if _, err := s.proposalsStore.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
-			AddressCidr: &cidr, CreatedBy: acct.ID,
+			AddressCidr: &cidr, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 		}); err != nil && !isUniqueViolation(err) {
 			s.serverError(w, "record declined proposal as exclusion", err)
 			return

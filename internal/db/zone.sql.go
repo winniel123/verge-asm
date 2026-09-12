@@ -21,7 +21,7 @@ type CreateZoneFileParams struct {
 	SeedID     int64              `json:"seed_id"`
 	SuppliedAt pgtype.Timestamptz `json:"supplied_at"`
 	Content    string             `json:"content"`
-	UploadedBy int64              `json:"uploaded_by"`
+	UploadedBy pgtype.Int8        `json:"uploaded_by"`
 }
 
 type CreateZoneFileRow struct {
@@ -96,22 +96,19 @@ func (q *Queries) LatestZoneFilesForDispatch(ctx context.Context) ([]LatestZoneF
 const listZoneFileStatus = `-- name: ListZoneFileStatus :many
 SELECT DISTINCT ON (z.seed_id)
     z.seed_id, s.name_domain, z.supplied_at, z.created_at,
-    a.username AS uploaded_by_username,
     length(z.content)::bigint AS content_bytes
 FROM zone_file z
 JOIN seed s ON s.id = z.seed_id
-JOIN account a ON a.id = z.uploaded_by
 WHERE s.kind = 'name'
 ORDER BY z.seed_id, z.supplied_at DESC, z.id DESC
 `
 
 type ListZoneFileStatusRow struct {
-	SeedID             int64              `json:"seed_id"`
-	NameDomain         pgtype.Text        `json:"name_domain"`
-	SuppliedAt         pgtype.Timestamptz `json:"supplied_at"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	UploadedByUsername string             `json:"uploaded_by_username"`
-	ContentBytes       int64              `json:"content_bytes"`
+	SeedID       int64              `json:"seed_id"`
+	NameDomain   pgtype.Text        `json:"name_domain"`
+	SuppliedAt   pgtype.Timestamptz `json:"supplied_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ContentBytes int64              `json:"content_bytes"`
 }
 
 func (q *Queries) ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error) {
@@ -128,7 +125,6 @@ func (q *Queries) ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusR
 			&i.NameDomain,
 			&i.SuppliedAt,
 			&i.CreatedAt,
-			&i.UploadedByUsername,
 			&i.ContentBytes,
 		); err != nil {
 			return nil, err

@@ -37,7 +37,7 @@ type seedsStore interface {
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
 	GetDnsCadenceSeconds(ctx context.Context) (int64, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
-	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
+	ListExclusions(ctx context.Context) ([]db.Exclusion, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	SetDnsCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
@@ -52,7 +52,6 @@ type seedView struct {
 	IsAddress        bool
 	Scope            string
 	Anchor           string
-	By               string
 	At               string
 	CustodyExtension bool
 }
@@ -202,7 +201,7 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 			return "", &refusalView{Input: value, Reason: alreadyDeclaredReason}
 		}
 		if _, err := s.seedsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
-			AddressCidr: &p, CreatedBy: acct.ID,
+			AddressCidr: &p, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 		}); err != nil {
 			return "", createRefusal(value, err)
 		}
@@ -219,7 +218,7 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 		return "", &refusalView{Input: value, Reason: alreadyDeclaredReason}
 	}
 	if _, err := s.seedsStore.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
-		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
+		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		return "", createRefusal(value, err)
 	}
@@ -499,7 +498,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list seeds", err)
 		return
 	}
-	var excl []db.ListExclusionsRow
+	var excl []db.Exclusion
 	// A card is one region, so its failed read empties it alone (ADR-0168 §1, #1424).
 	if rows, eerr := s.seedsStore.ListExclusions(r.Context()); eerr == nil {
 		excl = rows
@@ -668,7 +667,7 @@ func declaredNameTree(nameSeeds []seedView, names []signal.NameFacts, censuses [
 func toSeedViews(rows []db.ListSeedsRow) []seedView {
 	out := make([]seedView, 0, len(rows))
 	for _, row := range rows {
-		v := seedView{ID: row.ID, By: row.CreatedByUsername, CustodyExtension: row.CustodyExtension}
+		v := seedView{ID: row.ID, CustodyExtension: row.CustodyExtension}
 		if row.Kind == "address" && row.AddressCidr != nil {
 			v.IsAddress = true
 			v.Scope = row.AddressCidr.String()
@@ -714,7 +713,6 @@ type zoneView struct {
 	Domain        string
 	HasFile       bool
 	SuppliedAt    string
-	By            string
 	Bytes         int64
 	AgingStale    bool
 	AgingLabel    string
@@ -733,7 +731,6 @@ func toZoneViews(nameSeeds []seedView, status []db.ListZoneFileStatusRow, cadenc
 		v := zoneView{SeedID: s.ID, Domain: s.Scope, IntervalLabel: intervalLabel}
 		if st, ok := bySeed[s.ID]; ok {
 			v.HasFile = true
-			v.By = st.UploadedByUsername
 			v.Bytes = st.ContentBytes
 			if st.SuppliedAt.Valid {
 				v.SuppliedAt = st.SuppliedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -876,7 +873,7 @@ func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipa
 		SeedID:     seedID,
 		SuppliedAt: pgtype.Timestamptz{Time: now, Valid: true},
 		Content:    string(content),
-		UploadedBy: acct.ID,
+		UploadedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		return "", &zoneErrorView{File: name, Reason: "could not be stored"}
 	}

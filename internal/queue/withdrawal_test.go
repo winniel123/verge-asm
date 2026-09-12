@@ -11,13 +11,13 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
-func addressExclusion(cidr string) db.ListExclusionsRow {
+func addressExclusion(cidr string) db.Exclusion {
 	p := netip.MustParsePrefix(cidr)
-	return db.ListExclusionsRow{Kind: "address", AddressCidr: &p}
+	return db.Exclusion{Kind: "address", AddressCidr: &p}
 }
 
-func nameExclusion(name string) db.ListExclusionsRow {
-	return db.ListExclusionsRow{Kind: "name", Name: pgtype.Text{String: name, Valid: true}}
+func nameExclusion(name string) db.Exclusion {
+	return db.Exclusion{Kind: "name", Name: pgtype.Text{String: name, Valid: true}}
 }
 
 func withdrawalRow(id int64, kind, key string) db.ListAddressExclusionWithdrawalsRow {
@@ -27,7 +27,7 @@ func withdrawalRow(id int64, kind, key string) db.ListAddressExclusionWithdrawal
 func thirdParty(netip.Addr) custody.Custody { return custody.ThirdParty }
 
 func TestCoveringAddressExclusion(t *testing.T) {
-	exclusions := []db.ListExclusionsRow{
+	exclusions := []db.Exclusion{
 		nameExclusion("example.com"),
 		addressExclusion("198.51.100.128/25"),
 		addressExclusion("2001:db8::/32"),
@@ -51,7 +51,7 @@ func TestCoveringAddressExclusion(t *testing.T) {
 			t.Errorf("coveringAddressExclusion(%s) = %q, want %q", tt.addr, got, tt.want)
 		}
 	}
-	if coveringAddressExclusion(netip.MustParseAddr("198.51.100.200"), []db.ListExclusionsRow{nameExclusion("example.com")}) != nil {
+	if coveringAddressExclusion(netip.MustParseAddr("198.51.100.200"), []db.Exclusion{nameExclusion("example.com")}) != nil {
 		t.Error("a name exclusion covers no Address")
 	}
 }
@@ -59,7 +59,7 @@ func TestCoveringAddressExclusion(t *testing.T) {
 func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
-		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
+		exclusions: []db.Exclusion{addressExclusion("198.51.100.128/25")},
 	}
 	rows := []db.ListAddressExclusionWithdrawalsRow{
 		withdrawalRow(1, "address", "198.51.100.200"),
@@ -97,7 +97,7 @@ func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 func TestComposeAddressWithdrawalsKeepsAnExtensionReachedAddress(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
-		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
+		exclusions: []db.Exclusion{addressExclusion("198.51.100.128/25")},
 	}
 	rows := []db.ListAddressExclusionWithdrawalsRow{
 		withdrawalRow(1, "address", "198.51.100.200"),
@@ -122,7 +122,7 @@ func TestComposeAddressWithdrawalsKeepsAnExtensionReachedAddress(t *testing.T) {
 }
 
 func TestComposeAddressWithdrawalsSilentWhereTheExtensionHoldsEverything(t *testing.T) {
-	in := membershipInputs{exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")}}
+	in := membershipInputs{exclusions: []db.Exclusion{addressExclusion("198.51.100.128/25")}}
 	rows := []db.ListAddressExclusionWithdrawalsRow{withdrawalRow(1, "address", "198.51.100.200")}
 
 	spanIDs, receipts := composeAddressWithdrawals(rows, in, func(netip.Addr) custody.Custody {
@@ -140,7 +140,7 @@ func TestComposeAddressWithdrawalsSilentWhereTheExtensionHoldsEverything(t *test
 func TestComposeAddressWithdrawalsGroupsPerExclusion(t *testing.T) {
 	in := membershipInputs{
 		seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24"), addressSeed("203.0.113.0/24")},
-		exclusions: []db.ListExclusionsRow{
+		exclusions: []db.Exclusion{
 			addressExclusion("198.51.100.128/25"),
 			addressExclusion("203.0.113.0/28"),
 		},
@@ -177,7 +177,7 @@ func TestNarrowingScope(t *testing.T) {
 }
 
 func TestComposeAddressWithdrawalsDropsAnUnattributableRow(t *testing.T) {
-	in := membershipInputs{exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")}}
+	in := membershipInputs{exclusions: []db.Exclusion{addressExclusion("198.51.100.128/25")}}
 	rows := []db.ListAddressExclusionWithdrawalsRow{
 		withdrawalRow(1, "address", "not-an-address"),
 		withdrawalRow(2, "address", "203.0.113.5"),
@@ -197,7 +197,7 @@ func TestComposeAddressWithdrawalsDropsAnUnattributableRow(t *testing.T) {
 
 func TestComposeAddressWithdrawalsIsEmptyWithNoRows(t *testing.T) {
 	spanIDs, receipts := composeAddressWithdrawals(nil, membershipInputs{
-		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
+		exclusions: []db.Exclusion{addressExclusion("198.51.100.128/25")},
 	}, thirdParty)
 	if len(spanIDs) != 0 || len(receipts) != 0 {
 		t.Errorf("an empty answer closes and collects nothing, got %v / %+v", spanIDs, receipts)
@@ -208,11 +208,11 @@ func TestHasAddressExclusion(t *testing.T) {
 	if (membershipInputs{}).hasAddressExclusion() {
 		t.Error("an empty corpus declares no address exclusion")
 	}
-	only := membershipInputs{exclusions: []db.ListExclusionsRow{nameExclusion("example.com"), subtreeExclusion("x.com")}}
+	only := membershipInputs{exclusions: []db.Exclusion{nameExclusion("example.com"), subtreeExclusion("x.com")}}
 	if only.hasAddressExclusion() {
 		t.Error("name and subtree exclusions are not address exclusions")
 	}
-	with := membershipInputs{exclusions: []db.ListExclusionsRow{nameExclusion("example.com"), addressExclusion("198.51.100.0/24")}}
+	with := membershipInputs{exclusions: []db.Exclusion{nameExclusion("example.com"), addressExclusion("198.51.100.0/24")}}
 	if !with.hasAddressExclusion() {
 		t.Error("a declared address exclusion is found")
 	}
@@ -221,7 +221,7 @@ func TestHasAddressExclusion(t *testing.T) {
 func TestComposeAddressWithdrawalsRendersThroughPreviewNarrowing(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
-		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
+		exclusions: []db.Exclusion{addressExclusion("198.51.100.128/25")},
 	}
 	_, receipts := composeAddressWithdrawals(
 		[]db.ListAddressExclusionWithdrawalsRow{withdrawalRow(1, "address", "198.51.100.200")}, in, thirdParty)

@@ -34,7 +34,7 @@ func getBody(t *testing.T, c *http.Client, url string, wantStatus int) string {
 func addNameSeed(t *testing.T, f *fakeStore, createdBy int64, domain string) int64 {
 	t.Helper()
 	seed, err := f.CreateNameSeed(t.Context(), db.CreateNameSeedParams{
-		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: createdBy,
+		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: pgtype.Int8{Int64: createdBy, Valid: true},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -695,7 +695,7 @@ func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.Fin
 	}
 	return db.FindCoveringNameSeedRow{
 		ID: best.ID, NameDomain: best.NameDomain, CreatedAt: best.CreatedAt,
-		CreatedByUsername: f.accounts[best.CreatedBy].Username,
+		CreatedByUsername: f.authorUsername(best.CreatedBy),
 	}, nil
 }
 
@@ -707,7 +707,7 @@ func (f *fakeStore) FindNameSeedByID(_ context.Context, seedID int64) (db.FindNa
 		}
 		return db.FindNameSeedByIDRow{
 			ID: s.ID, NameDomain: s.NameDomain, CreatedAt: s.CreatedAt,
-			CreatedByUsername: f.accounts[s.CreatedBy].Username,
+			CreatedByUsername: f.authorUsername(s.CreatedBy),
 		}, nil
 	}
 	return db.FindNameSeedByIDRow{}, pgx.ErrNoRows

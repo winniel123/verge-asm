@@ -18,7 +18,7 @@ func TestReportDeliveryRendersRealDelivery(t *testing.T) {
 
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
 		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf",
-		DeliveryTarget: "https://ops.example.test/hook/s3cr3t-token", CreatedBy: admin.ID,
+		DeliveryTarget: "https://ops.example.test/hook/s3cr3t-token", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)
@@ -103,7 +103,7 @@ func TestReportDeliveryPDFPeriodNamedForRealDelivery(t *testing.T) {
 
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
 		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf",
-		DeliveryTarget: "https://ops.example.test/hook", CreatedBy: admin.ID,
+		DeliveryTarget: "https://ops.example.test/hook", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)
@@ -161,7 +161,7 @@ func TestReportDeliveryReceiptNamesTheBoundChannelHost(t *testing.T) {
 
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
 		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf",
-		ChannelID: pgtype.Int8{Int64: 41, Valid: true}, CreatedBy: admin.ID,
+		ChannelID: pgtype.Int8{Int64: 41, Valid: true}, CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)

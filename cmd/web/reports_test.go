@@ -152,7 +152,7 @@ func TestReportDeliveryStore(t *testing.T) {
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	ctx := context.Background()
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
-		Name: "Weekly", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+		Name: "Weekly", Cadence: "weekly", Format: "pdf", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)
@@ -212,13 +212,13 @@ func TestReportScheduleRowsLastSent(t *testing.T) {
 	ctx := context.Background()
 
 	schedA, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
-		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule A: %v", err)
 	}
 	if _, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
-		Name: "Monthly asset inventory", Cadence: "monthly", Format: "csv", CreatedBy: admin.ID,
+		Name: "Monthly asset inventory", Cadence: "monthly", Format: "csv", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	}); err != nil {
 		t.Fatalf("insert schedule B: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestReportScheduleRowsFutureDatedDelivery(t *testing.T) {
 	ctx := context.Background()
 
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
-		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)
@@ -343,7 +343,7 @@ func TestReportScheduleRunNow(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	ctx := context.Background()
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
-		Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", CreatedBy: admin.ID,
+		Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)
@@ -393,7 +393,7 @@ func TestReportScheduleEdit(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	ctx := context.Background()
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
-		Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", CreatedBy: admin.ID,
+		Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)
@@ -426,8 +426,8 @@ func TestReportScheduleEdit(t *testing.T) {
 		t.Fatalf("edit changed the row count to %d, want 1 (update in place, not insert)", len(f.reportSchedules))
 	}
 	got := f.reportSchedules[0]
-	if got.ID != sched.ID || got.CreatedBy != admin.ID {
-		t.Errorf("edit changed identity: id %d created_by %d, want id %d created_by %d", got.ID, got.CreatedBy, sched.ID, admin.ID)
+	if got.ID != sched.ID || got.CreatedBy.Int64 != admin.ID {
+		t.Errorf("edit changed identity: id %d created_by %d, want id %d created_by %d", got.ID, got.CreatedBy.Int64, sched.ID, admin.ID)
 	}
 	if got.Name != "Daily exposure summary" || got.Cadence != "daily · 08:00" {
 		t.Errorf("edit did not rewrite contents: name=%q cadence=%q", got.Name, got.Cadence)
@@ -440,7 +440,7 @@ func TestReportScheduleDelete(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	ctx := context.Background()
 	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
-		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("insert schedule: %v", err)
@@ -525,7 +525,7 @@ func TestReportScheduleChannelBinding(t *testing.T) {
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	ctx := context.Background()
 	chID, err := f.CreateChannel(ctx, db.CreateChannelParams{
-		Url: "https://ops.example/hook", RouteDrift: true, Enabled: true, CreatedBy: admin.ID,
+		Url: "https://ops.example/hook", RouteDrift: true, Enabled: true, CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("create channel: %v", err)
