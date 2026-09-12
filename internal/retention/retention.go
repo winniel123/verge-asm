@@ -35,7 +35,8 @@ func Cutoff(now time.Time, multiple, slowestCadenceSeconds int64) (cutoff time.T
 type Store interface {
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
-	DeleteExpiredDispatches(ctx context.Context, before pgtype.Timestamptz) (int64, error)
+	ListDispatchesAPendingReleaseMayRead(ctx context.Context) ([]int64, error)
+	DeleteExpiredDispatches(ctx context.Context, arg db.DeleteExpiredDispatchesParams) (int64, error)
 }
 
 type Retirer struct {
@@ -64,7 +65,15 @@ func (r *Retirer) Sweep(ctx context.Context) (int64, error) {
 	if !bounded {
 		return 0, nil
 	}
-	return r.store.DeleteExpiredDispatches(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
+	// ADR-1806 §3 hung a product-visible message on this corpus, so its read set survives (#1853).
+	stillRead, err := r.store.ListDispatchesAPendingReleaseMayRead(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return r.store.DeleteExpiredDispatches(ctx, db.DeleteExpiredDispatchesParams{
+		Before:    pgtype.Timestamptz{Time: cutoff, Valid: true},
+		StillRead: stillRead,
+	})
 }
 
 func (r *Retirer) Run(ctx context.Context, interval time.Duration) error {

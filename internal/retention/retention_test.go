@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
@@ -57,8 +55,11 @@ type fakeStore struct {
 	multiple      int64
 	cadence       int64
 	cadenceErr    error
+	stillRead     []int64
+	listCalled    bool
 	deleteCalled  bool
 	deleteBefore  time.Time
+	deleteExempt  []int64
 	deletedReturn int64
 }
 
@@ -70,9 +71,15 @@ func (f *fakeStore) SlowestEnabledScanCadenceSeconds(context.Context) (int64, er
 	return f.cadence, f.cadenceErr
 }
 
-func (f *fakeStore) DeleteExpiredDispatches(_ context.Context, before pgtype.Timestamptz) (int64, error) {
+func (f *fakeStore) ListDispatchesAPendingReleaseMayRead(context.Context) ([]int64, error) {
+	f.listCalled = true
+	return f.stillRead, nil
+}
+
+func (f *fakeStore) DeleteExpiredDispatches(_ context.Context, arg db.DeleteExpiredDispatchesParams) (int64, error) {
 	f.deleteCalled = true
-	f.deleteBefore = before.Time
+	f.deleteBefore = arg.Before.Time
+	f.deleteExempt = arg.StillRead
 	return f.deletedReturn, nil
 }
 
@@ -97,6 +104,9 @@ func TestSweepUnboundedDeletesNothing(t *testing.T) {
 			}
 			if f.deleteCalled {
 				t.Error("delete must not be called when retention is unbounded")
+			}
+			if f.listCalled {
+				t.Error("an unbounded dial retires nothing, so it needs no exempt set")
 			}
 		})
 	}

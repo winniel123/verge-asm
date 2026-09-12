@@ -93,9 +93,41 @@ WHERE obs.id IN (
           )
 );
 
+-- name: ListDispatchesAPendingReleaseMayRead :many
+-- The sweep keeps the row both release predicates still read (ADR-0041, ADR-1806 §3, #1853).
+WITH pending AS (
+    SELECT b.created_at
+    FROM message m
+    JOIN batch b ON b.id = m.census_pending_after_batch
+    WHERE m.census_pending_after_batch IS NOT NULL
+    UNION
+    SELECT b.created_at
+    FROM batch b
+    WHERE b.repoint_settled_at IS NULL
+)
+SELECT DISTINCT first_hot.id
+FROM pending p
+CROSS JOIN LATERAL (
+    -- The arm is ListReleasableHeldMessages' own, so the sweep keeps the row it picks (#1853).
+    SELECT d.id
+    FROM dispatch d
+    JOIN scan s ON s.id = d.scan_id
+    WHERE s.kind = 'hot'
+      AND d.status = 'fanned-out'
+      AND d.fanout_abandoned = false
+      AND d.created_at >= p.created_at
+    ORDER BY d.created_at, d.id
+    LIMIT 1
+) first_hot
+ORDER BY first_hot.id;
+
 -- name: DeleteExpiredDispatches :execrows
 DELETE FROM dispatch
-WHERE scheduled_time < $1;
+WHERE scheduled_time < sqlc.arg(before)
+  -- A fan-out that claimed late ages on the instant the bound orders by, not on its tick (#1853).
+  AND created_at < sqlc.arg(before)
+  -- A pending release reads one hot row, so the caller's read set outlives the dial (ADR-0041).
+  AND NOT (id = ANY(COALESCE(sqlc.arg(still_read)::bigint[], '{}'::bigint[])));
 
 -- name: DeleteExpiredTranscripts :execrows
 DELETE FROM transcript
