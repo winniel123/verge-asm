@@ -20,7 +20,7 @@ RETURNING id, kind, name_domain, address_cidr, created_by, created_at, custody_e
 
 type CreateAddressSeedParams struct {
 	AddressCidr *netip.Prefix `json:"address_cidr"`
-	CreatedBy   int64         `json:"created_by"`
+	CreatedBy   pgtype.Int8   `json:"created_by"`
 }
 
 func (q *Queries) CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error) {
@@ -46,7 +46,7 @@ RETURNING id, kind, name_domain, address_cidr, created_by, created_at, custody_e
 
 type CreateNameSeedParams struct {
 	NameDomain pgtype.Text `json:"name_domain"`
-	CreatedBy  int64       `json:"created_by"`
+	CreatedBy  pgtype.Int8 `json:"created_by"`
 }
 
 func (q *Queries) CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error) {
@@ -66,23 +66,22 @@ func (q *Queries) CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) 
 
 const listSeeds = `-- name: ListSeeds :many
 SELECT s.id, s.kind, s.name_domain, s.address_cidr, s.custody_extension,
-       s.created_by, s.created_at, a.username AS created_by_username
+       s.created_by, s.created_at
 FROM seed s
-JOIN account a ON a.id = s.created_by
 ORDER BY s.created_at DESC, s.id DESC
 `
 
 type ListSeedsRow struct {
-	ID                int64              `json:"id"`
-	Kind              string             `json:"kind"`
-	NameDomain        pgtype.Text        `json:"name_domain"`
-	AddressCidr       *netip.Prefix      `json:"address_cidr"`
-	CustodyExtension  bool               `json:"custody_extension"`
-	CreatedBy         int64              `json:"created_by"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	CreatedByUsername string             `json:"created_by_username"`
+	ID               int64              `json:"id"`
+	Kind             string             `json:"kind"`
+	NameDomain       pgtype.Text        `json:"name_domain"`
+	AddressCidr      *netip.Prefix      `json:"address_cidr"`
+	CustodyExtension bool               `json:"custody_extension"`
+	CreatedBy        pgtype.Int8        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 }
 
+// Only the subject-detail path renders the author, so this path drops its JOIN (audit-act §9.1).
 func (q *Queries) ListSeeds(ctx context.Context) ([]ListSeedsRow, error) {
 	rows, err := q.db.Query(ctx, listSeeds)
 	if err != nil {
@@ -100,7 +99,6 @@ func (q *Queries) ListSeeds(ctx context.Context) ([]ListSeedsRow, error) {
 			&i.CustodyExtension,
 			&i.CreatedBy,
 			&i.CreatedAt,
-			&i.CreatedByUsername,
 		); err != nil {
 			return nil, err
 		}

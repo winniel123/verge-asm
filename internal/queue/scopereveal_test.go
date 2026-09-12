@@ -113,7 +113,7 @@ func TestAnExcludedAddressFiresNoScopeReveal(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
-		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.0/28")},
+		exclusions: []db.Exclusion{addressExclusion("198.51.100.0/28")},
 	}
 
 	msgs, err := buildMessages(context.Background(), store, 73, produceT0, changes, nil, nil, in, true)
@@ -135,7 +135,7 @@ func TestAnExclusionNarrowsTheScopeRevealCensus(t *testing.T) {
 	store := &fakeMessageStore{}
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
-		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.0/28")},
+		exclusions: []db.Exclusion{addressExclusion("198.51.100.0/28")},
 	}
 
 	msgs, err := buildMessages(context.Background(), store, 74, produceT0, changes, nil, nil, in, true)

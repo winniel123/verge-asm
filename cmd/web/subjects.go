@@ -299,10 +299,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
 			}
-			detail := ""
-			if seed.CreatedByUsername != "" {
-				detail = "declared by " + seed.CreatedByUsername
-			}
+			detail := "declared by " + authorName(seed.CreatedByUsername)
 			seedScope = "address scope " + scope
 			if seed.CreatedAt.Valid {
 				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
@@ -437,10 +434,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
 			}
-			detail := ""
-			if seed.CreatedByUsername != "" {
-				detail = "declared by " + seed.CreatedByUsername
-			}
+			detail := "declared by " + authorName(seed.CreatedByUsername)
 			seedScope = "address scope " + scope
 			if seed.CreatedAt.Valid {
 				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
@@ -562,10 +556,17 @@ const (
 	hopKindObservation = "observation"
 )
 
+func authorName(username pgtype.Text) string {
+	// The by-clause stands without its author; the instant is not in doubt (audit-act §9.2).
+	if username.Valid {
+		return username.String
+	}
+	return "a removed account"
+}
+
 type nameSeedTerm struct {
-	NameDomain        pgtype.Text
-	CreatedAt         pgtype.Timestamptz
-	CreatedByUsername string
+	NameDomain pgtype.Text
+	CreatedAt  pgtype.Timestamptz
 }
 
 func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetNameCitationRow, citErr error) (nameSeedTerm, bool) {
@@ -575,13 +576,13 @@ func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetName
 		if err != nil {
 			return nameSeedTerm{}, false
 		}
-		return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
+		return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt}, true
 	}
 	seed, err := s.subjectsStore.FindCoveringNameSeed(r.Context(), key)
 	if err != nil {
 		return nameSeedTerm{}, false
 	}
-	return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
+	return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt}, true
 }
 
 const spanTimeFmt = "2006-01-02 15:04 UTC"

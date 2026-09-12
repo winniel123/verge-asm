@@ -60,7 +60,7 @@ func addSSOProvider(f *fakeStore, id int64, slug, name string) {
 	f.ssoNextID = id
 	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
 		id: id, slug: slug, name: name, issuer: "https://idp.example", clientID: "cid",
-		enabled: true, createdBy: 1, createdAt: obsClock,
+		enabled: true, createdBy: pgtype.Int8{Int64: 1, Valid: true}, createdAt: obsClock,
 	})
 }
 
@@ -557,7 +557,7 @@ func seedSSOProviderWithSecret(f *fakeStore, id int64, slug, secret string, crea
 	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
 		id: id, slug: slug, name: "Okta", issuer: "https://idp.example", clientID: "cid",
 		secret: mustSeal(secretseal.LabelSSOClientSecret, secret), hasSecret: true,
-		enabled: true, createdBy: createdBy, createdAt: obsClock,
+		enabled: true, createdBy: pgtype.Int8{Int64: createdBy, Valid: true}, createdAt: obsClock,
 	})
 }
 

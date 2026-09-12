@@ -25,18 +25,16 @@ func (q *Queries) DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) 
 }
 
 const listVergeCoreFrequencyEditsWithAuthor = `-- name: ListVergeCoreFrequencyEditsWithAuthor :many
-SELECT e.id, e.port, e.action, e.created_at, a.username AS created_by_username
+SELECT e.id, e.port, e.action, e.created_at
 FROM verge_core_frequency_edit e
-JOIN account a ON a.id = e.created_by
 ORDER BY e.port
 `
 
 type ListVergeCoreFrequencyEditsWithAuthorRow struct {
-	ID                int64              `json:"id"`
-	Port              int32              `json:"port"`
-	Action            string             `json:"action"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	CreatedByUsername string             `json:"created_by_username"`
+	ID        int64              `json:"id"`
+	Port      int32              `json:"port"`
+	Action    string             `json:"action"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error) {
@@ -53,7 +51,6 @@ func (q *Queries) ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]
 			&i.Port,
 			&i.Action,
 			&i.CreatedAt,
-			&i.CreatedByUsername,
 		); err != nil {
 			return nil, err
 		}
@@ -72,9 +69,9 @@ ON CONFLICT (port) DO UPDATE SET action = EXCLUDED.action, created_by = EXCLUDED
 `
 
 type UpsertVergeCoreFrequencyEditParams struct {
-	Port      int32  `json:"port"`
-	Action    string `json:"action"`
-	CreatedBy int64  `json:"created_by"`
+	Port      int32       `json:"port"`
+	Action    string      `json:"action"`
+	CreatedBy pgtype.Int8 `json:"created_by"`
 }
 
 func (q *Queries) UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error {

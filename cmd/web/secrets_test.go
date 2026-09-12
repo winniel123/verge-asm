@@ -94,7 +94,7 @@ func TestChannelLegacyCleartextSecretFailsLoud(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	f.channels = append(f.channels, fakeChannel{
-		id: 5, url: "https://ops.example/hook", drift: true, enabled: true, createdBy: 1,
+		id: 5, url: "https://ops.example/hook", drift: true, enabled: true, createdBy: pgtype.Int8{Int64: 1, Valid: true},
 		secret: pgtype.Text{String: "legacy-cleartext-secret", Valid: true},
 	})
 	f.chanNextID = 6
@@ -162,7 +162,7 @@ func TestSSOLegacyCleartextSecretFailsLoud(t *testing.T) {
 	f.ssoNextID = 1
 	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
 		id: 1, slug: "okta", name: "Okta", issuer: "https://idp.example", clientID: "cid",
-		secret: "legacy-cleartext-secret", hasSecret: true, enabled: true, createdBy: 1, createdAt: obsClock,
+		secret: "legacy-cleartext-secret", hasSecret: true, enabled: true, createdBy: pgtype.Int8{Int64: 1, Valid: true}, createdAt: obsClock,
 	})
 	flow := &fakeSSOFlow{sub: "u1", display: "Admin"}
 	base := startWithSSO(t, f, flow)

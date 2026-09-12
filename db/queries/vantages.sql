@@ -17,11 +17,9 @@ RETURNING id, name, class, resolver, host, port, username, availability,
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
        v.latency_ms, v.platform, v.egress, v.dialled_addr,
-       a.username AS created_by_username,
        (EXISTS (SELECT 1 FROM observation o WHERE o.vantage_id = v.id)
         OR EXISTS (SELECT 1 FROM span sp WHERE sp.vantage_id = v.id))::boolean AS observed
 FROM vantage v
-JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
 ORDER BY v.created_at DESC, v.id DESC;
 

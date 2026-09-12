@@ -15,7 +15,7 @@ import (
 const findCoveringAddressSeed = `-- name: FindCoveringAddressSeed :one
 SELECT s.id, s.address_cidr, s.created_at, a.username AS created_by_username
 FROM seed s
-JOIN account a ON a.id = s.created_by
+LEFT JOIN account a ON a.id = s.created_by
 WHERE s.kind = 'address' AND s.address_cidr IS NOT NULL
   AND s.address_cidr >>= $1::inet
 ORDER BY masklen(s.address_cidr) DESC
@@ -26,7 +26,7 @@ type FindCoveringAddressSeedRow struct {
 	ID                int64              `json:"id"`
 	AddressCidr       *netip.Prefix      `json:"address_cidr"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	CreatedByUsername string             `json:"created_by_username"`
+	CreatedByUsername pgtype.Text        `json:"created_by_username"`
 }
 
 func (q *Queries) FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (FindCoveringAddressSeedRow, error) {
@@ -44,7 +44,7 @@ func (q *Queries) FindCoveringAddressSeed(ctx context.Context, address netip.Add
 const findCoveringNameSeed = `-- name: FindCoveringNameSeed :one
 SELECT s.id, s.name_domain, s.created_at, a.username AS created_by_username
 FROM seed s
-JOIN account a ON a.id = s.created_by
+LEFT JOIN account a ON a.id = s.created_by
 WHERE s.kind = 'name' AND s.name_domain IS NOT NULL
   -- A declared domain is LDH-validated at declaration, so it carries no LIKE metacharacter.
   AND ($1::text = s.name_domain OR $1::text LIKE '%.' || s.name_domain)
@@ -56,7 +56,7 @@ type FindCoveringNameSeedRow struct {
 	ID                int64              `json:"id"`
 	NameDomain        pgtype.Text        `json:"name_domain"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	CreatedByUsername string             `json:"created_by_username"`
+	CreatedByUsername pgtype.Text        `json:"created_by_username"`
 }
 
 func (q *Queries) FindCoveringNameSeed(ctx context.Context, name string) (FindCoveringNameSeedRow, error) {
@@ -132,7 +132,7 @@ func (q *Queries) FindNameCitingAddress(ctx context.Context, arg FindNameCitingA
 const findNameSeedByID = `-- name: FindNameSeedByID :one
 SELECT s.id, s.name_domain, s.created_at, a.username AS created_by_username
 FROM seed s
-JOIN account a ON a.id = s.created_by
+LEFT JOIN account a ON a.id = s.created_by
 WHERE s.kind = 'name' AND s.id = $1
 `
 
@@ -140,7 +140,7 @@ type FindNameSeedByIDRow struct {
 	ID                int64              `json:"id"`
 	NameDomain        pgtype.Text        `json:"name_domain"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	CreatedByUsername string             `json:"created_by_username"`
+	CreatedByUsername pgtype.Text        `json:"created_by_username"`
 }
 
 func (q *Queries) FindNameSeedByID(ctx context.Context, seedID int64) (FindNameSeedByIDRow, error) {

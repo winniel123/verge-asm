@@ -31,8 +31,8 @@ func addressSeed(cidr string) db.ListSeedsRow {
 	return db.ListSeedsRow{Kind: "address", AddressCidr: &p}
 }
 
-func subtreeExclusion(name string) db.ListExclusionsRow {
-	return db.ListExclusionsRow{Kind: "subtree", Name: pgtype.Text{String: name, Valid: true}}
+func subtreeExclusion(name string) db.Exclusion {
+	return db.Exclusion{Kind: "subtree", Name: pgtype.Text{String: name, Valid: true}}
 }
 
 func TestDecideNameDeparture(t *testing.T) {
@@ -152,7 +152,7 @@ func TestOpenedByAperture(t *testing.T) {
 func TestOpenedByApertureExcludedSubjectIsUnmarked(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{nameSeed("example.com"), addressSeed("198.51.100.0/24")},
-		exclusions: []db.ListExclusionsRow{nameExclusion("api.example.com"), addressExclusion("198.51.100.0/28")},
+		exclusions: []db.Exclusion{nameExclusion("api.example.com"), addressExclusion("198.51.100.0/28")},
 	}
 
 	cases := []struct {
@@ -174,7 +174,7 @@ func TestOpenedByApertureExcludedSubjectIsUnmarked(t *testing.T) {
 
 	sub := membershipInputs{
 		seeds:      []db.ListSeedsRow{nameSeed("example.com")},
-		exclusions: []db.ListExclusionsRow{subtreeExclusion("internal.example.com")},
+		exclusions: []db.Exclusion{subtreeExclusion("internal.example.com")},
 	}
 	if openedByAperture("name", "db.internal.example.com", sub) {
 		t.Error("a name beneath a subtree exclusion is outside the Declared aperture")
@@ -207,14 +207,14 @@ func TestNameWithinDomain(t *testing.T) {
 }
 
 func TestNameExcluded(t *testing.T) {
-	exact := []db.ListExclusionsRow{{Kind: "name", Name: pgtype.Text{String: "api.example.com", Valid: true}}}
+	exact := []db.Exclusion{{Kind: "name", Name: pgtype.Text{String: "api.example.com", Valid: true}}}
 	if !nameExcluded("api.example.com", exact) {
 		t.Error("exact exclusion should cover the exact name")
 	}
 	if nameExcluded("other.api.example.com", exact) {
 		t.Error("exact exclusion must not cover a child")
 	}
-	sub := []db.ListExclusionsRow{subtreeExclusion("example.com")}
+	sub := []db.Exclusion{subtreeExclusion("example.com")}
 	if !nameExcluded("deep.example.com", sub) {
 		t.Error("subtree exclusion should cover a child")
 	}

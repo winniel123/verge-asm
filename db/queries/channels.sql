@@ -9,7 +9,7 @@ SELECT c.id, c.url, c.route_drift, c.route_coverage, c.route_clock, c.enabled,
        c.created_by, c.created_at, c.updated_at,
        a.username AS created_by_username
 FROM channel c
-JOIN account a ON a.id = c.created_by
+LEFT JOIN account a ON a.id = c.created_by
 ORDER BY c.created_at DESC, c.id DESC;
 
 -- name: GetChannel :one

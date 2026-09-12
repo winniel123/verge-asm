@@ -20,7 +20,7 @@ type fakeSettleStore struct {
 	roots      []db.ListNameRootsOpenedInBatchRow
 	opened     []db.ListSubjectsOpenedSinceBatchRow
 	seeds      []db.ListSeedsRow
-	exclusions []db.ListExclusionsRow
+	exclusions []db.Exclusion
 
 	refuseClaim bool
 	claimErr    error
@@ -61,7 +61,7 @@ func (f *fakeSettleStore) ListSeeds(_ context.Context) ([]db.ListSeedsRow, error
 	return f.seeds, nil
 }
 
-func (f *fakeSettleStore) ListExclusions(_ context.Context) ([]db.ListExclusionsRow, error) {
+func (f *fakeSettleStore) ListExclusions(_ context.Context) ([]db.Exclusion, error) {
 	return f.exclusions, nil
 }
 

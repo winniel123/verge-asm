@@ -499,10 +499,10 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 			return
 		}
 	}
-	// Attributed acts pin their author with created_by (docs/guides/accounts.md).
 	if err := s.teamAdminStore.DeleteAccount(r.Context(), id); err != nil {
+		// No attribution FK restricts now, so the guard has no cause (docs/spec/audit-act.md §9).
 		if isForeignKeyViolation(err) {
-			reopen(target.Username + " has declared scopes, channels, or other attributed acts and cannot be removed — reassign or keep the account.")
+			reopen(target.Username + " could not be removed because a record still references the account.")
 			return
 		}
 		s.serverError(w, "delete account", err)
@@ -541,7 +541,7 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 	if _, err := s.channelsStore.CreateChannel(r.Context(), db.CreateChannelParams{
 		Url: normURL, Secret: secret,
 		RouteDrift: drift, RouteCoverage: coverage, RouteClock: clock,
-		Enabled: true, CreatedBy: acct.ID,
+		Enabled: true, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "create channel", err)
 		return
@@ -885,15 +885,18 @@ func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
 	if err != nil {
 		return err
 	}
-	api := map[string]any{"Enabled": cfg.ApiEnabled}
+	api := map[string]any{"Enabled": cfg.ApiEnabled, "By": "", "At": ""}
 	if cfg.ApiEnabled {
 		if cfg.ApiUpdatedBy.Valid {
-			if accounts, aerr := s.instanceSettingsStore.ListAccounts(r.Context()); aerr == nil {
-				for _, a := range accounts {
-					if a.ID == cfg.ApiUpdatedBy.Int64 {
-						api["By"] = a.Username
-						break
-					}
+			// A swallowed read renders a live author as removed (docs/spec/audit-act.md §9.2).
+			accounts, aerr := s.instanceSettingsStore.ListAccounts(r.Context())
+			if aerr != nil {
+				return aerr
+			}
+			for _, a := range accounts {
+				if a.ID == cfg.ApiUpdatedBy.Int64 {
+					api["By"] = a.Username
+					break
 				}
 			}
 		}
@@ -1402,7 +1405,7 @@ func toChannelViews(rows []db.ListChannelsRow) []channelView {
 		v := channelView{
 			ID: c.ID, URL: c.Url, Drift: c.RouteDrift, Coverage: c.RouteCoverage,
 			Clock: c.RouteClock, Enabled: c.Enabled, HasSecret: c.HasSecret,
-			By: c.CreatedByUsername,
+			By: c.CreatedByUsername.String,
 		}
 		checked := map[string]bool{"drift": c.RouteDrift, "coverage": c.RouteCoverage, "clock": c.RouteClock}
 		for _, name := range channelClasses {

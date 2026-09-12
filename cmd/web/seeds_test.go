@@ -396,17 +396,16 @@ func (f *fakeStore) ListAdmittedNamesOutsideSeed(_ context.Context, seedID int64
 	return out, nil
 }
 
-func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, error) {
+func (f *fakeStore) ListExclusions(context.Context) ([]db.Exclusion, error) {
 	if f.exclusionsErr != nil {
 		return nil, f.exclusionsErr
 	}
-	rows := make([]db.ListExclusionsRow, 0, len(f.exclusions))
+	rows := make([]db.Exclusion, 0, len(f.exclusions))
 	for i := len(f.exclusions) - 1; i >= 0; i-- {
 		e := f.exclusions[i]
-		rows = append(rows, db.ListExclusionsRow{
+		rows = append(rows, db.Exclusion{
 			ID: e.ID, Kind: e.Kind, Name: e.Name, AddressCidr: e.AddressCidr,
 			CreatedBy: e.CreatedBy, CreatedAt: e.CreatedAt,
-			CreatedByUsername: f.accounts[e.CreatedBy].Username,
 		})
 	}
 	return rows, nil

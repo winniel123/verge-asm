@@ -29,7 +29,6 @@ type exclusionView struct {
 	ID    int64
 	Kind  string
 	Value string
-	By    string
 	At    string
 
 	UndoProposalIDs []int64
@@ -51,7 +50,7 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 			return
 		}
 		if _, err := s.exclusionsStore.CreateNameExclusion(r.Context(), db.CreateNameExclusionParams{
-			Kind: kind, Name: pgtype.Text{String: name, Valid: true}, CreatedBy: acct.ID,
+			Kind: kind, Name: pgtype.Text{String: name, Valid: true}, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 		}); err != nil {
 			fail(exclusionCreateError(err, "name"))
 			return
@@ -64,7 +63,7 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 			return
 		}
 		if _, err := s.exclusionsStore.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
-			AddressCidr: &p, CreatedBy: acct.ID,
+			AddressCidr: &p, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 		}); err != nil {
 			fail(exclusionCreateError(err, "address scope"))
 			return
@@ -161,7 +160,7 @@ func liftedExclusionScope(row db.DeleteExclusionRow) string {
 	return row.Name.String
 }
 
-func hasAddressExclusion(rows []db.ListExclusionsRow) bool {
+func hasAddressExclusion(rows []db.Exclusion) bool {
 	for _, row := range rows {
 		if row.Kind == "address" && row.AddressCidr != nil {
 			return true
@@ -170,10 +169,10 @@ func hasAddressExclusion(rows []db.ListExclusionsRow) bool {
 	return false
 }
 
-func toExclusionViews(rows []db.ListExclusionsRow, declined map[string][]int64) []exclusionView {
+func toExclusionViews(rows []db.Exclusion, declined map[string][]int64) []exclusionView {
 	out := make([]exclusionView, 0, len(rows))
 	for _, row := range rows {
-		v := exclusionView{ID: row.ID, Kind: row.Kind, By: row.CreatedByUsername}
+		v := exclusionView{ID: row.ID, Kind: row.Kind}
 		if row.Kind == "address" && row.AddressCidr != nil {
 			v.Value = row.AddressCidr.String()
 			v.UndoProposalIDs = declined[v.Value]

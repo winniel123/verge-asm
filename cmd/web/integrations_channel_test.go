@@ -52,7 +52,7 @@ func startWithChannelSender(t *testing.T, f *fakeStore, sender channelTestSender
 func addFakeChannel(f *fakeStore, id int64, rawURL, secret string) {
 	c := fakeChannel{
 		id: id, url: rawURL, drift: true, coverage: true, clock: true, enabled: true,
-		createdBy: 1, createdAt: time.Now(), updatedAt: time.Now(),
+		createdBy: pgtype.Int8{Int64: 1, Valid: true}, createdAt: time.Now(), updatedAt: time.Now(),
 	}
 	if secret != "" {
 		c.secret = pgtype.Text{String: mustSeal(secretseal.LabelChannelSecret, secret), Valid: true}

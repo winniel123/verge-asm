@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -65,7 +66,7 @@ func (s *server) editVergeCoreFrequency(w http.ResponseWriter, r *http.Request, 
 	switch action {
 	case "add", "remove":
 		if err := s.vergeCoreStore.UpsertVergeCoreFrequencyEdit(r.Context(), db.UpsertVergeCoreFrequencyEditParams{
-			Port: int32(port), Action: action, CreatedBy: acct.ID, // #nosec G109 (port validated 1..65535 above)
+			Port: int32(port), Action: action, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true}, // #nosec G109 (port validated 1..65535 above)
 		}); err != nil {
 			s.serverError(w, "upsert verge-core frequency edit", err)
 			return

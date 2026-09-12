@@ -183,7 +183,7 @@ func TestAddressScopeCoveredNarrowsByAnAddressExclusion(t *testing.T) {
 	}
 
 	excl := netip.MustParsePrefix("10.200.0.0/24")
-	if _, err := f.CreateAddressExclusion(t.Context(), db.CreateAddressExclusionParams{AddressCidr: &excl, CreatedBy: 1}); err != nil {
+	if _, err := f.CreateAddressExclusion(t.Context(), db.CreateAddressExclusionParams{AddressCidr: &excl, CreatedBy: pgtype.Int8{Int64: 1, Valid: true}}); err != nil {
 		t.Fatalf("declare the exclusion: %v", err)
 	}
 

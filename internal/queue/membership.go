@@ -19,14 +19,14 @@ import (
 
 type membershipInputs struct {
 	seeds      []db.ListSeedsRow
-	exclusions []db.ListExclusionsRow
+	exclusions []db.Exclusion
 }
 
 // The release poll reads the same declared inputs the fold read (ADR-0026 §2, #1818).
 
 type membershipInputStore interface {
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
-	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
+	ListExclusions(ctx context.Context) ([]db.Exclusion, error)
 }
 
 func readMembershipInputs(ctx context.Context, qtx membershipInputStore) (membershipInputs, error) {
@@ -195,7 +195,7 @@ func subjectsBeneath(rows []db.ListOpenSpansBeneathAddressesRow, addresses []str
 	return out
 }
 
-func coveringExclusionKey(name string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
+func coveringExclusionKey(name string, reason drift.ClosureReason, exclusions []db.Exclusion) string {
 	// An address withdrawal fires one Narrowing per exclusion, so a branch here is dead (#1032).
 	if reason != drift.ReasonDescoped {
 		return ""
@@ -370,7 +370,7 @@ func nameSeedCovered(name string, seeds []db.ListSeedsRow) bool {
 	return false
 }
 
-func nameExcluded(name string, exclusions []db.ListExclusionsRow) bool {
+func nameExcluded(name string, exclusions []db.Exclusion) bool {
 	name = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), ".")
 	for _, e := range exclusions {
 		if !e.Name.Valid {
@@ -390,7 +390,7 @@ func nameExcluded(name string, exclusions []db.ListExclusionsRow) bool {
 	return false
 }
 
-func coveringAddressExclusion(addr netip.Addr, exclusions []db.ListExclusionsRow) *netip.Prefix {
+func coveringAddressExclusion(addr netip.Addr, exclusions []db.Exclusion) *netip.Prefix {
 	// An exclusion carries no precedence, so first match is the whole rule (#1032).
 	for _, e := range exclusions {
 		if e.Kind != exclusionKindAddress || e.AddressCidr == nil {

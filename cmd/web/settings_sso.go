@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -61,7 +62,7 @@ func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[strin
 		out = append(out, ssoProviderView{
 			ID: p.ID, Slug: p.Slug, Name: p.Name, Issuer: p.Issuer, ClientID: p.ClientID,
 			Enabled: p.Enabled, HasSecret: p.HasSecret,
-			CreatedBy: p.CreatedByUsername, CreatedAt: p.CreatedAt.Time.UTC().Format(spanTimeFmt),
+			CreatedBy: p.CreatedByUsername.String, CreatedAt: p.CreatedAt.Time.UTC().Format(spanTimeFmt),
 		})
 	}
 	data["SSOProviders"] = out
@@ -139,7 +140,7 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 	if _, err := s.ssoAdminStore.InsertSSOProvider(r.Context(), db.InsertSSOProviderParams{
 		Slug: v.slug, Name: v.name, Issuer: v.issuer, ClientID: v.clientID,
 		ClientSecret: secret,
-		Enabled:      true, CreatedBy: acct.ID,
+		Enabled:      true, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		if isUniqueViolation(err) {
 			fail("A provider with that slug already exists. Choose another slug.")

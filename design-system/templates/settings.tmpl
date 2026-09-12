@@ -430,7 +430,7 @@
 <div class="cell"><span class="st-micro">Address-scope cap</span><span class="v">{{.CapLabel}} addresses</span></div>
 </div>
 {{end}}
-{{if .UpdatedAt}}<span class="st-note">Last changed {{.UpdatedAt}}{{if .UpdatedBy}} by <span style="font-family:var(--font-mono)">{{.UpdatedBy}}</span>{{end}}.</span>{{end}}
+{{if .UpdatedAt}}<span class="st-note">Last changed {{.UpdatedAt}} by {{if .UpdatedBy}}<span style="font-family:var(--font-mono)">{{.UpdatedBy}}</span>{{else}}a removed account{{end}}.</span>{{end}}
 </div>
 </div>
 </section>
@@ -598,7 +598,7 @@
 <td class="mono">{{.ClientID}}</td>
 <td>{{if .HasSecret}}<span class="st-badge ok">set</span>{{else}}<span style="color:var(--text-muted)">none</span>{{end}}</td>
 <td>{{if .Enabled}}<span class="st-badge ok"><span class="d"></span>enabled</span>{{else}}<span class="st-badge neutral">disabled</span>{{end}}</td>
-<td class="mono">{{.CreatedBy}}<br><span style="color:var(--text-muted)">{{.CreatedAt}}</span></td>
+<td class="mono">{{if .CreatedBy}}{{.CreatedBy}}{{else}}<span class="st-tag">removed account</span>{{end}}<br><span style="color:var(--text-muted)">{{.CreatedAt}}</span></td>
 {{if $.IsAdmin}}<td style="overflow:visible">
 <details class="st-disc" style="position:relative">
 <summary><span class="st-btn-sm">Edit</span></summary>
@@ -1264,7 +1264,7 @@
 {{if $.IsAdmin}}
 <form method="post" action="/settings/api" style="margin:0"><input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">{{if .Enabled}}Disable API access{{else}}Enable API access{{end}}</button></form>
 {{else}}<span class="st-note">You have read access. Enabling or disabling the API is admin-only.</span>{{end}}
-{{if .Enabled}}<span class="st-note">Enabled by {{.By}} · {{.At}}</span>{{end}}
+{{if .Enabled}}<span class="st-note">Enabled by {{if .By}}{{.By}}{{else}}a removed account{{end}} · {{.At}}</span>{{end}}
 </div>
 {{if .Enabled}}
 <div class="st-callout accent"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span><span class="ct"><b>Live — read-only, always</b><span>Personal tokens now answer <span style="font-family:var(--font-mono);font-size:12px">GET /api/v1/…</span> with their account’s read access. No token can change the estate or its configuration — there is no write surface to enable.</span></span></div>
@@ -1295,7 +1295,7 @@
 <td><span style="display:inline-flex;gap:6px;flex-wrap:wrap">{{range .Classes}}<span class="st-tag">{{.}}</span>{{end}}</span></td>
 <td>{{if .HasSecret}}<span class="st-badge ok">set</span>{{else}}<span style="color:var(--text-muted)">not set</span>{{end}}</td>
 <td>{{if .Enabled}}<span class="st-badge ok"><span class="d"></span>enabled</span>{{else}}<span class="st-badge neutral">disabled</span>{{end}}</td>
-<td class="mono">{{.By}}<br><span style="color:var(--text-muted)">{{.At}}</span></td>
+<td class="mono">{{if .By}}{{.By}}{{else}}<span class="st-tag">removed account</span>{{end}}<br><span style="color:var(--text-muted)">{{.At}}</span></td>
 {{if $.IsAdmin}}<td style="overflow:visible">
 <span style="display:inline-flex;gap:8px;align-items:center;justify-content:flex-end">
 <form method="post" action="/settings/channels/test" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">Send test</button></form>
@@ -1549,7 +1549,7 @@
 <div class="cell"><span class="st-micro">Transcript retention</span><span class="v">{{.Retention.TranscriptCurrencyDays}} days</span></div>
 </div>
 {{end}}
-{{if .Retention.UpdatedAt}}<span class="st-note">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span style="font-family:var(--font-mono)">{{.Retention.UpdatedBy}}</span>{{end}}.</span>{{end}}
+{{if .Retention.UpdatedAt}}<span class="st-note">Last changed {{.Retention.UpdatedAt}} by {{if .Retention.UpdatedBy}}<span style="font-family:var(--font-mono)">{{.Retention.UpdatedBy}}</span>{{else}}a removed account{{end}}.</span>{{end}}
 </div>
 </div>
 </section>

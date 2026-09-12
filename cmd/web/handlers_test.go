@@ -192,7 +192,7 @@ type fakeSSOProvider struct {
 	secret    string
 	hasSecret bool
 	enabled   bool
-	createdBy int64
+	createdBy pgtype.Int8
 	createdAt time.Time
 }
 
@@ -207,7 +207,7 @@ type fakeSSOIdentity struct {
 
 type fakeFreqEdit struct {
 	action    string
-	createdBy int64
+	createdBy pgtype.Int8
 }
 
 type fakeChannel struct {
@@ -216,7 +216,7 @@ type fakeChannel struct {
 	secret                 pgtype.Text
 	drift, coverage, clock bool
 	enabled                bool
-	createdBy              int64
+	createdBy              pgtype.Int8
 	createdAt, updatedAt   time.Time
 }
 
@@ -326,7 +326,6 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 			ID: s.ID, Kind: s.Kind, NameDomain: s.NameDomain, AddressCidr: s.AddressCidr,
 			CustodyExtension: s.CustodyExtension,
 			CreatedBy:        s.CreatedBy, CreatedAt: s.CreatedAt,
-			CreatedByUsername: f.accounts[s.CreatedBy].Username,
 		})
 	}
 	return rows, nil
@@ -455,8 +454,7 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 			Availability: v.Availability, PublicKey: v.PublicKey, HostKey: v.HostKey,
 			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt, LatencyMs: v.LatencyMs,
 			Platform: v.Platform, Egress: v.Egress, DialledAddr: v.DialledAddr,
-			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
-			Observed:          f.vantageObserved(v.ID),
+			Observed: f.vantageObserved(v.ID),
 		})
 	}
 	return rows, nil
@@ -563,7 +561,7 @@ func (f *fakeStore) ListChannels(context.Context) ([]db.ListChannelsRow, error) 
 			CreatedBy:         c.createdBy,
 			CreatedAt:         pgtype.Timestamptz{Time: c.createdAt, Valid: true},
 			UpdatedAt:         pgtype.Timestamptz{Time: c.updatedAt, Valid: true},
-			CreatedByUsername: f.accounts[c.createdBy].Username,
+			CreatedByUsername: f.authorUsername(c.createdBy),
 		})
 	}
 	return rows, nil
@@ -733,7 +731,7 @@ type fakeZoneFile struct {
 	seedID     int64
 	suppliedAt time.Time
 	content    string
-	uploadedBy int64
+	uploadedBy pgtype.Int8
 }
 
 func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatusRow, error) {
@@ -754,11 +752,10 @@ func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatus
 			continue
 		}
 		rows = append(rows, db.ListZoneFileStatusRow{
-			SeedID:             s.ID,
-			NameDomain:         s.NameDomain,
-			SuppliedAt:         pgtype.Timestamptz{Time: z.suppliedAt, Valid: true},
-			UploadedByUsername: f.accounts[z.uploadedBy].Username,
-			ContentBytes:       int64(len(z.content)),
+			SeedID:       s.ID,
+			NameDomain:   s.NameDomain,
+			SuppliedAt:   pgtype.Timestamptz{Time: z.suppliedAt, Valid: true},
+			ContentBytes: int64(len(z.content)),
 		})
 	}
 	return rows, nil
@@ -1174,7 +1171,7 @@ func (f *fakeStore) FindCoveringAddressSeed(_ context.Context, address netip.Add
 			if best == nil || s.AddressCidr.Bits() > bestBits {
 				row := db.FindCoveringAddressSeedRow{
 					ID: s.ID, AddressCidr: s.AddressCidr, CreatedAt: s.CreatedAt,
-					CreatedByUsername: f.accounts[s.CreatedBy].Username,
+					CreatedByUsername: f.authorUsername(s.CreatedBy),
 				}
 				best = &row
 				bestBits = s.AddressCidr.Bits()
@@ -1394,6 +1391,15 @@ func (f *fakeStore) ssoNameForID(id int64) string {
 
 func (f *fakeStore) usernameForID(id int64) string {
 	return f.accounts[id].Username
+}
+
+func (f *fakeStore) authorUsername(id pgtype.Int8) pgtype.Text {
+	// A removed author reaches the reader as a NULL username, as the LEFT JOIN does.
+	a, ok := f.accounts[id.Int64]
+	if !id.Valid || !ok {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: a.Username, Valid: true}
 }
 
 var testKey = []byte("0123456789abcdef0123456789abcdef")

@@ -469,7 +469,7 @@ func (f *fakeStore) ListVergeCoreFrequencyEditsWithAuthor(context.Context) ([]db
 	for i, p := range ports {
 		e := f.freqEdits[int32(p)]
 		out = append(out, db.ListVergeCoreFrequencyEditsWithAuthorRow{
-			ID: int64(i + 1), Port: int32(p), Action: e.action, CreatedByUsername: "admin",
+			ID: int64(i + 1), Port: int32(p), Action: e.action,
 		})
 	}
 	return out, nil
@@ -495,7 +495,28 @@ func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {
 			delete(f.byName, name)
 		}
 	}
+	// ON DELETE SET NULL keeps the object and drops its author (docs/spec/audit-act.md §9).
+	for i := range f.seeds {
+		f.seeds[i].CreatedBy = clearAuthor(f.seeds[i].CreatedBy, id)
+	}
+	for i := range f.channels {
+		f.channels[i].createdBy = clearAuthor(f.channels[i].createdBy, id)
+	}
+	for i := range f.ssoProviders {
+		f.ssoProviders[i].createdBy = clearAuthor(f.ssoProviders[i].createdBy, id)
+	}
+	f.instanceConfig.ApiUpdatedBy = clearAuthor(f.instanceConfig.ApiUpdatedBy, id)
+	f.instanceConfig.UpdateCheckUpdatedBy = clearAuthor(f.instanceConfig.UpdateCheckUpdatedBy, id)
+	f.instanceConfig.SeedAddressCapUpdatedBy = clearAuthor(f.instanceConfig.SeedAddressCapUpdatedBy, id)
+	f.retention.UpdatedBy = clearAuthor(f.retention.UpdatedBy, id)
 	return nil
+}
+
+func clearAuthor(author pgtype.Int8, removed int64) pgtype.Int8 {
+	if author.Valid && author.Int64 == removed {
+		return pgtype.Int8{}
+	}
+	return author
 }
 
 func (f *fakeStore) ResetAccountTOTP(_ context.Context, id int64) (db.ResetAccountTOTPRow, error) {
