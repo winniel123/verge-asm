@@ -346,3 +346,25 @@ func TestAFoldHoldingNoMoveSettlesBesideTheRest(t *testing.T) {
 		t.Errorf("the rest settle in one statement, got %v", moveless)
 	}
 }
+
+func TestBothMovesOntoOneAddressNameTheGroundTheyCounted(t *testing.T) {
+	// One address carries both Names, and the Endpoint beneath it belongs to rpOther alone.
+	store := knownAddressStore(
+		moveRow(rpName, resolved(rpOld), resolved(rpNew)),
+		moveRow(rpOther, resolved(rpOld), resolved(rpNew)),
+	)
+	store.opened = beneath(rpOther, rpNew, "443")
+
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 2 {
+		t.Fatalf("each move is its own cause, so each fires (ADR-0026 §2); got %+v", msgs)
+	}
+	for _, m := range msgs {
+		if want := "opened on an address it now cites"; !strings.Contains(m.Headline, want) {
+			t.Errorf("%s states the ground its residue counted over, got %q", m.FiredAt, m.Headline)
+		}
+		if strings.Contains(m.Headline, "beneath it") {
+			t.Errorf("%s cites the address and owns nothing on it, got %q", m.FiredAt, m.Headline)
+		}
+	}
+}
