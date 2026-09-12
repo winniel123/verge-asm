@@ -568,7 +568,7 @@ func (f *fakeStore) ListDeclinedProposalScopes(context.Context) ([]db.ListDeclin
 		if p.Status == "declined" {
 			out = append(out, db.ListDeclinedProposalScopesRow{
 				ID: p.ID, AddressCidr: p.AddressCidr, SourceSlug: p.SourceSlug,
-				RecordKind: p.RecordKind, LookupAt: lookupAt[p.LookupID],
+				RecordKind: p.RecordKind, OrgName: p.OrgName, LookupAt: lookupAt[p.LookupID],
 			})
 		}
 	}
@@ -747,35 +747,44 @@ func undoControlFor(t *testing.T, page string, id int64) string {
 
 func TestUndoControlsDateEveryDeclineOfOneScope(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
-	ago := func(h int) pgtype.Timestamptz {
-		return pgtype.Timestamptz{Time: now.Add(-time.Duration(h) * time.Hour), Valid: true}
+	agoMin := func(m int) pgtype.Timestamptz {
+		return pgtype.Timestamptz{Time: now.Add(-time.Duration(m) * time.Minute), Valid: true}
 	}
+	ago := func(h int) pgtype.Timestamptz { return agoMin(h * 60) }
 	crowded := netip.MustParsePrefix("203.0.113.0/24")
 	lone := netip.MustParsePrefix("198.51.100.0/24")
 
 	got := toUndoControls([]db.ListDeclinedProposalScopesRow{
-		{ID: 1, AddressCidr: crowded, SourceSlug: proposer.SlugARIN,
+		{ID: 1, AddressCidr: crowded, SourceSlug: proposer.SlugARIN, OrgName: "Acme Corp",
 			RecordKind: proposer.RecordRIRDelegation, LookupAt: ago(3)},
-		{ID: 2, AddressCidr: crowded, SourceSlug: proposer.SlugAPNIC,
+		{ID: 2, AddressCidr: crowded, SourceSlug: proposer.SlugAPNIC, OrgName: "Acme Corp",
 			RecordKind: proposer.RecordRIRDelegation, LookupAt: ago(3)},
 		// One ARIN lookup answers with both kinds, so this row ties with row 1 on every other axis.
-		{ID: 3, AddressCidr: crowded, SourceSlug: proposer.SlugARIN,
+		{ID: 3, AddressCidr: crowded, SourceSlug: proposer.SlugARIN, OrgName: "Acme Corp",
 			RecordKind: proposer.RecordCompelledReassignment, LookupAt: ago(3)},
-		{ID: 4, AddressCidr: crowded, SourceSlug: proposer.SlugARIN,
+		{ID: 4, AddressCidr: crowded, SourceSlug: proposer.SlugARIN, OrgName: "Acme Corp",
 			RecordKind: proposer.RecordRIRDelegation, LookupAt: ago(50)},
+		// One ARIN response lists two holders of one range, so only the holder parts these (#1873).
+		{ID: 6, AddressCidr: crowded, SourceSlug: proposer.SlugARIN, OrgName: "Globex Ltd",
+			RecordKind: proposer.RecordRIRDelegation, LookupAt: ago(3)},
+		// A repeated lookup of one holder lands in row 1's relative bucket, 14 minutes off (#1873).
+		{ID: 7, AddressCidr: crowded, SourceSlug: proposer.SlugARIN, OrgName: "Acme Corp",
+			RecordKind: proposer.RecordRIRDelegation, LookupAt: agoMin(3*60 + 14)},
 		{ID: 5, AddressCidr: lone, SourceSlug: proposer.SlugARIN,
 			RecordKind: proposer.RecordRIRDelegation},
-	}, now)
+	})
 
 	if len(got) != 2 {
 		t.Fatalf("scopes = %d, want 2", len(got))
 	}
 	want := map[string][]undoControlView{
 		crowded.String(): {
-			{ProposalID: 1, Source: proposer.SlugARIN, Record: "RIR delegation", Rel: "3h", ISO: "2026-08-15 09:00 UTC"},
-			{ProposalID: 2, Source: proposer.SlugAPNIC, Record: "RIR delegation", Rel: "3h", ISO: "2026-08-15 09:00 UTC"},
-			{ProposalID: 3, Source: proposer.SlugARIN, Record: "compelled reassignment", Rel: "3h", ISO: "2026-08-15 09:00 UTC"},
-			{ProposalID: 4, Source: proposer.SlugARIN, Record: "RIR delegation", Rel: "2d", ISO: "2026-08-13 10:00 UTC"},
+			{ProposalID: 1, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 09:00 UTC"},
+			{ProposalID: 2, Org: "Acme Corp", Source: proposer.SlugAPNIC, Record: "RIR delegation", ISO: "2026-08-15 09:00 UTC"},
+			{ProposalID: 3, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "compelled reassignment", ISO: "2026-08-15 09:00 UTC"},
+			{ProposalID: 4, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-13 10:00 UTC"},
+			{ProposalID: 6, Org: "Globex Ltd", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 09:00 UTC"},
+			{ProposalID: 7, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 08:46 UTC"},
 		},
 		// A lookup with no instant still reaches its decline, so the control drops the date alone.
 		lone.String(): {{ProposalID: 5, Source: proposer.SlugARIN, Record: "RIR delegation"}},
@@ -791,15 +800,15 @@ func TestUndoControlsDateEveryDeclineOfOneScope(t *testing.T) {
 		}
 	}
 
+	// The title is mouse-only, so only the rendered label parts two controls (#1873).
 	for scope, controls := range got {
-		seen := map[undoControlView]bool{}
+		seen := map[string]int64{}
 		for _, c := range controls {
-			label := c
-			label.ProposalID = 0
-			if seen[label] {
-				t.Errorf("two controls on the %s row read alike, so the choice is a guess: %+v", scope, label)
+			if prior, dup := seen[c.Label()]; dup {
+				t.Errorf("proposals %d and %d both read %q on the %s row, so the choice is a guess",
+					prior, c.ProposalID, c.Label(), scope)
 			}
-			seen[label] = true
+			seen[c.Label()] = c.ProposalID
 		}
 	}
 }

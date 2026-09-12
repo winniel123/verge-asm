@@ -43,7 +43,7 @@ WHERE id = $1 AND status = 'declined'
 RETURNING address_cidr;
 
 -- name: ListDeclinedProposalScopes :many
-SELECT p.id, p.address_cidr, p.source_slug, p.record_kind, l.created_at AS lookup_at
+SELECT p.id, p.address_cidr, p.source_slug, p.record_kind, p.org_name, l.created_at AS lookup_at
 FROM proposal p
 JOIN proposer_lookup l ON l.id = p.lookup_id
 WHERE p.status = 'declined'

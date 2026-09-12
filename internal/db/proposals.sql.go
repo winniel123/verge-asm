@@ -143,7 +143,7 @@ func (q *Queries) GetPendingProposal(ctx context.Context, id int64) (Proposal, e
 }
 
 const listDeclinedProposalScopes = `-- name: ListDeclinedProposalScopes :many
-SELECT p.id, p.address_cidr, p.source_slug, p.record_kind, l.created_at AS lookup_at
+SELECT p.id, p.address_cidr, p.source_slug, p.record_kind, p.org_name, l.created_at AS lookup_at
 FROM proposal p
 JOIN proposer_lookup l ON l.id = p.lookup_id
 WHERE p.status = 'declined'
@@ -155,6 +155,7 @@ type ListDeclinedProposalScopesRow struct {
 	AddressCidr netip.Prefix       `json:"address_cidr"`
 	SourceSlug  string             `json:"source_slug"`
 	RecordKind  string             `json:"record_kind"`
+	OrgName     string             `json:"org_name"`
 	LookupAt    pgtype.Timestamptz `json:"lookup_at"`
 }
 
@@ -172,6 +173,7 @@ func (q *Queries) ListDeclinedProposalScopes(ctx context.Context) ([]ListDecline
 			&i.AddressCidr,
 			&i.SourceSlug,
 			&i.RecordKind,
+			&i.OrgName,
 			&i.LookupAt,
 		); err != nil {
 			return nil, err
