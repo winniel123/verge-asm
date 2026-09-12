@@ -283,6 +283,20 @@ func TestAuditLedeIsTheWholeReplacement(t *testing.T) {
 	}
 }
 
+func removeDialogPanel(t *testing.T, page string) string {
+	t.Helper()
+	start := strings.Index(page, `aria-label="Remove member"`)
+	if start < 0 {
+		t.Fatal("the team tab renders no remove dialog")
+	}
+	panel := page[start:]
+	end := strings.Index(panel, `action="/settings/accounts/remove"`)
+	if end < 0 {
+		t.Fatal("the remove dialog carries no remove form")
+	}
+	return panel[:end]
+}
+
 // The copy outside the audit tab, once the corpus renders (§8 · E.1, §8 · E.4).
 
 func TestShippedCopyOutsideTheTabNamesTheRecord(t *testing.T) {
@@ -301,8 +315,9 @@ func TestShippedCopyOutsideTheTabNamesTheRecord(t *testing.T) {
 		t.Error("the remove dialog still claims annotations carry attribution")
 	}
 	// #1792's secondary detail is struck, not written, because §9 removes the refusal.
-	if strings.Contains(dialog, "Reassign that work") {
-		t.Error("the remove dialog describes a refusal §9 removes")
+	panel := removeDialogPanel(t, dialog)
+	if n := strings.Count(panel, `class="detail"`); n != 1 {
+		t.Errorf("the remove dialog carries %d detail paragraphs, want 1", n)
 	}
 
 	sources := settingsTabBody(t, ac, base, "sources")

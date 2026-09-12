@@ -138,7 +138,7 @@ open the remove dialog. **Type the member's exact username** to confirm
 (`POST /settings/accounts/remove`). It is reached only through that dialog, never a menu
 click.
 
-Two refusals protect the estate:
+These refusals protect the estate:
 
 - **You cannot remove yourself.**
 - **You cannot remove the last admin** (same invariant as demotion).
