@@ -35,10 +35,19 @@ func (q *Queries) CountHeldObservations(ctx context.Context, exactLimit int64) (
 const deleteExpiredDispatches = `-- name: DeleteExpiredDispatches :execrows
 DELETE FROM dispatch
 WHERE scheduled_time < $1
+  -- A fan-out that claimed late ages on the instant the bound orders by, not on its tick (#1853).
+  AND created_at < $1
+  -- A pending release reads one hot row, so the caller's read set outlives the dial (ADR-0041).
+  AND NOT (id = ANY(COALESCE($2::bigint[], '{}'::bigint[])))
 `
 
-func (q *Queries) DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredDispatches, scheduledTime)
+type DeleteExpiredDispatchesParams struct {
+	Before    pgtype.Timestamptz `json:"before"`
+	StillRead []int64            `json:"still_read"`
+}
+
+func (q *Queries) DeleteExpiredDispatches(ctx context.Context, arg DeleteExpiredDispatchesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredDispatches, arg.Before, arg.StillRead)
 	if err != nil {
 		return 0, err
 	}
@@ -211,6 +220,80 @@ func (q *Queries) ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]L
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDispatchesAPendingReleaseMayRead = `-- name: ListDispatchesAPendingReleaseMayRead :many
+WITH pending AS (
+    SELECT b.created_at
+    FROM message m
+    JOIN batch b ON b.id = m.census_pending_after_batch
+    WHERE m.census_pending_after_batch IS NOT NULL
+      -- A batch at or after the cutoff bounds on a dispatch the delete already spares (#1853).
+      AND b.created_at < $1
+    UNION
+    SELECT b.created_at
+    FROM batch b
+    WHERE b.repoint_settled_at IS NULL
+      AND b.created_at < $1
+),
+picked AS (
+    SELECT first_hot.id
+    FROM pending p
+    CROSS JOIN LATERAL (
+        -- The arm is ListReleasableHeldMessages' own, so the sweep keeps the row it picks (#1853).
+        SELECT d.id
+        FROM dispatch d
+        JOIN scan s ON s.id = d.scan_id
+        WHERE s.kind = 'hot'
+          AND d.status = 'fanned-out'
+          AND d.fanout_abandoned = false
+          AND d.created_at >= p.created_at
+        ORDER BY d.created_at, d.id
+        LIMIT 1
+    ) first_hot
+),
+reachable AS (
+    SELECT first_complete.id
+    FROM pending p
+    CROSS JOIN LATERAL (
+        -- A tick retires an unfinished pick, so the bound moves to the finished row (ADR-1851 §3).
+        SELECT d.id
+        FROM dispatch d
+        JOIN scan s ON s.id = d.scan_id
+        WHERE s.kind = 'hot'
+          AND d.status = 'fanned-out'
+          AND d.fanout_abandoned = false
+          AND d.fanout_complete
+          AND d.created_at >= p.created_at
+        ORDER BY d.created_at, d.id
+        LIMIT 1
+    ) first_complete
+)
+SELECT id FROM picked
+UNION
+SELECT id FROM reachable
+ORDER BY id
+`
+
+// The sweep keeps the row both release predicates still read (ADR-0041, ADR-1806 §3, #1853).
+func (q *Queries) ListDispatchesAPendingReleaseMayRead(ctx context.Context, before pgtype.Timestamptz) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listDispatchesAPendingReleaseMayRead, before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -63,7 +63,7 @@ type Querier interface {
 	DeleteChannel(ctx context.Context, id int64) error
 	// The scope rides the act's own RETURNING, so a separate read cannot leave the Act blank.
 	DeleteExclusion(ctx context.Context, id int64) (DeleteExclusionRow, error)
-	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
+	DeleteExpiredDispatches(ctx context.Context, arg DeleteExpiredDispatchesParams) (int64, error)
 	DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error)
 	DeleteExpiredTranscripts(ctx context.Context, capturedAt pgtype.Timestamptz) (int64, error)
 	DeleteIntegrationState(ctx context.Context, slug string) error
@@ -182,6 +182,8 @@ type Querier interface {
 	// moved leaf is named by diffing the pair in Go.
 	ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]ListDerivationBreaksRow, error)
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
+	// The sweep keeps the row both release predicates still read (ADR-0041, ADR-1806 §3, #1853).
+	ListDispatchesAPendingReleaseMayRead(ctx context.Context, before pgtype.Timestamptz) ([]int64, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error)
 	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]ListEdgeFanoutMeasurementsOverRow, error)
 	ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSOProvidersRow, error)

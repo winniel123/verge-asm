@@ -1811,6 +1811,12 @@ whether the slowest scan ran. The cost is stated: an aged-out dispatch may be th
 believed-in measurement never happened. That is a forensic loss and the operator's to price. **v1
 ships it unbounded**, one row per firing being nothing to retire. See
 [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md).
+The dial **exempts the one row a pending release still reads**.
+[ADR-1806](./docs/adr/1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md) §3
+bounds a held `Message`, and an unsettled re-point fold, on one **drained** hot `Dispatch`. Retiring
+that row by age held the message forever and stopped the fold settling
+([#1853](https://github.com/winniel123/verge-asm/issues/1853)). ADR-0041's own principle names the
+exemption: a corpus is retained by what may still read it.
 _Avoid_: scan run, run, execution, job group
 
 **Drained**:
