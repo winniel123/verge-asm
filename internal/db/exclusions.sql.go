@@ -130,8 +130,8 @@ WITH claim AS (
 )
 SELECT
     EXISTS (SELECT 1 FROM kept WHERE kept.proposal_id IS NULL) AS declared_by_hand,
-    -- A hand-declared row answers first, so the two reasons the row stays never both fire (#1799).
-    EXISTS (SELECT 1 FROM claim, kept WHERE kept.proposal_id IS NOT NULL) AS still_claimed
+    -- The two reasons a row stays are independent, so the caller composes them (#1799).
+    EXISTS (SELECT 1 FROM claim, kept) AS still_claimed
 `
 
 type DeleteUnclaimedAddressExclusionRow struct {

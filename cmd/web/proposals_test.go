@@ -580,17 +580,16 @@ func (f *fakeStore) DeleteUnclaimedAddressExclusion(_ context.Context, addressCi
 	if row < 0 {
 		return out, nil
 	}
-	if !f.exclusions[row].ProposalID.Valid {
-		out.DeclaredByHand = true
-		return out, nil
-	}
+	out.DeclaredByHand = !f.exclusions[row].ProposalID.Valid
 	for _, p := range f.proposals {
 		if p.Status == "declined" && p.AddressCidr.String() == addressCidr.String() {
 			out.StillClaimed = true
-			return out, nil
+			break
 		}
 	}
-	f.exclusions = append(f.exclusions[:row], f.exclusions[row+1:]...)
+	if !out.DeclaredByHand && !out.StillClaimed {
+		f.exclusions = append(f.exclusions[:row], f.exclusions[row+1:]...)
+	}
 	return out, nil
 }
 
@@ -1099,6 +1098,39 @@ func TestUndoDeclineKeepsAHandDeclaredExclusionOfTheSameScope(t *testing.T) {
 	}
 	if got := statusOf(f, declined.ID); got != "pending" {
 		t.Errorf("proposal %d status=%q, want pending", declined.ID, got)
+	}
+}
+
+const undoDeclineDeclaredAndClaimedFlash = "203.0.113.0/24 returned to pending. " +
+	"Its exclusion stays — no decline recorded that row, and another declined proposal " +
+	"still claims that scope. Confirming it is a fresh act."
+
+func TestUndoDeclineWithdrawsTheLiftAdviceWhileASiblingDeclineStands(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: oneScopeFromTwoSources()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+	first, second := f.proposals[0].ID, f.proposals[1].ID
+
+	declareAddressExclusion(t, ac, base, "203.0.113.0/24")
+	declineOne(t, ac, base, first)
+	declineOne(t, ac, base, second)
+	if got := addressExclusions(f); len(got) != 1 {
+		t.Fatalf("exclusions after both declines = %v, want the one declared row", got)
+	}
+
+	resp := postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(first)}})
+	got := toastText(t, resp)
+	if got != undoDeclineDeclaredAndClaimedFlash {
+		t.Errorf("undo flash = %q, want %q", got, undoDeclineDeclaredAndClaimedFlash)
+	}
+	// Lifting the row takes the only undo control the sibling has (scope.tmpl, #1799).
+	if strings.Contains(got, "Lift it on the exclusions screen") {
+		t.Error("the flash advised a lift that would strand the sibling decline with no undo control")
+	}
+	if got := statusOf(f, second); got != "declined" {
+		t.Errorf("sibling proposal %d status=%q, want declined", second, got)
 	}
 }
 
