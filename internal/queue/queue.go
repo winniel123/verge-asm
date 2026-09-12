@@ -326,6 +326,10 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 			return 0, SkipNone, err
 		}
 	}
+	// An atomic tier commits its jobs here, so the mark rides the same transaction (ADR-1851 §2).
+	if err := qtx.MarkFanOutComplete(ctx, dispatchID); err != nil {
+		return 0, SkipNone, fmt.Errorf("queue: mark fan-out complete: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, SkipNone, err
 	}
@@ -351,6 +355,10 @@ func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTim
 	}
 	if err != nil {
 		return enqueued, SkipNone, err
+	}
+	// The last chunk has committed, so the release bound may now read this dispatch (ADR-1851 §2).
+	if err := d.q.MarkFanOutComplete(ctx, dispatchID); err != nil {
+		return enqueued, SkipNone, fmt.Errorf("queue: mark fan-out complete: %w", err)
 	}
 	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
 	return enqueued, SkipNone, nil
@@ -384,6 +392,14 @@ func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime
 		// A rollback leaves the window unclaimed and a later poll defers it (ADR-0137 §4).
 		d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, recorded skipped", s.Kind, scheduledTime.Format(time.RFC3339))
 		return 0, gated, tx.Commit(ctx)
+	}
+	retired, rerr := qtx.TerminateAbandonedDispatches(ctx, db.TerminateAbandonedDispatchesParams{ScanID: s.ID, ClaimedID: id})
+	if rerr != nil {
+		return 0, SkipNone, fmt.Errorf("queue: terminate abandoned dispatches: %w", rerr)
+	}
+	if retired > 0 {
+		// A terminated row leaves the release bound (ADR-1851 §3).
+		d.log.Printf("dispatcher: %s retired %d dispatch(es) whose fan-out never finished", s.Kind, retired)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, SkipNone, err

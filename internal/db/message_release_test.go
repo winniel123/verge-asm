@@ -24,7 +24,7 @@ func TestTheReleasePredicateIsADrainedHotDispatch(t *testing.T) {
 		{"limit 1", "the bound is the FIRST such dispatch, not any of them"},
 		{"state in ('ready', 'running')", "drained means no job of that dispatch is non-terminal"},
 		{"not exists", "the drain test is the complement of the cadence-lag gate's query"},
-		{"where exists", "hot commits its dispatch row before its jobs, so an empty job set is not a drained one"},
+		{"first_hot.fanout_complete", "a streamed tier commits its dispatch row before its jobs, so the row carries that half"},
 	} {
 		if !strings.Contains(q, want.clause) {
 			t.Errorf("listReleasableHeldMessages must carry %q — %s (ADR-1806 §3), got:\n%s", want.clause, want.why, listReleasableHeldMessages)
@@ -33,6 +33,65 @@ func TestTheReleasePredicateIsADrainedHotDispatch(t *testing.T) {
 	for _, forbidden := range []string{"interval", "now()"} {
 		if strings.Contains(q, forbidden) {
 			t.Errorf("the bound is a drained tier and never a clock, so %q may not appear (ADR-1806 §7, #27), got:\n%s", forbidden, listReleasableHeldMessages)
+		}
+	}
+	assertNoJobCountProxy(t, "listReleasableHeldMessages", listReleasableHeldMessages)
+}
+
+// assertNoJobCountProxy holds both release predicates off the proxy #1816 used for the
+// fan-out-finished half of ADR-1806 §3's bound. A non-empty job set answered that half only
+// while every fan-out enqueued something. A hot tier that is enabled and admits nothing
+// finishes its fan-out with no job at all, so the proxy held such a row forever (#1851).
+// The column answers the half directly, and a re-introduced job-existence test would restore
+// the defect without touching the clauses the tests above assert.
+func assertNoJobCountProxy(t *testing.T, name, query string) {
+	t.Helper()
+	flat := strings.Join(strings.Fields(strings.ToLower(query)), " ")
+	// The drain half keeps its own EXISTS, so the proxy is the one carrying no job-state test.
+	if strings.Contains(flat, "exists ( select 1 from queue_job j where j.dispatch_id = first_hot.id )") {
+		t.Errorf("%s must not read a job count for the fan-out-finished half (ADR-1851 §2, #1851), got:\n%s", name, query)
+	}
+}
+
+// TestTheFanOutMarkIsWrittenOnceAndCarriesNoInstant guards ADR-1851 §2. The column answers the
+// first half of ADR-1806 §3's bound, and it answers nothing else. A timestamp here would invite
+// the duration test ADR-1806 §7 and #27 both refuse, so the column is a boolean and the mark is
+// an unconditional write that the caller places after its last chunk commits.
+func TestTheFanOutMarkIsWrittenOnceAndCarriesNoInstant(t *testing.T) {
+	q := strings.ToLower(markFanOutComplete)
+	if !strings.Contains(q, "fanout_complete = true") {
+		t.Errorf("the mark sets the fan-out-finished half (ADR-1851 §2), got:\n%s", markFanOutComplete)
+	}
+	for _, forbidden := range []string{"now()", "interval", "fanout_completed_at"} {
+		if strings.Contains(q, forbidden) {
+			t.Errorf("the mark carries no instant, so %q may not appear (ADR-1806 §7, #27), got:\n%s", forbidden, markFanOutComplete)
+		}
+	}
+}
+
+// TestAnAbandonedDispatchIsRetiredByATickAndNeverByAClock guards ADR-1851 §3. A streamed
+// fan-out that crashes marks itself never, so its dispatch would hold the release bound for
+// good. The next claimed tick of the same Scan retires it, and a tick is a cadence rather than
+// a duration, so no clock reaches the release predicate. Two clauses keep a live fan-out safe:
+// the claimed dispatch is excluded by id, and a dispatch still streaming holds ready jobs.
+func TestAnAbandonedDispatchIsRetiredByATickAndNeverByAClock(t *testing.T) {
+	q := strings.ToLower(terminateAbandonedDispatches)
+	for _, want := range []struct {
+		clause, why string
+	}{
+		{"status = 'terminated'", "the release bound reads only a fanned-out row, so terminated is what excludes it"},
+		{"dispatch.status = 'fanned-out'", "a skipped or already-terminated row is not an abandoned fan-out"},
+		{"dispatch.fanout_complete = false", "a finished fan-out is never retired"},
+		{"dispatch.id <> ", "the tick doing the retiring may never retire itself"},
+		{"j.state in ('ready', 'running')", "a fan-out still streaming holds ready jobs, so it is left alone"},
+	} {
+		if !strings.Contains(q, want.clause) {
+			t.Errorf("terminateAbandonedDispatches must carry %q — %s (ADR-1851 §3), got:\n%s", want.clause, want.why, terminateAbandonedDispatches)
+		}
+	}
+	for _, forbidden := range []string{"now()", "interval", "age("} {
+		if strings.Contains(q, forbidden) {
+			t.Errorf("a tick retires the row and a clock never does, so %q may not appear (ADR-1851 §3, #27), got:\n%s", forbidden, terminateAbandonedDispatches)
 		}
 	}
 }

@@ -88,3 +88,22 @@ LEFT JOIN vantage v ON v.id = j.vantage_id
 LEFT JOIN batch b ON b.id = j.batch_id
 WHERE j.dispatch_id = $1
 ORDER BY j.id;
+
+-- name: MarkFanOutComplete :exec
+-- The release bound reads this as its fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
+UPDATE dispatch SET fanout_complete = true
+WHERE id = $1;
+
+-- name: TerminateAbandonedDispatches :execrows
+-- A crashed fan-out marks itself never, so the next claimed tick retires it (ADR-1851 §3).
+UPDATE dispatch SET status = 'terminated'
+WHERE dispatch.scan_id = $1
+  AND dispatch.id <> sqlc.arg(claimed_id)
+  AND dispatch.status = 'fanned-out'
+  AND dispatch.fanout_complete = false
+  -- A fan-out still streaming holds ready jobs, so this leaves a live one alone (ADR-1851 §3).
+  AND NOT EXISTS (
+      SELECT 1 FROM queue_job j
+      WHERE j.dispatch_id = dispatch.id
+        AND j.state IN ('ready', 'running')
+  );

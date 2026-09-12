@@ -265,6 +265,8 @@ type Querier interface {
 	MarkAllMessagesRead(ctx context.Context, arg MarkAllMessagesReadParams) error
 	MarkDeliveryDelivered(ctx context.Context, arg MarkDeliveryDeliveredParams) error
 	MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error
+	// The release bound reads this as its fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
+	MarkFanOutComplete(ctx context.Context, id int64) error
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) (int64, error)
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) (int64, error)
 	MarkJobRetried(ctx context.Context, id int64) (int64, error)
@@ -348,6 +350,8 @@ type Querier interface {
 	SpendNameSeedWithdrawals(ctx context.Context, arg SpendNameSeedWithdrawalsParams) error
 	SpendSeedWithdrawals(ctx context.Context, arg SpendSeedWithdrawalsParams) error
 	SyncColdScanEnabled(ctx context.Context) error
+	// A crashed fan-out marks itself never, so the next claimed tick retires it (ADR-1851 §3).
+	TerminateAbandonedDispatches(ctx context.Context, arg TerminateAbandonedDispatchesParams) (int64, error)
 	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	TouchSession(ctx context.Context, arg TouchSessionParams) error
 	TrimCTReliabilitySamples(ctx context.Context, arg TrimCTReliabilitySamplesParams) error

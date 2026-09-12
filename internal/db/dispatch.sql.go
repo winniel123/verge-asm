@@ -299,6 +299,17 @@ func (q *Queries) ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int
 	return items, nil
 }
 
+const markFanOutComplete = `-- name: MarkFanOutComplete :exec
+UPDATE dispatch SET fanout_complete = true
+WHERE id = $1
+`
+
+// The release bound reads this as its fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
+func (q *Queries) MarkFanOutComplete(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, markFanOutComplete, id)
+	return err
+}
+
 const setDispatchStatus = `-- name: SetDispatchStatus :exec
 UPDATE dispatch SET status = $2
 WHERE id = $1
@@ -313,4 +324,32 @@ type SetDispatchStatusParams struct {
 func (q *Queries) SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error {
 	_, err := q.db.Exec(ctx, setDispatchStatus, arg.ID, arg.Status)
 	return err
+}
+
+const terminateAbandonedDispatches = `-- name: TerminateAbandonedDispatches :execrows
+UPDATE dispatch SET status = 'terminated'
+WHERE dispatch.scan_id = $1
+  AND dispatch.id <> $2
+  AND dispatch.status = 'fanned-out'
+  AND dispatch.fanout_complete = false
+  -- A fan-out still streaming holds ready jobs, so this leaves a live one alone (ADR-1851 §3).
+  AND NOT EXISTS (
+      SELECT 1 FROM queue_job j
+      WHERE j.dispatch_id = dispatch.id
+        AND j.state IN ('ready', 'running')
+  )
+`
+
+type TerminateAbandonedDispatchesParams struct {
+	ScanID    int64 `json:"scan_id"`
+	ClaimedID int64 `json:"claimed_id"`
+}
+
+// A crashed fan-out marks itself never, so the next claimed tick retires it (ADR-1851 §3).
+func (q *Queries) TerminateAbandonedDispatches(ctx context.Context, arg TerminateAbandonedDispatchesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, terminateAbandonedDispatches, arg.ScanID, arg.ClaimedID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
