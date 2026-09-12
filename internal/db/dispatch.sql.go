@@ -73,6 +73,7 @@ SELECT
     s.kind     AS scan_kind,
     d.created_at,
     d.status   AS status,
+    d.fanout_complete,
     count(j.id)                                 AS total,
     count(*) FILTER (WHERE j.state = 'ready')   AS ready,
     count(*) FILTER (WHERE j.state = 'running') AS running,
@@ -82,23 +83,24 @@ SELECT
 FROM dispatch d
 JOIN scan s ON s.id = d.scan_id
 LEFT JOIN queue_job j ON j.dispatch_id = d.id
-GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status, d.fanout_complete
 HAVING count(*) FILTER (WHERE j.state IN ('ready', 'running')) > 0
 ORDER BY d.id DESC
 `
 
 type ListActiveDispatchProgressRow struct {
-	DispatchID int64              `json:"dispatch_id"`
-	ScanID     int64              `json:"scan_id"`
-	ScanKind   string             `json:"scan_kind"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	Status     string             `json:"status"`
-	Total      int64              `json:"total"`
-	Ready      int64              `json:"ready"`
-	Running    int64              `json:"running"`
-	Done       int64              `json:"done"`
-	Dead       int64              `json:"dead"`
-	Retried    int64              `json:"retried"`
+	DispatchID     int64              `json:"dispatch_id"`
+	ScanID         int64              `json:"scan_id"`
+	ScanKind       string             `json:"scan_kind"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	Status         string             `json:"status"`
+	FanoutComplete bool               `json:"fanout_complete"`
+	Total          int64              `json:"total"`
+	Ready          int64              `json:"ready"`
+	Running        int64              `json:"running"`
+	Done           int64              `json:"done"`
+	Dead           int64              `json:"dead"`
+	Retried        int64              `json:"retried"`
 }
 
 func (q *Queries) ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error) {
@@ -116,6 +118,7 @@ func (q *Queries) ListActiveDispatchProgress(ctx context.Context) ([]ListActiveD
 			&i.ScanKind,
 			&i.CreatedAt,
 			&i.Status,
+			&i.FanoutComplete,
 			&i.Total,
 			&i.Ready,
 			&i.Running,
@@ -140,6 +143,7 @@ SELECT
     s.kind     AS scan_kind,
     d.created_at,
     d.status   AS status,
+    d.fanout_complete,
     count(j.id)                                 AS total,
     count(*) FILTER (WHERE j.state = 'ready')   AS ready,
     count(*) FILTER (WHERE j.state = 'running') AS running,
@@ -149,24 +153,25 @@ SELECT
 FROM dispatch d
 JOIN scan s ON s.id = d.scan_id
 LEFT JOIN queue_job j ON j.dispatch_id = d.id
-GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status, d.fanout_complete
 HAVING count(*) FILTER (WHERE j.state IN ('ready', 'running')) = 0
 ORDER BY d.id DESC
 LIMIT $1
 `
 
 type ListConcludedDispatchProgressRow struct {
-	DispatchID int64              `json:"dispatch_id"`
-	ScanID     int64              `json:"scan_id"`
-	ScanKind   string             `json:"scan_kind"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	Status     string             `json:"status"`
-	Total      int64              `json:"total"`
-	Ready      int64              `json:"ready"`
-	Running    int64              `json:"running"`
-	Done       int64              `json:"done"`
-	Dead       int64              `json:"dead"`
-	Retried    int64              `json:"retried"`
+	DispatchID     int64              `json:"dispatch_id"`
+	ScanID         int64              `json:"scan_id"`
+	ScanKind       string             `json:"scan_kind"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	Status         string             `json:"status"`
+	FanoutComplete bool               `json:"fanout_complete"`
+	Total          int64              `json:"total"`
+	Ready          int64              `json:"ready"`
+	Running        int64              `json:"running"`
+	Done           int64              `json:"done"`
+	Dead           int64              `json:"dead"`
+	Retried        int64              `json:"retried"`
 }
 
 func (q *Queries) ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error) {
@@ -184,6 +189,7 @@ func (q *Queries) ListConcludedDispatchProgress(ctx context.Context, limit int32
 			&i.ScanKind,
 			&i.CreatedAt,
 			&i.Status,
+			&i.FanoutComplete,
 			&i.Total,
 			&i.Ready,
 			&i.Running,
@@ -208,6 +214,7 @@ SELECT
     s.kind     AS scan_kind,
     d.created_at,
     d.status   AS status,
+    d.fanout_complete,
     count(j.id)                                 AS total,
     count(*) FILTER (WHERE j.state = 'ready')   AS ready,
     count(*) FILTER (WHERE j.state = 'running') AS running,
@@ -217,23 +224,24 @@ SELECT
 FROM dispatch d
 JOIN scan s ON s.id = d.scan_id
 LEFT JOIN queue_job j ON j.dispatch_id = d.id
-GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status, d.fanout_complete
 ORDER BY d.id DESC
 LIMIT $1
 `
 
 type ListDispatchProgressRow struct {
-	DispatchID int64              `json:"dispatch_id"`
-	ScanID     int64              `json:"scan_id"`
-	ScanKind   string             `json:"scan_kind"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	Status     string             `json:"status"`
-	Total      int64              `json:"total"`
-	Ready      int64              `json:"ready"`
-	Running    int64              `json:"running"`
-	Done       int64              `json:"done"`
-	Dead       int64              `json:"dead"`
-	Retried    int64              `json:"retried"`
+	DispatchID     int64              `json:"dispatch_id"`
+	ScanID         int64              `json:"scan_id"`
+	ScanKind       string             `json:"scan_kind"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	Status         string             `json:"status"`
+	FanoutComplete bool               `json:"fanout_complete"`
+	Total          int64              `json:"total"`
+	Ready          int64              `json:"ready"`
+	Running        int64              `json:"running"`
+	Done           int64              `json:"done"`
+	Dead           int64              `json:"dead"`
+	Retried        int64              `json:"retried"`
 }
 
 func (q *Queries) ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error) {
@@ -251,6 +259,7 @@ func (q *Queries) ListDispatchProgress(ctx context.Context, limit int32) ([]List
 			&i.ScanKind,
 			&i.CreatedAt,
 			&i.Status,
+			&i.FanoutComplete,
 			&i.Total,
 			&i.Ready,
 			&i.Running,

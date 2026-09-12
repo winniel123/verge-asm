@@ -55,6 +55,7 @@ type dispatchView struct {
 	Active       bool
 	Status       string
 	Skipped      bool
+	FanoutDone   bool
 	Rollup       jobRollup
 }
 
@@ -211,7 +212,7 @@ func activeProgressRows(rows []db.ListActiveDispatchProgressRow) []db.ListDispat
 	for _, r := range rows {
 		out = append(out, db.ListDispatchProgressRow{
 			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
-			CreatedAt: r.CreatedAt, Status: r.Status,
+			CreatedAt: r.CreatedAt, Status: r.Status, FanoutComplete: r.FanoutComplete,
 			Total: r.Total, Ready: r.Ready, Running: r.Running,
 			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
 		})
@@ -224,7 +225,7 @@ func concludedProgressRows(rows []db.ListConcludedDispatchProgressRow) []db.List
 	for _, r := range rows {
 		out = append(out, db.ListDispatchProgressRow{
 			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
-			CreatedAt: r.CreatedAt, Status: r.Status,
+			CreatedAt: r.CreatedAt, Status: r.Status, FanoutComplete: r.FanoutComplete,
 			Total: r.Total, Ready: r.Ready, Running: r.Running,
 			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
 		})
@@ -361,6 +362,7 @@ type runView struct {
 	ID          int64
 	Title       string
 	Status      string
+	Statement   string
 	Scope       string
 	Meta        string
 	Transitions string
@@ -441,6 +443,7 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 		Scope:  "all scopes",
 	}
 	v.Status = runStatusLabel(dv.Active, dv.Dead, dispatchOutcome(dv.Status))
+	v.Statement = runEmptyStatement(dispatchOutcome(dv.Status), dv.FanoutDone, len(jobRows))
 
 	jobs := make([]jobView, 0, len(jobRows))
 	for _, j := range jobRows {
@@ -649,6 +652,21 @@ func runStatusLabel(active bool, dead int64, outcome string) string {
 	default:
 		return "complete"
 	}
+}
+
+const runEmptyStatementText = "this run enqueued no job, so it measured nothing"
+
+func runEmptyStatement(outcome string, fanoutDone bool, jobs int) string {
+	// A recorded disposition wins over the count (ADR-0165 §2).
+	if outcome != "" || jobs > 0 {
+		return ""
+	}
+	// A fan-out still streaming has committed its row and no job yet (ADR-1851 §2).
+	if !fanoutDone {
+		return ""
+	}
+	// The dispatch row records no cause, so the wording claims no fact about the estate (#1857).
+	return runEmptyStatementText
 }
 
 func dispatchOutcome(status string) string {
@@ -968,6 +986,8 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 		Active:    inFlight > 0,
 		Status:    row.Status,
 		Skipped:   row.Status == queue.DispatchStatusSkipped,
+		// A streamed tier commits its dispatch row before its jobs (ADR-1851 §2).
+		FanoutDone: row.FanoutComplete,
 	}
 	if row.CreatedAt.Valid {
 		dv.DispatchedAt = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
