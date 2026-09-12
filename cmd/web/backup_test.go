@@ -14,7 +14,7 @@ import (
 )
 
 var knownBusinessTables = []string{
-	"account", "admitted_name", "annotation", "batch", "certificate_material", "channel", "cold_scan_scope",
+	"account", "act", "admitted_name", "annotation", "batch", "certificate_material", "channel", "cold_scan_scope",
 	"ct_log_cursor", "ct_reliability_sample", "ct_throttle", "delivery", "dispatch", "edge_fanout_observation",
 	"exclusion", "heartbeat", "instance_config",
 	"integration_state", "invite", "message", "message_read", "observation",

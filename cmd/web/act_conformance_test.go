@@ -79,8 +79,6 @@ var actAuditableNonPOST = map[string]string{
 // map empty and asserts that it is.
 
 var actPending = map[string]string{
-	"POST /settings/restore": "#1834 restore.applied, the one tx-bound recorder (§7.6 ruling 4)",
-
 	"POST /onboarding/finish":          "#1835 onboarding.finished",
 	"POST /proposals":                  "#1835 proposal.queried",
 	"POST /proposals/search":           "#1835 proposal.queried",

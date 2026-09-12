@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -292,14 +293,20 @@ func TestRecordRefusesAnUnregisteredActor(t *testing.T) {
 type fakeTx struct {
 	sql    string
 	args   []any
+	trail  []string
 	ctxErr error
 	err    error
+	failOn string
 }
 
 func (tx *fakeTx) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	tx.sql = sql
 	tx.args = args
+	tx.trail = append(tx.trail, sql)
 	tx.ctxErr = ctx.Err()
+	if tx.failOn != "" && !strings.Contains(sql, tx.failOn) {
+		return pgconn.CommandTag{}, nil
+	}
 	return pgconn.CommandTag{}, tx.err
 }
 
