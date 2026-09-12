@@ -183,7 +183,7 @@ type Querier interface {
 	ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]ListDerivationBreaksRow, error)
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
 	// The sweep keeps the row both release predicates still read (ADR-0041, ADR-1806 §3, #1853).
-	ListDispatchesAPendingReleaseMayRead(ctx context.Context) ([]int64, error)
+	ListDispatchesAPendingReleaseMayRead(ctx context.Context, before pgtype.Timestamptz) ([]int64, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error)
 	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]ListEdgeFanoutMeasurementsOverRow, error)
 	ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSOProvidersRow, error)

@@ -36,6 +36,7 @@ func TestTheExemptSetIsBothReleasePredicatesOwnRead(t *testing.T) {
 		"s.kind = 'hot'",
 		"d.status = 'fanned-out'",
 		"d.fanout_abandoned = false",
+		"d.fanout_complete",
 		"d.created_at >=",
 		"order by d.created_at, d.id",
 		"limit 1",
@@ -66,5 +67,21 @@ func TestTheExemptSetIsBothReleasePredicatesOwnRead(t *testing.T) {
 		if strings.Contains(exempt, forbidden) {
 			t.Errorf("the exempt set is a read of the predicates and never a clock, so %q may not appear (#27), got:\n%s", forbidden, listDispatchesAPendingReleaseMayRead)
 		}
+	}
+}
+
+// TestTheExemptSetReachesThePickATickMovesTo covers ADR-1851 §3. A tick retires an
+// unfinished pick, and both predicates then bound on the first finished row at or
+// after the held batch. Retiring that row defers the release by a cadence, so the
+// exempt set names both picks. The pick stops there: AbandonUnfinishedDispatches
+// crosses no row that holds the mark, so a finished pick is final.
+func TestTheExemptSetReachesThePickATickMovesTo(t *testing.T) {
+	exempt := strings.ToLower(listDispatchesAPendingReleaseMayRead)
+	if got := strings.Count(exempt, "limit 1"); got != 2 {
+		t.Errorf("the exempt set names two picks, the bound's own and the one a tick moves it to, got %d (ADR-1851 §3):\n%s", got, listDispatchesAPendingReleaseMayRead)
+	}
+	// The read costs one lateral per held instant, so the sweep's own cutoff bounds it (#1853).
+	if !strings.Contains(exempt, "b.created_at < $1") {
+		t.Errorf("the exempt set must drop a batch at or after the cutoff, whose pick the delete already spares (#1853), got:\n%s", listDispatchesAPendingReleaseMayRead)
 	}
 }

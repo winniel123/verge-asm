@@ -3,8 +3,11 @@ package retention
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
 )
@@ -57,6 +60,7 @@ type fakeStore struct {
 	cadenceErr    error
 	stillRead     []int64
 	listCalled    bool
+	listBefore    time.Time
 	deleteCalled  bool
 	deleteBefore  time.Time
 	deleteExempt  []int64
@@ -71,8 +75,9 @@ func (f *fakeStore) SlowestEnabledScanCadenceSeconds(context.Context) (int64, er
 	return f.cadence, f.cadenceErr
 }
 
-func (f *fakeStore) ListDispatchesAPendingReleaseMayRead(context.Context) ([]int64, error) {
+func (f *fakeStore) ListDispatchesAPendingReleaseMayRead(_ context.Context, before pgtype.Timestamptz) ([]int64, error) {
 	f.listCalled = true
+	f.listBefore = before.Time
 	return f.stillRead, nil
 }
 
@@ -114,7 +119,7 @@ func TestSweepUnboundedDeletesNothing(t *testing.T) {
 
 func TestSweepBoundedDeletesAtCutoff(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
-	f := &fakeStore{multiple: 3, cadence: 86400, deletedReturn: 7}
+	f := &fakeStore{multiple: 3, cadence: 86400, deletedReturn: 7, stillRead: []int64{11, 12}}
 	r := NewRetirer(f, func() time.Time { return now }, nil)
 
 	n, err := r.Sweep(context.Background())
@@ -130,6 +135,13 @@ func TestSweepBoundedDeletesAtCutoff(t *testing.T) {
 	want := now.Add(-3 * 24 * time.Hour)
 	if !f.deleteBefore.Equal(want) {
 		t.Errorf("delete cutoff = %v, want %v", f.deleteBefore, want)
+	}
+	// One cutoff reaches both statements, so the exempt read and the delete agree (#1853).
+	if !f.listBefore.Equal(want) {
+		t.Errorf("exempt read cutoff = %v, want %v", f.listBefore, want)
+	}
+	if !slices.Equal(f.deleteExempt, f.stillRead) {
+		t.Errorf("delete exempted %v, want the ids the read returned, %v", f.deleteExempt, f.stillRead)
 	}
 }
 

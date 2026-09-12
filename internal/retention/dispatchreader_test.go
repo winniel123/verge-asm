@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
@@ -15,6 +17,7 @@ type modelDispatch struct {
 	id        int64
 	scheduled time.Time
 	created   time.Time
+	complete  bool
 	abandoned bool
 }
 
@@ -34,23 +37,32 @@ func (m *sweepModel) SlowestEnabledScanCadenceSeconds(context.Context) (int64, e
 	return 86400, nil
 }
 
-func (m *sweepModel) ListDispatchesAPendingReleaseMayRead(context.Context) ([]int64, error) {
+func (m *sweepModel) ListDispatchesAPendingReleaseMayRead(_ context.Context, before pgtype.Timestamptz) ([]int64, error) {
 	var out []int64
 	for _, at := range m.pending {
-		var pick modelDispatch
-		for _, d := range m.dispatches {
-			if d.abandoned || d.created.Before(at) {
-				continue
-			}
-			if pick.id == 0 || d.created.Before(pick.created) {
-				pick = d
-			}
+		if !at.Before(before.Time) {
+			continue
 		}
-		if pick.id != 0 {
-			out = append(out, pick.id)
+		for _, id := range []int64{m.pick(at, false), m.pick(at, true)} {
+			if id != 0 {
+				out = append(out, id)
+			}
 		}
 	}
 	return out, nil
+}
+
+func (m *sweepModel) pick(at time.Time, finished bool) int64 {
+	var best modelDispatch
+	for _, d := range m.dispatches {
+		if d.abandoned || d.created.Before(at) || (finished && !d.complete) {
+			continue
+		}
+		if best.id == 0 || d.created.Before(best.created) {
+			best = d
+		}
+	}
+	return best.id
 }
 
 func (m *sweepModel) DeleteExpiredDispatches(_ context.Context, arg db.DeleteExpiredDispatchesParams) (int64, error) {
@@ -95,9 +107,9 @@ func TestAnArmedDialLeavesTheHeldRowsOwnDispatchStanding(t *testing.T) {
 	m := &sweepModel{
 		pending: []time.Time{held},
 		dispatches: []modelDispatch{
-			{id: 1, scheduled: held.Add(-time.Hour), created: held.Add(-time.Hour)},
-			{id: 2, scheduled: held.Add(time.Hour), created: held.Add(time.Hour)},
-			{id: 3, scheduled: held.Add(25 * time.Hour), created: held.Add(25 * time.Hour)},
+			{id: 1, scheduled: held.Add(-time.Hour), created: held.Add(-time.Hour), complete: true},
+			{id: 2, scheduled: held.Add(time.Hour), created: held.Add(time.Hour), complete: true},
+			{id: 3, scheduled: held.Add(25 * time.Hour), created: held.Add(25 * time.Hour), complete: true},
 		},
 	}
 
@@ -123,7 +135,7 @@ func TestAnAbandonedFanOutIsNotTheRowThePredicateReads(t *testing.T) {
 		pending: []time.Time{held},
 		dispatches: []modelDispatch{
 			{id: 1, scheduled: held.Add(time.Hour), created: held.Add(time.Hour), abandoned: true},
-			{id: 2, scheduled: held.Add(2 * time.Hour), created: held.Add(2 * time.Hour)},
+			{id: 2, scheduled: held.Add(2 * time.Hour), created: held.Add(2 * time.Hour), complete: true},
 		},
 	}
 
@@ -142,8 +154,8 @@ func TestAnAbandonedFanOutIsNotTheRowThePredicateReads(t *testing.T) {
 func TestWithNothingHeldTheDialRetiresEveryExpiredDispatch(t *testing.T) {
 	now := time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)
 	m := &sweepModel{dispatches: []modelDispatch{
-		{id: 1, scheduled: now.Add(-9 * 24 * time.Hour), created: now.Add(-9 * 24 * time.Hour)},
-		{id: 2, scheduled: now.Add(-8 * 24 * time.Hour), created: now.Add(-8 * 24 * time.Hour)},
+		{id: 1, scheduled: now.Add(-9 * 24 * time.Hour), created: now.Add(-9 * 24 * time.Hour), complete: true},
+		{id: 2, scheduled: now.Add(-8 * 24 * time.Hour), created: now.Add(-8 * 24 * time.Hour), complete: true},
 	}}
 
 	m.sweep(t, now)
@@ -160,13 +172,41 @@ func TestWithNothingHeldTheDialRetiresEveryExpiredDispatch(t *testing.T) {
 
 func TestALateFanOutSurvivesTheTickItMissed(t *testing.T) {
 	now := time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)
-	m := &sweepModel{dispatches: []modelDispatch{
-		{id: 1, scheduled: now.Add(-9 * 24 * time.Hour), created: now.Add(-time.Minute)},
-	}}
+	m := &sweepModel{
+		// The exempt read drops this instant, and the delete spares the row it bounds on.
+		pending: []time.Time{now.Add(-2 * time.Minute)},
+		dispatches: []modelDispatch{
+			{id: 1, scheduled: now.Add(-9 * 24 * time.Hour), created: now.Add(-time.Minute), complete: true},
+		},
+	}
 
 	m.sweep(t, now)
 
 	if !m.survives(1) {
 		t.Error("a fan-out created after the exempt read must survive the pass that read (#1853)")
+	}
+}
+
+// A tick retires an unfinished pick, and the bound then moves to the first finished row. Retiring
+// that row defers the release by a cadence, so the exempt set carries it too (ADR-1851 §3).
+
+func TestTheRowAnUnfinishedPickMovesToSurvivesAsWell(t *testing.T) {
+	now := time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)
+	held := now.Add(-10 * 24 * time.Hour)
+	m := &sweepModel{
+		pending: []time.Time{held},
+		dispatches: []modelDispatch{
+			{id: 1, scheduled: held.Add(time.Hour), created: held.Add(time.Hour)},
+			{id: 2, scheduled: held.Add(2 * time.Hour), created: held.Add(2 * time.Hour), complete: true},
+		},
+	}
+
+	m.sweep(t, now)
+
+	if !m.survives(1) {
+		t.Error("the bound's own pick must survive, unfinished or not (ADR-1806 §3)")
+	}
+	if !m.survives(2) {
+		t.Error("a tick may retire the pick, so the row the bound moves to must survive (ADR-1851 §3)")
 	}
 }
