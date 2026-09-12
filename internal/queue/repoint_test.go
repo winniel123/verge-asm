@@ -17,6 +17,7 @@ const (
 	rpOther = "api.example.com"
 	rpNew   = "203.0.113.9"
 	rpOld   = "198.51.100.1"
+	rpBatch = int64(61)
 )
 
 func resolved(addrs ...string) []byte {
@@ -48,12 +49,17 @@ func citer(name string) db.ListResolutionCitersForAddressesRow {
 
 func rePointFrom(t *testing.T, store *fakeMessageStore, changes []spanChange, in membershipInputs) []*message.Message {
 	t.Helper()
+	return rePointHeld(t, store, changes, in, true)
+}
+
+func rePointHeld(t *testing.T, store *fakeMessageStore, changes []spanChange, in membershipInputs, hold bool) []*message.Message {
+	t.Helper()
 	moves := rePoints(changes)
 	citers, err := readResolutionCiters(context.Background(), store, nil, moves)
 	if err != nil {
 		t.Fatalf("citers: %v", err)
 	}
-	return rePointMessages(produceT0, changes, moves, in, citers)
+	return rePointMessages(rpBatch, produceT0, changes, moves, in, citers, hold)
 }
 
 func byKind(msgs []*message.Message) map[string][]*message.Message {
@@ -72,6 +78,14 @@ func censusKinds(m *message.Message) map[string]int {
 	return out
 }
 
+func heldBasis(t *testing.T, m *message.Message) message.CensusBasis {
+	t.Helper()
+	if m.CensusPending == nil {
+		t.Fatalf("a membership root owes a held row (ADR-1806 §2), got %+v", m)
+	}
+	return m.CensusPending.Basis
+}
+
 func TestRePointToANewAddressFiresAddressAppeared(t *testing.T) {
 	store := &fakeMessageStore{}
 	msgs := rePointFrom(t, store, rePointChanges(rpNew, resolved(rpOld)), membershipInputs{})
@@ -83,11 +97,55 @@ func TestRePointToANewAddressFiresAddressAppeared(t *testing.T) {
 	if m.FiredAt != rpNew || m.Cause != message.CauseDrift || m.Class != message.ClassDrift {
 		t.Errorf("fires appeared, drift, at the Address; got %+v", m)
 	}
-	if k := censusKinds(m); k["service"] != 1 || k["endpoint"] != 1 {
-		t.Errorf("the census carries the Service and the Endpoint that opened beneath, got %v", k)
+	if m.Headline != rpNew+" entered the estate" {
+		t.Errorf("headline = %q, want the cause clause the release appends its count to", m.Headline)
 	}
-	if !strings.HasPrefix(m.Headline, rpNew+" entered the estate") {
-		t.Errorf("headline = %q", m.Headline)
+}
+
+func TestTheAddressRootHoldsItsCensusForTheAdmittingTier(t *testing.T) {
+	// A dns fold enters the address and opens nothing beneath it, so a census read here would
+	// tell the operator that nothing is there (ADR-1806 §2, #1774).
+	store := &fakeMessageStore{}
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}
+	msgs := rePointFrom(t, store, changes, membershipInputs{})
+	if len(msgs) != 1 {
+		t.Fatalf("the address is new ground, so it roots once; got %+v", msgs)
+	}
+	m := msgs[0]
+	if m.Census != nil {
+		t.Errorf("a held row carries no census until release, got %+v", m.Census)
+	}
+	if b := heldBasis(t, m); b.RootKind != subjectKindAddress || b.RootKey != rpNew {
+		t.Errorf("the basis names the Address the move cited, got %+v", b)
+	}
+	// An Address cites no address of its own, so the frozen value is the root key alone (§4).
+	if b := heldBasis(t, m); len(b.RootValue) != 0 {
+		t.Errorf("an Address root freezes no resolution value, got %s", b.RootValue)
+	}
+	if m.CensusPending.AfterBatch != rpBatch {
+		t.Errorf("the release reads what opened since the move's own batch, got %d", m.CensusPending.AfterBatch)
+	}
+}
+
+func TestWithNoReaperTheAddressRootWritesItsCensusAtTheCause(t *testing.T) {
+	// The drain test reads a job set nothing reaps, so one wedged row would hold every message
+	// forever. The census is written at the cause instead (ADR-1806 §6 row 1).
+	store := &fakeMessageStore{}
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}
+	msgs := rePointHeld(t, store, changes, membershipInputs{}, false)
+	if len(msgs) != 1 {
+		t.Fatalf("the root fires on either configuration, got %+v", msgs)
+	}
+	m := msgs[0]
+	if m.CensusPending != nil {
+		t.Errorf("this configuration holds nothing, got %+v", m.CensusPending)
+	}
+	// The dns fold that moved the Name opened nothing, which is the price §6 row 1 accepts.
+	if m.Census == nil || m.Census.Len() != 0 {
+		t.Errorf("the census is this fold's own, and this fold opened nothing; got %+v", m.Census)
+	}
+	if m.Headline != rpNew+" entered the estate · 0 timelines opened beneath it" {
+		t.Errorf("headline = %q, want the count the degraded arm can reach", m.Headline)
 	}
 }
 
@@ -110,8 +168,8 @@ func TestRePointTwoNamesOneAddressInOneFoldRootsOnce(t *testing.T) {
 	if len(got["address"]) != 1 || len(got["name"]) != 0 {
 		t.Fatalf("one new address is one root however many Names reached it, got %+v", msgs)
 	}
-	if k := censusKinds(got["address"][0]); k["endpoint"] != 2 || k["service"] != 1 {
-		t.Errorf("the one census carries both Endpoints and the one Service, got %v", k)
+	if b := heldBasis(t, got["address"][0]); b.RootKey != rpNew {
+		t.Errorf("the one root is the one address both Names reached, got %+v", b)
 	}
 }
 
@@ -205,25 +263,29 @@ func TestRePointReadsTheEstateOnceForEveryCandidate(t *testing.T) {
 	}
 }
 
-func TestProduceWritesAnAddressAppearedAndRoutesItAsDrift(t *testing.T) {
+func TestProduceHoldsAnAddressAppearedAndRoutesItNowhere(t *testing.T) {
 	store := &fakeMessageStore{prev: prevAt(produceT0.Add(-time.Hour))}
 	var log []routed
 	if err := produceMessages(context.Background(), store, 31, produceT0, rePointChanges(rpNew, resolved(rpOld)), nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false, true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
-	var found *db.InsertMessageParams
-	for i := range store.inserted {
-		if store.inserted[i].SubjectKind == "address" {
-			found = &store.inserted[i]
+	var found []db.InsertMessageParams
+	for _, p := range store.inserted {
+		if p.SubjectKind == "address" {
+			found = append(found, p)
 		}
 	}
-	if found == nil {
-		t.Fatalf("no Address appeared written, got %+v", store.inserted)
+	if len(found) != 1 {
+		t.Fatalf("one new address is one root, got %+v", store.inserted)
 	}
-	if found.FiredAt != rpNew || found.Class != string(message.ClassDrift) {
-		t.Errorf("fires drift at the Address, got %+v", found)
+	if found[0].FiredAt != rpNew || found[0].Class != string(message.ClassDrift) {
+		t.Errorf("fires drift at the Address, got %+v", found[0])
 	}
-	if len(log) == 0 || log[0].class != message.ClassDrift {
-		t.Errorf("routed as drift, got %+v", log)
+	if found[0].CensusPendingAfterBatch.Int64 != 31 || len(found[0].CensusBasis) == 0 {
+		t.Errorf("the row is held on its own batch and owes its basis, got %+v", found[0])
+	}
+	// The held row is this fold's only message, so an empty log is the whole claim (ADR-1806 §2).
+	if len(log) != 0 {
+		t.Errorf("the release poll alone routes a held row, got %+v", log)
 	}
 }

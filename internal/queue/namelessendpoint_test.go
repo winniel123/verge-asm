@@ -50,16 +50,24 @@ func TestMembershipCensusCountsTheNamelessEndpointBeneathACitedAddress(t *testin
 	}
 }
 
-func TestTheFoldStillRootsOnTheNamelessEndpointsAddress(t *testing.T) {
-	// The root is the Address, and its census is its own fold's. In production that Endpoint opens
-	// in a later hot fold, so the census is empty and #1774's other half stands open.
-	changes := append([]spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, namelessBeneath(rpNew, "443")...)
+func TestTheAddressRootDefersTheNamelessEndpointToTheRelease(t *testing.T) {
+	// The root is the Address, and that Endpoint opens in a later hot fold, so the census is
+	// computed at release from the basis the move froze (ADR-1806 §4, #1774).
+	changes := []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}
 	store := &fakeMessageStore{}
 	got := byKind(rePointFrom(t, store, changes, membershipInputs{}))["address"]
 	if len(got) != 1 {
 		t.Fatalf("an address no other Name cites is the root, got %+v", got)
 	}
-	if k := censusKinds(got[0]); k["endpoint"] != 1 || k["service"] != 1 {
-		t.Errorf("the root's census carries the nameless Endpoint and its Service, got %v", k)
+	var subjects []subjectRef
+	for _, c := range namelessBeneath(rpNew, "443") {
+		subjects = append(subjects, subjectRef{kind: c.SubjectKind, key: c.SubjectKey})
+	}
+	kinds := map[string]int{}
+	for _, e := range censusBeneathRoot(basisRoot(heldBasis(t, got[0])), subjects).Entries {
+		kinds[e.Kind]++
+	}
+	if kinds["endpoint"] != 1 || kinds["service"] != 1 {
+		t.Errorf("the release names the nameless Endpoint and its Service, got %v", kinds)
 	}
 }
