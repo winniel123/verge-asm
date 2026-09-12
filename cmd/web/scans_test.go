@@ -528,7 +528,7 @@ func (f *fakeStore) ListActiveDispatchProgress(_ context.Context) ([]db.ListActi
 		}
 		out = append(out, db.ListActiveDispatchProgressRow{
 			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
-			CreatedAt: r.CreatedAt, Status: r.Status,
+			CreatedAt: r.CreatedAt, Status: r.Status, FanoutComplete: r.FanoutComplete,
 			Total: r.Total, Ready: r.Ready, Running: r.Running,
 			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
 		})
@@ -547,7 +547,7 @@ func (f *fakeStore) ListConcludedDispatchProgress(_ context.Context, limit int32
 		}
 		out = append(out, db.ListConcludedDispatchProgressRow{
 			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
-			CreatedAt: r.CreatedAt, Status: r.Status,
+			CreatedAt: r.CreatedAt, Status: r.Status, FanoutComplete: r.FanoutComplete,
 			Total: r.Total, Ready: r.Ready, Running: r.Running,
 			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
 		})

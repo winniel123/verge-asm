@@ -5,6 +5,7 @@ SELECT
     s.kind     AS scan_kind,
     d.created_at,
     d.status   AS status,
+    d.fanout_complete,
     count(j.id)                                 AS total,
     count(*) FILTER (WHERE j.state = 'ready')   AS ready,
     count(*) FILTER (WHERE j.state = 'running') AS running,
@@ -14,7 +15,7 @@ SELECT
 FROM dispatch d
 JOIN scan s ON s.id = d.scan_id
 LEFT JOIN queue_job j ON j.dispatch_id = d.id
-GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status, d.fanout_complete
 ORDER BY d.id DESC
 LIMIT $1;
 
@@ -25,6 +26,7 @@ SELECT
     s.kind     AS scan_kind,
     d.created_at,
     d.status   AS status,
+    d.fanout_complete,
     count(j.id)                                 AS total,
     count(*) FILTER (WHERE j.state = 'ready')   AS ready,
     count(*) FILTER (WHERE j.state = 'running') AS running,
@@ -34,7 +36,7 @@ SELECT
 FROM dispatch d
 JOIN scan s ON s.id = d.scan_id
 LEFT JOIN queue_job j ON j.dispatch_id = d.id
-GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status, d.fanout_complete
 HAVING count(*) FILTER (WHERE j.state IN ('ready', 'running')) > 0
 ORDER BY d.id DESC;
 
@@ -45,6 +47,7 @@ SELECT
     s.kind     AS scan_kind,
     d.created_at,
     d.status   AS status,
+    d.fanout_complete,
     count(j.id)                                 AS total,
     count(*) FILTER (WHERE j.state = 'ready')   AS ready,
     count(*) FILTER (WHERE j.state = 'running') AS running,
@@ -54,7 +57,7 @@ SELECT
 FROM dispatch d
 JOIN scan s ON s.id = d.scan_id
 LEFT JOIN queue_job j ON j.dispatch_id = d.id
-GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status, d.fanout_complete
 HAVING count(*) FILTER (WHERE j.state IN ('ready', 'running')) = 0
 ORDER BY d.id DESC
 LIMIT $1;

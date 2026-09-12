@@ -32,6 +32,7 @@
 .rd-batch.skipped { background: var(--stale-bg); border-color: var(--stale-border); color: var(--stale-fg); }
 .rd-batch.skipped .dot { background: var(--stale-solid); }
 .rd-batch .scope { font-weight: 400; opacity: 0.8; }
+.rd-statement { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
 .rd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
 .rd-btn:hover { background: var(--surface-sunken); }
 .rd-step { display: flex; gap: 14px; font-family: var(--font-ui); }
@@ -102,6 +103,7 @@
 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
 <span class="rd-batch {{.Status}}"><span class="dot"></span>{{.Status}}{{if .Scope}}<span class="scope">· {{.Scope}}</span>{{end}}</span>
 <span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{.Meta}}</span>
+{{if .Statement}}<span class="rd-statement">{{.Statement}}</span>{{end}}
 </div>
 </div>
 <div style="margin-left:auto">
