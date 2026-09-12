@@ -45,7 +45,7 @@ func Membership(entry Entry, rootKind, rootKey, seedKey string, census Census, i
 		FiredAt:     firedAt,
 		Instant:     instant,
 		Census:      &c,
-		Headline:    membershipHeadline(entry, rootKey, census),
+		Headline:    membershipHeadline(entry, rootKind, rootKey, census),
 	}
 }
 
@@ -97,6 +97,6 @@ func ParseCensusBasis(b []byte) (CensusBasis, error) {
 
 // The cause clause is the fold's own bytes, so release appends and recomputes none (ADR-1806 §2).
 
-func ReleasedMembershipHeadline(causeClause string, census Census) string {
-	return causeClause + membershipCensusClause(census)
+func ReleasedMembershipHeadline(causeClause, rootKind string, census Census) string {
+	return causeClause + membershipCensusClause(rootKind, census)
 }

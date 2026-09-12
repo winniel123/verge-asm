@@ -97,8 +97,8 @@ func rulesOpenedClause(census Census) string {
 	return fmt.Sprintf(" · %s opened at fired: %s", plural(len(rules), "rule", "rules"), strings.Join(names, ", "))
 }
 
-func membershipHeadline(entry Entry, rootKey string, census Census) string {
-	return membershipCauseClause(entry, rootKey) + membershipCensusClause(census)
+func membershipHeadline(entry Entry, rootKind, rootKey string, census Census) string {
+	return membershipCauseClause(entry, rootKey) + membershipCensusClause(rootKind, census)
 }
 
 // The census clause is appended when the census is real, so the two render apart (ADR-1806 §2).
@@ -115,10 +115,20 @@ func membershipCauseClause(entry Entry, rootKey string) string {
 	return fmt.Sprintf("%s %s", rootKey, verb)
 }
 
-func membershipCensusClause(census Census) string {
-	return fmt.Sprintf(" · %s%s opened beneath it",
+func membershipCensusClause(rootKind string, census Census) string {
+	return fmt.Sprintf(" · %s%s opened %s",
 		factorsClause(kindCountFactors(census)),
-		plural(census.Len(), "timeline", "timelines"))
+		plural(census.Len(), "timeline", "timelines"),
+		censusGround(rootKind))
+}
+
+// One address carries many Names, so "beneath it" over-claims for every one of them (#1809).
+
+func censusGround(rootKind string) string {
+	if rootKind == "name" {
+		return "on an address it cites"
+	}
+	return "beneath it"
 }
 
 func narrowingHeadline(scope, removed string, subjects, timelines int) string {

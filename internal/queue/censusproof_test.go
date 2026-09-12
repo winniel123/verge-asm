@@ -319,7 +319,8 @@ func TestTheDeferredCensusNamesTheHotFoldsServiceAndNamelessEndpoint(t *testing.
 		t.Errorf("the hot fold opened those two subjects and no other, got %v", keys)
 	}
 
-	want := cause + " · 1 endpoint + 1 service · 2 timelines opened beneath it"
+	// A Name reaches both by citing the address, and neither carries its Name (ADR-0205, #1809).
+	want := cause + " · 1 endpoint + 1 service · 2 timelines opened on an address it cites"
 	if got := store.released[0].Headline; got != want {
 		t.Errorf("headline = %q, want the fold's cause clause plus the census clause %q", got, want)
 	}

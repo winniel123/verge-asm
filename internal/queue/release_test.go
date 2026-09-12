@@ -98,7 +98,7 @@ func TestReleaseNamesWhatOpenedBeneathTheRoot(t *testing.T) {
 		t.Errorf("a census admits a Service or an Endpoint only, got %+v", census.Entries)
 	}
 
-	want := message.ReleasedMembershipHeadline(heldCause, census)
+	want := message.ReleasedMembershipHeadline(heldCause, subjectKindName, census)
 	if got := store.released[0].Headline; got != want {
 		t.Errorf("headline = %q, want the cause clause plus the census clause %q", got, want)
 	}
@@ -167,7 +167,7 @@ func TestReleaseWritesAnEmptyCensusRatherThanHolding(t *testing.T) {
 	if census.Len() != 0 {
 		t.Errorf("census = %+v, want none", census.Entries)
 	}
-	if got := store.released[0].Headline; got != heldCause+" · 0 timelines opened beneath it" {
+	if got := store.released[0].Headline; got != heldCause+" · 0 timelines opened on an address it cites" {
 		t.Errorf("headline = %q, want the cause clause and a zero count", got)
 	}
 }

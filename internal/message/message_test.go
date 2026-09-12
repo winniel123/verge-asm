@@ -69,9 +69,9 @@ func TestNoValenceInRenderedCopy(t *testing.T) {
 	)
 	copies := []string{
 		flagshipHeadline("198.51.100.1:443/tcp", census),
-		membershipHeadline(EntryAppeared, "example.com", census),
-		membershipHeadline(EntryRevealed, "203.0.113.0/24", census),
-		membershipHeadline(EntryReturned, "example.com", census),
+		membershipHeadline(EntryAppeared, "name", "example.com", census),
+		membershipHeadline(EntryRevealed, "address", "203.0.113.0/24", census),
+		membershipHeadline(EntryReturned, "name", "example.com", census),
 		narrowingHeadline("198.51.100.0/24", "198.51.100.128/25", 128, 17920),
 		narrowingLoss("198.51.100.128/25"),
 	}
