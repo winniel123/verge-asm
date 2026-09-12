@@ -126,7 +126,7 @@ func TestTLS10AcceptedFiresFromPersistedAcceptance(t *testing.T) {
 func seedZone(t *testing.T, f *fakeStore, admin db.Account, domain, content string) {
 	t.Helper()
 	s, err := f.CreateNameSeed(t.Context(), db.CreateNameSeedParams{
-		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: admin.ID,
+		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -135,7 +135,7 @@ func seedZone(t *testing.T, f *fakeStore, admin db.Account, domain, content stri
 		SeedID:     s.ID,
 		SuppliedAt: pgtype.Timestamptz{Time: obsClock, Valid: true},
 		Content:    content,
-		UploadedBy: admin.ID,
+		UploadedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

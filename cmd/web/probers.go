@@ -35,7 +35,6 @@ type proberView struct {
 	HostKeyFingerprint string
 	Platform           string
 	Egress             string
-	By                 string
 	At                 string
 }
 
@@ -145,7 +144,6 @@ func toProberViews(rows []db.ListVantagesRow) []proberView {
 			HostKeyFingerprint: remoteexec.Fingerprint(row.HostKey.String),
 			Platform:           row.Platform.String,
 			Egress:             row.Egress.String,
-			By:                 row.CreatedByUsername,
 		}
 		if row.CreatedAt.Valid {
 			v.At = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")

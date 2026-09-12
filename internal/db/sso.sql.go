@@ -138,7 +138,7 @@ type GetSSOProviderRow struct {
 	ClientID  string             `json:"client_id"`
 	Enabled   bool               `json:"enabled"`
 	HasSecret bool               `json:"has_secret"`
-	CreatedBy int64              `json:"created_by"`
+	CreatedBy pgtype.Int8        `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
@@ -226,7 +226,7 @@ type InsertSSOProviderParams struct {
 	ClientID     string      `json:"client_id"`
 	ClientSecret pgtype.Text `json:"client_secret"`
 	Enabled      bool        `json:"enabled"`
-	CreatedBy    int64       `json:"created_by"`
+	CreatedBy    pgtype.Int8 `json:"created_by"`
 }
 
 // A render read takes presence, never the value; the token exchange is the exception (ADR-0112).
@@ -378,7 +378,7 @@ SELECT p.id, p.slug, p.name, p.issuer, p.client_id, p.enabled,
        p.created_by, p.created_at, p.updated_at,
        a.username AS created_by_username
 FROM sso_provider p
-JOIN account a ON a.id = p.created_by
+LEFT JOIN account a ON a.id = p.created_by
 ORDER BY p.id DESC
 `
 
@@ -390,10 +390,10 @@ type ListSSOProvidersRow struct {
 	ClientID          string             `json:"client_id"`
 	Enabled           bool               `json:"enabled"`
 	HasSecret         bool               `json:"has_secret"`
-	CreatedBy         int64              `json:"created_by"`
+	CreatedBy         pgtype.Int8        `json:"created_by"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
-	CreatedByUsername string             `json:"created_by_username"`
+	CreatedByUsername pgtype.Text        `json:"created_by_username"`
 }
 
 func (q *Queries) ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error) {

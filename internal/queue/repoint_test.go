@@ -146,7 +146,7 @@ func TestRePointIntoADeclaredScopeIsNoRoot(t *testing.T) {
 
 func TestRePointIntoAnExclusionIsNoRoot(t *testing.T) {
 	store := &fakeMessageStore{}
-	in := membershipInputs{exclusions: []db.ListExclusionsRow{addressExclusion("203.0.113.0/24")}}
+	in := membershipInputs{exclusions: []db.Exclusion{addressExclusion("203.0.113.0/24")}}
 	msgs := rePointFrom(t, store, []spanChange{rePointMove(rpName, resolved(rpOld), resolved(rpNew))}, in)
 	if len(msgs) != 0 {
 		t.Fatalf("an excluded address is refused ground and nothing opened beneath it, got %+v", msgs)

@@ -34,7 +34,7 @@ func (f *fakeStore) ListSSOProviders(context.Context) ([]db.ListSSOProvidersRow,
 			ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
 			Enabled: p.enabled, HasSecret: p.hasSecret,
 			CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
-			CreatedByUsername: f.usernameForID(p.createdBy),
+			CreatedByUsername: f.authorUsername(p.createdBy),
 		})
 	}
 	return out, nil

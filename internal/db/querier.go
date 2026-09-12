@@ -187,7 +187,7 @@ type Querier interface {
 	ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSOProvidersRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
 	ListEndpointCertificates(ctx context.Context, arg ListEndpointCertificatesParams) ([]ListEndpointCertificatesRow, error)
-	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
+	ListExclusions(ctx context.Context) ([]Exclusion, error)
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
 	// The pair's floor is the tightest bound in force across the pair, reached through each
 	// row's Batch as the retirement query reaches it. A row from a disabled Scan has no bound
@@ -233,6 +233,7 @@ type Querier interface {
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)
 	ListScans(ctx context.Context) ([]Scan, error)
 	ListSeedWithdrawalCandidates(ctx context.Context, cidrs []string) ([]ListSeedWithdrawalCandidatesRow, error)
+	// Only the subject-detail path renders the author, so this path drops its JOIN (audit-act §9.1).
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The span corpus is already derived, so an as_of bound would hide settled state (ADR-0105).
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)

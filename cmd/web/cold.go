@@ -90,7 +90,7 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 	if optIn {
 		var row db.OptInColdScopeRow
 		row, err = s.coldStore.OptInColdScope(r.Context(), db.OptInColdScopeParams{
-			SeedID: id, CreatedBy: acct.ID,
+			SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 		})
 		scope = coldScope(row.AddressCidr, row.NameDomain)
 	} else {

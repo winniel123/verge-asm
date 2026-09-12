@@ -486,7 +486,7 @@ func TestGraphPageStatesTheCap(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	if _, err := f.CreateNameSeed(context.Background(), db.CreateNameSeedParams{
-		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: admin.ID,
+		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

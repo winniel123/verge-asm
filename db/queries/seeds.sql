@@ -9,10 +9,10 @@ VALUES ('address', $1, $2)
 RETURNING id, kind, name_domain, address_cidr, created_by, created_at, custody_extension;
 
 -- name: ListSeeds :many
+-- Only the subject-detail path renders the author, so this path drops its JOIN (audit-act §9.1).
 SELECT s.id, s.kind, s.name_domain, s.address_cidr, s.custody_extension,
-       s.created_by, s.created_at, a.username AS created_by_username
+       s.created_by, s.created_at
 FROM seed s
-JOIN account a ON a.id = s.created_by
 ORDER BY s.created_at DESC, s.id DESC;
 
 -- name: WithdrawSeed :one

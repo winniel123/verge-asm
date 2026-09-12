@@ -10,10 +10,9 @@ RETURNING id, lookup_id, source_slug, record_kind, address_cidr, org_name, statu
 
 -- name: ListPendingProposals :many
 SELECT p.id, p.lookup_id, p.source_slug, p.record_kind, p.address_cidr, p.org_name,
-       l.query AS lookup_query, l.created_at AS lookup_at, a.username AS lookup_by
+       l.query AS lookup_query, l.created_at AS lookup_at
 FROM proposal p
 JOIN proposer_lookup l ON l.id = p.lookup_id
-JOIN account a ON a.id = l.created_by
 WHERE p.status = 'pending'
 ORDER BY l.created_at DESC, l.id DESC, p.id ASC;
 

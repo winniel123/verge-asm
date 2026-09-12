@@ -60,7 +60,7 @@ type InsertReportScheduleParams struct {
 	Format         string      `json:"format"`
 	DeliveryTarget string      `json:"delivery_target"`
 	ChannelID      pgtype.Int8 `json:"channel_id"`
-	CreatedBy      int64       `json:"created_by"`
+	CreatedBy      pgtype.Int8 `json:"created_by"`
 }
 
 func (q *Queries) InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error) {

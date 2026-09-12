@@ -24,7 +24,7 @@ type CreateChannelParams struct {
 	RouteCoverage bool        `json:"route_coverage"`
 	RouteClock    bool        `json:"route_clock"`
 	Enabled       bool        `json:"enabled"`
-	CreatedBy     int64       `json:"created_by"`
+	CreatedBy     pgtype.Int8 `json:"created_by"`
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error) {
@@ -66,7 +66,7 @@ type GetChannelRow struct {
 	RouteClock    bool               `json:"route_clock"`
 	Enabled       bool               `json:"enabled"`
 	HasSecret     bool               `json:"has_secret"`
-	CreatedBy     int64              `json:"created_by"`
+	CreatedBy     pgtype.Int8        `json:"created_by"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
@@ -95,7 +95,7 @@ SELECT c.id, c.url, c.route_drift, c.route_coverage, c.route_clock, c.enabled,
        c.created_by, c.created_at, c.updated_at,
        a.username AS created_by_username
 FROM channel c
-JOIN account a ON a.id = c.created_by
+LEFT JOIN account a ON a.id = c.created_by
 ORDER BY c.created_at DESC, c.id DESC
 `
 
@@ -107,10 +107,10 @@ type ListChannelsRow struct {
 	RouteClock        bool               `json:"route_clock"`
 	Enabled           bool               `json:"enabled"`
 	HasSecret         bool               `json:"has_secret"`
-	CreatedBy         int64              `json:"created_by"`
+	CreatedBy         pgtype.Int8        `json:"created_by"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
-	CreatedByUsername string             `json:"created_by_username"`
+	CreatedByUsername pgtype.Text        `json:"created_by_username"`
 }
 
 func (q *Queries) ListChannels(ctx context.Context) ([]ListChannelsRow, error) {
