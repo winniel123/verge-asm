@@ -661,3 +661,72 @@ func TestRunDetailLogTagsLinkToJob(t *testing.T) {
 		t.Errorf("a filtered log should not re-link its own job tag; body: %s", filtered)
 	}
 }
+
+func TestRunEmptyStatement(t *testing.T) {
+	cases := []struct {
+		name       string
+		outcome    string
+		fanoutDone bool
+		jobs       int
+		want       string
+	}{
+		{"finished fan-out with no job", "", true, 0, runEmptyStatementText},
+		{"finished fan-out with one job", "", true, 1, ""},
+		{"finished fan-out with many jobs", "", true, 400, ""},
+		{"fan-out still streaming", "", false, 0, ""},
+		{"fan-out streaming past its first chunk", "", false, 500, ""},
+		{"stopped with no job", "stopped", true, 0, ""},
+		{"terminated with no job", "terminated", true, 0, ""},
+		{"skipped with no job", "skipped", false, 0, ""},
+	}
+	for _, c := range cases {
+		if got := runEmptyStatement(c.outcome, c.fanoutDone, c.jobs); got != c.want {
+			t.Errorf("%s: runEmptyStatement(%q,%v,%d)=%q, want %q",
+				c.name, c.outcome, c.fanoutDone, c.jobs, got, c.want)
+		}
+	}
+}
+
+func TestRunDetailEmptyRunStatement(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 9, 11, 8, 0, 0, 0, time.UTC)
+	empty := progressRow(70, "hot", tick, 0, 0, 0, 0, 0, 0)
+	empty.Status = "fanned-out"
+	empty.FanoutComplete = true
+	measured := progressRow(71, "hot", tick, 1, 0, 0, 1, 0, 0)
+	measured.Status = "fanned-out"
+	measured.FanoutComplete = true
+	skipped := progressRow(72, "hot", tick, 0, 0, 0, 0, 0, 0)
+	skipped.Status = "skipped"
+	// The dispatch row commits before the first job chunk (ADR-1851 §2).
+	streaming := progressRow(73, "cold", tick, 0, 0, 0, 0, 0, 0)
+	streaming.Status = "fanned-out"
+	f.dispatchProgress = []db.ListDispatchProgressRow{empty, measured, skipped, streaming}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		71: {{ID: 930, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+			VantageName: pgtype.Text{String: "eu-west-1", Valid: true}}},
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	body := getBody(t, ac, base+"/run/70", http.StatusOK)
+	if !strings.Contains(body, runEmptyStatementText) {
+		t.Errorf("a run that enqueued no job should state it; body: %s", body)
+	}
+	if !strings.Contains(body, "rd-batch complete") {
+		t.Errorf("the empty run should keep its complete label; body: %s", body)
+	}
+
+	for _, id := range []string{"71", "72", "73"} {
+		other := getBody(t, ac, base+"/run/"+id, http.StatusOK)
+		if strings.Contains(other, runEmptyStatementText) {
+			t.Errorf("/run/%s should render no empty-run statement; body: %s", id, other)
+		}
+	}
+	if sk := getBody(t, ac, base+"/run/72", http.StatusOK); !strings.Contains(sk, "rd-batch skipped") {
+		t.Errorf("the skipped run should keep its skipped label; body: %s", sk)
+	}
+}
