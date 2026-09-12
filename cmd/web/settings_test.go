@@ -505,6 +505,10 @@ func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {
 	for i := range f.ssoProviders {
 		f.ssoProviders[i].createdBy = clearAuthor(f.ssoProviders[i].createdBy, id)
 	}
+	f.instanceConfig.ApiUpdatedBy = clearAuthor(f.instanceConfig.ApiUpdatedBy, id)
+	f.instanceConfig.UpdateCheckUpdatedBy = clearAuthor(f.instanceConfig.UpdateCheckUpdatedBy, id)
+	f.instanceConfig.SeedAddressCapUpdatedBy = clearAuthor(f.instanceConfig.SeedAddressCapUpdatedBy, id)
+	f.retention.UpdatedBy = clearAuthor(f.retention.UpdatedBy, id)
 	return nil
 }
 

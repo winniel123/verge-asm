@@ -885,7 +885,7 @@ func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
 	if err != nil {
 		return err
 	}
-	api := map[string]any{"Enabled": cfg.ApiEnabled, "By": ""}
+	api := map[string]any{"Enabled": cfg.ApiEnabled, "By": "", "At": ""}
 	if cfg.ApiEnabled {
 		if cfg.ApiUpdatedBy.Valid {
 			// A swallowed read renders a live author as removed (docs/spec/audit-act.md §9.2).

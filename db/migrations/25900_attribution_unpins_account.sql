@@ -105,8 +105,11 @@ ALTER TABLE instance_config
     ADD CONSTRAINT instance_config_seed_address_cap_updated_by_fkey FOREIGN KEY (seed_address_cap_updated_by) REFERENCES account (id) ON DELETE SET NULL;
 
 -- +goose Down
--- The Down cannot restore NOT NULL, because rows whose author was removed now hold
--- NULL and no value exists to put back.
+-- THE ROLLBACK IS ONE-WAY IN PRACTICE once an account has been removed. The Down cannot
+-- restore NOT NULL, because rows whose author was removed hold NULL and no value exists
+-- to put back. Worse, the pre-migration binary's generated code scans created_by into a
+-- plain int64, so ListSeeds, ListChannels and ListSSOProviders fail at rows.Scan and the
+-- Scope and Settings pages return 500. Restore from a backup taken before the Up instead.
 ALTER TABLE seed
     DROP CONSTRAINT seed_created_by_fkey,
     ADD CONSTRAINT seed_created_by_fkey FOREIGN KEY (created_by) REFERENCES account (id);

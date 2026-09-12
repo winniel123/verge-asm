@@ -114,23 +114,55 @@ func TestAuthorlessSeedRendersRemovedAccountAsProse(t *testing.T) {
 	}
 }
 
-func TestAuthorlessDialRendersRemovedAccountAsProse(t *testing.T) {
-	f := newFakeStore()
-	base, ac := adminSession(t, f)
-	alice := declaringAccount(t, f)
+// Each dial resolves its author by scanning ListAccounts in Go, and the column itself goes
+// NULL under ON DELETE SET NULL. The fake models both, so the branch under test is the one
+// production reaches.
 
-	alicesClient := login(t, base, "alice", "hunter2hunter2alice")
-	postForm(t, alicesClient, base+"/settings/api", url.Values{"enabled": {"true"}}).Body.Close()
+func TestAuthorlessDialsRenderRemovedAccountAsProse(t *testing.T) {
+	for _, d := range []struct {
+		name, tab, action, live, gone string
+		form                          url.Values
+	}{
+		{
+			name: "api", tab: "api", action: "/settings/api",
+			live: "Enabled by alice", gone: "Enabled by a removed account",
+			form: url.Values{"enabled": {"true"}},
+		},
+		{
+			name: "address cap", tab: "scope", action: "/settings/address-cap",
+			live: "by <span style=\"font-family:var(--font-mono)\">alice</span>",
+			gone: "by a removed account",
+			form: url.Values{"address_cap": {"2048"}},
+		},
+		{
+			name: "retention", tab: "delivery", action: "/settings/retention",
+			live: "by <span style=\"font-family:var(--font-mono)\">alice</span>",
+			gone: "by a removed account",
+			form: url.Values{"transcript_currency_days": {"14"}},
+		},
+	} {
+		t.Run(d.name, func(t *testing.T) {
+			f := newFakeStore()
+			base, ac := adminSession(t, f)
+			alice := seedAccount(t, f, "alice", roleAdmin, "hunter2hunter2alice")
 
-	page := getBody(t, ac, base+"/settings?tab=api", http.StatusOK)
-	if !strings.Contains(page, "Enabled by alice") {
-		t.Fatalf("the API dial does not name the live author; body: %s", page)
-	}
+			alicesClient := login(t, base, "alice", "hunter2hunter2alice")
+			postForm(t, alicesClient, base+d.action, d.form).Body.Close()
 
-	removeAccountNamed(t, ac, base, alice)
+			page := getBody(t, ac, base+"/settings?tab="+d.tab, http.StatusOK)
+			if !strings.Contains(page, d.live) {
+				t.Fatalf("the %s dial does not name the live author; body: %s", d.name, page)
+			}
 
-	page = getBody(t, ac, base+"/settings?tab=api", http.StatusOK)
-	if !strings.Contains(page, "Enabled by a removed account") {
-		t.Errorf("the API dial does not read %q; body: %s", "Enabled by a removed account", page)
+			removeAccountNamed(t, ac, base, alice)
+
+			page = getBody(t, ac, base+"/settings?tab="+d.tab, http.StatusOK)
+			if !strings.Contains(page, d.gone) {
+				t.Errorf("the %s dial does not read %q; body: %s", d.name, d.gone, page)
+			}
+			if strings.Contains(page, "<no value>") {
+				t.Errorf("the %s dial rendered a missing map key; body: %s", d.name, page)
+			}
+		})
 	}
 }
