@@ -148,6 +148,7 @@ type Exclusion struct {
 	AddressCidr *netip.Prefix      `json:"address_cidr"`
 	CreatedBy   pgtype.Int8        `json:"created_by"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ProposalID  pgtype.Int8        `json:"proposal_id"`
 }
 
 type Heartbeat struct {

@@ -219,7 +219,12 @@ nothing. `completeness` governs whether silence is evidence, and a proposal's si
 nothing. It records **which kind of record produced it** — an RIR delegation, or a compelled
 reassignment written by an upstream provider. Those carry different caveats, and the
 operator is the one judging them. Confirming one retains it as provenance on the resulting
-`Seed`. Declining one is a `Seed` exclusion. The system produces proposals **only in answer to an
+`Seed`. Declining one is a `Seed` exclusion, and **that exclusion records the proposal that wrote
+it** ([#1799](https://github.com/winniel123/verge-asm/issues/1799)). One address scope holds one
+exclusion row whoever declared it, so a decline over a range the operator already excluded writes
+nothing and reaches their row. An exclusion recording no proposal is a **standing declaration**:
+it is the operator's own act, undoing a decline may not lift it, and only the operator removes it.
+The system produces proposals **only in answer to an
 operator act** — expanding an address scope they declared, or searching the org-name box — never
 on a cadence. So they never accumulate into a queue to clear. Confirming is therefore
 **one scope at a time**, while declining may cover a whole lookup at once. The two acts fail

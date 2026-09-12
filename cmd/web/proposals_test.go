@@ -568,21 +568,29 @@ func (f *fakeStore) ListDeclinedProposalScopes(context.Context) ([]db.ListDeclin
 	return out, nil
 }
 
-func (f *fakeStore) DeleteUnclaimedAddressExclusion(_ context.Context, addressCidr netip.Prefix) (bool, error) {
+func (f *fakeStore) DeleteUnclaimedAddressExclusion(_ context.Context, addressCidr netip.Prefix) (db.DeleteUnclaimedAddressExclusionRow, error) {
+	var out db.DeleteUnclaimedAddressExclusionRow
+	row := -1
+	for i, e := range f.exclusions {
+		if e.Kind == "address" && e.AddressCidr != nil && e.AddressCidr.String() == addressCidr.String() {
+			row = i
+			break
+		}
+	}
+	if row < 0 {
+		return out, nil
+	}
+	out.DeclaredByHand = !f.exclusions[row].ProposalID.Valid
 	for _, p := range f.proposals {
 		if p.Status == "declined" && p.AddressCidr.String() == addressCidr.String() {
-			return true, nil
+			out.StillClaimed = true
+			break
 		}
 	}
-	kept := f.exclusions[:0]
-	for _, e := range f.exclusions {
-		if e.Kind == "address" && e.AddressCidr != nil && e.AddressCidr.String() == addressCidr.String() {
-			continue
-		}
-		kept = append(kept, e)
+	if !out.DeclaredByHand && !out.StillClaimed {
+		f.exclusions = append(f.exclusions[:row], f.exclusions[row+1:]...)
 	}
-	f.exclusions = kept
-	return false, nil
+	return out, nil
 }
 
 func declineOne(t *testing.T, c *http.Client, base string, id int64) {
@@ -1046,5 +1054,116 @@ func TestLookupSkipsCandidateInsideAnExclusionButOffersAWiderOne(t *testing.T) {
 	}
 	if got := f.proposals[0].AddressCidr.String(); got != "203.0.113.0/24" {
 		t.Errorf("filed %s; want the candidate wider than its exclusion, 203.0.113.0/24", got)
+	}
+}
+
+const undoDeclineDeclaredFlash = "203.0.113.0/24 returned to pending. " +
+	"Its exclusion stays — no decline recorded that row. Lift it on the exclusions screen. Confirming it is a fresh act."
+
+func declareAddressExclusion(t *testing.T, c *http.Client, base, cidr string) {
+	t.Helper()
+	postForm(t, c, base+"/exclusions", url.Values{"kind": {"address"}, "value": {cidr}}).Body.Close()
+}
+
+func TestUndoDeclineKeepsAHandDeclaredExclusionOfTheSameScope(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+	declined := f.proposals[0]
+
+	// excludeCandidates drops a candidate its own exclusion covers, so the declaration
+	// lands after the lookup (#1799).
+	declareAddressExclusion(t, ac, base, "203.0.113.0/24")
+	if got := addressExclusions(f); len(got) != 1 || got[0] != "203.0.113.0/24" {
+		t.Fatalf("exclusions after the declaration = %v, want [203.0.113.0/24]", got)
+	}
+	declaredID := f.exclusions[0].ID
+
+	declineOne(t, ac, base, declined.ID)
+	if got := addressExclusions(f); len(got) != 1 {
+		t.Fatalf("exclusions after the decline = %v, want the one declared row", got)
+	}
+
+	resp := postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(declined.ID)}})
+	if got := toastText(t, resp); got != undoDeclineDeclaredFlash {
+		t.Errorf("undo flash = %q, want %q", got, undoDeclineDeclaredFlash)
+	}
+	if got := addressExclusions(f); len(got) != 1 || got[0] != "203.0.113.0/24" {
+		t.Fatalf("the undo deleted the operator's own declaration: exclusions = %v", got)
+	}
+	if f.exclusions[0].ID != declaredID {
+		t.Errorf("the declaration row was replaced: id = %d, want %d", f.exclusions[0].ID, declaredID)
+	}
+	if got := statusOf(f, declined.ID); got != "pending" {
+		t.Errorf("proposal %d status=%q, want pending", declined.ID, got)
+	}
+}
+
+const undoDeclineDeclaredAndClaimedFlash = "203.0.113.0/24 returned to pending. " +
+	"Its exclusion stays — no decline recorded that row, and another declined proposal " +
+	"still claims that scope. Confirming it is a fresh act."
+
+func TestUndoDeclineWithdrawsTheLiftAdviceWhileASiblingDeclineStands(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: oneScopeFromTwoSources()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+	first, second := f.proposals[0].ID, f.proposals[1].ID
+
+	declareAddressExclusion(t, ac, base, "203.0.113.0/24")
+	declineOne(t, ac, base, first)
+	declineOne(t, ac, base, second)
+	if got := addressExclusions(f); len(got) != 1 {
+		t.Fatalf("exclusions after both declines = %v, want the one declared row", got)
+	}
+
+	resp := postForm(t, ac, base+"/proposals/undo-decline", url.Values{"id": {itoa(first)}})
+	got := toastText(t, resp)
+	if got != undoDeclineDeclaredAndClaimedFlash {
+		t.Errorf("undo flash = %q, want %q", got, undoDeclineDeclaredAndClaimedFlash)
+	}
+	// Lifting the row takes the only undo control the sibling has (scope.tmpl, #1799).
+	if strings.Contains(got, "Lift it on the exclusions screen") {
+		t.Error("the flash advised a lift that would strand the sibling decline with no undo control")
+	}
+	if got := statusOf(f, second); got != "declined" {
+		t.Errorf("sibling proposal %d status=%q, want declined", second, got)
+	}
+}
+
+func TestDeclineRecordsTheProposalOnTheExclusionItWrites(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Example").Body.Close()
+
+	declined := f.proposals[0]
+	declineOne(t, ac, base, declined.ID)
+	if len(f.exclusions) != 1 {
+		t.Fatalf("exclusions after the decline = %d, want 1", len(f.exclusions))
+	}
+	// Only this column tells a later undo the row is a decline's and not a declaration (#1799).
+	got := f.exclusions[0].ProposalID
+	if !got.Valid || got.Int64 != declined.ID {
+		t.Errorf("the decline's exclusion carries proposal_id %+v, want %d", got, declined.ID)
+	}
+}
+
+func TestHandDeclaredExclusionCarriesNoProposal(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: twoCandidates()})
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declareAddressExclusion(t, ac, base, "198.51.100.0/24")
+	if len(f.exclusions) != 1 {
+		t.Fatalf("exclusions after the declaration = %d, want 1", len(f.exclusions))
+	}
+	if got := f.exclusions[0].ProposalID; got.Valid {
+		t.Errorf("a hand-declared exclusion carries proposal_id %+v, want NULL", got)
 	}
 }

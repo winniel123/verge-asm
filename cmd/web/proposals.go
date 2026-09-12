@@ -21,12 +21,12 @@ import (
 
 type proposalsStore interface {
 	ConfirmProposal(ctx context.Context, arg db.ConfirmProposalParams) (int64, error)
-	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
+	CreateDeclinedProposalExclusion(ctx context.Context, arg db.CreateDeclinedProposalExclusionParams) (db.Exclusion, error)
 	CreateProposal(ctx context.Context, arg db.CreateProposalParams) (db.Proposal, error)
 	CreateProposerLookup(ctx context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error)
 	DeclineProposal(ctx context.Context, id int64) (int64, error)
-	DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (bool, error)
+	DeleteUnclaimedAddressExclusion(ctx context.Context, addressCidr netip.Prefix) (db.DeleteUnclaimedAddressExclusionRow, error)
 	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListDeclinedProposalScopes(ctx context.Context) ([]db.ListDeclinedProposalScopesRow, error)
@@ -338,8 +338,10 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 		cidr := p.AddressCidr
 		// A decline records an exclusion, so the same range is not proposed again (ADR-0012).
-		if _, err := s.proposalsStore.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
+		if _, err := s.proposalsStore.CreateDeclinedProposalExclusion(r.Context(), db.CreateDeclinedProposalExclusionParams{
 			AddressCidr: &cidr, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+			// A unique violation keeps the standing row, so its provenance stays (#1799).
+			ProposalID: pgtype.Int8{Int64: id, Valid: true},
 		}); err != nil && !isUniqueViolation(err) {
 			s.serverError(w, "record declined proposal as exclusion", err)
 			return
@@ -384,25 +386,34 @@ func (s *server) undoDecline(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	// A declined scope was never declared, so lifting it admits no ground (ADR-0133, #1721).
-	claimed, err := s.proposalsStore.DeleteUnclaimedAddressExclusion(r.Context(), scope)
+	kept, err := s.proposalsStore.DeleteUnclaimedAddressExclusion(r.Context(), scope)
 	if err != nil {
 		s.serverError(w, "lift declined proposal exclusion", err)
 		return
 	}
-	// Both paths returned the scope to pending, so both recorded the lift (ADR-0022).
+	// Every path returned the scope to pending, so every path recorded the lift (ADR-0022).
 	s.recorder().Record(r.Context(), actingAccount(acct), act.ProposalDeclineUndone{
 		ExclusionRef: act.ExclusionRef{Kind: "address", Scope: scope.String()},
 	})
-	if claimed {
-		// Both paths return the scope to pending, so both carry the rider (ADR-0022).
-		s.toastRedirectBack(w, r, "/scope", "neutral",
-			scope.String()+" returned to pending.",
-			"Its exclusion stays — another declined proposal still claims that scope. Confirming it is a fresh act.")
-		return
-	}
-	// The second sentence is the rider: undo may not become a confirm shortcut (ADR-0022).
+	// The rider ends every path: undo may not become a confirm shortcut (ADR-0022).
 	s.toastRedirectBack(w, r, "/scope", "neutral",
-		scope.String()+" returned to pending.", "Confirming it is a fresh act.")
+		scope.String()+" returned to pending.", exclusionKeptRider(kept))
+}
+
+func exclusionKeptRider(kept db.DeleteUnclaimedAddressExclusionRow) string {
+	const fresh = "Confirming it is a fresh act."
+	switch {
+	case kept.DeclaredByHand && kept.StillClaimed:
+		// The undo control lives on the exclusion row, so a lift strands the sibling (#1799).
+		return "Its exclusion stays — no decline recorded that row, and another declined " +
+			"proposal still claims that scope. " + fresh
+	case kept.DeclaredByHand:
+		return "Its exclusion stays — no decline recorded that row. " +
+			"Lift it on the exclusions screen. " + fresh
+	case kept.StillClaimed:
+		return "Its exclusion stays — another declined proposal still claims that scope. " + fresh
+	}
+	return fresh
 }
 
 func (s *server) enabledProposers(r *http.Request) (map[string]bool, error) {
