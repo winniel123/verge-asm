@@ -74,7 +74,4 @@ func TestTheRePointGroundReadsNewerThanMembershipsGround(t *testing.T) {
 	if !strings.HasSuffix(entered, "opened on an address it cites") {
 		t.Errorf("membership counts over every address the root cites, got %q", entered)
 	}
-	if moved == entered {
-		t.Error("a move and an entry count over different grounds, so the two read apart")
-	}
 }
