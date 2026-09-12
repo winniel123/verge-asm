@@ -138,9 +138,8 @@ Barred entries are non-toggleable for everyone, admins included.
 **What a toggle records.** The current on/off value is stored per-install (one row per
 source, the value overwritten in place). Like every declared term it keeps **no
 per-toggle history and carries no actor or timestamp of its own**. It is **dated by the
-`Batch` whose recorded source set it moved**, which is where the audit trail lives. So
-"when did this source change" is answered by the batch record, not by a log line on the
-toggle.
+`Batch` whose recorded source set it moved**. The toggle itself is an admin act, so it
+lands in the audit log under **Settings → Audit** with its own actor and instant.
 
 ---
 

@@ -453,7 +453,7 @@ function TeamSection({ onToast }) {
       </Dialog>
       <ConfirmDialog open={!!action && action.type === "remove"} title="Remove member"
         message={action && action.type === "remove" ? action.m.name + " loses access to this deployment." : ""}
-        detail="Their annotations and audit history stay attributed. Personal API tokens are revoked."
+        detail="Their acts stay in the audit log under the name they held. Personal API tokens are revoked."
         confirmLabel="Remove member" onConfirm={removeMember} onClose={closeAction} />
       <Dialog open={inviteOpen} title="Invite a member" description="They get a join link; the role applies on acceptance." onClose={() => setInviteOpen(false)}
         footer={<React.Fragment>

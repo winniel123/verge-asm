@@ -138,20 +138,16 @@ open the remove dialog. **Type the member's exact username** to confirm
 (`POST /settings/accounts/remove`). It is reached only through that dialog, never a menu
 click.
 
-Three refusals protect the estate:
+These refusals protect the estate:
 
 - **You cannot remove yourself.**
 - **You cannot remove the last admin** (same invariant as demotion).
-- **An account that authored attributed acts cannot be removed.** Seeds, channels and
-  other declared rows carry a `created_by` reference to their author. Rather than orphan
-  that work, the database refuses the delete and tells you to *reassign or keep the
-  account*. In practice a brand-new account that has declared nothing can be removed
-  cleanly. A working admin's account usually cannot. Demote it to viewer instead to
-  retire it while preserving its authorship.
 
-There is no audit log of these acts — this build keeps no queryable admin-action feed
-(the **Audit** tab is honestly empty). The operational records that *do* exist are the
-delivery record and the message store.
+This instance records every auditable act as an `Act`. **Settings → Audit** renders that
+record: one row per act, with **When**, **Actor**, **Action** and **Subject**. An account
+actor renders as `@username`. A grant — a setup token, a password-reset link, an invite —
+renders as a tag instead. The period filter carries presets and a custom ISO 8601 range.
+The record is append-only, so a removed member's acts stay under the username they held.
 
 ---
 

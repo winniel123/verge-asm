@@ -61,7 +61,7 @@ export function SourcesSection({ onToast }) {
   const barred = entries.filter((e) => e.tier === "barred");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <Callout tone="neutral" title="Toggling is admin-only">Every account can read this catalogue. Enabling or disabling is an admin act — it keeps no log line of its own; it is dated by the batch whose recorded source set it moved.</Callout>
+      <Callout tone="neutral" title="Toggling is admin-only">Every account can read this catalogue. Enabling or disabling is an admin act — the toggle lands in the audit log; the estate change it causes is dated by the batch whose recorded source set it moved.</Callout>
       <Card microLabel="unencumbered" title="Shipped on">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {shippedOn.map((e) => <SourceRow key={e.id} e={e} onToggle={onToggle} />)}

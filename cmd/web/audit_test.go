@@ -283,6 +283,53 @@ func TestAuditLedeIsTheWholeReplacement(t *testing.T) {
 	}
 }
 
+func removeDialogPanel(t *testing.T, page string) string {
+	t.Helper()
+	start := strings.Index(page, `aria-label="Remove member"`)
+	if start < 0 {
+		t.Fatal("the team tab renders no remove dialog")
+	}
+	panel := page[start:]
+	end := strings.Index(panel, `action="/settings/accounts/remove"`)
+	if end < 0 {
+		t.Fatal("the remove dialog carries no remove form")
+	}
+	return panel[:end]
+}
+
+// The copy outside the audit tab, once the corpus renders (§8 · E.1, §8 · E.4).
+
+func TestShippedCopyOutsideTheTabNamesTheRecord(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	member := seedAccount(t, f, "member", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	dialog := getBody(t, ac, base+"/settings?tab=team&remove="+itoa(member.ID), http.StatusOK)
+	if !strings.Contains(dialog, "Their acts stay in the audit log under the name they held. Personal API tokens are revoked.") {
+		t.Error("the remove dialog is not §8 · E.1 verbatim")
+	}
+	// The annotation clause is dropped, not repaired: ADR-0073 §1 bars a "declared by" there.
+	if strings.Contains(dialog, "annotations and audit history stay attributed") {
+		t.Error("the remove dialog still claims annotations carry attribution")
+	}
+	// #1792's secondary detail is struck, not written, because §9 removes the refusal.
+	panel := removeDialogPanel(t, dialog)
+	if n := strings.Count(panel, `class="detail"`); n != 1 {
+		t.Errorf("the remove dialog carries %d detail paragraphs, want 1", n)
+	}
+
+	sources := settingsTabBody(t, ac, base, "sources")
+	if !strings.Contains(sources, "the toggle lands in the audit log; the estate change it causes is dated by the batch whose recorded source set it moved.") {
+		t.Error("the Sources callout is not §8 · E.4 verbatim")
+	}
+	// A bare strike would leave an admin act dated by a batch, the same error one clause later.
+	if strings.Contains(sources, "it keeps no log line of its own") {
+		t.Error("the Sources callout still refuses the toggle a log line")
+	}
+}
+
 // audit is one of the thirteen identifiers that refuse a viewer outright (spec §6.1).
 
 func TestAuditTabRefusesAViewer(t *testing.T) {

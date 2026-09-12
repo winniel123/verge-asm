@@ -753,7 +753,7 @@
 <div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Remove member">
 <h2>Remove member</h2>
 <p class="desc">{{.Username}} loses access to this deployment.</p>
-<p class="detail">Their annotations and audit history stay attributed. Personal API tokens are revoked.</p>
+<p class="detail">Their acts stay in the audit log under the name they held. Personal API tokens are revoked.</p>
 {{if $.RemoveError}}<div class="st-error" style="margin-top:12px">{{$.RemoveError}}</div>{{end}}
 <form method="post" action="/settings/accounts/remove" style="margin:16px 0 0;display:flex;flex-direction:column;gap:6px">
 <input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}
@@ -939,7 +939,7 @@
 {{if .SourceError}}<div class="st-error">{{.SourceError}}</div>{{end}}
 <div class="st-callout">
 <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
-<span class="ct"><b>Toggling is admin-only</b><span>Every account can read this catalogue. Enabling or disabling is an admin act — it keeps no log line of its own; it is dated by the batch whose recorded source set it moved.</span></span>
+<span class="ct"><b>Toggling is admin-only</b><span>Every account can read this catalogue. Enabling or disabling is an admin act — the toggle lands in the audit log; the estate change it causes is dated by the batch whose recorded source set it moved.</span></span>
 </div>
 <section class="st-card">
 <div class="st-cardhead">

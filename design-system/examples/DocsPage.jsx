@@ -110,7 +110,7 @@ const GUIDES = [
     { t: "h2", x: "Invites" },
     { t: "p", x: "An invite mints a join link shown once \u2014 Verge keeps only a hash. Hand it over out of band; the role applies on acceptance and the link expires in 7 days." },
     { t: "h2", x: "Removing a member" },
-    { t: "p", x: "Removal is a typed-name confirm. Their annotations and audit history stay attributed; personal tokens are revoked. To sign a member out everywhere without removing them, revoke their sessions under Settings \u2192 Sessions." },
+    { t: "p", x: "Removal is a typed-name confirm. Their acts stay in the audit log under the name they held. Personal API tokens are revoked. To sign a member out everywhere without removing them, revoke their sessions under Settings \u2192 Sessions." },
   ] },
   { slug: "authentication", title: "Authentication", section: "Access", desc: "Passwords, TOTP enrollment, personal tokens, and sessions.", blocks: [
     { t: "h2", x: "Two-factor enrollment" },
