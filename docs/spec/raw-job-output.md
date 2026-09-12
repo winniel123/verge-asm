@@ -382,9 +382,13 @@ excluded tables and states the reason.
 Controls: admin-only read (`requireAdmin`), encrypted at rest (instance key on service volume, key
 never in DB or backup), excluded from backups. Accepted gaps carried forward:
 
-1. **Reads are unaudited.** `[thin]` Any admin can read any `Transcript` with no trail. The audit
-   facility is a repo-wide stub (`fillAuditSection` returns nil, `cmd/web/settings.go`) and
-   stays deferred. **No audit-of-reads in v1.**
+1. **Every read but one is unaudited.** A `Transcript` disclosure at
+   `GET /run/{id}/raw` or `GET /runs/{id}/raw` writes an `Act`, so *which of us three opened that
+   transcript* is answerable ([#1786](https://github.com/winniel123/verge-asm/issues/1786), SPEC
+   [`audit-act.md`](./audit-act.md) §1.4). That is the **one** auditable read in v1, and what selects
+   it is this corpus being the first Postgres holds a secret for — not an absent facility. Every
+   other read stays unaudited on that named ground. `[thin]` The recorder is not atomic with the
+   disclosure, so a disclosure with no `Act` is the named failure mode.
 2. **Pre-gate stdout is stored verbatim** and is attacker-influenceable. Safe rendering
    (escape-on-render) is §6.4.
 3. **The instance key sits on the same volume as the data.** `[thin]` A full host compromise yields
@@ -509,7 +513,8 @@ The build followed it, one ticket per step, from [#862](https://github.com/winni
 ## 10. Where this is thin, stated rather than smoothed
 
 These were the open edges the map did **not** close. They were noted, not decided. The build closed
-two of them. Three stand, and each line below says which.
+two of them, and [#1786](https://github.com/winniel123/verge-asm/issues/1786) closed a third later.
+Two stand, and each line below says which.
 
 1. **Closed.** The ADR-0053-reversal vehicle (§7) was unchosen. #842 left it as "a new ADR, or an
    extension of ADR-0126". [#871](https://github.com/winniel123/verge-asm/issues/871) extended ADR-0126, whose title now
@@ -519,8 +524,9 @@ two of them. Three stand, and each line below says which.
    zone terminal path. Out of scope for this effort, and still out of scope.
 3. **Closed** ([#869](https://github.com/winniel123/verge-asm/issues/869)). `RestateZone` surfaces its skips. It returns
    `(records, skipped)`, and `completeZone` carries them into `wire.ZoneTranscript`.
-4. **Open, accepted.** Reads are unaudited (§5.4). The audit facility is still a repo-wide stub
-   (`fillAuditSection` returns nil, `cmd/web/settings.go`), and v1 ships no audit-of-reads.
+4. **Closed** ([#1786](https://github.com/winniel123/verge-asm/issues/1786)). A `Transcript`
+   disclosure writes an `Act` (§5.4). It is the one auditable read v1 ships, and every other read
+   stays unaudited on a named ground rather than on an absent facility.
 5. **Open, accepted.** The instance key still sits on the same volume as the data (§5.4).
    Encryption does not defend against host compromise. This is the load-bearing security gap,
    accepted for v1.

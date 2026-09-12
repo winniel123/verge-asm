@@ -535,9 +535,8 @@ records an actor, this one included. The act of annotating is recorded as an `Ac
 group, which no derivation may read. A date names nobody. An undated standing mute
 on an object with no expiry cannot be reviewed at all. It is the **only** Declared term carrying an
 instant, and what earns it is not the prose. It cannot be edited, so the instant acquires no
-successor. And **its whole effect is a message that does not fire**, so no `Message`, `Batch`, `Gap`
-or `revealed` anywhere in the model dates the act. Every other Declared act is dated by what it
-moved, and carries no instant of its own.
+successor. And **its whole effect is a message that does not fire**, so nothing the act moved dates
+it. Every other Declared act is dated by what it moved, and carries no instant of its own.
 See [ADR-0016](./docs/adr/0016-an-annotation-moves-a-message-never-a-number.md),
 [ADR-0073](./docs/adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md),
 [ADR-0092](./docs/adr/0092-an-operator-dials-movement-is-not-a-cause-and-an-annotation-never-lapses.md)
