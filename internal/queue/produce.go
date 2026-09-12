@@ -199,7 +199,7 @@ func buildMessages(ctx context.Context, store messageStore, batchID int64, obser
 	msgs = append(msgs, scopeRevealMessages(observedAt, openings, citers)...)
 
 	// An Address root and ADR-0026 §2's residue are one partition, so they cannot disagree (#1730).
-	msgs = append(msgs, rePointMessages(observedAt, changes, rePointed, in, citers)...)
+	msgs = append(msgs, rePointMessages(batchID, observedAt, changes, rePointed, in, citers, holdCensus)...)
 
 	// The gate opening under a standing declaration is coverage, as revealed is (ADR-0013 #55).
 	gains, err := extensionGainMessages(ctx, store, observedAt, changes, in)
@@ -365,19 +365,22 @@ func membershipMessages(batchID int64, observedAt time.Time, changes []spanChang
 		if entry == message.EntryRevealed {
 			seedKey = coveringSeedKey(root.SubjectKind, root.SubjectKey, in)
 		}
-		var m *message.Message
-		if holdCensus {
-			// The subjects this counts open in a later hot fold, so the row is held (ADR-1806 §2).
-			m = message.HeldMembership(entry, root.SubjectKind, root.SubjectKey, seedKey, pendingCensus(batchID, root), observedAt)
-		} else {
-			// No reaper means no drain test, so a hold would never release (ADR-1806 §6 row 1).
-			m = message.Membership(entry, root.SubjectKind, root.SubjectKey, seedKey, membershipCensus(changes, root), observedAt)
-		}
-		if m != nil {
+		if m := membershipRoot(batchID, observedAt, entry, root, seedKey, changes, holdCensus); m != nil {
 			msgs = append(msgs, m)
 		}
 	}
 	return msgs
+}
+
+// One hold rule serves both root producers, so a Name and an Address cannot differ (ADR-1806 §4).
+
+func membershipRoot(batchID int64, observedAt time.Time, entry message.Entry, root spanChange, seedKey string, changes []spanChange, holdCensus bool) *message.Message {
+	if holdCensus {
+		// The subjects this counts open in a later hot fold, so the row is held (ADR-1806 §2).
+		return message.HeldMembership(entry, root.SubjectKind, root.SubjectKey, seedKey, pendingCensus(batchID, root), observedAt)
+	}
+	// No reaper means no drain test, so a hold would never release (ADR-1806 §6 row 1).
+	return message.Membership(entry, root.SubjectKind, root.SubjectKey, seedKey, membershipCensus(changes, root), observedAt)
 }
 
 func pendingCensus(batchID int64, root spanChange) message.CensusPending {
