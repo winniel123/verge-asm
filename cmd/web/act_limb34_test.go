@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/proposer"
 	"github.com/winniel123/verge-asm/internal/queue"
 )
 
@@ -136,6 +138,10 @@ func TestStoppingAConcludedDispatchRecordsNothing(t *testing.T) {
 	wantNoActs(t, f, "a concluded dispatch")
 }
 
+func oneAttempt(cands []proposer.Candidate) *fakeProposer {
+	return &fakeProposer{candidates: cands, attempts: []proposer.Attempt{{SourceSlug: "crtsh"}}}
+}
+
 func lookupAs(t *testing.T, f *fakeStore, p proposerRunner, path, org string) {
 	t.Helper()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -147,7 +153,7 @@ func lookupAs(t *testing.T, f *fakeStore, p proposerRunner, path, org string) {
 
 func TestARegistryLookupRecordsTheTerm(t *testing.T) {
 	f := newFakeStore()
-	lookupAs(t, f, &fakeProposer{candidates: twoCandidates()}, "/proposals", "Example Holdings Ltd")
+	lookupAs(t, f, oneAttempt(twoCandidates()), "/proposals", "Example Holdings Ltd")
 
 	wantOneAct(t, f, "proposal.queried", "Example Holdings Ltd")
 }
@@ -156,14 +162,14 @@ func TestARegistryLookupRecordsTheTerm(t *testing.T) {
 
 func TestALookupThatMatchesNothingStillRecords(t *testing.T) {
 	f := newFakeStore()
-	lookupAs(t, f, &fakeProposer{}, "/proposals/search", "no-such-org-anywhere")
+	lookupAs(t, f, oneAttempt(nil), "/proposals/search", "no-such-org-anywhere")
 
 	wantOneAct(t, f, "proposal.queried", "no-such-org-anywhere")
 }
 
 func TestALookupWithNoTermRecordsNothing(t *testing.T) {
 	f := newFakeStore()
-	p := &fakeProposer{candidates: twoCandidates()}
+	p := oneAttempt(twoCandidates())
 	lookupAs(t, f, p, "/proposals", "   ")
 
 	wantNoActs(t, f, "an empty lookup")
@@ -185,7 +191,16 @@ func TestAChannelTestRecordsItsEndpoint(t *testing.T) {
 	wantOneAct(t, f, "channel.tested", "hooks.example.com/services/T0/B0")
 }
 
-// The request left the instance, so a refusing endpoint does not unsend it (spec §1.3).
+// An all-disabled registry set attempts nobody, so no limb-3 act happened (spec §1.3).
+
+func TestALookupWithEveryRegistryDisabledRecordsNothing(t *testing.T) {
+	f := newFakeStore()
+	lookupAs(t, f, &fakeProposer{}, "/proposals", "Example Holdings Ltd")
+
+	wantNoActs(t, f, "a lookup with no enabled registry")
+}
+
+// The endpoint answered, so the instance reached a third party (spec §1.3).
 
 func TestARefusedChannelTestStillRecords(t *testing.T) {
 	f := newFakeStore()
@@ -198,6 +213,35 @@ func TestARefusedChannelTestStillRecords(t *testing.T) {
 	postForm(t, ac, base+"/settings/channels/test", url.Values{"id": {"5"}}).Body.Close()
 
 	wantOneAct(t, f, "channel.tested", "hooks.example.com/services/T0/B0")
+}
+
+// The SSRF guard refuses before a request is built, so nothing left the instance (spec §7.6).
+
+func TestAGuardRefusedTestRecordsNothing(t *testing.T) {
+	refused := errors.New("delivery: target host is not globally reachable")
+	for _, tc := range []struct{ name, path, id string }{
+		{"channel", "/settings/channels/test", "5"},
+		{"integration", "/settings/integrations/test", "pagerduty"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			skipIfIntegrationsHidden(t)
+			f := newFakeStore()
+			seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+			addFakeChannel(f, 5, "https://10.0.0.5/hook", "sign-me")
+			f.integrationStates["pagerduty"] = db.IntegrationState{
+				Slug: "pagerduty", State: integrationInstalled,
+				ChannelID: pgtype.Int8{Int64: 5, Valid: true},
+			}
+			sender := &fakeChannelSender{err: refused}
+			base := startWithChannelSender(t, f, sender)
+			ac := login(t, base, "admin", "hunter2hunter2")
+			f.acts = nil
+
+			postForm(t, ac, base+tc.path, url.Values{"id": {tc.id}}).Body.Close()
+
+			wantNoActs(t, f, "a guard-refused send")
+		})
+	}
 }
 
 // Nothing was sent, so no limb-3 act happened (spec §7.6 ruling 2).
@@ -288,6 +332,23 @@ func TestARawOutputDisclosureNamesTheInstanceWhenNoVantageRanIt(t *testing.T) {
 	getBody(t, ac, base+"/run/412/raw?job=9182", http.StatusOK)
 
 	wantOneAct(t, f, "transcript.disclosed", "job 9182 · run 412 · local")
+}
+
+// GetTranscriptByJob keys on the job alone, so the run in the path would otherwise be a claim
+// the admin chose, standing in the corpus after the transcript expires (spec §4.3).
+
+func TestADisclosureRefusesAJobOfAnotherRun(t *testing.T) {
+	f := disclosureStore(t, "edge-01")
+	seedTranscript(t, f, 9182, "connect-outcome", []byte("open=true"), []byte("probe: start"),
+		[]byte(`{"kind":"connect-outcome"}`), `{"kind":"exited","code":0}`, `{}`,
+		time.Second, time.Date(2026, 8, 29, 14, 22, 5, 0, time.UTC))
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	f.acts = nil
+
+	getBody(t, ac, base+"/run/1/raw?job=9182", http.StatusNotFound)
+
+	wantNoActs(t, f, "a job of another run")
 }
 
 // rawOutputPage renders a complete page on ErrNoRows and discloses nothing (spec §1.4).
