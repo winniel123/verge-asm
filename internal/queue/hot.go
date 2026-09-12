@@ -35,7 +35,7 @@ func (d *Dispatcher) fanOutHot(ctx context.Context, scanID, dispatchID int64) (i
 	addrs := candidateAddrs(resolved, estate.AddressScopes, estate.AddressExcluded)
 	// The gate runs inside BuildHotJobs, so no refused target is ever enqueued (ADR-0019).
 	jobs := scan.BuildHotJobs(scanID, estate, addrs, vantages.scanVantages(), core)
-	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.HotJob) error {
+	return streamEnqueue(ctx, d, dispatchID, jobs, func(ctx context.Context, qtx *db.Queries, j scan.HotJob) error {
 		return enqueueHotJob(ctx, qtx, scanID, dispatchID, j)
 	})
 }

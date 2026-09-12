@@ -29,7 +29,7 @@ func (d *Dispatcher) fanOutEdgeFanout(ctx context.Context, scanID, dispatchID in
 	// An install with neither limb dispatches an empty scope rather than an error (#988).
 	jobs := scan.BuildEdgeFanoutJobs(scanID, estate.EdgeFanoutPopulation())
 	// A declared address scope is uncapped, so jobs stream instead of materializing (ADR-0127).
-	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.EdgeFanoutJob) error {
+	return streamEnqueue(ctx, d, dispatchID, jobs, func(ctx context.Context, qtx *db.Queries, j scan.EdgeFanoutJob) error {
 		return enqueueEdgeFanoutJob(ctx, qtx, scanID, dispatchID, j)
 	})
 }

@@ -29,7 +29,7 @@ func (d *Dispatcher) fanOutCold(ctx context.Context, scanID, dispatchID int64) (
 	// MayProbe refuses these anyway, but a walk of an excluded range burns the whole cadence.
 	addrs := candidateAddrs(resolved, scope.AddressPrefixes, estate.AddressExcluded)
 	jobs := scan.BuildColdJobs(scanID, estate, addrs, vantages.scanVantages(), scope)
-	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.ColdJob) error {
+	return streamEnqueue(ctx, d, dispatchID, jobs, func(ctx context.Context, qtx *db.Queries, j scan.ColdJob) error {
 		return enqueueColdJob(ctx, qtx, scanID, dispatchID, j)
 	})
 }

@@ -7525,6 +7525,11 @@
           "kind": "sibling",
           "from": 165,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1851,
+          "clause": "1"
         }
       ],
       "sections": [
@@ -11147,6 +11152,11 @@
           "kind": "amends",
           "adr": 1806,
           "clause": "6"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 164,
+          "clause": "1"
         }
       ],
       "incoming": [],
@@ -11160,8 +11170,8 @@
       ],
       "markers": [],
       "decision": {
-        "words": 140,
-        "text": "A `dispatch` carries a boolean recording that its fan-out finished. Both release predicates read\nthat column for the first half of ADR-1806 §3's bound, in place of the job-existence proxy #1816\nused.\n\nA streamed tier commits its dispatch row before its jobs, so a job count cannot separate a fan-out\nstill streaming from one that finished with nothing to enqueue. A `hot` tier that is enabled and\nadmits nothing is the second case, and the proxy held its membership message forever.\n\nA crashed fan-out marks itself never. The next claimed tick of the same `Scan` retires it, so the\nbound moves to a live dispatch. A tick is a cadence, so no clock enters the predicate.\n\nRejected: an age bound on a jobless dispatch, which ADR-1806 §7 and\n[#27](https://github.com/winniel123/verge-asm/issues/27) both refuse.\n\nReversal costs a migration and every census already computed."
+        "words": 141,
+        "text": "A `dispatch` carries a boolean recording that its fan-out finished. Both release predicates read\nthat column for the first half of ADR-1806 §3's bound, in place of the job-existence proxy #1816\nused.\n\nA streamed tier commits its dispatch row before its jobs, so a job count cannot separate a fan-out\nstill streaming from one that finished with nothing to enqueue. A `hot` tier that is enabled and\nadmits nothing is the second case, and the proxy held its membership message forever.\n\nA crashed fan-out marks itself never. The next claimed `hot` tick marks it abandoned in a second\ncolumn, and the bound skips such a row. A tick is a cadence, so no clock enters the predicate.\n\nRejected: an age bound on a jobless dispatch, which ADR-1806 §7 and\n[#27](https://github.com/winniel123/verge-asm/issues/27) both refuse.\n\nReversal costs a migration and every census already computed."
       }
     }
   ]

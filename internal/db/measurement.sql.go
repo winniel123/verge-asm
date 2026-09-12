@@ -472,6 +472,8 @@ WHERE b.repoint_settled_at IS NULL
               WHERE s.kind = 'hot'
                 -- A skipped tick enqueues no job and reads as drained (ADR-1806 §2).
                 AND d.status = 'fanned-out'
+                -- Abandonment is recorded, so this skips no dispatch still streaming (ADR-1851 §3).
+                AND d.fanout_abandoned = false
                 AND d.created_at >= b.created_at
               ORDER BY d.created_at, d.id
               LIMIT 1

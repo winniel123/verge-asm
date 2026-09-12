@@ -356,10 +356,6 @@ func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTim
 	if err != nil {
 		return enqueued, SkipNone, err
 	}
-	// The last chunk has committed, so the release bound may now read this dispatch (ADR-1851 §2).
-	if err := d.q.MarkFanOutComplete(ctx, dispatchID); err != nil {
-		return enqueued, SkipNone, fmt.Errorf("queue: mark fan-out complete: %w", err)
-	}
 	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
 	return enqueued, SkipNone, nil
 }
@@ -393,13 +389,15 @@ func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime
 		d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, recorded skipped", s.Kind, scheduledTime.Format(time.RFC3339))
 		return 0, gated, tx.Commit(ctx)
 	}
-	retired, rerr := qtx.TerminateAbandonedDispatches(ctx, db.TerminateAbandonedDispatchesParams{ScanID: s.ID, ClaimedID: id})
-	if rerr != nil {
-		return 0, SkipNone, fmt.Errorf("queue: terminate abandoned dispatches: %w", rerr)
-	}
-	if retired > 0 {
-		// A terminated row leaves the release bound (ADR-1851 §3).
-		d.log.Printf("dispatcher: %s retired %d dispatch(es) whose fan-out never finished", s.Kind, retired)
+	// cold and edge-fanout overlap by design and pass no gate (ADR-1851 §3).
+	if s.Kind == scan.HotKind {
+		retired, rerr := qtx.AbandonUnfinishedDispatches(ctx, db.AbandonUnfinishedDispatchesParams{ScanID: s.ID, ClaimedID: id})
+		if rerr != nil {
+			return 0, SkipNone, fmt.Errorf("queue: abandon unfinished dispatches: %w", rerr)
+		}
+		if retired > 0 {
+			d.log.Printf("dispatcher: %s abandoned %d dispatch(es) whose fan-out never finished", s.Kind, retired)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, SkipNone, err
@@ -407,11 +405,12 @@ func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime
 	return id, SkipNone, nil
 }
 
-func streamEnqueue[J any](ctx context.Context, d *Dispatcher, jobs iter.Seq[J], enqueue func(context.Context, *db.Queries, J) error) (int, error) {
+func streamEnqueue[J any](ctx context.Context, d *Dispatcher, dispatchID int64, jobs iter.Seq[J], enqueue func(context.Context, *db.Queries, J) error) (int, error) {
 	total := 0
 	chunk := make([]J, 0, chunkCommitSize)
-	flush := func() error {
-		if len(chunk) == 0 {
+	flush := func(final bool) error {
+		// The final pass carries the mark, so it commits with no job (ADR-1851 §2).
+		if len(chunk) == 0 && !final {
 			return nil
 		}
 		tx, err := d.pool.Begin(ctx)
@@ -425,8 +424,16 @@ func streamEnqueue[J any](ctx context.Context, d *Dispatcher, jobs iter.Seq[J], 
 				return err
 			}
 		}
-		if _, err := tx.Exec(ctx, "SELECT pg_notify($1, '')", notifyChannel); err != nil {
-			return err
+		if final {
+			// Marking after this commit leaves a gap read as abandoned (ADR-1851 §3).
+			if err := qtx.MarkFanOutComplete(ctx, dispatchID); err != nil {
+				return err
+			}
+		}
+		if len(chunk) > 0 {
+			if _, err := tx.Exec(ctx, "SELECT pg_notify($1, '')", notifyChannel); err != nil {
+				return err
+			}
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return err
@@ -438,12 +445,12 @@ func streamEnqueue[J any](ctx context.Context, d *Dispatcher, jobs iter.Seq[J], 
 	for j := range jobs {
 		chunk = append(chunk, j)
 		if len(chunk) >= chunkCommitSize {
-			if err := flush(); err != nil {
+			if err := flush(false); err != nil {
 				return total, err
 			}
 		}
 	}
-	if err := flush(); err != nil {
+	if err := flush(true); err != nil {
 		return total, err
 	}
 	return total, nil

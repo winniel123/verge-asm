@@ -12,6 +12,8 @@ import (
 )
 
 type Querier interface {
+	// A crashed fan-out marks itself never, so the next claimed tick retires it (ADR-1851 §3).
+	AbandonUnfinishedDispatches(ctx context.Context, arg AbandonUnfinishedDispatchesParams) (int64, error)
 	AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error
 	// The period's empty state and the corpus's are different facts, and E.3 claims the second.
 	AnyActRecorded(ctx context.Context) (bool, error)
@@ -350,8 +352,6 @@ type Querier interface {
 	SpendNameSeedWithdrawals(ctx context.Context, arg SpendNameSeedWithdrawalsParams) error
 	SpendSeedWithdrawals(ctx context.Context, arg SpendSeedWithdrawalsParams) error
 	SyncColdScanEnabled(ctx context.Context) error
-	// A crashed fan-out marks itself never, so the next claimed tick retires it (ADR-1851 §3).
-	TerminateAbandonedDispatches(ctx context.Context, arg TerminateAbandonedDispatchesParams) (int64, error)
 	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	TouchSession(ctx context.Context, arg TouchSessionParams) error
 	TrimCTReliabilitySamples(ctx context.Context, arg TrimCTReliabilitySamplesParams) error

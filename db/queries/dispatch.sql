@@ -94,13 +94,14 @@ ORDER BY j.id;
 UPDATE dispatch SET fanout_complete = true
 WHERE id = $1;
 
--- name: TerminateAbandonedDispatches :execrows
+-- name: AbandonUnfinishedDispatches :execrows
 -- A crashed fan-out marks itself never, so the next claimed tick retires it (ADR-1851 §3).
-UPDATE dispatch SET status = 'terminated'
+UPDATE dispatch SET fanout_abandoned = true
 WHERE dispatch.scan_id = $1
   AND dispatch.id <> sqlc.arg(claimed_id)
   AND dispatch.status = 'fanned-out'
   AND dispatch.fanout_complete = false
+  AND dispatch.fanout_abandoned = false
   -- A fan-out still streaming holds ready jobs, so this leaves a live one alone (ADR-1851 §3).
   AND NOT EXISTS (
       SELECT 1 FROM queue_job j
