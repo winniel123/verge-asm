@@ -23,16 +23,22 @@ import (
 // A unit test over a hand-built slice models a batch one job never assembles (ADR-1806 §1, #1774).
 
 const (
-	proofName = "example.net"
-	proofAddr = "203.0.113.31"
-	proofPort = 443
+	proofName     = "example.net"
+	proofAddr     = "203.0.113.31"
+	proofMoveAddr = "203.0.113.32"
+	proofPort     = 443
 
-	proofDNSBatch  = 7100
-	proofHotBatch  = 7200
-	proofLateBatch = 7300
+	proofDNSBatch     = 7100
+	proofHotBatch     = 7200
+	proofLateBatch    = 7300
+	proofMoveBatch    = 7400
+	proofMoveHotBatch = 7500
 )
 
-var proofTarget = netip.AddrPortFrom(netip.MustParseAddr(proofAddr), proofPort)
+var (
+	proofTarget     = netip.AddrPortFrom(netip.MustParseAddr(proofAddr), proofPort)
+	proofMoveTarget = netip.AddrPortFrom(netip.MustParseAddr(proofMoveAddr), proofPort)
+)
 
 func proofSvc() string        { return connectoutcome.ServiceKey(proofTarget, "tcp") }
 func proofNamelessEP() string { return connectoutcome.EndpointKey("", proofTarget, "tcp") }
@@ -154,21 +160,21 @@ func (r *releaseRecorder) ReleaseHeldMessage(_ context.Context, arg db.ReleaseHe
 
 // A Kind is one job's whole population, so each of these is a separate dispatch (ADR-1806 §1).
 
-func proofDNSObservations() []wire.Observation {
+func proofDNSObservations(addr string) []wire.Observation {
 	return resolutionwalk.Emit("proof", "vantage", resolutionwalk.Result{
 		Name: proofName,
 		Resolution: resolutionwalk.Resolution{
 			Outcome:   resolutionwalk.OutcomeResolved,
-			Addresses: []string{proofAddr},
+			Addresses: []string{addr},
 		},
 	})
 }
 
-func proofHotObservations() []wire.Observation {
+func proofHotObservations(target netip.AddrPort) []wire.Observation {
 	return []wire.Observation{
-		connectoutcome.EmitService("proof", "vantage", proofTarget, connectoutcome.Reached, connectoutcome.ConnOpen),
+		connectoutcome.EmitService("proof", "vantage", target, connectoutcome.Reached, connectoutcome.ConnOpen),
 		// A hot dispatch enumerates addresses, so the Endpoint it opens has no Name leg (#1774).
-		connectoutcome.EmitCertificate("proof", "vantage", proofTarget, "", connectoutcome.HandshakeResult{
+		connectoutcome.EmitCertificate("proof", "vantage", target, "", connectoutcome.HandshakeResult{
 			Outcome: connectoutcome.TLSPresented,
 			Chain:   []string{"sha256:0"},
 		}),
@@ -225,11 +231,11 @@ func foldProofBatch(t *testing.T, spans *foldSpanStore, msgs *fakeMessageStore, 
 	}
 }
 
-func heldMembershipRow(t *testing.T, msgs *fakeMessageStore, batchID int64) db.ListReleasableHeldMessagesRow {
+func heldMembershipRow(t *testing.T, msgs *fakeMessageStore, rootKind string, batchID int64) db.ListReleasableHeldMessagesRow {
 	t.Helper()
 	for i := range msgs.inserted {
 		m := msgs.inserted[i]
-		if m.SubjectKind != subjectKindName || m.CensusPendingAfterBatch.Int64 != batchID {
+		if m.SubjectKind != rootKind || m.CensusPendingAfterBatch.Int64 != batchID {
 			continue
 		}
 		if len(m.Census) != 0 {
@@ -243,7 +249,7 @@ func heldMembershipRow(t *testing.T, msgs *fakeMessageStore, batchID int64) db.L
 			CensusBasis:             m.CensusBasis,
 		}
 	}
-	t.Fatalf("the dns fold wrote no held membership row, got %+v", msgs.inserted)
+	t.Fatalf("the dns fold wrote no held %s membership row, got %+v", rootKind, msgs.inserted)
 	return db.ListReleasableHeldMessagesRow{}
 }
 
@@ -286,12 +292,12 @@ func TestTheDeferredCensusNamesTheHotFoldsServiceAndNamelessEndpoint(t *testing.
 	msgs := &fakeMessageStore{prev: prevAt(produceT0.Add(-time.Hour))}
 
 	// The dns fold enters the Name and cites the address. Its own census would be empty.
-	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations())
-	held := heldMembershipRow(t, msgs, proofDNSBatch)
+	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations(proofAddr))
+	held := heldMembershipRow(t, msgs, subjectKindName, proofDNSBatch)
 	cause := held.Headline
 
 	// The hot fold opens the Service and the nameless Endpoint on the cited address.
-	foldProofBatch(t, spans, msgs, proofHotBatch, produceT0.Add(time.Minute), proofHotObservations())
+	foldProofBatch(t, spans, msgs, proofHotBatch, produceT0.Add(time.Minute), proofHotObservations(proofTarget))
 
 	var log []routed
 	took, err := releaseHeldMessage(context.Background(), store, held, fakeEnqueuer(1, &log))
@@ -322,6 +328,56 @@ func TestTheDeferredCensusNamesTheHotFoldsServiceAndNamelessEndpoint(t *testing.
 	}
 }
 
+// An Address root is read from a move, so its census is a later hot fold's too (ADR-1806 §4).
+
+func TestTheDeferredCensusOfAnAddressRootNamesWhatOpenedBeneathTheMove(t *testing.T) {
+	spans := &foldSpanStore{}
+	store := &releaseRecorder{foldSpanStore: spans}
+	msgs := &fakeMessageStore{prev: prevAt(produceT0.Add(-time.Hour))}
+
+	// The Name enters on the first address, and the hot tier opens beneath it.
+	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations(proofAddr))
+	foldProofBatch(t, spans, msgs, proofHotBatch, produceT0.Add(time.Minute), proofHotObservations(proofTarget))
+
+	// The Name re-points. The second address is new to the estate, so the move roots on it.
+	foldProofBatch(t, spans, msgs, proofMoveBatch, produceT0.Add(2*time.Minute), proofDNSObservations(proofMoveAddr))
+	held := heldMembershipRow(t, msgs, subjectKindAddress, proofMoveBatch)
+	if held.Headline != proofMoveAddr+" entered the estate" {
+		t.Errorf("the held row carries the fold's cause clause alone, got %q", held.Headline)
+	}
+	cause := held.Headline
+
+	// The next hot fold opens the Service and the nameless Endpoint on the new address.
+	foldProofBatch(t, spans, msgs, proofMoveHotBatch, produceT0.Add(3*time.Minute), proofHotObservations(proofMoveTarget))
+
+	var log []routed
+	took, err := releaseHeldMessage(context.Background(), store, held, fakeEnqueuer(1, &log))
+	if err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if !took {
+		t.Fatal("the hot dispatch drained, so the pass releases the row")
+	}
+
+	moveSvc := connectoutcome.ServiceKey(proofMoveTarget, "tcp")
+	moveEP := connectoutcome.EndpointKey("", proofMoveTarget, "tcp")
+	keys := censusKeys(t, store.released[0].Census)
+	if keys[moveSvc] != subjectKindService || keys[moveEP] != subjectKindEndpoint {
+		t.Errorf("the census names what the hot tier opened on the new address, got %v", keys)
+	}
+	if len(keys) != 2 {
+		t.Errorf("only the new address is beneath this root, got %v", keys)
+	}
+
+	want := cause + " · 1 endpoint + 1 service · 2 timelines opened beneath it"
+	if got := store.released[0].Headline; got != want {
+		t.Errorf("headline = %q, want the fold's cause clause plus the census clause %q", got, want)
+	}
+	if len(log) != 1 || log[0].messageID != held.ID {
+		t.Errorf("a released row enqueues its one delivery, got %+v", log)
+	}
+}
+
 // The price ADR-0031 accepted and ADR-1806 §5 keeps, pinned so no later session widens it.
 
 func TestTheDeferredCensusNamesNoHTTPIdentityAndNoTLSAcceptanceSubject(t *testing.T) {
@@ -329,9 +385,9 @@ func TestTheDeferredCensusNamesNoHTTPIdentityAndNoTLSAcceptanceSubject(t *testin
 	store := &releaseRecorder{foldSpanStore: spans}
 	msgs := &fakeMessageStore{prev: prevAt(produceT0.Add(-time.Hour))}
 
-	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations())
-	held := heldMembershipRow(t, msgs, proofDNSBatch)
-	foldProofBatch(t, spans, msgs, proofHotBatch, produceT0.Add(time.Minute), proofHotObservations())
+	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations(proofAddr))
+	held := heldMembershipRow(t, msgs, subjectKindName, proofDNSBatch)
+	foldProofBatch(t, spans, msgs, proofHotBatch, produceT0.Add(time.Minute), proofHotObservations(proofTarget))
 
 	// The row leaves on the drained hot dispatch, so neither Scan has folded yet (§3).
 	before := foldedFacets(spans)

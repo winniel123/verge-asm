@@ -53,14 +53,14 @@ func citersAtInstant(rows []db.ListResolutionCitersForAddressesAtRow) []citerRef
 
 // ADR-0026 §2's residue is read in the poll, so the fold writes the Address root alone (#1818).
 
-func rePointMessages(observedAt time.Time, changes []spanChange, moves []rePoint, in membershipInputs, citers []db.ListResolutionCitersForAddressesRow) []*message.Message {
+func rePointMessages(batchID int64, observedAt time.Time, changes []spanChange, moves []rePoint, in membershipInputs, citers []db.ListResolutionCitersForAddressesRow, holdCensus bool) []*message.Message {
 	if len(moves) == 0 {
 		return nil
 	}
 	var msgs []*message.Message
 	for _, addr := range addressesNewToEstate(moves, in, foldCiters(citers)) {
 		root := spanChange{SubjectKind: subjectKindAddress, SubjectKey: addr}
-		if m := message.Membership(message.EntryAppeared, subjectKindAddress, addr, "", membershipCensus(changes, root), observedAt); m != nil {
+		if m := membershipRoot(batchID, observedAt, message.EntryAppeared, root, "", changes, holdCensus); m != nil {
 			msgs = append(msgs, m)
 		}
 	}
