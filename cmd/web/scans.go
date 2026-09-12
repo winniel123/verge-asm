@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/queue"
 )
@@ -271,6 +272,10 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 		s.serverError(w, "stop scan: record status", err)
 		return
 	}
+	// row is read before the status moves, so the rendered value outlives its dispatch (spec §4.2).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ScanStopped{
+		DispatchRef: act.DispatchRef{DispatchID: id, Profile: row.ScanKind},
+	})
 	desc := fmt.Sprintf("%d pending %s cancelled · %d running finishing",
 		n, plural(int(n), "job", "jobs"), row.Running)
 	s.toastBackToSection(w, r, acct.ID, "scans", "neutral", "Dispatch stopped", desc)
@@ -287,7 +292,8 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "terminate scan: list dispatches", err)
 		return
 	}
-	if _, found := findDispatchRow(activeProgressRows(rows), id); !found {
+	row, found := findDispatchRow(activeProgressRows(rows), id)
+	if !found {
 		s.concludedFlash(w, r, acct, "It has already finished or been ended — nothing was terminated.")
 		return
 	}
@@ -303,6 +309,10 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "terminate scan: record status", err)
 		return
 	}
+	// row is read before the status moves, so the rendered value outlives its dispatch (spec §4.2).
+	s.recorder().Record(r.Context(), actingAccount(acct), act.ScanTerminated{
+		DispatchRef: act.DispatchRef{DispatchID: id, Profile: row.ScanKind},
+	})
 	desc := fmt.Sprintf("%d %s stopped", n, plural(int(n), "job", "jobs"))
 	s.toastBackToSection(w, r, acct.ID, "scans", "neutral", "Scan terminated", desc)
 }
