@@ -1,6 +1,7 @@
 // Package retention retires expired rows on three disciplines: Dispatch and transcript
 // by wall clock, since no derivation reads either; observation by what may still read
-// it (v1 spec §4.6, ADR-0041, ADR-0094, ADR-0126).
+// it (v1 spec §4.6, ADR-0041, ADR-0094, ADR-0126). A pending release reads one hot
+// Dispatch, so the Dispatch sweep exempts the row it reads (ADR-1806 §3, #1853).
 package retention
 
 import (
@@ -35,7 +36,8 @@ func Cutoff(now time.Time, multiple, slowestCadenceSeconds int64) (cutoff time.T
 type Store interface {
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
-	DeleteExpiredDispatches(ctx context.Context, before pgtype.Timestamptz) (int64, error)
+	ListDispatchesAPendingReleaseMayRead(ctx context.Context, before pgtype.Timestamptz) ([]int64, error)
+	DeleteExpiredDispatches(ctx context.Context, arg db.DeleteExpiredDispatchesParams) (int64, error)
 }
 
 type Retirer struct {
@@ -64,7 +66,16 @@ func (r *Retirer) Sweep(ctx context.Context) (int64, error) {
 	if !bounded {
 		return 0, nil
 	}
-	return r.store.DeleteExpiredDispatches(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
+	before := pgtype.Timestamptz{Time: cutoff, Valid: true}
+	// ADR-1806 §3 hung a product-visible message on this corpus, so its read set survives (#1853).
+	stillRead, err := r.store.ListDispatchesAPendingReleaseMayRead(ctx, before)
+	if err != nil {
+		return 0, err
+	}
+	return r.store.DeleteExpiredDispatches(ctx, db.DeleteExpiredDispatchesParams{
+		Before:    before,
+		StillRead: stillRead,
+	})
 }
 
 func (r *Retirer) Run(ctx context.Context, interval time.Duration) error {
