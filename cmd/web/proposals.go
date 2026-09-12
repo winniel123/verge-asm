@@ -364,7 +364,7 @@ type undoControlView struct {
 
 func (v undoControlView) Label() string {
 	parts := make([]string, 0, 4)
-	// Two holders in one response tie on every other axis, and org_name needs no migration (#1873).
+	// Two ARIN holders in one response tie on every other axis (#1873).
 	if v.Org != "" {
 		parts = append(parts, v.Org)
 	}
@@ -394,7 +394,8 @@ func toUndoControls(rows []db.ListDeclinedProposalScopesRow) map[string][]undoCo
 			Record: recordLabel(row.RecordKind),
 		}
 		if row.LookupAt.Valid {
-			v.ISO = row.LookupAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+			// A double-submitted lookup files its repeat in the same minute (ADR-1875 §4).
+			v.ISO = row.LookupAt.Time.UTC().Format("2006-01-02 15:04:05 UTC")
 		}
 		// A proposal scope has no unique constraint, so one range holds two declines (#1777).
 		scope := row.AddressCidr.String()

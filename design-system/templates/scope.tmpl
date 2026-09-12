@@ -130,6 +130,7 @@ button.sc-trow { cursor: pointer; }
 .sc-xrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 7px 10px; background: var(--surface-sunken); border-radius: 10px; }
 .sc-xrow .xv { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
 .sc-xrow .und { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.sc-xrow .sc-btn-ghost { flex-wrap: wrap; height: auto; min-height: 30px; padding-top: 5px; padding-bottom: 5px; white-space: normal; }
 .sc-xrow form { margin: 0 0 0 auto; }
 .sc-xrow form + form { margin-left: 0; }
 .sc-xrow .rm { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; }
@@ -408,7 +409,7 @@ button.sc-trow { cursor: pointer; }
 <div class="sc-xrow">
 <span class="sc-tag">{{.Kind}}</span>
 <span class="xv">{{if eq .Kind "subtree"}}*.{{end}}{{.Value}}</span>
-{{if $.IsAdmin}}{{range .UndoControls}}<form method="post" action="/proposals/undo-decline"><input type="hidden" name="id" value="{{.ProposalID}}">{{template "backfield" $}}<button type="submit" class="sc-btn-ghost"{{if .ISO}} title="{{.Source}} proposed this scope in a lookup at {{.ISO}}"{{end}}>Undo decline<span class="und">{{.Label}}</span></button></form>{{end}}{{end}}
+{{if $.IsAdmin}}{{range .UndoControls}}<form method="post" action="/proposals/undo-decline"><input type="hidden" name="id" value="{{.ProposalID}}">{{template "backfield" $}}<button type="submit" class="sc-btn-ghost"{{if .ISO}} title="{{if .Org}}{{.Org}} — {{end}}{{.Source}} proposed this scope in a lookup at {{.ISO}}"{{end}}>Undo decline<span class="und">{{.Label}}</span></button></form>{{end}}{{end}}
 {{if $.IsAdmin}}<form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button class="rm" type="submit" aria-label="Remove exclusion"><svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}
 </div>
 {{else}}

@@ -747,9 +747,10 @@ func undoControlFor(t *testing.T, page string, id int64) string {
 
 func TestUndoControlsDateEveryDeclineOfOneScope(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
-	agoMin := func(m int) pgtype.Timestamptz {
-		return pgtype.Timestamptz{Time: now.Add(-time.Duration(m) * time.Minute), Valid: true}
+	agoSec := func(s int) pgtype.Timestamptz {
+		return pgtype.Timestamptz{Time: now.Add(-time.Duration(s) * time.Second), Valid: true}
 	}
+	agoMin := func(m int) pgtype.Timestamptz { return agoSec(m * 60) }
 	ago := func(h int) pgtype.Timestamptz { return agoMin(h * 60) }
 	crowded := netip.MustParsePrefix("203.0.113.0/24")
 	lone := netip.MustParsePrefix("198.51.100.0/24")
@@ -770,6 +771,9 @@ func TestUndoControlsDateEveryDeclineOfOneScope(t *testing.T) {
 		// A repeated lookup of one holder lands in row 1's relative bucket, 14 minutes off (#1873).
 		{ID: 7, AddressCidr: crowded, SourceSlug: proposer.SlugARIN, OrgName: "Acme Corp",
 			RecordKind: proposer.RecordRIRDelegation, LookupAt: agoMin(3*60 + 14)},
+		// A double-submitted lookup files its repeat in row 1's own minute (#1873).
+		{ID: 8, AddressCidr: crowded, SourceSlug: proposer.SlugARIN, OrgName: "Acme Corp",
+			RecordKind: proposer.RecordRIRDelegation, LookupAt: agoSec(3*3600 - 30)},
 		{ID: 5, AddressCidr: lone, SourceSlug: proposer.SlugARIN,
 			RecordKind: proposer.RecordRIRDelegation},
 	})
@@ -779,12 +783,13 @@ func TestUndoControlsDateEveryDeclineOfOneScope(t *testing.T) {
 	}
 	want := map[string][]undoControlView{
 		crowded.String(): {
-			{ProposalID: 1, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 09:00 UTC"},
-			{ProposalID: 2, Org: "Acme Corp", Source: proposer.SlugAPNIC, Record: "RIR delegation", ISO: "2026-08-15 09:00 UTC"},
-			{ProposalID: 3, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "compelled reassignment", ISO: "2026-08-15 09:00 UTC"},
-			{ProposalID: 4, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-13 10:00 UTC"},
-			{ProposalID: 6, Org: "Globex Ltd", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 09:00 UTC"},
-			{ProposalID: 7, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 08:46 UTC"},
+			{ProposalID: 1, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 09:00:00 UTC"},
+			{ProposalID: 2, Org: "Acme Corp", Source: proposer.SlugAPNIC, Record: "RIR delegation", ISO: "2026-08-15 09:00:00 UTC"},
+			{ProposalID: 3, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "compelled reassignment", ISO: "2026-08-15 09:00:00 UTC"},
+			{ProposalID: 4, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-13 10:00:00 UTC"},
+			{ProposalID: 6, Org: "Globex Ltd", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 09:00:00 UTC"},
+			{ProposalID: 7, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 08:46:00 UTC"},
+			{ProposalID: 8, Org: "Acme Corp", Source: proposer.SlugARIN, Record: "RIR delegation", ISO: "2026-08-15 09:00:30 UTC"},
 		},
 		// A lookup with no instant still reaches its decline, so the control drops the date alone.
 		lone.String(): {{ProposalID: 5, Source: proposer.SlugARIN, Record: "RIR delegation"}},
@@ -843,7 +848,7 @@ func TestUndoControlCarriesTheLookupInstantItsProposalCameFrom(t *testing.T) {
 	if len(f.lookups) != 1 {
 		t.Fatalf("lookups = %d, want 1", len(f.lookups))
 	}
-	want := `at ` + f.lookups[0].CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + `"`
+	want := `at ` + f.lookups[0].CreatedAt.Time.UTC().Format("2006-01-02 15:04:05 UTC") + `"`
 
 	page := seedsBody(t, ac, base)
 	for _, id := range []int64{first, second} {
