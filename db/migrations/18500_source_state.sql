@@ -16,10 +16,11 @@
 -- Like every Declared term the toggle carries no timeline: re-toggling is an
 -- upsert of the one current value, not a new row, so there is no history to
 -- read. It also carries NO actor and NO instant of its own: ADR-0073 rules that
--- no operator act is written down with an actor on it, and ADR-0093 that only an
--- Annotation carries its own instant — every other Declared act, a source toggle
--- among them, is dated by the Batch whose recorded source set it moved. So the
--- row holds only the slug and the overridden state.
+-- no Declared term carries an actor, and ADR-0093 that only an Annotation carries
+-- its own instant — every other Declared act, a source toggle among them, is dated
+-- by the Batch whose recorded source set it moved. So the row holds only the slug
+-- and the overridden state. The act of toggling is recorded as an Act (#1786), in
+-- a corpus no derivation may read.
 CREATE TABLE source_state (
     slug    TEXT PRIMARY KEY,
     enabled BOOLEAN NOT NULL

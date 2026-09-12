@@ -14,8 +14,9 @@
 -- does carry is the operator's reason in their own words and the instant it was
 -- declared: it is the one Declared term holding operator prose and the only one
 -- carrying an instant, earned because it cannot be edited (so the instant acquires
--- no successor) and its whole effect is a message that does not fire (so no
--- `Message` anywhere in the model dates the act, ADR-0093).
+-- no successor) and its whole effect is a message that does not fire (so nothing
+-- the act moved dates it, ADR-0093). The `Act` corpus transcribes the act itself,
+-- which is not residue (#1786).
 CREATE TABLE annotation (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     subject_key TEXT NOT NULL,
