@@ -16,18 +16,19 @@ relations:
 
 ## Decision
 
-**A membership headline names the ground its count was taken over. A `Name` root reads
-`timelines opened on an address it cites`. An `Address` root keeps `opened beneath it`.**
+**A membership headline names the ground it counted over. A `Name` root that counted at least one
+member reads `timelines opened on an address it cites`. An `Address` root keeps
+`opened beneath it`, and so does an empty census.**
 
 One address carries many `Name`s. Every `Name` citing it censuses every `Service` and `Endpoint`
 on it, so `k` roots each report the same `n` subjects. "Beneath it" reads as a claim about the
 `Name`, and no `Name` owns that ground.
 
-The census itself keeps every member, so the citation axis still decides membership.
+The census keeps every member, and the citation axis still decides membership.
 
 Rejected: splitting the census into an owned group and a shared one. `internal/scan/hot.go` sets
-no `Scope.Names`, so every `Endpoint` the hot tier opens is nameless. That owned group is empty in
-every production census. Rejected: deduplicating across roots, which silences `k-1` of them.
+no `Scope.Names`, so every `Endpoint` the hot tier opens is nameless. That group is empty in
+production. Rejected: deduplicating across roots, which silences `k-1` of them.
 
 Reversal cost: a sent headline is immutable, so a third wording leaves three shapes in one inbox.
 
@@ -54,6 +55,12 @@ count is true only of the address.
 `membershipCensusClause` takes the root kind and renders the ground with it. A `Name` root reads
 `opened on an address it cites`. An `Address` root reads `opened beneath it`, because the address
 is the ground its sub-tree sits on rather than a thing it points at.
+
+An empty census is the exception. It is not a special case about rendering.
+`membershipMessages` fires on any opened `resolution` facet, whatever the outcome.
+`resolutionwalk` emits `NoData`, `NameError` and `Gap` resolutions with no address, so
+`citedAddresses` yields nothing. Such a root cites no address. A citation clause would state one it
+does not hold. It attributes no subject either, so `beneath it` claims nothing.
 
 The count, its factors and the census payload are untouched.
 [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md) §4 still gets
@@ -84,7 +91,8 @@ a later ticket must not restore the name axis. A split restores it as the counti
 
 `TestASecondNameOnOneAddressClaimsNoMoreThanTheFirst`
 (`internal/message/censusownership_test.go`) renders two `Name` roots over one census and asserts
-that neither headline says "beneath it". `TestAnAddressRootKeepsBeneathIt` holds the other arm.
+that neither headline says "beneath it". `TestAnAddressRootKeepsBeneathIt` holds the other arm, and
+`TestANameThatCitesNothingClaimsNoCitation` holds the empty-census bound.
 `TestTwoNamesOnOneAddressCensusTheSameSubjects` (`internal/queue/censusownership_test.go`) is
 \#1809's stated failing input. It records the fan-out this ADR declines to remove.
 

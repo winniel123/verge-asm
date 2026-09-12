@@ -119,13 +119,14 @@ func membershipCensusClause(rootKind string, census Census) string {
 	return fmt.Sprintf(" · %s%s opened %s",
 		factorsClause(kindCountFactors(census)),
 		plural(census.Len(), "timeline", "timelines"),
-		censusGround(rootKind))
+		censusGround(rootKind, census.Len()))
 }
 
 // One address carries many Names, so "beneath it" over-claims for every one of them (#1809).
 
-func censusGround(rootKind string) string {
-	if rootKind == "name" {
+func censusGround(rootKind string, members int) string {
+	// A NameError resolution opens citing nothing, so a ground clause would name one (#1809).
+	if rootKind == "name" && members > 0 {
 		return "on an address it cites"
 	}
 	return "beneath it"

@@ -46,10 +46,15 @@ func TestAnAddressRootKeepsBeneathIt(t *testing.T) {
 	}
 }
 
-func TestAnEmptyCensusStatesItsGroundToo(t *testing.T) {
-	want := "example.com came into view · 0 timelines opened on an address it cites"
+func TestANameThatCitesNothingClaimsNoCitation(t *testing.T) {
+	// A NameError resolution opens with no address, so a citation clause states a false one.
+	want := "dangling.example.com entered the estate · 0 timelines opened beneath it"
+	if got := membershipHeadline(EntryAppeared, "name", "dangling.example.com", NewCensus()); got != want {
+		t.Errorf("an empty census attributes nothing, so it claims no citation\n got %q\nwant %q", got, want)
+	}
+	want = "example.com came into view · 0 timelines opened beneath it"
 	if got := membershipHeadline(EntryRevealed, "name", "example.com", NewCensus()); got != want {
-		t.Errorf("an empty census still names the ground it counted over\n got %q\nwant %q", got, want)
+		t.Errorf("a revealed root with no census claims no citation either\n got %q\nwant %q", got, want)
 	}
 }
 

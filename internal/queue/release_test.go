@@ -167,7 +167,7 @@ func TestReleaseWritesAnEmptyCensusRatherThanHolding(t *testing.T) {
 	if census.Len() != 0 {
 		t.Errorf("census = %+v, want none", census.Entries)
 	}
-	if got := store.released[0].Headline; got != heldCause+" · 0 timelines opened on an address it cites" {
+	if got := store.released[0].Headline; got != heldCause+" · 0 timelines opened beneath it" {
 		t.Errorf("headline = %q, want the cause clause and a zero count", got)
 	}
 }
