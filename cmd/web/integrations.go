@@ -429,6 +429,12 @@ func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db
 	}
 
 	statusCode, sendErr := s.channelSender.Send(r.Context(), ch.Url, body, secret)
+	// A status is the third party answering, and the SSRF guard returns none (spec §1.3, §7.6).
+	if sendErr == nil {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.IntegrationTested{
+			IntegrationChannel: act.IntegrationChannel{Slug: integ.Slug, Endpoint: channelDeliveryLabel(ch.Url)},
+		})
+	}
 	if sendErr != nil || !delivery.Delivered(statusCode) {
 		s.toastRedirectBack(w, r, dest, "danger", "Test message not sent",
 			"Delivery through "+integ.Name+"'s channel failed — check the channel and try again.")

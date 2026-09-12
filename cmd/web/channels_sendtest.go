@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/delivery"
 	"github.com/winniel123/verge-asm/internal/message"
@@ -59,6 +60,12 @@ func (s *server) testChannel(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 
 	statusCode, sendErr := s.channelSender.Send(r.Context(), ch.Url, body, secret)
+	// A status is the third party answering, and the SSRF guard returns none (spec §1.3, §7.6).
+	if sendErr == nil {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.ChannelTested{
+			ChannelRef: act.ChannelRef{Endpoint: channelDeliveryLabel(ch.Url)},
+		})
+	}
 	if sendErr != nil || !delivery.Delivered(statusCode) {
 		s.toastRedirectBack(w, r, dest, "danger", "Test message not sent",
 			"Delivery to the channel failed — check the channel URL and try again.")

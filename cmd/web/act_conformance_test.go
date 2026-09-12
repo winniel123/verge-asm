@@ -72,24 +72,12 @@ var actAuditableNonPOST = map[string]string{
 // exemptions §2.3 names. They need no entry: non-POST is exempt by default, and neither
 // reaches the limb-4 sink. They are held instead by the no-exempt-route-records rule below.
 
-// Every auditable route this map names has no Record call yet, and the wiring ticket that owes
-// it is the value. POST defaults auditable and fails closed (spec §7.5), so this gate lands
-// before the bulk wiring and would otherwise fail on all 62. Decided by map #1826, not by the
-// SPEC. Each wiring ticket deletes its own rows. #1835 is the last one, so #1835 leaves this
-// map empty and asserts that it is.
+// It carried every auditable route that had no Record call yet, keyed to the wiring ticket that
+// owed it, because POST defaults auditable and fails closed (spec §7.5) and the gate landed
+// before the bulk wiring. #1835 wired the last ten, so the map is empty and stays empty: a new
+// auditable route is wired in its own PR, never parked here. Decided by map #1826, not the SPEC.
 
-var actPending = map[string]string{
-	"POST /onboarding/finish":          "#1835 onboarding.finished",
-	"POST /proposals":                  "#1835 proposal.queried",
-	"POST /proposals/search":           "#1835 proposal.queried",
-	"POST /scans/trigger":              "#1835 scan.triggered",
-	"POST /scans/stop":                 "#1835 scan.stopped",
-	"POST /scans/terminate":            "#1835 scan.terminated",
-	"POST /settings/channels/test":     "#1835 channel.tested",
-	"POST /settings/integrations/test": "#1835 integration.tested",
-	"GET /run/{id}/raw":                "#1835 transcript.disclosed",
-	"GET /runs/{id}/raw":               "#1835 transcript.disclosed",
-}
+var actPending = map[string]string{}
 
 type actRules struct {
 	exempt           map[string]string
@@ -229,6 +217,21 @@ func TestEveryAuditableActReachesARecordCall(t *testing.T) {
 			"Call the recorder after the act, or add a justified entry to actExemptRoutes.",
 			strings.Join(unwired, "\n  "))
 	}
+}
+
+// The map was the gate's own scaffolding, and an empty one is what retires it (#1835).
+
+func TestTheActPendingSetIsEmpty(t *testing.T) {
+	if len(actPending) == 0 {
+		return
+	}
+	var left []string
+	for pattern, owner := range actPending {
+		left = append(left, pattern+" ("+owner+")")
+	}
+	t.Errorf("actPending still names %d route(s):\n  %s\n"+
+		"Every auditable route is wired. Wire a new one in its own PR rather than parking it here.",
+		len(left), strings.Join(uniqSorted(left), "\n  "))
 }
 
 func TestNoExemptRouteReachesARecordCall(t *testing.T) {

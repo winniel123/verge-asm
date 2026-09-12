@@ -199,6 +199,12 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 
 	cands, attempts, perr := s.proposals().Propose(r.Context(), query, enabled)
+	// An attempt per enabled source, so an all-disabled registry set reached nobody (spec §1.3).
+	if len(attempts) > 0 {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.ProposalQueried{
+			OrgQuery: act.OrgQuery{Term: query},
+		})
+	}
 	// The write precedes every return, so a lookup that finds nothing still records (ADR-0223 §4).
 	s.recordProposerAttempts(r.Context(), attempts)
 	if perr != nil {
