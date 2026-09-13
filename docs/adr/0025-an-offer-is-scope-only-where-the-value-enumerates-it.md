@@ -350,9 +350,15 @@ ours. It bumps the leaf and nothing else.
   `Shadowed` carry the `NotHTTP` → `NoHTTPResponse` rename. `Batch` states that a recorded scope
   dimension is recorded **by content**.
 - **[ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s *"Aperture has five inputs"* paragraph is
-  corrected twice.** The count is **six** (`Vantage class` joined at
+  corrected twice.** The count is ~~**six**~~ **seven** (`Vantage class` joined at
   [ADR-0017](./0017-exposure-needs-both-legs.md)), and *"both start timelines that did not exist"*
   is true of the qtype set and false of the TLS candidate set.
+  *(**The figure six is withdrawn** — [#1882](https://github.com/winniel123/verge-asm/issues/1882) /
+  [#1888](https://github.com/winniel123/verge-asm/issues/1888). It is **seven** since
+  [#108](https://github.com/winniel123/verge-asm/issues/108) /
+  [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+  added the control-probe population. This ADR's other three statements of the count already carry
+  their own withdrawal notes; this Consequences bullet did not.)*
 - **[ADR-0011](./0011-a-facet-is-six-parts.md) is amended in two details.** Its *"a library upgrade
   that widens the offer is estate-wide drift we can name"* describes a world where the library owns
   the offer, which this ADR ends. And `certificate`'s value space gains a third variant, filling the
