@@ -11507,8 +11507,8 @@
       ],
       "markers": [],
       "decision": {
-        "words": 147,
-        "text": "An operator act is recorded as an `Act`, the fifth Operational corpus beside `Dispatch`, `Message`,\n`Delivery` and `Transcript`. An act is auditable when a principal changed the estate's declaration,\nchanged who may act on this instance, directed the instance to act on the network, or caused the\ninstance to disclose a value from a corpus the model seals. That is a predicate, never a route list.\n\nThis reverses [#127](https://github.com/winniel123/verge-asm/issues/127). The refusal survives over\nthe Declared layer only: no Declared term acquires an actor, and the act of declaring carries one. No\nderivation may read an `Act`.\n\nRejected: #127 §5's deferral on an absent consumer, with #127 §9's reopening condition as the\ntrigger. Four ADRs already prescribe an audit write and fifteen attribution columns already shipped,\nso the ground is the demand side rather than that condition firing.\n\nReversal costs a shipped, never-deleted corpus and 42 withdrawn sentences."
+        "words": 148,
+        "text": "An operator act is recorded as an `Act`, the fifth Operational corpus beside `Dispatch`, `Message`,\n`Delivery` and `Transcript`. An act is auditable when a principal changed the estate's declaration,\nchanged who may act on this instance, directed the instance to act on the network, or caused the\ninstance to disclose a value from a corpus the model seals. A predicate, never a route list.\n\nThis reverses [#127](https://github.com/winniel123/verge-asm/issues/127). The refusal survives over\nthe Declared layer only: no Declared term acquires an actor, and the act of declaring carries one. No\nderivation may read an `Act`.\n\nRejected: #127 §5's deferral on an absent consumer, with #127 §9's reopening condition as the\ntrigger. Three ADRs and a packaging SPEC already demand the write, and fifteen attribution columns\nalready ship, so the ground is the demand side.\n\nReversal costs a never-deleted corpus and a 42-row withdrawal set: 41 sentences withdrawn, one\nrestored."
       }
     }
   ]

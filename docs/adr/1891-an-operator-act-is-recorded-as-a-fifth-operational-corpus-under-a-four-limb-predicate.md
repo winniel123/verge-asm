@@ -23,17 +23,18 @@ relations:
 An operator act is recorded as an `Act`, the fifth Operational corpus beside `Dispatch`, `Message`,
 `Delivery` and `Transcript`. An act is auditable when a principal changed the estate's declaration,
 changed who may act on this instance, directed the instance to act on the network, or caused the
-instance to disclose a value from a corpus the model seals. That is a predicate, never a route list.
+instance to disclose a value from a corpus the model seals. A predicate, never a route list.
 
 This reverses [#127](https://github.com/winniel123/verge-asm/issues/127). The refusal survives over
 the Declared layer only: no Declared term acquires an actor, and the act of declaring carries one. No
 derivation may read an `Act`.
 
 Rejected: #127 §5's deferral on an absent consumer, with #127 §9's reopening condition as the
-trigger. Four ADRs already prescribe an audit write and fifteen attribution columns already shipped,
-so the ground is the demand side rather than that condition firing.
+trigger. Three ADRs and a packaging SPEC already demand the write, and fifteen attribution columns
+already ship, so the ground is the demand side.
 
-Reversal costs a shipped, never-deleted corpus and 42 withdrawn sentences.
+Reversal costs a never-deleted corpus and a 42-row withdrawal set: 41 sentences withdrawn, one
+restored.
 
 ## 1. Context
 
@@ -44,9 +45,10 @@ Reversal costs a shipped, never-deleted corpus and 42 withdrawn sentences.
 The refusal is now contradicted by the tree it governs, and
 [`docs/spec/audit-act.md`](../spec/audit-act.md) measures the contradiction:
 
-- **Four ADRs prescribe an audit write in their own Decision blocks** — ADR-0113, ADR-0053, ADR-0123,
-  and `docs/spec/packaging-and-configuration.md` §5.1's test. The SPEC enumerates eighteen such
-  sentences.
+- **Three ADRs and a packaging SPEC prescribe an audit write** — ADR-0113, ADR-0053, ADR-0123, and
+  [`docs/spec/packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §5.1's test:
+  *"if a change to it should appear in the audit trail, it may not live in the environment."* The
+  SPEC enumerates eighteen such sentences.
 - **The refusal was already overrun in the store.** Fifteen columns across twelve tables carry a
   `created_by`/`updated_by` foreign key to `account` — the option #127 §3 weighed and rejected by
   name. Six of the fifteen render today.
@@ -131,7 +133,7 @@ ADR-0073 §1, whose outcome stands while its scope narrows to the `Annotation` o
 
 | Rejected | Why |
 | --- | --- |
-| #127 §5's deferral — an act log is deferred on the absent consumer | The consumer exists. Four ADRs prescribe the write and the columns already ship |
+| #127 §5's deferral — an act log is deferred on the absent consumer | The consumer exists. Three ADRs and a packaging SPEC prescribe the write, and the columns already ship |
 | #127 §9's reopening condition as the trigger | It is supporting. Waiting for a second mutating party waits for the wrong event, and the SPEC's ground is the demand side |
 | A route list instead of a predicate | It goes stale on the next route |
 | An actor on a `Span` closure, now that the refusal is lifted | §6. The `Span` corpus is Observed, so that actor is the join the fence prevents |
