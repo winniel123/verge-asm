@@ -53,12 +53,12 @@ func TestAScopeEditMovesBothExposureDeltaLegsTogether(t *testing.T) {
 	outside := f.addVantagePresenting("outside", "198.51.100.200")
 	edited := f.addVantagePresenting("edited", "192.0.2.7")
 	for _, at := range []time.Time{t0, t1} {
-		// The same outcome at both instants, so every delta leg must read zero (ADR-1895 §4).
+		// The same outcome at both instants, so Current equals Previous throughout (ADR-1895 §4).
 		f.addReachabilityAtVantage(t, svc, outside, at, `{"outcome":"not-reached"}`)
 		f.addReachabilityAtVantage(t, svc, edited, at, `{"outcome":"reached"}`)
 	}
 
-	s := &server{deltasStore: f, vantageClassStore: f, now: func() time.Time { return t1.Add(time.Minute) }}
+	s := &server{deltasStore: f, vantageClassStore: f}
 	ctx := context.Background()
 
 	exposed, firewalled, notReached, ok := s.exposureCountDeltas(ctx, t0)
@@ -97,15 +97,10 @@ func TestAScopeEditMovesBothExposureDeltaLegsTogether(t *testing.T) {
 		{"firewalled", firewalled, drift.Delta{Current: 1, Previous: 1}},
 		{"not-reached", notReached, drift.Delta{}},
 	}
+	// Every want above holds Current == Previous, so the equality check is the invariant too.
 	for _, c := range wantAfter {
 		if c.got != c.want {
 			t.Errorf("after the scope edit: %s = %+v, want %+v", c.name, c.got, c.want)
-		}
-	}
-
-	for _, c := range wantAfter {
-		if c.got.Current != c.got.Previous {
-			t.Errorf("%s moved one leg alone: %+v; a scope edit must move both", c.name, c.got)
 		}
 	}
 }

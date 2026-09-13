@@ -11643,7 +11643,7 @@
       },
       "source": "grilling",
       "proof": {
-        "test": "cmd/web/vantageclass_history_test.go::TestAScopeEditMovesBothExposureDeltaLegsTogether"
+        "test": "internal/queue/vantageclass_history_test.go::TestReadBatchLegsClassifiesBothLegsUnderOneBinding"
       },
       "ticket": 1895,
       "map": null,

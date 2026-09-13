@@ -6,7 +6,7 @@ date: 2026-09-13
 status: accepted
 source: grilling
 ticket: 1895
-proof: {test: "cmd/web/vantageclass_history_test.go::TestAScopeEditMovesBothExposureDeltaLegsTogether"}
+proof: {test: "internal/queue/vantageclass_history_test.go::TestReadBatchLegsClassifiesBothLegsUnderOneBinding"}
 relations:
   - {kind: rests-on, adr: 105}
   - {kind: rests-on, adr: 92}
@@ -42,20 +42,27 @@ vestigial and read by nothing ([#709](https://github.com/winniel123/verge-asm/is
 That entry states **where** the derivation happens. It states nothing about whether the answer is
 stable, and #1896 left the question here on purpose. This ADR answers it.
 
-Five sites derive the class. Four of them read present state, and one reads history:
+Ten call sites reach `vantageclass.Derive`. Eight read present state. **Two compare across time**,
+and those two are the whole of the exposure at issue:
 
 | Site | What it reads | Historic? |
 | --- | --- | --- |
-| Dispatch (`internal/scan/hot.go`, `internal/scan/cold.go`) | the vantages it is about to dispatch | no |
-| The dashboard chip (`cmd/web/auth.go`) | every `Vantage` row | no |
-| `foldExposure` (`cmd/web/exposure.go`) | the **open** reachability spans | no |
+| The dispatch realm gate (`internal/scan/hot.go`, `cold.go`, `tlsacceptance.go`, `httpidentity.go`) | the vantages it is about to dispatch | no |
+| `vantageFactsClass` and its fan-outs (`cmd/web/auth.go`, `cmd/web/exposure.go`, `cmd/web/settings.go`, `cmd/web/signals.go`) | every `Vantage` row | no |
+| `foldExposure` (`cmd/web/exposure.go`), `currentExposedCount` (`cmd/web/deltas.go`) | the **open** reachability spans | no |
 | `collapseNameResolutions` (`cmd/web/signals.go`) | the live resolution tier | no |
-| `exposureCountDeltas` (`cmd/web/deltas.go`) | the open spans **and** a snapshot at the previous batch | **yes** |
+| The widening census (`internal/queue/vantageclass.go`) | every `Vantage` row, under the fold's own binding | no |
+| **`exposureCountDeltas`** (`cmd/web/deltas.go`) | the open spans **and** a snapshot at the previous batch | **yes** |
+| **`readBatchLegs`** (`internal/queue/produce.go`) | the same pair, bounded to the batch's candidate services | **yes** |
 
-So the whole of the exposure at issue is one function: the `prev` leg of the dashboard's exposure
-delta. It already classifies both legs under one binding, and the comment beside it says why. This
-ADR is the record of that choice, because it is a decision about the term and not a detail of one
-handler.
+**The second one alerts.** `readBatchLegs` derives one `covered`, applies it to `legsFromCurrent` and
+to `legsFromAt` at `PreviousBatchTime`, and hands the pair to `flagshipMessages`, which asks
+`exposure.Flagship(before, after)` and writes the `Message`. So a split binding there would not move
+a dashboard figure. It would fire, or withhold, a real alert.
+
+Both sites already bind once, and both say so in a comment beside the binding. That is what makes
+this a decision about the term rather than a detail of one handler: the rule holds at two
+independent readers, and the one that matters most is the one an operator is paged by.
 
 ## 2. An as-of scope predicate cannot be built, and would be silently wrong
 
@@ -107,11 +114,20 @@ whose class moved because a DNS answer changed would shuttle observations betwee
 `Exposure` and manufacture drift in the flagship value."*
 
 Under the rejected alternative, an address-scope edit does exactly that, and it needs no DNS answer to
-do it. The `cur` leg of `exposureCountDeltas` would read the boundary as declared now. The `prev` leg
-would read a boundary from before the edit. The two legs then disagree about which class a leg's value
-lands on, and the widget reports a swing in `exposed`, `firewalled` or not-reached that no measurement
-carried. The operator reads that as a change in their estate. It is a change in their own
-configuration, already known to them, reported as a finding.
+do it. The `cur` leg would read the boundary as declared now. The `prev` leg would read a boundary
+from before the edit. The two legs then disagree about which class a leg's value lands on.
+
+At `exposureCountDeltas` the cost is a widget: it reports a swing in `exposed`, `firewalled` or
+not-reached that no measurement carried, and the operator reads a change in their own configuration
+as a finding about their estate.
+
+**At `readBatchLegs` the cost is an alert.** `composeInternetLeg` reads the internet leg out of each
+side, and `exposure.Flagship` fires on `not-reached` → `reached` across the pair. A vantage that
+crosses the boundary between the two legs moves its outcome onto, or off, the internet leg — so the
+pair can transition with nothing measured. The operator is paged for their own scope edit, or, in the
+other direction, a real transition beneath the edit goes unpaged. This is the site
+[ADR-0029](./0029-an-alert-fires-on-a-leg.md) governs, and a manufactured firing there is worth more
+than a wrong tile.
 
 This is the closed direction the class test was narrowed for, read at the other end.
 [CONTEXT.md](../../CONTEXT.md) narrows the live test to `internet` *"because a vantage wrongly read as
@@ -119,11 +135,9 @@ This is the closed direction the class test was narrowed for, read at the other 
 and the ticket is right that it says nothing about a historic one. The protection a historic read
 needs is different, and it is this: the two legs of a comparison must not be read under two boundaries.
 
-`TestAScopeEditMovesBothExposureDeltaLegsTogether` holds it. The fixture measures one `Service` at two
-vantages with the same outcome at both instants, so every delta leg must read zero. Declaring a scope
-that covers one vantage's presented address moves the reading from not-reached to `firewalled`, and
-moves `Current` and `Previous` together. Classify the `prev` leg under the pre-edit boundary instead
-and the same fixture reports `firewalled` `{Current: 1, Previous: 0}` — a swing of one, from an edit.
+A test holds each of the two sites, and §10 quotes both. Each fixture measures one `Service` at two
+vantages with the same outcome at both instants, so nothing in the measurement can move. Split either
+binding and the same fixture reports a change.
 
 ## 5. The operator is told nothing, and that is the existing rule
 
@@ -166,8 +180,9 @@ narrower and provable: **a comparison never straddles two boundaries.** §4's te
 ## 8. Consequences
 
 - **No migration and no schema change.** The decision is that nothing new is recorded.
-- **`exposureCountDeltas` keeps its single binding, and now has a test that fails if it is split.**
-  The comment beside the binding stays; §4 is its citation.
+- **Both historic readers keep their single binding, and each now has a test that fails if it is
+  split.** `exposureCountDeltas` and `readBatchLegs` keep the comments beside their bindings, and §4
+  is the citation for both.
 - **The vestigial `vantage.class` column stays vestigial.** Nothing here gives it a reader. A pinned
   class would not have lived there either: it is per-vantage, and the pin would need to be
   per-observation.
@@ -192,19 +207,39 @@ vantage that folded before. So the first fold after the edit can open a leg in a
 has never seen a message for. #1890 verified that mechanism against the widening it was built for.
 This is a different case, and it is unaddressed rather than handled.
 
-**The dispatch sites are not covered by §4's test.** `internal/scan/hot.go` and
-`internal/scan/cold.go` derive the class to pick a probing realm, and they read present configuration
-because a gate must. No comparison happens there, so the invariant §4 proves has nothing to say about
-them, and none is claimed.
+**The eight present-state sites are not covered by §4's tests, and cannot be.** The four dispatch
+sites derive the class to pick a probing realm, and a gate must read present configuration. The other
+four read `Vantage` rows or open spans. None of the eight compares across time, so the invariant §4
+proves has nothing to say about them, and none is claimed for them.
+
+**The census in §1 is a reading of the tree on this date, not a fence.** Nothing stops an eleventh
+call site, and no check counts them. A new two-legged reader that derives its own second binding would
+break this rule with both §10 tests green. The repair, if that becomes a real risk, is a seam that
+hands out one binding per fold rather than a rule written down here.
 
 ## 10. Proof
 
-`{test: "cmd/web/vantageclass_history_test.go::TestAScopeEditMovesBothExposureDeltaLegsTogether"}`.
+`{test: "internal/queue/vantageclass_history_test.go::TestReadBatchLegsClassifiesBothLegsUnderOneBinding"}`.
 
-The fixture measures `203.0.113.10:443/tcp` at two vantages, `not-reached` at the one presenting
-`198.51.100.200` and `reached` at the one presenting `192.0.2.7`, at both instants. Before the scope
-is declared both vantages read `internet`, one class holds both readings, and the `Service` has no
-`Exposure` value:
+One test per historic reader, and both fixtures measure `203.0.113.10:443/tcp` at two vantages —
+`not-reached` at the one presenting `198.51.100.200`, `reached` at the one presenting `192.0.2.7` —
+with the same rows on both legs. Nothing in the measurement can move, so anything that moves is the
+classifier.
+
+**The alerting site.** `TestReadBatchLegsClassifiesBothLegsUnderOneBinding` runs `readBatchLegs` twice,
+once with `192.0.2.0/24` declared and once without, and asserts the class of each `prev` leg against
+its `cur` twin:
+
+> `t.Errorf("prev leg %d = %q but cur reads %q; one binding serves both", i, prev[i], cur[i])`
+
+Give `legsFromAt` its own predicate and the subtest fails, naming the disagreement:
+`prev … "=internet" but cur reads "=internal"`. Its sibling
+`TestAScopeEditAloneFiresNoFlagship` runs the whole of `produceMessages` under both scope settings and
+asserts no `service` message is written either way.
+
+**The dashboard site.** `cmd/web/vantageclass_history_test.go::TestAScopeEditMovesBothExposureDeltaLegsTogether`
+holds the same rule at `exposureCountDeltas`. Before the scope is declared, both vantages read
+`internet`, one class holds both readings, and the `Service` has no `Exposure` value:
 
 > `{"not-reached", notReached, drift.Delta{Current: 1, Previous: 1}}`
 
@@ -213,5 +248,5 @@ both legs at once:
 
 > `{"firewalled", firewalled, drift.Delta{Current: 1, Previous: 1}}`
 
-The final loop is the invariant itself — `Current` equals `Previous` for every value — and it fails
-with a swing of one when the `prev` leg is classified under a separate binding.
+Classify the `prev` leg under the pre-edit boundary instead and the same fixture reports
+`firewalled {Current: 1, Previous: 0}` — a swing of one, from an edit.

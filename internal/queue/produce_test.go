@@ -26,6 +26,7 @@ type fakeMessageStore struct {
 	askedFor    [][]string
 
 	addressExclusions []*netip.Prefix
+	addressScopes     []*netip.Prefix
 
 	open map[string][]db.ListOpenSpansForSubjectRow
 
@@ -119,6 +120,9 @@ func (f *fakeMessageStore) InsertMessage(_ context.Context, arg db.InsertMessage
 }
 
 func (f *fakeMessageStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, error) {
+	if len(f.addressScopes) > 0 {
+		return f.addressScopes, nil
+	}
 	p := netip.MustParsePrefix("10.0.0.0/8")
 	return []*netip.Prefix{&p}, nil
 }
