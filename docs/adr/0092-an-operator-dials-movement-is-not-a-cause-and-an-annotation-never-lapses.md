@@ -16,6 +16,8 @@ relations:
 
 # ADR-0092: An operator dial's movement is not a cause — and an `Annotation` never lapses, its subject withdraws
 
+> **Amended** by [ADR-1902: One Act row per subject, never one per request](./1902-one-act-row-per-subject-never-one-per-request.md), 2026-09-13. <!-- adr-marker amends 1902 -->
+
 - **Amends:** [ADR-0016](./0016-an-annotation-moves-a-message-never-a-number.md),
   [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md)
 - **Confirms without amending:** [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md),
