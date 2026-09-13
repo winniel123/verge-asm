@@ -17,6 +17,8 @@ import (
 
 func TestTheZoneAndDNSCadenceDialsEachRecordTheirOwnDial(t *testing.T) {
 	f := newFakeStore()
+	// Off the fake's own default of one day, because an unmoved dial records nothing (§7.6).
+	f.dnsCadence = 7 * 86400
 	base, ac := adminSession(t, f)
 
 	postForm(t, ac, base+"/seeds/zone/interval", url.Values{"interval_days": {"24"}}).Body.Close()
