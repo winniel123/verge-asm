@@ -131,6 +131,8 @@ decision about which tiers a message waits for, and it would need its own file.
 
 > **Amended** by [ADR-1851: A dispatch records that its fan-out finished, and a later tick retires one that never did](./1851-a-dispatch-records-that-its-fan-out-finished-and-a-later-tick-retires-one-that-never-did.md), 2026-09-12. <!-- adr-marker amends 1851 -->
 
+> **Amended** by [ADR-1867: With no reaper the re-point residue names the ground the at-cause census could not](./1867-with-no-reaper-the-re-point-residue-names-the-ground-the-at-cause-census-could-not.md), 2026-09-13. <!-- adr-marker amends 1867 -->
+
 | Configuration | Behaviour | Why it is honest |
 | --- | --- | --- |
 | The stale-running reaper is disabled (`staleJobThreshold` zero) | No hold. The census is written at the cause, as before. | The drain test reads a job set that nothing reaps, so one wedged row would hold every message forever. `HotLagGateArmed` (`internal/queue/hotlag.go`) already refuses to arm the cadence-lag gate on this configuration, for the same reason. |

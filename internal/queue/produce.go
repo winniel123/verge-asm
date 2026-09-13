@@ -485,7 +485,12 @@ func flagshipCensus(changes []spanChange, service string) message.Census {
 	return message.NewCensus(entries...)
 }
 
-type subjectRef struct{ kind, key string }
+// inFoldBatch is read by the re-point residue alone, to bound an at-cause census (ADR-1867).
+
+type subjectRef struct {
+	kind, key   string
+	inFoldBatch bool
+}
 
 func membershipCensus(changes []spanChange, root spanChange) message.Census {
 	subjects := make([]subjectRef, 0, len(changes))
