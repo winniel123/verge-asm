@@ -179,8 +179,9 @@ against §7.6 ruling 1's preference for one shape. It would also stop the no-op 
 attribution columns, which is §9's territory and §5.1's stated behaviour. And `cmd/web` holds no
 transaction outside `restore.go` by §7.6 ruling 4, so the transactional repair fights that shape too.
 
-**So the race is named here and repaired nowhere.** A session that takes it up rules on the mechanism
-first, and on §5.1 second.
+**So the race is named here and repaired nowhere.**
+[#1914](https://github.com/winniel123/verge-asm/issues/1914) carries it. A session that takes it up
+rules on the mechanism first, and on §5.1 second.
 
 ## 7. What reversal costs
 
