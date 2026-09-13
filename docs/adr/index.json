@@ -11539,6 +11539,11 @@
           "kind": "rests-on",
           "from": 1902,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1909,
+          "clause": null
         }
       ],
       "sections": [
@@ -11656,6 +11661,47 @@
       "decision": {
         "words": 139,
         "text": "**An `Act` is written once per subject the act directed, never once per request.** A submit that\nmoves two dials writes two rows. A decline of 200 proposals writes 200 rows, which reads as a defect\nand is not one. A declaration that directs one subject writes one.\n\nTwo grounds. A request-level row needs a list-valued subject, and `subject` is a **rendered** column,\nso the Subject cell would acquire a second thing to render. And a multi-subject handler bails\nmid-loop with the applied part already committed, so a per-subject row is the only shape that can be\ntrue about a partial batch.\n\nRejected: one row per request, carrying a list-valued subject.\n\nReversal rewrites a closed union after it ships, into a corpus that is never deleted.\n\n**So declaring an `Annotation` leaves one record beyond its own row, not none.**"
+      }
+    },
+    {
+      "number": 1909,
+      "file": "docs/adr/1909-a-dial-submitted-at-its-current-value-writes-no-act-row.md",
+      "title": "A dial submitted at its current value writes no Act row",
+      "slug": "a-dial-submitted-at-its-current-value-writes-no-act-row",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "cmd/web/act_unmoved_dial_test.go::TestASubmitThatLeavesADialWhereItStoodRecordsNothing"
+      },
+      "ticket": 1909,
+      "map": 1826,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 1891
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "5.1",
+        "6",
+        "7"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 141,
+        "text": "**A dial submitted at its current value writes no `Act`.** The handler reads the stored value before\nthe mutation, compares, and records only on a difference. The rule reaches the eight classes that\nembed `act.DialMove` and no others.\n\nAn `Act` asserts **a change of state**, not an intent to set. A toggle re-submitted at the position\nit already held leaves nothing behind, so a row reading `Dial moved · API access · on` asserts a\nmovement that did not happen. The corpus is append-only and never deleted, so no later write corrects\nit.\n\nRejected: unconditional recording, on [`docs/spec/audit-act.md`](../spec/audit-act.md) §7.6 ruling\n7's reached-the-setter boundary. That boundary was drawn for a zero-jobs dispatch, which left a\n`Dispatch` row behind.\n\nReversal unguards six handlers and leaves every false row already written standing.\n\n**So five handlers now read a value their mutation does not need.**"
       }
     }
   ]

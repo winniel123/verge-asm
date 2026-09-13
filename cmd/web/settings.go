@@ -691,9 +691,11 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 	// Zero is the unbounded stop, so the panel's own renderer reads it back (ADR-0081).
-	s.recorder().Record(r.Context(), actingAccount(acct), act.TranscriptCurrencySet{
-		DialMove: act.DialMove{Dial: "transcript currency", Value: humanDays(trans)},
-	})
+	if trans != current.TranscriptCurrencyDays {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.TranscriptCurrencySet{
+			DialMove: act.DialMove{Dial: "transcript currency", Value: humanDays(trans)},
+		})
+	}
 	s.backToSection(w, r, "retention")
 }
 
@@ -709,6 +711,12 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 		})
 		return
 	}
+	// Only the stored value says whether the dial moved, so a failed read refuses it (§2.2).
+	cfg, err := s.instanceSettingsStore.GetInstanceConfig(r.Context())
+	if err != nil {
+		s.serverError(w, "instance config", err)
+		return
+	}
 	if err := s.instanceSettingsStore.SetSeedAddressCap(r.Context(), db.SetSeedAddressCapParams{
 		SeedAddressCap:          n,
 		SeedAddressCapUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
@@ -717,9 +725,11 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 		return
 	}
 	// A count of addresses carries no unit, so the cell shows the bare number (§2.1).
-	s.recorder().Record(r.Context(), actingAccount(acct), act.AddressCapSet{
-		DialMove: act.DialMove{Dial: "address-scope cap", Value: strconv.FormatInt(n, 10)},
-	})
+	if n != cfg.SeedAddressCap {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.AddressCapSet{
+			DialMove: act.DialMove{Dial: "address-scope cap", Value: strconv.FormatInt(n, 10)},
+		})
+	}
 	s.backToSection(w, r, "addresscap")
 }
 
@@ -1308,6 +1318,11 @@ func migrationVersion(name string) (int64, bool) {
 func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// While off the worker dispatches no check, so an air-gapped install stays silent (ADR-0124).
 	enabled := r.FormValue("enabled") == "true"
+	cfg, err := s.instanceSettingsStore.GetInstanceConfig(r.Context())
+	if err != nil {
+		s.serverError(w, "instance config", err)
+		return
+	}
 	if err := s.instanceSettingsStore.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
 		UpdateCheckEnabled:   enabled,
 		UpdateCheckUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
@@ -1315,15 +1330,23 @@ func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "set update check enabled", err)
 		return
 	}
-	s.recorder().Record(r.Context(), actingAccount(acct), act.UpdateCheckMoved{
-		DialMove: act.DialMove{Dial: "update check", Value: onOff(enabled)},
-	})
+	// A toggle re-submitted at its current position is the cheapest way to forge a row (spec §2.2).
+	if enabled != cfg.UpdateCheckEnabled {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.UpdateCheckMoved{
+			DialMove: act.DialMove{Dial: "update check", Value: onOff(enabled)},
+		})
+	}
 	s.backToSection(w, r, "instance")
 }
 
 func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// The surface is read-only always: there is no write half a flip could enable (ADR-0123).
 	enabled := r.FormValue("enabled") == "true"
+	cfg, err := s.instanceSettingsStore.GetInstanceConfig(r.Context())
+	if err != nil {
+		s.serverError(w, "instance config", err)
+		return
+	}
 	if err := s.instanceSettingsStore.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
 		ApiEnabled:   enabled,
 		ApiUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
@@ -1331,9 +1354,11 @@ func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.serverError(w, "set api enabled", err)
 		return
 	}
-	s.recorder().Record(r.Context(), actingAccount(acct), act.APIAccessMoved{
-		DialMove: act.DialMove{Dial: "API access", Value: onOff(enabled)},
-	})
+	if enabled != cfg.ApiEnabled {
+		s.recorder().Record(r.Context(), actingAccount(acct), act.APIAccessMoved{
+			DialMove: act.DialMove{Dial: "API access", Value: onOff(enabled)},
+		})
+	}
 	if enabled {
 		s.toastRedirectBack(w, r, "/settings?tab=api", "ok", "API access enabled",
 			"Personal tokens now answer GET /api/v1/… — read-only, always.")
