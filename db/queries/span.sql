@@ -350,6 +350,9 @@ SELECT DISTINCT s.subject_kind, s.subject_key
 FROM span s
   -- The residue suppresses a subject the root's own fold covers, so the bound includes it (#1816).
 WHERE s.opened_batch_id >= sqlc.arg(batch_id)::bigint
+  -- An open top folds a later cause into this message under its own instant (ADR-1870 §2).
+  AND (sqlc.narg(max_batch_id)::bigint IS NULL
+       OR s.opened_batch_id <= sqlc.narg(max_batch_id)::bigint)
   AND s.subject_kind IN ('service', 'endpoint')
 ORDER BY s.subject_kind, s.subject_key;
 

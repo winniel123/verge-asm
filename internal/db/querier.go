@@ -258,7 +258,7 @@ type Querier interface {
 	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error)
 	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]ListSubjectFirstAppearancesRow, error)
 	// What opened beneath a held message's root, read at release (ADR-1806 §3).
-	ListSubjectsOpenedSinceBatch(ctx context.Context, batchID int64) ([]ListSubjectsOpenedSinceBatchRow, error)
+	ListSubjectsOpenedSinceBatch(ctx context.Context, arg ListSubjectsOpenedSinceBatchParams) ([]ListSubjectsOpenedSinceBatchRow, error)
 	ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error)
 	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]ListUnusedRecoveryCodeHashesRow, error)
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)

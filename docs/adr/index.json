@@ -11125,6 +11125,11 @@
           "kind": "amends",
           "from": 1851,
           "clause": "6"
+        },
+        {
+          "kind": "amends",
+          "from": 1870,
+          "clause": "3"
         }
       ],
       "sections": [
@@ -11143,6 +11148,11 @@
           "kind": "amends",
           "from": 1851,
           "clause": "6"
+        },
+        {
+          "kind": "amends",
+          "from": 1870,
+          "clause": "3"
         }
       ],
       "decision": {
@@ -11179,7 +11189,13 @@
           "clause": "4"
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1870,
+          "clause": "4"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11236,6 +11252,51 @@
       "decision": {
         "words": 141,
         "text": "A `dispatch` carries a boolean recording that its fan-out finished. Both release predicates read\nthat column for the first half of ADR-1806 §3's bound, in place of the job-existence proxy #1816\nused.\n\nA streamed tier commits its dispatch row before its jobs, so a job count cannot separate a fan-out\nstill streaming from one that finished with nothing to enqueue. A `hot` tier that is enabled and\nadmits nothing is the second case, and the proxy held its membership message forever.\n\nA crashed fan-out marks itself never. The next claimed `hot` tick marks it abandoned in a second\ncolumn, and the bound skips such a row. A tick is a cadence, so no clock enters the predicate.\n\nRejected: an age bound on a jobless dispatch, which ADR-1806 §7 and\n[#27](https://github.com/winniel123/verge-asm/issues/27) both refuse.\n\nReversal costs a migration and every census already computed."
+      }
+    },
+    {
+      "number": 1870,
+      "file": "docs/adr/1870-a-census-reads-only-what-the-dispatch-it-waited-for-opened.md",
+      "title": "A census reads only what the dispatch it waited for opened",
+      "slug": "a-census-reads-only-what-the-dispatch-it-waited-for-opened",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "internal/queue/censusproof_test.go::TestADelayedReleaseNamesNoSubjectOpenedAfterTheDrainedDispatch"
+      },
+      "ticket": 1870,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1806,
+          "clause": "3"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1809,
+          "clause": "4"
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 133,
+        "text": "**The release read carries an upper bound. It is the last batch of the `hot` dispatch whose drain\nreleased the row. Where no dispatch drained, it is the root's own batch.**\n\nThe read had a lower bound only. A release delayed past later folds therefore named every subject\nthose folds opened, in a message stamped with the first fold's instant. ADR-1806 §4 freezes the\nbasis against that outcome on the citation axis. The open top reached it on the subject axis.\n\nThe bound is a batch id and never an instant, because ADR-1806 §8 records that no column orders a\ndispatch against a batch soundly.\n\nRejected: capping the census length, which ADR-0031 and ADR-0102 both bar. Rejected: measuring\nfirst, which answers cost and not authorship.\n\nReversal costs every census computed under the bound."
       }
     },
     {

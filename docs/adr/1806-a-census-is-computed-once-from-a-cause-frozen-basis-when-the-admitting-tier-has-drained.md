@@ -75,6 +75,8 @@ where the residue is non-empty.
 
 ## 3. The bound is one drained `hot` dispatch
 
+> **Amended** by [ADR-1870: A census reads only what the dispatch it waited for opened](./1870-a-census-reads-only-what-the-dispatch-it-waited-for-opened.md), 2026-09-13. <!-- adr-marker amends 1870 -->
+
 The predicate is that the dispatch fanned out and every `queue_job` it enqueued has reached a
 terminal state. It is state the model already holds, and
 [#27](https://github.com/winniel123/verge-asm/issues/27) refuses an invented number in a safety

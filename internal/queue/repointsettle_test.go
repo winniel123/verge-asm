@@ -22,6 +22,8 @@ type fakeSettleStore struct {
 	seeds      []db.ListSeedsRow
 	exclusions []db.Exclusion
 
+	askedResidue []db.ListSubjectsOpenedSinceBatchParams
+
 	refuseClaim bool
 	claimErr    error
 
@@ -53,7 +55,8 @@ func (f *fakeSettleStore) ListNameRootsOpenedInBatch(_ context.Context, _ int64)
 	return f.roots, nil
 }
 
-func (f *fakeSettleStore) ListSubjectsOpenedSinceBatch(_ context.Context, _ int64) ([]db.ListSubjectsOpenedSinceBatchRow, error) {
+func (f *fakeSettleStore) ListSubjectsOpenedSinceBatch(_ context.Context, arg db.ListSubjectsOpenedSinceBatchParams) ([]db.ListSubjectsOpenedSinceBatchRow, error) {
+	f.askedResidue = append(f.askedResidue, arg)
 	return f.opened, nil
 }
 
@@ -152,6 +155,25 @@ func TestTheResidueFiresOnWhatTheHotTierOpenedBeneathTheNewAddress(t *testing.T)
 	}
 	if len(log) != 1 || log[0].class != message.ClassDrift {
 		t.Errorf("a fired message is routed once, got %+v", log)
+	}
+}
+
+func TestTheResidueReadsNoUpperBound(t *testing.T) {
+	// ADR-0026 §2 owns the re-point message, and ADR-1809 §4 records that bounding it is a
+	// decision of its own. So the release path's bound stops at the release path, and this
+	// read keeps the shape it had (ADR-1870 §4).
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = beneath(rpName, rpNew, "443")
+
+	settleFrom(t, store)
+	if len(store.askedResidue) != 1 {
+		t.Fatalf("the settle reads the subjects once, got %+v", store.askedResidue)
+	}
+	if store.askedResidue[0].MaxBatchID.Valid {
+		t.Errorf("the residue carries no upper bound, got %+v", store.askedResidue[0].MaxBatchID)
+	}
+	if store.askedResidue[0].BatchID != settleBatch {
+		t.Errorf("the residue reads from the move's own fold, got %d", store.askedResidue[0].BatchID)
 	}
 }
 

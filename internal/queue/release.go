@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 )
@@ -11,7 +13,7 @@ import (
 // Root determination reads gap-crossing history only the fold holds, so only the census moves here.
 
 type releaseStore interface {
-	ListSubjectsOpenedSinceBatch(ctx context.Context, batchID int64) ([]db.ListSubjectsOpenedSinceBatchRow, error)
+	ListSubjectsOpenedSinceBatch(ctx context.Context, arg db.ListSubjectsOpenedSinceBatchParams) ([]db.ListSubjectsOpenedSinceBatchRow, error)
 	ReleaseHeldMessage(ctx context.Context, arg db.ReleaseHeldMessageParams) (int64, error)
 }
 
@@ -21,7 +23,11 @@ func releaseHeldMessage(ctx context.Context, q releaseStore, row db.ListReleasab
 		return false, fmt.Errorf("queue: census basis of message %d: %w", row.ID, err)
 	}
 	batchID := row.CensusPendingAfterBatch.Int64
-	subjects, err := q.ListSubjectsOpenedSinceBatch(ctx, batchID)
+	subjects, err := q.ListSubjectsOpenedSinceBatch(ctx, db.ListSubjectsOpenedSinceBatchParams{
+		BatchID: batchID,
+		// The dispatch that answered the release bounds the read it answers for (ADR-1870 §3).
+		MaxBatchID: pgtype.Int8{Int64: row.CensusUpperBatch, Valid: true},
+	})
 	if err != nil {
 		return false, fmt.Errorf("queue: subjects opened since batch %d: %w", batchID, err)
 	}

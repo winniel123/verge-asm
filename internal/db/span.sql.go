@@ -1185,9 +1185,17 @@ SELECT DISTINCT s.subject_kind, s.subject_key
 FROM span s
   -- The residue suppresses a subject the root's own fold covers, so the bound includes it (#1816).
 WHERE s.opened_batch_id >= $1::bigint
+  -- An open top folds a later cause into this message under its own instant (ADR-1870 §2).
+  AND ($2::bigint IS NULL
+       OR s.opened_batch_id <= $2::bigint)
   AND s.subject_kind IN ('service', 'endpoint')
 ORDER BY s.subject_kind, s.subject_key
 `
+
+type ListSubjectsOpenedSinceBatchParams struct {
+	BatchID    int64       `json:"batch_id"`
+	MaxBatchID pgtype.Int8 `json:"max_batch_id"`
+}
 
 type ListSubjectsOpenedSinceBatchRow struct {
 	SubjectKind string `json:"subject_kind"`
@@ -1195,8 +1203,8 @@ type ListSubjectsOpenedSinceBatchRow struct {
 }
 
 // What opened beneath a held message's root, read at release (ADR-1806 §3).
-func (q *Queries) ListSubjectsOpenedSinceBatch(ctx context.Context, batchID int64) ([]ListSubjectsOpenedSinceBatchRow, error) {
-	rows, err := q.db.Query(ctx, listSubjectsOpenedSinceBatch, batchID)
+func (q *Queries) ListSubjectsOpenedSinceBatch(ctx context.Context, arg ListSubjectsOpenedSinceBatchParams) ([]ListSubjectsOpenedSinceBatchRow, error) {
+	rows, err := q.db.Query(ctx, listSubjectsOpenedSinceBatch, arg.BatchID, arg.MaxBatchID)
 	if err != nil {
 		return nil, err
 	}
