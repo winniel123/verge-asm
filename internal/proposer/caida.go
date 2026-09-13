@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type CAIDA struct {
@@ -57,7 +58,17 @@ type caidaSearchRow struct {
 	OrgName  string   `json:"orgName"`
 	Source   string   `json:"source"`
 	ASN      string   `json:"asn"`
+	Date     string   `json:"date"`    // one row per snapshot, and the holder renames (#1878)
 	Members  []string `json:"members"` // org records name ASNs here and carry no opaqueId (#1634)
+}
+
+func (r caidaSearchRow) snapshot() time.Time {
+	t, err := time.Parse(time.RFC3339, r.Date)
+	if err != nil {
+		// An undated row loses to a dated one and never fails the lookup (#1878).
+		return time.Time{}
+	}
+	return t
 }
 
 func (c *CAIDA) Propose(ctx context.Context, orgName string) ([]Candidate, error) {
@@ -79,14 +90,17 @@ func (c *CAIDA) orgIDs(ctx context.Context, orgName string) (map[string]string, 
 		return strings.EqualFold(row.Source, rir) && strings.Contains(strings.ToLower(row.OrgName), want)
 	}
 	idOrg := make(map[string]string)
+	idAt := make(map[string]time.Time)
 	add := func(row caidaSearchRow) bool {
 		id := strings.TrimSuffix(row.OpaqueID, "_"+rir)
 		if id == "" {
 			return false
 		}
-		if _, ok := idOrg[id]; !ok {
-			// The holder the id was matched under, never the operator's search term (#1878).
+		at := row.snapshot()
+		// The newest snapshot holds the current holder, and the rows arrive unordered (#1878).
+		if seen, ok := idAt[id]; !ok || at.After(seen) {
 			idOrg[id] = row.OrgName
+			idAt[id] = at
 		}
 		return true
 	}
