@@ -39,17 +39,18 @@ records an operator act as an `Act`, the fifth Operational corpus, under a four-
 rules **what** is recorded. It does not rule **how many rows** one submit writes, and the two
 questions come apart the moment a handler directs more than one subject.
 
-Three shipped handlers direct more than one:
+Four shipped handlers direct more than one:
 
 | Handler | Subjects | Rows |
 | --- | --- | --- |
-| `POST /proposals/decline` (`cmd/web/proposals.go`) | the checked proposal ids | one per proposal |
+| `POST /proposals/decline` (`cmd/web/proposals.go`) | the checked proposal ids | one per proposal declined |
+| `POST /seeds` (`cmd/web/seeds.go`) | the scopes in a pasted list | one per scope declared |
+| `POST /seeds/zone` (`cmd/web/seeds.go`) | the apexes in the upload | one per apex accepted |
 | `POST /coverage/retention` (`cmd/web/retentionpanel.go`) | the observation currency, the dispatch cadence | one per dial that moved |
-| `POST /seeds/zone` (`cmd/web/seeds.go`) | the apexes in the upload | one per apex |
 
 [`docs/spec/audit-act.md`](../spec/audit-act.md) §7.6 ruling 3 states the rule and §2.2 works one
 case. This ADR is the record, because the rule is a decision about the corpus rather than a detail of
-three handlers.
+four handlers.
 
 ## 2. Why a list-valued subject fights the union
 
@@ -84,8 +85,11 @@ the corpus. It is the handler the corpus had to record, not one written for it.
 
 A request-level row can only be written after the loop, and then it is false in both directions:
 written, it claims subjects the loop never reached; withheld, it erases the declines that did commit.
-**A per-subject row is the only shape that can be true about a partial batch**, because each row is
-written by the iteration that committed its own subject.
+**A per-subject row is the only shape that can be true about a partial batch**, because the rows are
+written from the subjects that committed and from nothing else. The multi-subject handlers reach
+that two ways — `declineLookup` records inside its own loop, while `declareSeed` and `uploadZoneFile`
+collect the accepted subjects and record them in a second loop, which §7.6 places after the mutation on
+purpose. Either way the list a refusal truncates is the list the rows are written from.
 
 `TestAPartialDeclineBatchRecordsOnlyTheAppliedSubjects` holds this. It fails the second proposal's
 exclusion write and asserts the corpus holds the first subject alone.
@@ -171,12 +175,15 @@ sense outside the withdrawal set, on ADR-0092's *"with no operator act"*.
 
 ## 9. Where this is thin, stated rather than smoothed
 
-**`POST /proposals/decline` is the only handler whose subject count reaches the hundreds.** The
-retention panel is bounded at two dials, and a zone upload is bounded by the files in one submit,
-which an operator chooses but at a far smaller scale. So the 200-row price rests on one route, and a
-reader may fairly say the rule is being decided by its worst case. The answer is that the
-partial-batch argument of §3 also lives on that one route, and it is the argument that does not
-depend on the count.
+**Three of the four handlers take an operator-sized list, so the price is wider than one route.**
+`POST /proposals/decline` takes the checked ids. `POST /seeds` takes a pasted list, and
+`parseSeedTokens` splits it on commas and whitespace with **no count cap** — the address cap bounds a
+prefix's size, never the list's length — so a pasted hundred writes a hundred `seed.declared` rows.
+`POST /seeds/zone` takes the files in one submit. Only the retention panel is bounded, at two dials.
+
+So the 200-row page is the ordinary shape of three routes rather than the worst case of one, and a
+reader may fairly say the rule is being decided by its largest submit. The answer is that the
+partial-batch argument of §3 holds on all three, and it does not depend on the count.
 
 **The rendered table has not been read at this scale.** The Subject cell ships with its ellipsis
 treatment (`design-system/templates/settings.tmpl:914`) and the reader ships with its date range, but
@@ -191,5 +198,13 @@ proposals in one submit and asserts two `proposal.declined` rows, subject by sub
 > `want := []string{"address 203.0.113.0/24", "address 198.51.100.8/29"}`
 
 Its sibling `TestAPartialDeclineBatchRecordsOnlyTheAppliedSubjects` fails the second subject's write
-and asserts the first alone, which is the §3 ground. `TestCoverageRetentionWritesTwoRowsWhenBothDialsMove`
-and `TestDeclareSeedRecordsOneActPerScope` exhibit the same rule on the other two routes.
+and asserts the first alone, which is the §3 ground.
+
+The other three routes of §1 are held by a test each, and two of them assert the partial batch as
+well:
+
+| Route | Test |
+| --- | --- |
+| `POST /seeds` | `TestDeclareSeedRecordsOneActPerScope` — three tokens, one refused, two rows |
+| `POST /seeds/zone` | `TestZoneUploadRecordsOneActPerApex` |
+| `POST /coverage/retention` | `TestCoverageRetentionWritesTwoRowsWhenBothDialsMove`, with `…WritesOneRowWhenOneDialMoves` beside it |
