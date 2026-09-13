@@ -306,17 +306,8 @@ func TestTheRecordTokenStaysFreeInThisPackage(t *testing.T) {
 	c := parseWebPackage(t)
 	var foreign []string
 	visit := func(owner string, fn *ast.FuncDecl) {
-		ast.Inspect(fn, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "Record" || fromRecorder(sel.X) {
-				return true
-			}
+		walkRecordCalls(fn, fn.Type.Params, map[string]bool{}, func() {
 			foreign = append(foreign, owner)
-			return true
 		})
 	}
 	for name, fn := range c.methods {
@@ -333,7 +324,12 @@ func TestTheRecordTokenStaysFreeInThisPackage(t *testing.T) {
 	}
 }
 
-func fromRecorder(e ast.Expr) bool {
+func fromRecorder(e ast.Expr, bound map[string]bool) bool {
+	// A dial's critical section takes its recorder as a parameter, so the receiver is a
+	// name rather than a call (ADR-1914).
+	if id, ok := e.(*ast.Ident); ok {
+		return bound[id.Name]
+	}
 	call, ok := e.(*ast.CallExpr)
 	if !ok {
 		return false
@@ -343,6 +339,41 @@ func fromRecorder(e ast.Expr) bool {
 	}
 	id, ok := call.Fun.(*ast.Ident)
 	return ok && id.Name == "txRecorder"
+}
+
+// The type is read off the declaration, so an arbitrary name never widens the gate. A
+// binding reaches the closures inside it and no sibling, as the language scopes it.
+
+func walkRecordCalls(n ast.Node, params *ast.FieldList, outer map[string]bool, report func()) {
+	bound := map[string]bool{}
+	for name := range outer {
+		bound[name] = true
+	}
+	if params != nil {
+		for _, f := range params.List {
+			if id, ok := f.Type.(*ast.Ident); !ok || id.Name != "recorder" {
+				continue
+			}
+			for _, name := range f.Names {
+				bound[name.Name] = true
+			}
+		}
+	}
+	ast.Inspect(n, func(node ast.Node) bool {
+		if lit, ok := node.(*ast.FuncLit); ok && lit != n {
+			walkRecordCalls(lit.Body, lit.Type.Params, bound, report)
+			return false
+		}
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if ok && sel.Sel.Name == "Record" && !fromRecorder(sel.X, bound) {
+			report()
+		}
+		return true
+	})
 }
 
 func TestTheHarvestReadsEveryMethodAndNamesTheThreeNonPOSTActs(t *testing.T) {
@@ -379,6 +410,47 @@ func TestTheLimbFourSinkKeysOnTranscriptOpen(t *testing.T) {
 	if strings.Join(reached, ", ") != strings.Join(want, ", ") {
 		t.Errorf("transcript.Open is reached by %v, want %v; §7.4's sink rule is exact only while that holds",
 			reached, want)
+	}
+}
+
+// A recorder parameter binds inside its own closure. A sibling that rebinds the name to
+// something else must still fail the gate the ADR-1914 wrapper widened.
+
+func TestTheRecordGateScopesARecorderParameterToItsOwnClosure(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		want       bool
+	}{
+		{
+			name: "the bound closure passes",
+			body: "s.moveDial(func(rec recorder) error { return rec.Record(nil, nil, nil) })",
+		},
+		{
+			name: "a sibling closure rebinding the name is foreign",
+			body: "s.moveDial(func(rec recorder) error { return nil }); " +
+				"s.other(func(rec *log.Logger) error { return rec.Record(nil, nil, nil) })",
+			want: true,
+		},
+		{
+			name: "a nested closure inherits the binding",
+			body: "s.moveDial(func(rec recorder) error { " +
+				"return s.other(func() error { return rec.Record(nil, nil, nil) }) })",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package main\n\nfunc (s *server) h() {\n\t" + tc.body + "\n}\n"
+			fset := token.NewFileSet()
+			f, err := parser.ParseFile(fset, "fixture.go", src, parser.SkipObjectResolution)
+			if err != nil {
+				t.Fatalf("parse the fixture: %v", err)
+			}
+			fn := f.Decls[0].(*ast.FuncDecl)
+			foreign := false
+			walkRecordCalls(fn, fn.Type.Params, map[string]bool{}, func() { foreign = true })
+			if foreign != tc.want {
+				t.Fatalf("the gate reported foreign=%v, want %v", foreign, tc.want)
+			}
+		})
 	}
 }
 

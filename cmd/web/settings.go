@@ -55,16 +55,12 @@ type instanceSettingsStore interface {
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
-	SetAPIEnabled(ctx context.Context, arg db.SetAPIEnabledParams) error
-	SetSeedAddressCap(ctx context.Context, arg db.SetSeedAddressCapParams) error
-	SetUpdateCheckEnabled(ctx context.Context, arg db.SetUpdateCheckEnabledParams) error
 }
 
 type deliverySettingsStore interface {
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
 	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
-	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
 }
 
 type apertureSettingsStore interface {
@@ -676,25 +672,29 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		fail("Transcript retention must be a whole number of days, zero or more.")
 		return
 	}
-	current, err := s.deliverySettingsStore.GetRetentionSettings(r.Context())
-	if err != nil {
-		s.serverError(w, "retention settings", err)
+	ok := s.moveDial(w, r, "update retention", func(q dialQueries, rec recorder) error {
+		current, err := q.LockRetentionSettings(r.Context())
+		if err != nil {
+			return err
+		}
+		if err := q.UpdateRetentionSettings(r.Context(), db.UpdateRetentionSettingsParams{
+			ObservationCurrencyDays: current.ObservationCurrencyDays,
+			DispatchCadenceMultiple: current.DispatchCadenceMultiple,
+			TranscriptCurrencyDays:  trans,
+			UpdatedBy:               pgtype.Int8{Int64: acct.ID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		// Zero is the unbounded stop, so the panel's own renderer reads it back (ADR-0081).
+		if trans != current.TranscriptCurrencyDays {
+			return rec.Record(r.Context(), actingAccount(acct), act.TranscriptCurrencySet{
+				DialMove: act.DialMove{Dial: "transcript currency", Value: humanDays(trans)},
+			})
+		}
+		return nil
+	})
+	if !ok {
 		return
-	}
-	if err := s.deliverySettingsStore.UpdateRetentionSettings(r.Context(), db.UpdateRetentionSettingsParams{
-		ObservationCurrencyDays: current.ObservationCurrencyDays,
-		DispatchCadenceMultiple: current.DispatchCadenceMultiple,
-		TranscriptCurrencyDays:  trans,
-		UpdatedBy:               pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		s.serverError(w, "update retention", err)
-		return
-	}
-	// Zero is the unbounded stop, so the panel's own renderer reads it back (ADR-0081).
-	if trans != current.TranscriptCurrencyDays {
-		s.recorder().Record(r.Context(), actingAccount(acct), act.TranscriptCurrencySet{
-			DialMove: act.DialMove{Dial: "transcript currency", Value: humanDays(trans)},
-		})
 	}
 	s.backToSection(w, r, "retention")
 }
@@ -711,24 +711,28 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 		})
 		return
 	}
-	// Only the stored value says whether the dial moved, so a failed read refuses it (§2.2).
-	cfg, err := s.instanceSettingsStore.GetInstanceConfig(r.Context())
-	if err != nil {
-		s.serverError(w, "instance config", err)
+	ok := s.moveDial(w, r, "update address cap", func(q dialQueries, rec recorder) error {
+		// Only the stored value says whether the dial moved, so a failed read refuses it (§2.2).
+		cfg, err := q.LockInstanceConfig(r.Context())
+		if err != nil {
+			return err
+		}
+		if err := q.SetSeedAddressCap(r.Context(), db.SetSeedAddressCapParams{
+			SeedAddressCap:          n,
+			SeedAddressCapUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		// A count of addresses carries no unit, so the cell shows the bare number (§2.1).
+		if n != cfg.SeedAddressCap {
+			return rec.Record(r.Context(), actingAccount(acct), act.AddressCapSet{
+				DialMove: act.DialMove{Dial: "address-scope cap", Value: strconv.FormatInt(n, 10)},
+			})
+		}
+		return nil
+	})
+	if !ok {
 		return
-	}
-	if err := s.instanceSettingsStore.SetSeedAddressCap(r.Context(), db.SetSeedAddressCapParams{
-		SeedAddressCap:          n,
-		SeedAddressCapUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		s.serverError(w, "update address cap", err)
-		return
-	}
-	// A count of addresses carries no unit, so the cell shows the bare number (§2.1).
-	if n != cfg.SeedAddressCap {
-		s.recorder().Record(r.Context(), actingAccount(acct), act.AddressCapSet{
-			DialMove: act.DialMove{Dial: "address-scope cap", Value: strconv.FormatInt(n, 10)},
-		})
 	}
 	s.backToSection(w, r, "addresscap")
 }
@@ -1326,23 +1330,28 @@ func migrationVersion(name string) (int64, bool) {
 func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// While off the worker dispatches no check, so an air-gapped install stays silent (ADR-0124).
 	enabled := r.FormValue("enabled") == "true"
-	cfg, err := s.instanceSettingsStore.GetInstanceConfig(r.Context())
-	if err != nil {
-		s.serverError(w, "instance config", err)
+	// The form read precedes the lock, because it pulls the request body off the network.
+	ok := s.moveDial(w, r, "set update check enabled", func(q dialQueries, rec recorder) error {
+		cfg, err := q.LockInstanceConfig(r.Context())
+		if err != nil {
+			return err
+		}
+		if err := q.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
+			UpdateCheckEnabled:   enabled,
+			UpdateCheckUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		// A toggle re-submitted where it stands is the cheapest way to forge a row (spec §2.2).
+		if enabled != cfg.UpdateCheckEnabled {
+			return rec.Record(r.Context(), actingAccount(acct), act.UpdateCheckMoved{
+				DialMove: act.DialMove{Dial: "update check", Value: onOff(enabled)},
+			})
+		}
+		return nil
+	})
+	if !ok {
 		return
-	}
-	if err := s.instanceSettingsStore.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
-		UpdateCheckEnabled:   enabled,
-		UpdateCheckUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		s.serverError(w, "set update check enabled", err)
-		return
-	}
-	// A toggle re-submitted at its current position is the cheapest way to forge a row (spec §2.2).
-	if enabled != cfg.UpdateCheckEnabled {
-		s.recorder().Record(r.Context(), actingAccount(acct), act.UpdateCheckMoved{
-			DialMove: act.DialMove{Dial: "update check", Value: onOff(enabled)},
-		})
 	}
 	s.backToSection(w, r, "instance")
 }
@@ -1350,22 +1359,26 @@ func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct 
 func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// The surface is read-only always: there is no write half a flip could enable (ADR-0123).
 	enabled := r.FormValue("enabled") == "true"
-	cfg, err := s.instanceSettingsStore.GetInstanceConfig(r.Context())
-	if err != nil {
-		s.serverError(w, "instance config", err)
+	ok := s.moveDial(w, r, "set api enabled", func(q dialQueries, rec recorder) error {
+		cfg, err := q.LockInstanceConfig(r.Context())
+		if err != nil {
+			return err
+		}
+		if err := q.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
+			ApiEnabled:   enabled,
+			ApiUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		if enabled != cfg.ApiEnabled {
+			return rec.Record(r.Context(), actingAccount(acct), act.APIAccessMoved{
+				DialMove: act.DialMove{Dial: "API access", Value: onOff(enabled)},
+			})
+		}
+		return nil
+	})
+	if !ok {
 		return
-	}
-	if err := s.instanceSettingsStore.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
-		ApiEnabled:   enabled,
-		ApiUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		s.serverError(w, "set api enabled", err)
-		return
-	}
-	if enabled != cfg.ApiEnabled {
-		s.recorder().Record(r.Context(), actingAccount(acct), act.APIAccessMoved{
-			DialMove: act.DialMove{Dial: "API access", Value: onOff(enabled)},
-		})
 	}
 	if enabled {
 		s.toastRedirectBack(w, r, "/settings?tab=api", "ok", "API access enabled",

@@ -26,3 +26,7 @@ SELECT cadence_seconds FROM scan WHERE kind = 'zone';
 -- name: SetZoneCadenceSeconds :exec
 -- A non-positive interval is refused by the table's CHECK, not by this statement.
 UPDATE scan SET cadence_seconds = $1 WHERE kind = 'zone';
+
+-- name: LockZoneCadenceSeconds :one
+-- FOR UPDATE holds the row across the compare and the write (ADR-1914).
+SELECT cadence_seconds FROM scan WHERE kind = 'zone' FOR UPDATE;

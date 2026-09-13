@@ -116,6 +116,8 @@ func (f *fakeStore) CreateSession(_ context.Context, arg db.CreateSessionParams)
 }
 
 func (f *fakeStore) GetSessionByTokenHash(_ context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error) {
+	f.sessMu.Lock()
+	defer f.sessMu.Unlock()
 	for _, sess := range f.sessions {
 		if sess.TokenHash == arg.TokenHash && !sess.RevokedAt.Valid && sess.ExpiresAt.Time.After(arg.ExpiresAt.Time) {
 			return sess, nil
@@ -125,6 +127,8 @@ func (f *fakeStore) GetSessionByTokenHash(_ context.Context, arg db.GetSessionBy
 }
 
 func (f *fakeStore) TouchSession(_ context.Context, arg db.TouchSessionParams) error {
+	f.sessMu.Lock()
+	defer f.sessMu.Unlock()
 	for i := range f.sessions {
 		if f.sessions[i].ID == arg.ID {
 			f.sessions[i].LastSeenAt = arg.LastSeenAt

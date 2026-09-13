@@ -40,8 +40,6 @@ type seedsStore interface {
 	ListExclusions(ctx context.Context) ([]db.Exclusion, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
-	SetDnsCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
-	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	WithdrawSeed(ctx context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error)
 }
 
@@ -949,22 +947,26 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 		})
 		return
 	}
-	// Only the stored value says whether the dial moved, so a failed read refuses it (§2.2).
-	stored, err := s.seedsStore.GetZoneCadenceSeconds(r.Context())
-	if err != nil {
-		s.serverError(w, "zone cadence", err)
-		return
-	}
 	seconds := int64(days) * 86400
-	if err := s.seedsStore.SetZoneCadenceSeconds(r.Context(), seconds); err != nil {
-		s.serverError(w, "set zone cadence", err)
+	ok = s.moveDial(w, r, "set zone cadence", func(q dialQueries, rec recorder) error {
+		// Only the stored value says whether the dial moved, so a failed read refuses it (§2.2).
+		stored, err := q.LockZoneCadenceSeconds(r.Context())
+		if err != nil {
+			return err
+		}
+		if err := q.SetZoneCadenceSeconds(r.Context(), seconds); err != nil {
+			return err
+		}
+		// After the mutation, never before: an Act with no act can never be retracted (spec §7.6).
+		if seconds != stored {
+			return rec.Record(r.Context(), actingAccount(acct), act.ZoneCadenceSet{
+				DialMove: act.DialMove{Dial: "zone scan cadence", Value: humanDays(int64(days))},
+			})
+		}
+		return nil
+	})
+	if !ok {
 		return
-	}
-	// After the mutation, never before: an Act with no act can never be retracted (spec §7.6).
-	if seconds != stored {
-		s.recorder().Record(r.Context(), actingAccount(acct), act.ZoneCadenceSet{
-			DialMove: act.DialMove{Dial: "zone scan cadence", Value: humanDays(int64(days))},
-		})
 	}
 	s.backToScope(w, r)
 }
@@ -978,20 +980,24 @@ func (s *server) setDnsInterval(w http.ResponseWriter, r *http.Request, acct db.
 		})
 		return
 	}
-	stored, err := s.seedsStore.GetDnsCadenceSeconds(r.Context())
-	if err != nil {
-		s.serverError(w, "dns cadence", err)
-		return
-	}
 	seconds := int64(days) * 86400
-	if err := s.seedsStore.SetDnsCadenceSeconds(r.Context(), seconds); err != nil {
-		s.serverError(w, "set dns cadence", err)
+	ok = s.moveDial(w, r, "set dns cadence", func(q dialQueries, rec recorder) error {
+		stored, err := q.LockDnsCadenceSeconds(r.Context())
+		if err != nil {
+			return err
+		}
+		if err := q.SetDnsCadenceSeconds(r.Context(), seconds); err != nil {
+			return err
+		}
+		if seconds != stored {
+			return rec.Record(r.Context(), actingAccount(acct), act.DNSCadenceSet{
+				DialMove: act.DialMove{Dial: "dns scan cadence", Value: humanDays(int64(days))},
+			})
+		}
+		return nil
+	})
+	if !ok {
 		return
-	}
-	if seconds != stored {
-		s.recorder().Record(r.Context(), actingAccount(acct), act.DNSCadenceSet{
-			DialMove: act.DialMove{Dial: "dns scan cadence", Value: humanDays(int64(days))},
-		})
 	}
 	s.backToScope(w, r)
 }

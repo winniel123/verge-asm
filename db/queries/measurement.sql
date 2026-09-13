@@ -294,3 +294,7 @@ WHERE id = sqlc.arg(id) AND repoint_settled_at IS NULL;
 UPDATE batch
 SET repoint_settled_at = sqlc.arg(settled_at)
 WHERE id = ANY(sqlc.arg(ids)::bigint[]) AND repoint_settled_at IS NULL;
+
+-- name: LockDnsCadenceSeconds :one
+-- FOR UPDATE holds the row across the compare and the write (ADR-1914).
+SELECT cadence_seconds FROM scan WHERE kind = 'dns' FOR UPDATE;

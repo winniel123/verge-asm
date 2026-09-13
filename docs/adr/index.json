@@ -11671,7 +11671,7 @@
       "date": "2026-09-13",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "fix",
       "proof": {
@@ -11687,7 +11687,13 @@
           "adr": 1891
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 1914,
+          "clause": "6"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11698,10 +11704,56 @@
         "6",
         "7"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1914,
+          "clause": "6"
+        }
+      ],
       "decision": {
         "words": 141,
         "text": "**A dial submitted at its current value writes no `Act`.** The handler reads the stored value before\nthe mutation, compares, and records only on a difference. The rule reaches the eight classes that\nembed `act.DialMove` and no others.\n\nAn `Act` asserts **a change of state**, not an intent to set. A toggle re-submitted at the position\nit already held leaves nothing behind, so a row reading `Dial moved · API access · on` asserts a\nmovement that did not happen. The corpus is append-only and never deleted, so no later write corrects\nit.\n\nRejected: unconditional recording, on [`docs/spec/audit-act.md`](../spec/audit-act.md) §7.6 ruling\n7's reached-the-setter boundary. That boundary was drawn for a zero-jobs dispatch, which left a\n`Dispatch` row behind.\n\nReversal unguards six handlers and leaves every false row already written standing.\n\n**So five handlers now read a value their mutation does not need.**"
+      }
+    },
+    {
+      "number": 1914,
+      "file": "docs/adr/1914-a-dial-move-is-serialised-by-a-row-lock-inside-one-transaction.md",
+      "title": "A dial move is serialised by a row lock inside one transaction",
+      "slug": "a-dial-move-is-serialised-by-a-row-lock-inside-one-transaction",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "cmd/web/dialtx_test.go::TestTwoConcurrentSubmitsOfOneDialMoveRecordOneRow"
+      },
+      "ticket": 1914,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1909,
+          "clause": "6"
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 145,
+        "text": "**A dial's read, compare, write and record run in one transaction that opens with\n`SELECT … FOR UPDATE` on the row the dial lives on.** All eight `act.DialMove` sites take one\nwrapper.\n\nOutside the lock, two submits of one move both read the old value and both record, so the\nappend-only corpus takes a second `Dial moved` row it can never retract. A stale read loses a row\ninstead: it compares equal after another admin moved the dial.\n\nRejected: `UPDATE … WHERE col IS DISTINCT FROM $1` recording on rows affected. It reaches five of\nthe eight sites, splits the guard in two, and stops a no-op stamping the attribution columns, which\nreverses [ADR-1909](./1909-a-dial-submitted-at-its-current-value-writes-no-act-row.md) §5.1.\nRejected: an advisory lock, which buys a key convention for rows that already exist.\n\nReversal returns the race to eight sites.\n\n**So `cmd/web` holds a transaction outside the restore path.**"
       }
     }
   ]

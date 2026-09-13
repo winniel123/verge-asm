@@ -137,6 +137,18 @@ func (q *Queries) ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusR
 	return items, nil
 }
 
+const lockZoneCadenceSeconds = `-- name: LockZoneCadenceSeconds :one
+SELECT cadence_seconds FROM scan WHERE kind = 'zone' FOR UPDATE
+`
+
+// FOR UPDATE holds the row across the compare and the write (ADR-1914).
+func (q *Queries) LockZoneCadenceSeconds(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, lockZoneCadenceSeconds)
+	var cadence_seconds int64
+	err := row.Scan(&cadence_seconds)
+	return cadence_seconds, err
+}
+
 const setZoneCadenceSeconds = `-- name: SetZoneCadenceSeconds :exec
 UPDATE scan SET cadence_seconds = $1 WHERE kind = 'zone'
 `
