@@ -234,13 +234,12 @@ WHERE w.consumed_at IS NULL
 -- name: ListReleasableHeldMessages :many
 -- A held row releases on a drained hot dispatch, or where the tier cannot answer (ADR-1806 §6).
 SELECT m.id, m.class, m.headline, m.census_pending_after_batch, m.census_basis,
-       -- No drained dispatch is a degradation, whose census is the one at the cause (ADR-1806 §6).
-       COALESCE(drained.census_upper_batch, b.id)::bigint AS census_upper_batch
+       -- Zero is no bound: a dispatch that opened no batch cannot say what it opened (ADR-1870 §3).
+       COALESCE(drained.census_upper_batch, 0)::bigint AS census_upper_batch
 FROM message m
 JOIN batch b ON b.id = m.census_pending_after_batch
 LEFT JOIN LATERAL (
     SELECT first_hot.id AS drained_dispatch,
-           -- A dispatch that opened no batch leaves the root's own fold the whole census.
            (SELECT max(cb.id) FROM batch cb WHERE cb.dispatch_id = first_hot.id) AS census_upper_batch
     FROM (
         SELECT d.id, d.fanout_complete

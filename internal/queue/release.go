@@ -23,10 +23,14 @@ func releaseHeldMessage(ctx context.Context, q releaseStore, row db.ListReleasab
 		return false, fmt.Errorf("queue: census basis of message %d: %w", row.ID, err)
 	}
 	batchID := row.CensusPendingAfterBatch.Int64
+	var maxBatch pgtype.Int8
+	// A reaped dispatch opens no batch, so a bound there drops a later one (ADR-1870 §3, #1391).
+	if row.CensusUpperBatch > 0 {
+		maxBatch = pgtype.Int8{Int64: row.CensusUpperBatch, Valid: true}
+	}
 	subjects, err := q.ListSubjectsOpenedSinceBatch(ctx, db.ListSubjectsOpenedSinceBatchParams{
-		BatchID: batchID,
-		// The dispatch that answered the release bounds the read it answers for (ADR-1870 §3).
-		MaxBatchID: pgtype.Int8{Int64: row.CensusUpperBatch, Valid: true},
+		BatchID:    batchID,
+		MaxBatchID: maxBatch,
 	})
 	if err != nil {
 		return false, fmt.Errorf("queue: subjects opened since batch %d: %w", batchID, err)

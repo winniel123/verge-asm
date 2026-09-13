@@ -223,18 +223,24 @@ func TestTheReadStopsAtTheDispatchThatAnsweredTheRelease(t *testing.T) {
 	}
 }
 
-func TestADegradationBoundsTheReadAtTheCause(t *testing.T) {
-	// No dispatch drained, so the query left the root's own batch as the bound and the census
-	// is the one at the cause (ADR-1806 §6). The read must still carry a bound, because a
-	// degradation is not licence to sweep every subject opened since (ADR-1870 §3).
+func TestADispatchThatOpenedNoBatchBoundsNothing(t *testing.T) {
+	// The reaper writes 'dead' and inserts no batch (#1391), so a hot dispatch whose every job
+	// died drains with no batch of its own. Bounding at the root's own fold there would drop
+	// what a later dispatch really opened, and announce an entry as nothing (ADR-1870 §3).
+	// The query writes zero for that case, and for ADR-1806 §6's two degradations.
+	row := heldRow(t, 33, 7)
+	row.CensusUpperBatch = 0
 	store := &fakeReleaseStore{claimedRows: 1}
 	var log []routed
-	if _, err := releaseHeldMessage(context.Background(), store, heldRow(t, 33, 7), fakeEnqueuer(1, &log)); err != nil {
+	if _, err := releaseHeldMessage(context.Background(), store, row, fakeEnqueuer(1, &log)); err != nil {
 		t.Fatalf("release: %v", err)
 	}
 	got := store.asked[0]
-	if !got.MaxBatchID.Valid || got.MaxBatchID.Int64 != 7 {
-		t.Errorf("the census at the cause reads the root's own batch alone, got %+v", got.MaxBatchID)
+	if got.MaxBatchID.Valid {
+		t.Errorf("no batch of the drained dispatch is no upper bound, got %+v", got.MaxBatchID)
+	}
+	if got.BatchID != 7 {
+		t.Errorf("the lower bound stays the root's own batch (#1816), got %d", got.BatchID)
 	}
 }
 

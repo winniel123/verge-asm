@@ -13,12 +13,17 @@ import (
 // batch id and never an instant, because ADR-1806 §8 records that no column orders
 // a dispatch against a batch soundly.
 func TestTheCensusReadStopsAtTheDrainedDispatch(t *testing.T) {
-	q := strings.ToLower(listSubjectsOpenedSinceBatch)
-	if !strings.Contains(q, "opened_batch_id <=") {
-		t.Errorf("the read stops at the dispatch that drained (ADR-1870 §2), got:\n%s", listSubjectsOpenedSinceBatch)
+	flat := strings.Join(strings.Fields(strings.ToLower(listSubjectsOpenedSinceBatch)), " ")
+	// The upper bound reads the same column as the lower one. Bounding on any other column
+	// would pass a bare "opened_batch_id <=" test while reading different ground.
+	if !strings.Contains(flat, "s.opened_batch_id <= $2") {
+		t.Errorf("the read stops at the drained dispatch's last batch (ADR-1870 §2), got:\n%s", listSubjectsOpenedSinceBatch)
 	}
-	if !strings.Contains(q, "is null") {
-		t.Errorf("the re-point residue passes no upper bound, so the bound is optional (ADR-1870 §4), got:\n%s", listSubjectsOpenedSinceBatch)
+	if !strings.Contains(flat, "$2::bigint is null or") {
+		t.Errorf("the residue passes no upper bound, so the bound is optional (ADR-1870 §4), got:\n%s", listSubjectsOpenedSinceBatch)
+	}
+	if !strings.Contains(flat, "s.opened_batch_id >= $1") {
+		t.Errorf("the lower bound is the root's own batch, inclusive (#1816), got:\n%s", listSubjectsOpenedSinceBatch)
 	}
 }
 
@@ -28,14 +33,17 @@ func TestTheCensusReadStopsAtTheDrainedDispatch(t *testing.T) {
 // ADR-1806 §8 records. A drained dispatch that opened no batch leaves the root's
 // own fold as the whole census, which is what the fallback writes.
 func TestTheReleaseRowCarriesTheUpperBound(t *testing.T) {
-	q := strings.ToLower(listReleasableHeldMessages)
-	if !strings.Contains(q, "census_upper_batch") {
-		t.Errorf("the row carries the bound the release predicate's own dispatch fixes (ADR-1870 §3), got:\n%s", listReleasableHeldMessages)
+	flat := strings.Join(strings.Fields(strings.ToLower(listReleasableHeldMessages)), " ")
+	// The whole expression, not its parts. Swapping the COALESCE arguments, or reading some
+	// other dispatch's batches, leaves every substring of this query in place while every
+	// release bounds at the wrong batch.
+	if !strings.Contains(flat, "coalesce(drained.census_upper_batch, 0)::bigint as census_upper_batch") {
+		t.Errorf("zero is the bound where the dispatch opened no batch, and the order says so (ADR-1870 §3), got:\n%s", listReleasableHeldMessages)
 	}
-	if !strings.Contains(q, "cb.dispatch_id = first_hot.id") {
-		t.Errorf("the bound reads the batches of the dispatch that drained (ADR-1870 §3), got:\n%s", listReleasableHeldMessages)
+	if !strings.Contains(flat, "(select max(cb.id) from batch cb where cb.dispatch_id = first_hot.id) as census_upper_batch") {
+		t.Errorf("the bound is the last batch of the dispatch that drained (ADR-1870 §3), got:\n%s", listReleasableHeldMessages)
 	}
-	if !strings.Contains(q, "coalesce") {
-		t.Errorf("a dispatch that opened no batch falls back to the root's own batch (ADR-1870 §3), got:\n%s", listReleasableHeldMessages)
+	if !strings.Contains(flat, "drained.drained_dispatch is not null") {
+		t.Errorf("one dispatch fixes the release arm and the bound (ADR-1870 §3), got:\n%s", listReleasableHeldMessages)
 	}
 }

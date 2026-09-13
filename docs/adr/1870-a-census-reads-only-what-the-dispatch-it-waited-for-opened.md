@@ -17,7 +17,7 @@ relations:
 ## Decision
 
 **The release read carries an upper bound. It is the last batch of the `hot` dispatch whose drain
-released the row. Where no dispatch drained, it is the root's own batch.**
+released the row. Where that dispatch opened no batch, no bound applies.**
 
 The read had a lower bound only. A release delayed past later folds therefore named every subject
 those folds opened, in a message stamped with the first fold's instant. ADR-1806 §4 freezes the
@@ -87,13 +87,27 @@ scan of `batch` once per held row. It does not compare `created_at` columns. ADR
 `InsertBatch` stamps the batch at the top of the fold transaction while the spans commit at its end.
 A batch id needs no instant.
 
-Two cases fall back to the root's own batch, and `COALESCE` writes both:
+The bound is a window over batch ids, not membership of the dispatch. Everything the root's own
+fold opened stays in, which is what [#1816](https://github.com/winniel123/verge-asm/issues/1816)
+requires, and so does anything another `Scan` folded inside the window. Narrowing it to
+`dispatch_id = D` would drop the root's own fold and break that rule.
 
-- **The drained dispatch opened no batch.** ADR-1851 §2 records this configuration: a `hot` tier
-  that is enabled and admits nothing finishes its fan-out with an empty job set. Nothing opened
-  beneath the root, so the root's own fold is the whole census.
-- **No dispatch drained.** ADR-1806 §6's two degradations release without one. Its table already
-  calls for the census "at the cause", and the root's own batch is that census.
+Where the drained dispatch opened no batch, the query writes zero and **no bound applies**. The read
+keeps the shape it had before this decision. Two configurations reach that state and the model
+cannot tell them apart from here:
+
+- A `hot` tier that is enabled and admits nothing finishes its fan-out with an empty job set
+  (ADR-1851 §2). Nothing opened beneath the root.
+- Every job of the dispatch died. `ReapStaleRunningJobs` writes `dead` and inserts no batch, because
+  "a dead worker is failure, not evidence"
+  ([#1391](https://github.com/winniel123/verge-asm/issues/1391)). `dead` is terminal, so the drain
+  test passes. Subjects a later dispatch opened may be waiting for this message to name them.
+
+Bounding at the root's own fold would be right for the first and wrong for the second, and it would
+announce a real entry as nothing. This decision narrows a read that was too wide. It does not
+license a census narrower than the one shipped before it, so the ambiguous case keeps the old shape.
+ADR-1806 §6's two degradations release with no drained dispatch at all, and they take the same zero
+for the same reason: its table calls for the census "at the cause, as before".
 
 A retired dispatch needs no rule. Dispatch retention deletes the row, so `first_hot` selects the
 next dispatch rather than a row whose batches were orphaned to `NULL`. The bound then widens, and
@@ -130,7 +144,17 @@ answered that.
 **Bound on an instant.** A `created_at` window would need the ordering ADR-1806 §8 records as
 unanswered, and #27 refuses a duration window in a safety path.
 
-## 6. Proof
+## 6. What the bound costs
+
+The release arm reads `drained.drained_dispatch` from the lateral rather than its own `EXISTS`. An
+`OR` short-circuits, so with the stale-running reaper disabled the old query answered on the flag
+alone and never probed `dispatch` or `queue_job`. The lateral now runs for every held row on every
+poll, in the one configuration ADR-1806 §6 says the drain test cannot be trusted anyway. The cost
+is bounded by the held-row count, and `db/migrations/26100_batch_dispatch_index.sql` covers the
+`batch` side of it. Splitting the arm back out would read the same `first_hot` selection twice, and
+ADR-1806 §4's reason for one rule applies to one query as much as to two.
+
+## 7. Proof
 
 `TestADelayedReleaseNamesNoSubjectOpenedAfterTheDrainedDispatch`
 (`internal/queue/censusproof_test.go`) folds the three batches, releases after the last, and asserts
