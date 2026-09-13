@@ -251,10 +251,8 @@ SELECT b.id,
 FROM batch b
 WHERE b.repoint_settled_at IS NULL
   AND (
-      -- No reaper leaves the drain test reading a job set nothing reaps (ADR-1806 §6).
-      sqlc.arg(reaper_disabled)::boolean
       -- A disabled hot tier opens nothing beneath the move, ever (ADR-1806 §6).
-      OR NOT EXISTS (
+      NOT EXISTS (
           SELECT 1 FROM scan hs WHERE hs.kind = 'hot' AND hs.enabled
       )
       OR EXISTS (
@@ -274,12 +272,13 @@ WHERE b.repoint_settled_at IS NULL
           ) first_hot
             -- A job count cannot answer the fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
           WHERE first_hot.fanout_complete
-          AND NOT EXISTS (
+          -- No reaper leaves the drain test reading a job set nothing reaps (ADR-1867 §4).
+          AND (sqlc.arg(reaper_disabled)::boolean OR NOT EXISTS (
               -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
               SELECT 1 FROM queue_job j
               WHERE j.dispatch_id = first_hot.id
                 AND j.state IN ('ready', 'running')
-          )
+          ))
       )
   )
 ORDER BY b.id;

@@ -17,6 +17,7 @@ type rePointSettleStore interface {
 	ListRePointMovesForBatch(ctx context.Context, batchID int64) ([]db.ListRePointMovesForBatchRow, error)
 	ListResolutionCitersForAddressesAt(ctx context.Context, arg db.ListResolutionCitersForAddressesAtParams) ([]db.ListResolutionCitersForAddressesAtRow, error)
 	ListNameRootsOpenedInBatch(ctx context.Context, batchID int64) ([]db.ListNameRootsOpenedInBatchRow, error)
+	BatchHeldItsRootCensus(ctx context.Context, batchID int64) (bool, error)
 	ListSubjectsOpenedSinceBatch(ctx context.Context, arg db.ListSubjectsOpenedSinceBatchParams) ([]db.ListSubjectsOpenedSinceBatchRow, error)
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 }
@@ -53,7 +54,12 @@ func settleRePointFold(ctx context.Context, q rePointSettleStore, batchID int64,
 	if err != nil {
 		return 0, fmt.Errorf("queue: declared inputs for batch %d's residue: %w", batchID, err)
 	}
-	msgs, err := fold.messages(ctx, q, in)
+	// A restart may move the knob between the fold and its settle, so the row is the record.
+	held, err := q.BatchHeldItsRootCensus(ctx, batchID)
+	if err != nil {
+		return 0, fmt.Errorf("queue: the hold batch %d's roots took: %w", batchID, err)
+	}
+	msgs, err := fold.messages(ctx, q, in, !held)
 	if err != nil {
 		return 0, err
 	}
@@ -100,7 +106,7 @@ func rePointFoldFrom(batchID int64, rows []db.ListRePointMovesForBatchRow) rePoi
 	return out
 }
 
-func (f rePointFold) messages(ctx context.Context, q rePointSettleStore, in membershipInputs) ([]*message.Message, error) {
+func (f rePointFold) messages(ctx context.Context, q rePointSettleStore, in membershipInputs, atCause bool) ([]*message.Message, error) {
 	fresh := map[string]bool{}
 	// A fold that gained no address has no Address root, so it needs no estate read.
 	if keys := rePointCandidateAddresses(f.moves); len(keys) > 0 {
@@ -131,10 +137,11 @@ func (f rePointFold) messages(ctx context.Context, q rePointSettleStore, in memb
 		return nil, fmt.Errorf("queue: subjects opened since batch %d: %w", f.batchID, err)
 	}
 	subjects := openedSubjects(opened)
+	cover := rootCover{fresh: fresh, atCause: atCause}
 	var msgs []*message.Message
 	for _, mv := range f.moves {
 		// An empty residue is no firing, and RePoint refuses one (ADR-0026 §2).
-		if m := message.RePoint(mv.name, rePointResidue(mv, subjects, fresh, roots), f.instant); m != nil {
+		if m := message.RePoint(mv.name, rePointResidue(mv, subjects, cover, roots), f.instant); m != nil {
 			msgs = append(msgs, m)
 		}
 	}

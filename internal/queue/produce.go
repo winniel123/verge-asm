@@ -485,7 +485,16 @@ func flagshipCensus(changes []spanChange, service string) message.Census {
 	return message.NewCensus(entries...)
 }
 
-type subjectRef struct{ kind, key string }
+type subjectRef struct {
+	kind, key   string
+	inFoldBatch bool
+}
+
+// A census is one entry per subject, so its dedup key drops every fact but identity.
+
+type subjectIdentity struct{ kind, key string }
+
+func (s subjectRef) identity() subjectIdentity { return subjectIdentity{kind: s.kind, key: s.key} }
 
 func membershipCensus(changes []spanChange, root spanChange) message.Census {
 	subjects := make([]subjectRef, 0, len(changes))
@@ -502,7 +511,7 @@ func membershipCensus(changes []spanChange, root spanChange) message.Census {
 
 func censusBeneathRoot(root spanChange, subjects []subjectRef) message.Census {
 	cited := citedAddresses(root)
-	seen := map[subjectRef]bool{}
+	seen := map[subjectIdentity]bool{}
 	var entries []message.CensusEntry
 	for _, s := range subjects {
 		if s.key == root.SubjectKey {
@@ -514,10 +523,10 @@ func censusBeneathRoot(root spanChange, subjects []subjectRef) message.Census {
 		if !subjectBeneathRoot(root, cited, s.kind, s.key) {
 			continue
 		}
-		if seen[s] {
+		if seen[s.identity()] {
 			continue
 		}
-		seen[s] = true
+		seen[s.identity()] = true
 		entries = append(entries, message.CensusEntry{Kind: s.kind, Key: s.key})
 	}
 	return message.NewCensus(entries...)

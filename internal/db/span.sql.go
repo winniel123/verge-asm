@@ -11,6 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const batchHeldItsRootCensus = `-- name: BatchHeldItsRootCensus :one
+SELECT EXISTS (
+    SELECT 1 FROM message m
+    WHERE m.census_pending_after_batch = $1::bigint
+)::boolean AS held
+`
+
+// The hold a fold took, read from the row rather than from the knob it read (ADR-1867 §3).
+func (q *Queries) BatchHeldItsRootCensus(ctx context.Context, batchID int64) (bool, error) {
+	row := q.db.QueryRow(ctx, batchHeldItsRootCensus, batchID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const closeSpan = `-- name: CloseSpan :exec
 UPDATE span
 SET closed_at = $1,
@@ -1181,7 +1196,9 @@ func (q *Queries) ListSubjectFirstAppearances(ctx context.Context, since pgtype.
 }
 
 const listSubjectsOpenedSinceBatch = `-- name: ListSubjectsOpenedSinceBatch :many
-SELECT DISTINCT s.subject_kind, s.subject_key
+SELECT s.subject_kind, s.subject_key,
+       -- An at-cause census counts its own fold alone, so the residue needs this (ADR-1867).
+       bool_or(s.opened_batch_id = $1::bigint) AS in_fold_batch
 FROM span s
   -- The residue suppresses a subject the root's own fold covers, so the bound includes it (#1816).
 WHERE s.opened_batch_id >= $1::bigint
@@ -1189,6 +1206,7 @@ WHERE s.opened_batch_id >= $1::bigint
   AND ($2::bigint IS NULL
        OR s.opened_batch_id <= $2::bigint)
   AND s.subject_kind IN ('service', 'endpoint')
+GROUP BY s.subject_kind, s.subject_key
 ORDER BY s.subject_kind, s.subject_key
 `
 
@@ -1200,6 +1218,7 @@ type ListSubjectsOpenedSinceBatchParams struct {
 type ListSubjectsOpenedSinceBatchRow struct {
 	SubjectKind string `json:"subject_kind"`
 	SubjectKey  string `json:"subject_key"`
+	InFoldBatch bool   `json:"in_fold_batch"`
 }
 
 // What opened beneath a held message's root, read at release (ADR-1806 §3).
@@ -1212,7 +1231,7 @@ func (q *Queries) ListSubjectsOpenedSinceBatch(ctx context.Context, arg ListSubj
 	items := []ListSubjectsOpenedSinceBatchRow{}
 	for rows.Next() {
 		var i ListSubjectsOpenedSinceBatchRow
-		if err := rows.Scan(&i.SubjectKind, &i.SubjectKey); err != nil {
+		if err := rows.Scan(&i.SubjectKind, &i.SubjectKey, &i.InFoldBatch); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

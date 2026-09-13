@@ -1278,6 +1278,11 @@
           "kind": "amends",
           "from": 1806,
           "clause": "2"
+        },
+        {
+          "kind": "rests-on",
+          "from": 1867,
+          "clause": null
         }
       ],
       "sections": [
@@ -11128,6 +11133,11 @@
         },
         {
           "kind": "amends",
+          "from": 1867,
+          "clause": "6"
+        },
+        {
+          "kind": "amends",
           "from": 1870,
           "clause": "3"
         }
@@ -11147,6 +11157,11 @@
         {
           "kind": "amends",
           "from": 1851,
+          "clause": "6"
+        },
+        {
+          "kind": "amends",
+          "from": 1867,
           "clause": "6"
         },
         {
@@ -11252,6 +11267,49 @@
       "decision": {
         "words": 141,
         "text": "A `dispatch` carries a boolean recording that its fan-out finished. Both release predicates read\nthat column for the first half of ADR-1806 §3's bound, in place of the job-existence proxy #1816\nused.\n\nA streamed tier commits its dispatch row before its jobs, so a job count cannot separate a fan-out\nstill streaming from one that finished with nothing to enqueue. A `hot` tier that is enabled and\nadmits nothing is the second case, and the proxy held its membership message forever.\n\nA crashed fan-out marks itself never. The next claimed `hot` tick marks it abandoned in a second\ncolumn, and the bound skips such a row. A tick is a cadence, so no clock enters the predicate.\n\nRejected: an age bound on a jobless dispatch, which ADR-1806 §7 and\n[#27](https://github.com/winniel123/verge-asm/issues/27) both refuse.\n\nReversal costs a migration and every census already computed."
+      }
+    },
+    {
+      "number": 1867,
+      "file": "docs/adr/1867-with-no-reaper-the-re-point-residue-names-the-ground-the-at-cause-census-could-not.md",
+      "title": "With no reaper the re-point residue names the ground the at-cause census could not",
+      "slug": "with-no-reaper-the-re-point-residue-names-the-ground-the-at-cause-census-could-not",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "internal/queue/repointsettle_test.go::TestWithNoReaperTheResidueNamesTheGroundTheRootCouldNot"
+      },
+      "ticket": 1867,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1806,
+          "clause": "6"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 26
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 150,
+        "text": "**When the stale-running reaper is disabled, the re-point residue waits on the hot fan-out and names\nevery Endpoint beneath an address new to the estate, except the ones its own fold's roots named.**\n\nADR-1806 §6 row 1 writes a root's census at the cause. A fold is one job with one Kind, so the `dns`\nfold that moved the Name opens no Endpoint, and that census is empty. ADR-0026's residue then drops\nthe same ground, and its settle short-circuited to the next poll pass. Together they announced the\nsubtree to nobody. The residue now suppresses only what a root counted, which `in_fold_batch`\nreports per subject, and its fold settles once the first `hot` dispatch after it fans out.\n\nRejected: leaving the loss and widening the dispatch warning. An operator cannot act on a subtree no\nmessage names.\n\nReversal costs the query column, the settle-path thread, and every message already fired."
       }
     },
     {

@@ -128,6 +128,7 @@ func (d *Dispatcher) settleRePoints(ctx context.Context) (int, error) {
 	if d.devMode {
 		return 0, nil
 	}
+	// The flag excuses the drain test alone, so the fan-out still holds the fold (ADR-1867 §4).
 	rows, err := d.q.ListSettleableRePointBatches(ctx, !HotLagGateArmed(d.staleJobThreshold))
 	if err != nil {
 		return 0, fmt.Errorf("queue: list settleable re-point batches: %w", err)

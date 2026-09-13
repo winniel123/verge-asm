@@ -23,6 +23,7 @@ type fakeSettleStore struct {
 	exclusions []db.Exclusion
 
 	askedResidue []db.ListSubjectsOpenedSinceBatchParams
+	atCause      bool
 
 	refuseClaim bool
 	claimErr    error
@@ -60,6 +61,10 @@ func (f *fakeSettleStore) ListSubjectsOpenedSinceBatch(_ context.Context, arg db
 	return f.opened, nil
 }
 
+func (f *fakeSettleStore) BatchHeldItsRootCensus(_ context.Context, _ int64) (bool, error) {
+	return !f.atCause, nil
+}
+
 func (f *fakeSettleStore) ListSeeds(_ context.Context) ([]db.ListSeedsRow, error) {
 	return f.seeds, nil
 }
@@ -92,6 +97,15 @@ func beneath(name, addr, port string) []db.ListSubjectsOpenedSinceBatchRow {
 		subjectRow(subjectKindService, svc),
 		subjectRow(subjectKindEndpoint, name+"@"+svc),
 	}
+}
+
+func inFold(rows []db.ListSubjectsOpenedSinceBatchRow) []db.ListSubjectsOpenedSinceBatchRow {
+	out := make([]db.ListSubjectsOpenedSinceBatchRow, 0, len(rows))
+	for _, r := range rows {
+		r.InFoldBatch = true
+		out = append(out, r)
+	}
+	return out
 }
 
 func settleFrom(t *testing.T, store *fakeSettleStore) ([]*message.Message, []routed) {
@@ -228,7 +242,7 @@ func TestTheClaimCarriesTheCallersInstant(t *testing.T) {
 }
 
 func TestAnAddressNewToTheEstateLeavesTheResidueEmpty(t *testing.T) {
-	// The Address root covers the whole residue, so no second message fires (ADR-0026 §2).
+	// The held root counts the whole subtree at release, so no second message fires (ADR-0026 §2).
 	store := &fakeSettleStore{
 		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
 		opened: beneath(rpName, rpNew, "443"),
@@ -236,6 +250,87 @@ func TestAnAddressNewToTheEstateLeavesTheResidueEmpty(t *testing.T) {
 	msgs, _ := settleFrom(t, store)
 	if len(msgs) != 0 {
 		t.Fatalf("the Address root and the residue partition one ground, got %+v", msgs)
+	}
+}
+
+func TestWithNoReaperTheResidueNamesTheGroundTheRootCouldNot(t *testing.T) {
+	// The root wrote an empty census at the cause, so this Endpoint reaches nobody otherwise
+	// (ADR-1867, #1867).
+	store := &fakeSettleStore{
+		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
+		opened: beneath(rpName, rpNew, "443"),
+	}
+	store.atCause = true
+	msgs, log := settleFrom(t, store)
+	if len(msgs) != 1 {
+		t.Fatalf("an at-cause root covers no later opening, so the residue fires; got %+v", msgs)
+	}
+	m := msgs[0]
+	if m.FiredAt != rpName || m.Census.Len() != 1 {
+		t.Fatalf("the residue is the Endpoint beneath the new address, got %+v", m)
+	}
+	if e := m.Census.Entries[0]; e.Kind != subjectKindEndpoint || !strings.Contains(e.Key, rpNew) {
+		t.Errorf("the residue names the Endpoint the hot tier opened, got %+v", e)
+	}
+	if len(log) != 1 {
+		t.Errorf("a fired message is routed once, got %+v", log)
+	}
+}
+
+func TestTheCoverReadsTheHoldTheRowRecords(t *testing.T) {
+	// The settle runs a hot cadence after the fold, so a restart can move the knob in between.
+	// A row that held its census counts the whole subtree at release, whatever the knob now says
+	// (ADR-1867 §3).
+	store := &fakeSettleStore{
+		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
+		opened: beneath(rpName, rpNew, "443"),
+	}
+	store.atCause = false
+
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 0 {
+		t.Fatalf("the row held its census, so the root still covers this ground; got %+v", msgs)
+	}
+}
+
+func TestWithNoReaperTheResidueNamesGroundAMembershipRootCouldNotCover(t *testing.T) {
+	// One holdCensus serves both root producers, so a Name root of this fold wrote at the cause
+	// too, and its census is as empty as the Address root's (ADR-1867 §3, ADR-1806 §4).
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = beneath(rpOther, rpNew, "443")
+	store.roots = []db.ListNameRootsOpenedInBatchRow{{SubjectKey: rpOther, Value: resolved(rpNew)}}
+
+	store.atCause = true
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 1 || msgs[0].Census.Len() != 1 {
+		t.Fatalf("an at-cause Name root counted none of this, so the residue owes it; got %+v", msgs)
+	}
+}
+
+func TestWithNoReaperTheResidueDropsWhatAMembershipRootsOwnFoldOpened(t *testing.T) {
+	// The Name root's at-cause census counted this, so the residue naming it would double it.
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = inFold(beneath(rpOther, rpNew, "443"))
+	store.roots = []db.ListNameRootsOpenedInBatchRow{{SubjectKey: rpOther, Value: resolved(rpNew)}}
+
+	store.atCause = true
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 0 {
+		t.Fatalf("a membership message of the same fold already named it, got %+v", msgs)
+	}
+}
+
+func TestWithNoReaperTheResidueDropsWhatTheRootsOwnFoldOpened(t *testing.T) {
+	// An at-cause census counts the fold's own openings, so naming them again doubles them
+	// (ADR-1867).
+	store := &fakeSettleStore{
+		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
+		opened: inFold(beneath(rpName, rpNew, "443")),
+	}
+	store.atCause = true
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 0 {
+		t.Fatalf("the root's own census already named this ground, got %+v", msgs)
 	}
 }
 

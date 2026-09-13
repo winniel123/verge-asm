@@ -67,7 +67,7 @@ func basisRoot(b message.CensusBasis) spanChange {
 func openedSubjects(rows []db.ListSubjectsOpenedSinceBatchRow) []subjectRef {
 	out := make([]subjectRef, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, subjectRef{kind: r.SubjectKind, key: r.SubjectKey})
+		out = append(out, subjectRef{kind: r.SubjectKind, key: r.SubjectKey, inFoldBatch: r.InFoldBatch})
 	}
 	return out
 }
