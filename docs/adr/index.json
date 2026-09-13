@@ -726,6 +726,11 @@
           "kind": "rests-on",
           "from": 92,
           "clause": null
+        },
+        {
+          "kind": "bounds",
+          "from": 1895,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4001,6 +4006,11 @@
           "clause": null
         },
         {
+          "kind": "rests-on",
+          "from": 1895,
+          "clause": null
+        },
+        {
           "kind": "amends",
           "from": 1902,
           "clause": null
@@ -4497,6 +4507,11 @@
         {
           "kind": "sibling",
           "from": 226,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1895,
           "clause": null
         }
       ],
@@ -11614,6 +11629,57 @@
       "decision": {
         "words": 148,
         "text": "**A record of the act is not residue.** ADR-0093's limb 2 tests what the act **moved** — a\nmeasurement the estate produced, or a record of the system acting on what the act changed — and a\nconsumer that exists in v1 must need the date. Both halves are required.\n\nThe `Act` corpus transcribes every Declared act, with an instant. It dates no consequence, because\nit is not one. Were a transcript to count, limb 2 would be false for every Declared term at once, and\nthe test could never fire again. `Annotation` keeps its instant.\n\nRejected: a derivation fence, refused because two of limb 2's own rows already rest on Operational\nresidue. And a reader-relative reading, which hangs a modelled field on a permissions gate.\n\nReversal costs ADR-0093's eleven-row table, which rests on this reading. Read literally, it strips a\nmodelled field the day the corpus ships."
+      }
+    },
+    {
+      "number": 1895,
+      "file": "docs/adr/1895-a-vantage-class-reads-present-configuration-so-a-historic-observation-carries-none.md",
+      "title": "A Vantage class reads present configuration, so a historic observation carries none",
+      "slug": "a-vantage-class-reads-present-configuration-so-a-historic-observation-carries-none",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "test": "cmd/web/vantageclass_history_test.go::TestAScopeEditMovesBothExposureDeltaLegsTogether"
+      },
+      "ticket": 1895,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 105
+        },
+        {
+          "kind": "rests-on",
+          "adr": 92
+        },
+        {
+          "kind": "bounds",
+          "adr": 14
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 147,
+        "text": "**A `Vantage class` is a reading of present configuration, so a historic observation carries none.**\nEvery leg of one comparison classifies under one binding, so a scope edit moves the whole history at\nonce and the exposure delta reports no drift the measurements did not carry.\n\nRejected: pin the class at the instant it was recorded, on the `Batch` or on the span row.\n\nA reader asks why, because a class that re-reads the past looks like a defect. The class verifies\ndeclared intent against the scopes the operator holds **now**, and a live read under `now` beside a\nhistoric read under `then` manufactures drift in the flagship value.\n\nReversal costs two corpora that do not exist — a per-instant scope set, and a per-observation\npresented address — and a backfill with no source, so every row before the change reads under a class\nnothing ever wrote."
       }
     },
     {
