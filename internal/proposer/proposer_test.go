@@ -296,6 +296,10 @@ func TestCAIDARecoversTheJoinKeyThroughTheASNsLeg(t *testing.T) {
 	got := map[string]bool{}
 	for _, cd := range cands {
 		got[cd.Scope.String()] = true
+		// The asns record carries the key, so its holder is the one the key belongs to (#1878).
+		if want := "Kenyan Post & Telecommunications Company / Telkom Kenya Ltd"; cd.OrgName != want {
+			t.Errorf("%s OrgName = %q, want the asns record's holder %q", cd.Scope, cd.OrgName, want)
+		}
 	}
 	for _, want := range []string{"41.215.128.0/20", "2c0f:fe38::/32"} {
 		if !got[want] {
@@ -501,5 +505,88 @@ func TestDefaultRegistryCAIDABaseIsThePublishedAS2orgHost(t *testing.T) {
 	}
 	if seen != 2 {
 		t.Fatalf("default registry holds %d CAIDA sources, want 2", seen)
+	}
+}
+
+func TestCAIDARecordsTheMatchedHolderNotTheSearchTerm(t *testing.T) {
+	// The live name=Seacom capture matches three distinct AFRINIC holders on one substring, and no
+	// holder is the string the operator typed (#1878).
+	doer := &fakeDoer{routes: map[string]string{
+		"/search/":    loadFixture(t, "caida_search_seacom.json"),
+		"/asns/37476": loadFixture(t, "caida_asns_unknown.json"),
+		"delegated-afrinic-extended-latest": strings.Join([]string{
+			"afrinic|MU|ipv4|41.87.96.0|8192|20100816|allocated|F365C741",
+			"afrinic|ZA|ipv4|41.78.4.0|1024|20090904|allocated|F3670C40",
+			"afrinic|ZA|ipv6|2c0f:fe20::|32|20100426|allocated|F36F76E3",
+		}, "\n"),
+	}}
+	c := NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.data.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic")
+
+	cands, err := c.Propose(context.Background(), "Seacom")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"41.87.96.0/19":  "SEACOM Limited",
+		"41.78.4.0/22":   "Seacom Western Cape (Pty) Ltd",
+		"2c0f:fe20::/32": "SEACOM KZN (Pty) Ltd",
+	}
+	got := map[string]string{}
+	for _, cd := range cands {
+		got[cd.Scope.String()] = cd.OrgName
+	}
+	if len(got) != len(want) {
+		t.Fatalf("candidates = %v, want %d scopes", got, len(want))
+	}
+	for scope, holder := range want {
+		if got[scope] != holder {
+			t.Errorf("%s OrgName = %q, want the holder %q the id was matched under", scope, got[scope], holder)
+		}
+	}
+}
+
+func TestCAIDARecordsTheHolderFromTheNewestSnapshot(t *testing.T) {
+	// One opaqueId repeats across monthly snapshots and renames between them. The rows do not
+	// arrive in date order, so the stale row leads and first-seen records a 2016 name (#1878).
+	doer := &fakeDoer{routes: map[string]string{
+		"/search/": `{"totalCount":3,"pageInfo":{"hasNextPage":false},"errors":null,"data":[` +
+			`{"opaqueId":"F365C741_AFRINIC","orgName":"SEACOM Ltd","source":"AFRINIC","date":"2016-01-01T00:00:00+00:00"},` +
+			`{"opaqueId":"F365C741_AFRINIC","orgName":"SEACOM Limited","source":"AFRINIC","date":"2026-04-01T00:00:00+00:00"},` +
+			`{"opaqueId":"F365C741_AFRINIC","orgName":"SEACOM Holdings","source":"AFRINIC","date":"2019-07-01T00:00:00+00:00"}]}`,
+		"delegated-afrinic-extended-latest": "afrinic|MU|ipv4|41.87.96.0|8192|20100816|allocated|F365C741",
+	}}
+	c := NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.data.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic")
+
+	cands, err := c.Propose(context.Background(), "SEACOM")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cands) != 1 {
+		t.Fatalf("want one candidate, got %+v", cands)
+	}
+	if want := "SEACOM Limited"; cands[0].OrgName != want {
+		t.Errorf("OrgName = %q, want the newest snapshot's holder %q", cands[0].OrgName, want)
+	}
+}
+
+func TestCAIDAUndatedRowLosesToADatedOne(t *testing.T) {
+	// A row CAIDA dates strangely must not win the name, and must not fail the lookup (#1878).
+	doer := &fakeDoer{routes: map[string]string{
+		"/search/": `{"totalCount":2,"pageInfo":{"hasNextPage":false},"errors":null,"data":[` +
+			`{"opaqueId":"F365C741_AFRINIC","orgName":"SEACOM Ltd","source":"AFRINIC","date":"not-a-date"},` +
+			`{"opaqueId":"F365C741_AFRINIC","orgName":"SEACOM Limited","source":"AFRINIC","date":"2026-04-01T00:00:00+00:00"}]}`,
+		"delegated-afrinic-extended-latest": "afrinic|MU|ipv4|41.87.96.0|8192|20100816|allocated|F365C741",
+	}}
+	c := NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.data.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic")
+
+	cands, err := c.Propose(context.Background(), "SEACOM")
+	if err != nil {
+		t.Fatalf("an unparseable date must not fail the lookup: %v", err)
+	}
+	if len(cands) != 1 {
+		t.Fatalf("want one candidate, got %+v", cands)
+	}
+	if want := "SEACOM Limited"; cands[0].OrgName != want {
+		t.Errorf("OrgName = %q, want the dated row's holder %q", cands[0].OrgName, want)
 	}
 }
