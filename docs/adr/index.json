@@ -3270,6 +3270,16 @@
           "kind": "amends",
           "from": 1891,
           "clause": "1"
+        },
+        {
+          "kind": "amends",
+          "from": 1892,
+          "clause": "2"
+        },
+        {
+          "kind": "amends",
+          "from": 1892,
+          "clause": "4"
         }
       ],
       "sections": [
@@ -3285,6 +3295,16 @@
           "kind": "amends",
           "from": 1891,
           "clause": "1"
+        },
+        {
+          "kind": "amends",
+          "from": 1892,
+          "clause": "2"
+        },
+        {
+          "kind": "amends",
+          "from": 1892,
+          "clause": "4"
         }
       ],
       "decision": {
@@ -4017,6 +4037,11 @@
           "kind": "amends",
           "from": 1891,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1892,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4024,6 +4049,11 @@
         {
           "kind": "amends",
           "from": 1891,
+          "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1892,
           "clause": null
         }
       ],
@@ -11509,6 +11539,59 @@
       "decision": {
         "words": 148,
         "text": "An operator act is recorded as an `Act`, the fifth Operational corpus beside `Dispatch`, `Message`,\n`Delivery` and `Transcript`. An act is auditable when a principal changed the estate's declaration,\nchanged who may act on this instance, directed the instance to act on the network, or caused the\ninstance to disclose a value from a corpus the model seals. A predicate, never a route list.\n\nThis reverses [#127](https://github.com/winniel123/verge-asm/issues/127). The refusal survives over\nthe Declared layer only: no Declared term acquires an actor, and the act of declaring carries one. No\nderivation may read an `Act`.\n\nRejected: #127 §5's deferral on an absent consumer, with #127 §9's reopening condition as the\ntrigger. Three ADRs and a packaging SPEC already demand the write, and fifteen attribution columns\nalready ship, so the ground is the demand side.\n\nReversal costs a never-deleted corpus and a 42-row withdrawal set: 41 sentences withdrawn, one\nrestored."
+      }
+    },
+    {
+      "number": 1892,
+      "file": "docs/adr/1892-a-record-of-the-act-is-not-residue-so-an-annotation-keeps-its-instant.md",
+      "title": "A record of the act is not residue, so an Annotation keeps its instant",
+      "slug": "a-record-of-the-act-is-not-residue-so-an-annotation-keeps-its-instant",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1826
+      },
+      "ticket": 1892,
+      "map": 1786,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 73,
+          "clause": "2"
+        },
+        {
+          "kind": "amends",
+          "adr": 73,
+          "clause": "4"
+        },
+        {
+          "kind": "amends",
+          "adr": 93
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 148,
+        "text": "**A record of the act is not residue.** ADR-0093's limb 2 tests what the act **moved** — a\nmeasurement the estate produced, or a record of the system acting on what the act changed — and a\nconsumer that exists in v1 must need the date. Both halves are required.\n\nThe `Act` corpus transcribes every Declared act, with an instant. It dates no consequence, because\nit is not one. Were a transcript to count, limb 2 would be false for every Declared term at once, and\nthe test could never fire again. `Annotation` keeps its instant.\n\nRejected: a derivation fence, refused because two of limb 2's own rows already rest on Operational\nresidue. And a reader-relative reading, which hangs a modelled field on a permissions gate.\n\nReversal costs ADR-0093's eleven-row table, which rests on this reading. Read literally, it strips a\nmodelled field the day the corpus ships."
       }
     }
   ]
