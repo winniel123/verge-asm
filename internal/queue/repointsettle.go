@@ -18,7 +18,7 @@ type rePointSettleStore interface {
 	ListResolutionCitersForAddressesAt(ctx context.Context, arg db.ListResolutionCitersForAddressesAtParams) ([]db.ListResolutionCitersForAddressesAtRow, error)
 	ListNameRootsOpenedInBatch(ctx context.Context, batchID int64) ([]db.ListNameRootsOpenedInBatchRow, error)
 	BatchHeldItsRootCensus(ctx context.Context, batchID int64) (bool, error)
-	ListSubjectsOpenedSinceBatch(ctx context.Context, batchID int64) ([]db.ListSubjectsOpenedSinceBatchRow, error)
+	ListSubjectsOpenedSinceBatch(ctx context.Context, arg db.ListSubjectsOpenedSinceBatchParams) ([]db.ListSubjectsOpenedSinceBatchRow, error)
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 }
 
@@ -131,7 +131,8 @@ func (f rePointFold) messages(ctx context.Context, q rePointSettleStore, in memb
 	for _, r := range rootRows {
 		roots = append(roots, spanChange{SubjectKind: subjectKindName, SubjectKey: r.SubjectKey, Value: r.Value})
 	}
-	opened, err := q.ListSubjectsOpenedSinceBatch(ctx, f.batchID)
+	// ADR-0026 §2 owns the residue, so bounding it is a decision of its own (ADR-1870 §4).
+	opened, err := q.ListSubjectsOpenedSinceBatch(ctx, db.ListSubjectsOpenedSinceBatchParams{BatchID: f.batchID})
 	if err != nil {
 		return nil, fmt.Errorf("queue: subjects opened since batch %d: %w", f.batchID, err)
 	}

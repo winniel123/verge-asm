@@ -19,15 +19,15 @@ const (
 type fakeReleaseStore struct {
 	opened []db.ListSubjectsOpenedSinceBatchRow
 
-	askedBatch  []int64
+	asked       []db.ListSubjectsOpenedSinceBatchParams
 	released    []db.ReleaseHeldMessageParams
 	claimedRows int64
 
 	openedErr error
 }
 
-func (f *fakeReleaseStore) ListSubjectsOpenedSinceBatch(_ context.Context, batchID int64) ([]db.ListSubjectsOpenedSinceBatchRow, error) {
-	f.askedBatch = append(f.askedBatch, batchID)
+func (f *fakeReleaseStore) ListSubjectsOpenedSinceBatch(_ context.Context, arg db.ListSubjectsOpenedSinceBatchParams) ([]db.ListSubjectsOpenedSinceBatchRow, error) {
+	f.asked = append(f.asked, arg)
 	return f.opened, f.openedErr
 }
 
@@ -48,6 +48,8 @@ func heldRow(t *testing.T, id, batchID int64) db.ListReleasableHeldMessagesRow {
 		Headline:                heldCause,
 		CensusPendingAfterBatch: pgtype.Int8{Int64: batchID, Valid: true},
 		CensusBasis:             basis,
+		// No drained dispatch leaves the root's own batch as both bounds (ADR-1806 §6).
+		CensusUpperBatch: batchID,
 	}
 }
 
@@ -76,8 +78,8 @@ func TestReleaseNamesWhatOpenedBeneathTheRoot(t *testing.T) {
 	if !took {
 		t.Fatal("the pass claimed the row, so it released it")
 	}
-	if len(store.askedBatch) != 1 || store.askedBatch[0] != 9 {
-		t.Errorf("the read is bounded by the root's own batch, got %v", store.askedBatch)
+	if len(store.asked) != 1 || store.asked[0].BatchID != 9 {
+		t.Errorf("the read is bounded below by the root's own batch, got %+v", store.asked)
 	}
 
 	census, err := message.ParseCensus(store.released[0].Census)
@@ -194,6 +196,51 @@ func TestReleaseReadsTheRootFromTheBasisAndNotTheFiredAtSubject(t *testing.T) {
 	}
 	if census.Len() != 1 || census.Entries[0].Key != apexSvc {
 		t.Errorf("the Service sits on the Address root, got %+v", census.Entries)
+	}
+}
+
+func TestTheReadStopsAtTheDispatchThatAnsweredTheRelease(t *testing.T) {
+	// The release poll chose one drained dispatch, and the census names what that dispatch
+	// opened and nothing after it. An open top folds a later cause's subjects into this
+	// message under this message's instant, which is what a frozen basis prevents down the
+	// other axis (ADR-1806 §4, ADR-1870 §2).
+	row := heldRow(t, 31, 9)
+	row.CensusUpperBatch = 14
+	store := &fakeReleaseStore{claimedRows: 1}
+	var log []routed
+	if _, err := releaseHeldMessage(context.Background(), store, row, fakeEnqueuer(1, &log)); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if len(store.asked) != 1 {
+		t.Fatalf("the release reads the subjects once, got %+v", store.asked)
+	}
+	got := store.asked[0]
+	if !got.MaxBatchID.Valid || got.MaxBatchID.Int64 != 14 {
+		t.Errorf("the read stops at the drained dispatch's last batch 14, got %+v", got.MaxBatchID)
+	}
+	if got.BatchID != 9 {
+		t.Errorf("the lower bound stays the root's own batch (#1816), got %d", got.BatchID)
+	}
+}
+
+func TestADispatchThatOpenedNoBatchBoundsNothing(t *testing.T) {
+	// The reaper writes 'dead' and inserts no batch (#1391), so a hot dispatch whose every job
+	// died drains with no batch of its own. Bounding at the root's own fold there would drop
+	// what a later dispatch really opened, and announce an entry as nothing (ADR-1870 §3).
+	// The query writes zero for that case, and for ADR-1806 §6's two degradations.
+	row := heldRow(t, 33, 7)
+	row.CensusUpperBatch = 0
+	store := &fakeReleaseStore{claimedRows: 1}
+	var log []routed
+	if _, err := releaseHeldMessage(context.Background(), store, row, fakeEnqueuer(1, &log)); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	got := store.asked[0]
+	if got.MaxBatchID.Valid {
+		t.Errorf("no batch of the drained dispatch is no upper bound, got %+v", got.MaxBatchID)
+	}
+	if got.BatchID != 7 {
+		t.Errorf("the lower bound stays the root's own batch (#1816), got %d", got.BatchID)
 	}
 }
 

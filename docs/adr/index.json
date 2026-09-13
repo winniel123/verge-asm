@@ -11135,6 +11135,11 @@
           "kind": "amends",
           "from": 1867,
           "clause": "6"
+        },
+        {
+          "kind": "amends",
+          "from": 1870,
+          "clause": "3"
         }
       ],
       "sections": [
@@ -11158,6 +11163,11 @@
           "kind": "amends",
           "from": 1867,
           "clause": "6"
+        },
+        {
+          "kind": "amends",
+          "from": 1870,
+          "clause": "3"
         }
       ],
       "decision": {
@@ -11194,7 +11204,13 @@
           "clause": "4"
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1870,
+          "clause": "4"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11294,6 +11310,52 @@
       "decision": {
         "words": 150,
         "text": "**When the stale-running reaper is disabled, the re-point residue waits on the hot fan-out and names\nevery Endpoint beneath an address new to the estate, except the ones its own fold's roots named.**\n\nADR-1806 §6 row 1 writes a root's census at the cause. A fold is one job with one Kind, so the `dns`\nfold that moved the Name opens no Endpoint, and that census is empty. ADR-0026's residue then drops\nthe same ground, and its settle short-circuited to the next poll pass. Together they announced the\nsubtree to nobody. The residue now suppresses only what a root counted, which `in_fold_batch`\nreports per subject, and its fold settles once the first `hot` dispatch after it fans out.\n\nRejected: leaving the loss and widening the dispatch warning. An operator cannot act on a subtree no\nmessage names.\n\nReversal costs the query column, the settle-path thread, and every message already fired."
+      }
+    },
+    {
+      "number": 1870,
+      "file": "docs/adr/1870-a-census-reads-only-what-the-dispatch-it-waited-for-opened.md",
+      "title": "A census reads only what the dispatch it waited for opened",
+      "slug": "a-census-reads-only-what-the-dispatch-it-waited-for-opened",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "internal/queue/censusproof_test.go::TestADelayedReleaseNamesNoSubjectOpenedAfterTheDrainedDispatch"
+      },
+      "ticket": 1870,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1806,
+          "clause": "3"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1809,
+          "clause": "4"
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 132,
+        "text": "**The release read carries an upper bound. It is the last batch of the `hot` dispatch whose drain\nreleased the row. Where that dispatch opened no batch, no bound applies.**\n\nThe read had a lower bound only. A release delayed past later folds therefore named every subject\nthose folds opened, in a message stamped with the first fold's instant. ADR-1806 §4 freezes the\nbasis against that outcome on the citation axis. The open top reached it on the subject axis.\n\nThe bound is a batch id and never an instant, because ADR-1806 §8 records that no column orders a\ndispatch against a batch soundly.\n\nRejected: capping the census length, which ADR-0031 and ADR-0102 both bar. Rejected: measuring\nfirst, which answers cost and not authorship.\n\nReversal costs every census computed under the bound."
       }
     },
     {

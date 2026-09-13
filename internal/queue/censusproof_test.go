@@ -110,13 +110,17 @@ func (s *foldSpanStore) ListSpansForSubject(_ context.Context, arg db.ListSpansF
 	return out, nil
 }
 
-// The lower bound is the root's own batch, inclusive (db/queries/span.sql, #1816).
+// The lower bound is the root's own batch, inclusive (db/queries/span.sql, #1816). The upper bound
+// is the last batch of the dispatch that answered the release, and it is optional (ADR-1870 §2).
 
-func (s *foldSpanStore) ListSubjectsOpenedSinceBatch(_ context.Context, batchID int64) ([]db.ListSubjectsOpenedSinceBatchRow, error) {
+func (s *foldSpanStore) ListSubjectsOpenedSinceBatch(_ context.Context, arg db.ListSubjectsOpenedSinceBatchParams) ([]db.ListSubjectsOpenedSinceBatchRow, error) {
 	seen := map[subjectRef]bool{}
 	var out []db.ListSubjectsOpenedSinceBatchRow
 	for _, sp := range s.spans {
-		if !sp.OpenedBatchID.Valid || sp.OpenedBatchID.Int64 < batchID {
+		if !sp.OpenedBatchID.Valid || sp.OpenedBatchID.Int64 < arg.BatchID {
+			continue
+		}
+		if arg.MaxBatchID.Valid && sp.OpenedBatchID.Int64 > arg.MaxBatchID.Int64 {
 			continue
 		}
 		if sp.SubjectKind != subjectKindService && sp.SubjectKind != subjectKindEndpoint {
@@ -231,7 +235,10 @@ func foldProofBatch(t *testing.T, spans *foldSpanStore, msgs *fakeMessageStore, 
 	}
 }
 
-func heldMembershipRow(t *testing.T, msgs *fakeMessageStore, rootKind string, batchID int64) db.ListReleasableHeldMessagesRow {
+// upperBatch is what the release query computes: the last batch of the hot dispatch that drained,
+// which is the fold the release waits for (ADR-1870 §3).
+
+func heldMembershipRow(t *testing.T, msgs *fakeMessageStore, rootKind string, batchID, upperBatch int64) db.ListReleasableHeldMessagesRow {
 	t.Helper()
 	for i := range msgs.inserted {
 		m := msgs.inserted[i]
@@ -247,6 +254,7 @@ func heldMembershipRow(t *testing.T, msgs *fakeMessageStore, rootKind string, ba
 			Headline:                m.Headline,
 			CensusPendingAfterBatch: m.CensusPendingAfterBatch,
 			CensusBasis:             m.CensusBasis,
+			CensusUpperBatch:        upperBatch,
 		}
 	}
 	t.Fatalf("the dns fold wrote no held %s membership row, got %+v", rootKind, msgs.inserted)
@@ -293,7 +301,7 @@ func TestTheDeferredCensusNamesTheHotFoldsServiceAndNamelessEndpoint(t *testing.
 
 	// The dns fold enters the Name and cites the address. Its own census would be empty.
 	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations(proofAddr))
-	held := heldMembershipRow(t, msgs, subjectKindName, proofDNSBatch)
+	held := heldMembershipRow(t, msgs, subjectKindName, proofDNSBatch, proofHotBatch)
 	cause := held.Headline
 
 	// The hot fold opens the Service and the nameless Endpoint on the cited address.
@@ -342,7 +350,7 @@ func TestTheDeferredCensusOfAnAddressRootNamesWhatOpenedBeneathTheMove(t *testin
 
 	// The Name re-points. The second address is new to the estate, so the move roots on it.
 	foldProofBatch(t, spans, msgs, proofMoveBatch, produceT0.Add(2*time.Minute), proofDNSObservations(proofMoveAddr))
-	held := heldMembershipRow(t, msgs, subjectKindAddress, proofMoveBatch)
+	held := heldMembershipRow(t, msgs, subjectKindAddress, proofMoveBatch, proofMoveHotBatch)
 	if held.Headline != proofMoveAddr+" entered the estate" {
 		t.Errorf("the held row carries the fold's cause clause alone, got %q", held.Headline)
 	}
@@ -379,6 +387,40 @@ func TestTheDeferredCensusOfAnAddressRootNamesWhatOpenedBeneathTheMove(t *testin
 	}
 }
 
+// ADR-1870's proof. A release delayed past later folds read every subject those folds opened,
+// because the read carried a lower bound only. The named Endpoint the late Scans enter sits on
+// the address this root cites, so it passed the beneath test and joined a census whose instant
+// is the dns fold's. ADR-1806 §4 freezes the basis against exactly that, one axis over.
+
+func TestADelayedReleaseNamesNoSubjectOpenedAfterTheDrainedDispatch(t *testing.T) {
+	spans := &foldSpanStore{}
+	store := &releaseRecorder{foldSpanStore: spans}
+	msgs := &fakeMessageStore{prev: prevAt(produceT0.Add(-time.Hour))}
+
+	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations(proofAddr))
+	held := heldMembershipRow(t, msgs, subjectKindName, proofDNSBatch, proofHotBatch)
+	foldProofBatch(t, spans, msgs, proofHotBatch, produceT0.Add(time.Minute), proofHotObservations(proofTarget))
+
+	// The poll is late, so a later fold lands before the held row is ever read.
+	foldProofBatch(t, spans, msgs, proofLateBatch, produceT0.Add(2*time.Minute), proofLateScanObservations(t))
+	late := subjectsFirstOpenedBy(spans, proofLateBatch)
+	if len(late) != 1 || !late[proofNamedEP()] {
+		t.Fatalf("the later fold enters the named Endpoint, or this test asserts nothing; got %v", late)
+	}
+
+	var log []routed
+	if _, err := releaseHeldMessage(context.Background(), store, held, fakeEnqueuer(1, &log)); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	keys := censusKeys(t, store.released[0].Census)
+	if _, ok := keys[proofNamedEP()]; ok {
+		t.Errorf("the named Endpoint opened after the drained dispatch, so it is a later cause (ADR-1870 §2), got %v", keys)
+	}
+	if len(keys) != 2 || keys[proofSvc()] == "" || keys[proofNamelessEP()] == "" {
+		t.Errorf("the census is the drained dispatch's two subjects and no other, got %v", keys)
+	}
+}
+
 // The price ADR-0031 accepted and ADR-1806 §5 keeps, pinned so no later session widens it.
 
 func TestTheDeferredCensusNamesNoHTTPIdentityAndNoTLSAcceptanceSubject(t *testing.T) {
@@ -387,7 +429,7 @@ func TestTheDeferredCensusNamesNoHTTPIdentityAndNoTLSAcceptanceSubject(t *testin
 	msgs := &fakeMessageStore{prev: prevAt(produceT0.Add(-time.Hour))}
 
 	foldProofBatch(t, spans, msgs, proofDNSBatch, produceT0, proofDNSObservations(proofAddr))
-	held := heldMembershipRow(t, msgs, subjectKindName, proofDNSBatch)
+	held := heldMembershipRow(t, msgs, subjectKindName, proofDNSBatch, proofHotBatch)
 	foldProofBatch(t, spans, msgs, proofHotBatch, produceT0.Add(time.Minute), proofHotObservations(proofTarget))
 
 	// The row leaves on the drained hot dispatch, so neither Scan has folded yet (§3).

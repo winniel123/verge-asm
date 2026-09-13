@@ -309,9 +309,36 @@ func (q *Queries) ListReadMessageIDs(ctx context.Context, accountID int64) ([]in
 }
 
 const listReleasableHeldMessages = `-- name: ListReleasableHeldMessages :many
-SELECT m.id, m.class, m.headline, m.census_pending_after_batch, m.census_basis
+SELECT m.id, m.class, m.headline, m.census_pending_after_batch, m.census_basis,
+       -- Zero is no bound: a dispatch that opened no batch cannot say what it opened (ADR-1870 §3).
+       COALESCE(drained.census_upper_batch, 0)::bigint AS census_upper_batch
 FROM message m
 JOIN batch b ON b.id = m.census_pending_after_batch
+LEFT JOIN LATERAL (
+    SELECT first_hot.id AS drained_dispatch,
+           (SELECT max(cb.id) FROM batch cb WHERE cb.dispatch_id = first_hot.id) AS census_upper_batch
+    FROM (
+        SELECT d.id, d.fanout_complete
+        FROM dispatch d
+        JOIN scan s ON s.id = d.scan_id
+        WHERE s.kind = 'hot'
+          -- A skipped tick enqueues no job, so a drain test reads it drained (ADR-1806 §2).
+          AND d.status = 'fanned-out'
+          -- Abandonment is recorded, so this skips no dispatch still streaming (ADR-1851 §3).
+          AND d.fanout_abandoned = false
+          AND d.created_at >= b.created_at
+        ORDER BY d.created_at, d.id
+        LIMIT 1
+    ) first_hot
+      -- A job count cannot answer the fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
+    WHERE first_hot.fanout_complete
+    AND NOT EXISTS (
+        -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
+        SELECT 1 FROM queue_job j
+        WHERE j.dispatch_id = first_hot.id
+          AND j.state IN ('ready', 'running')
+    )
+) drained ON true
 WHERE m.census_pending_after_batch IS NOT NULL
   AND (
       -- No reaper leaves the drain test reading a job set nothing reaps (ADR-1806 §6).
@@ -320,30 +347,8 @@ WHERE m.census_pending_after_batch IS NOT NULL
       OR NOT EXISTS (
           SELECT 1 FROM scan hs WHERE hs.kind = 'hot' AND hs.enabled
       )
-      OR EXISTS (
-          SELECT 1
-          FROM (
-              SELECT d.id, d.fanout_complete
-              FROM dispatch d
-              JOIN scan s ON s.id = d.scan_id
-              WHERE s.kind = 'hot'
-                -- A skipped tick enqueues no job, so a drain test reads it drained (ADR-1806 §2).
-                AND d.status = 'fanned-out'
-                -- Abandonment is recorded, so this skips no dispatch still streaming (ADR-1851 §3).
-                AND d.fanout_abandoned = false
-                AND d.created_at >= b.created_at
-              ORDER BY d.created_at, d.id
-              LIMIT 1
-          ) first_hot
-            -- A job count cannot answer the fan-out-finished half (ADR-1806 §3, ADR-1851 §2).
-          WHERE first_hot.fanout_complete
-          AND NOT EXISTS (
-              -- The cadence-lag gate's query excludes this dispatch's own jobs (ADR-1806 §3).
-              SELECT 1 FROM queue_job j
-              WHERE j.dispatch_id = first_hot.id
-                AND j.state IN ('ready', 'running')
-          )
-      )
+      -- One dispatch fixes the release and the bound, so the two cannot drift (ADR-1870 §3).
+      OR drained.drained_dispatch IS NOT NULL
   )
 ORDER BY m.id
 `
@@ -354,6 +359,7 @@ type ListReleasableHeldMessagesRow struct {
 	Headline                string      `json:"headline"`
 	CensusPendingAfterBatch pgtype.Int8 `json:"census_pending_after_batch"`
 	CensusBasis             []byte      `json:"census_basis"`
+	CensusUpperBatch        int64       `json:"census_upper_batch"`
 }
 
 // A held row releases on a drained hot dispatch, or where the tier cannot answer (ADR-1806 §6).
@@ -372,6 +378,7 @@ func (q *Queries) ListReleasableHeldMessages(ctx context.Context, reaperDisabled
 			&i.Headline,
 			&i.CensusPendingAfterBatch,
 			&i.CensusBasis,
+			&i.CensusUpperBatch,
 		); err != nil {
 			return nil, err
 		}
