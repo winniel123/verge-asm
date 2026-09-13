@@ -14,6 +14,8 @@ proof: {none: "predates the governance SPEC"}
 
 > **Amended** by [ADR-1891: An operator act is recorded as a fifth Operational corpus, under a four-limb predicate](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md), 2026-09-13. <!-- adr-marker amends 1891 -->
 
+> **Amended** by [ADR-1892: A record of the act is not residue, so an Annotation keeps its instant](./1892-a-record-of-the-act-is-not-residue-so-an-annotation-keeps-its-instant.md), 2026-09-13. <!-- adr-marker amends 1892 -->
+
 ## Context
 
 [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md) §2 kept the
