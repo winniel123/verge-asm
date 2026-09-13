@@ -320,13 +320,15 @@ _Avoid_: prober location, scanner, agent
 
 **Vantage class**:
 Which side of the operator's boundary a `Vantage` sits on — `internet` or `internal` —
-declared as intent and re-verified every batch against the **address-scope** `Seed`s the system
-already holds, and against nothing else. No registry file may decide which side of the boundary a
-prober is on, for the same reason none may open the probing gate, and **no `custody extension`
-either**. The test is over ~~**every address the vantage holds**~~ **every address the vantage is
-observed to *present*** — a narrowing, and a forced one — of either family. One uncovered
-address and it verifies `internet`, which is the closed direction, because a vantage wrongly read as
-`internal` moves observations onto the leg that never alerts.
+declared as intent and verified against the **address-scope** `Seed`s the system already holds,
+and against nothing else. That verification is **derived wherever the class is used**, from the
+addresses the vantage presents and those `Seed`s, and **no row stores its result**
+([#1890](https://github.com/winniel123/verge-asm/issues/1890)). No registry file may decide which
+side of the boundary a prober is on, for the same reason none may open the probing gate, and **no
+`custody extension` either**. The test is over ~~**every address the vantage holds**~~ **every
+address the vantage is observed to *present*** — a narrowing, and a forced one — of either
+family. One uncovered address and it verifies `internet`, which is the closed direction, because a
+vantage wrongly read as `internal` moves observations onto the leg that never alerts.
 **A presented address is one an outside observer saw**, and v1 has exactly two. A prober's is the
 address the instance dialled, known by construction. The instance's own is `SSH_CLIENT` as the
 prober reports it — [#14](https://github.com/winniel123/verge-asm/issues/14)'s two self-contained
