@@ -17,6 +17,8 @@ relations:
 
 # ADR-0074: A narrowing is carried by the subject it leaves behind — and where it takes the carrier with it, it fires at the scope
 
+> **Amended** by [ADR-1891: An operator act is recorded as a fifth Operational corpus, under a four-limb predicate](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md), 2026-09-13. <!-- adr-marker amends 1891 -->
+
 ## Context
 
 [ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md) settled both directions of an address

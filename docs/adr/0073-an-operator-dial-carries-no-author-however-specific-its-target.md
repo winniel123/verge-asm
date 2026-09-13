@@ -41,6 +41,8 @@ prohibitions on numbers — and prohibitions on numbers do not survive contact w
 
 ### 1. An `Annotation` carries no author
 
+> **Amended** by [ADR-1891: An operator act is recorded as a fifth Operational corpus, under a four-limb predicate](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md), 2026-09-13. <!-- adr-marker amends 1891 -->
+
 **No account, no name, no initials, no avatar, no "declared by" cell — not stored and not
 rendered.** `Annotation` joins every other Declared term in holding no actor, and #127's ruling is
 therefore total rather than nearly total.

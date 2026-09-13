@@ -16,6 +16,8 @@ relations:
 
 # ADR-0087: A closure records the ground it rests on — and there are three grounds, not four and not one
 
+> **Amended** by [ADR-1891: An operator act is recorded as a fifth Operational corpus, under a four-limb predicate](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md), 2026-09-13. <!-- adr-marker amends 1891 -->
+
 ## Context
 
 [ADR-0082](./0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)

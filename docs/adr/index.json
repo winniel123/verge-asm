@@ -3249,7 +3249,7 @@
       "date": "2026-08-15",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -3265,6 +3265,11 @@
           "kind": "rests-on",
           "from": 162,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": "1"
         }
       ],
       "sections": [
@@ -3275,7 +3280,13 @@
         "5",
         "6"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": "1"
+        }
+      ],
       "decision": {
         "words": 0,
         "text": ""
@@ -3289,7 +3300,7 @@
       "date": "2026-08-15",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -3337,10 +3348,21 @@
           "kind": "rests-on",
           "from": 219,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
         }
       ],
       "sections": [],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 302,
         "text": "**A narrowing is carried by the subject it leaves behind. Where the act takes that subject with it,\nthere is no carrier at all, and the narrowing fires one coverage-class message at the scope.**\n\n| Concern | Decision |\n| --- | --- |\n| Narrowing a `Seed` over ground nothing else cites | **One coverage-class message, at the scope**, on the act |\n| Narrowing over ground a current resolution still cites | **Nothing new fires.** The subject survives, the gate closes, currency opens the `Gap` — [ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md) §6's *one cause, one message* |\n| A mixed narrowing | **One message at the scope** for the subjects withdrawn; the survivors ride their `Gap`s. Both fire **at the cause**, so the operator sees one event |\n| A narrowing that withdraws **no** subject | **Silent.** The trigger is inhabitance of the withdrawn set; an empty residue fires nothing |\n| Which `Seed` kind | **Both.** The rule reads membership ground, not enumeration, so it does not split on ADR-0047's address/name cut |\n| Class | **Coverage** — *we changed how we look*. No fifth cause, no fourth class |\n| Member | **A TENTH member of the coverage class.** The cost is real and is paid deliberately; see *The tenth member is a real cost* below |\n| Payload | A count of **subjects withdrawn** and of the timelines they take out of the estate, at the scope, **no comparison and no rows** — plus **the loss, named** |\n| Wording | **Not this ADR's.** [#120](https://github.com/winniel123/verge-asm/issues/120) owns the copy |\n| Per-subject messages | **Refused**, as in the widening direction — ADR-0022's unit rule and ADR-0047's own *\"never 1,024 `appeared` messages\"* |\n| An operator-act record | **Untouched.** #127 stands; this message names no actor and sits in no Declared term |"
@@ -3766,7 +3788,7 @@
       "date": "2026-08-15",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -3805,10 +3827,21 @@
           "kind": "rests-on",
           "from": 211,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
         }
       ],
       "sections": [],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 521,
         "text": "**A closure is not an object and records exactly one thing that is not already recorded elsewhere:\nthe ground it rests on. There are three grounds — an observation about this subject, an observation\nabout another subject, or our own aperture — so the reason vocabulary is closed at three:\n`measured-absent`, `uncited`, `descoped`.**\n\n| Concern | Decision |\n| --- | --- |\n| Is a `Closure` an object | **No.** It is the closing side of a `Span` — no new row, no new table, no second representation |\n| What a closure records | **One new field: its reason.** Everything else it might record is already held somewhere with a rule attached |\n| The reason's value space | **A closed union of three**: `measured-absent` │ `uncited` │ `descoped` |\n| What the three sort on | **The ground the closure rests on**, exactly as `Break`/`Gap`/`Shadowed` sort on what we have |\n| `measured-absent` | An observation **about this subject** says it is absent — a `Name` measured `NameError` on a cross-class `Vantage composition`. The only closure that is independent evidence |\n| `uncited` | The subject's chain back to a `Seed` no longer holds. Covers **both** the cascade and de-citation |\n| `descoped` | **Our aperture stopped covering it** — an exclusion, a narrower `Seed`, or a release narrowing a composed population |\n| ADR-0007's `cascaded` | **Renamed and widened to `uncited`.** The rule it states holds verbatim at both of `uncited`'s sites; the *word* holds at only one |\n| The ticket's four routes | **Three reasons.** The cascade and de-citation are one; the other two are each their own |\n| Which closures carry a reason | **A withdrawal's, and no other.** An ordinary value move needs none — the next span is the fact. A version change needs none — the `Break` is derived on read from the two vectors |\n| The **derivation vector in force at closure** | **Already on the `Span`, and no field is added.** A version change closes every open span of that derivation, so a `Span` is wholly inside one vector *by construction* and its vector **is** the vector in force at its closure |\n| The closing instant | Already what makes a `Span` a period. Not new, not priced |\n| An actor — who closed it | **Refused.** [#127](https://github.com/winniel123/verge-asm/issues/127)'s operator-act record arriving through the span corpus |\n| A pointer to the subject it went with | **Refused.** The subject's own `Citation` already names it |\n| The `NameError` observation itself | **Refused.** It is retained in corpus 1 on ADR-0041's terms; the closure is *\"the boundary the measurement drew\"* |\n| Price against a corpus never compacted | **One enum on a row that already exists** — under 2% of the span corpus at the shipped ceiling, and carried only by withdrawal closures |\n| The options that lost | **Four** — one reason per route — and **two** — the reader-only cut. Both are argued below rather than dismissed |\n| [`CONTEXT.md`](../../CONTEXT.md) | **Gains one term, `Closure`**, and is amended in three entries |"
@@ -3963,7 +3996,7 @@
       "date": "2026-08-15",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -3979,10 +4012,21 @@
           "kind": "rests-on",
           "from": 162,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
         }
       ],
       "sections": [],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 33,
         "text": "**An instant is not a field the Declared layer may carry.** It is a per-term exception, earned on a\n**conjunctive two-limb test**, and `Annotation` is the only term in v1 that passes it."
@@ -5361,7 +5405,7 @@
       "date": "2026-08-29",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -5409,10 +5453,21 @@
           "kind": "sibling",
           "from": 217,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
         }
       ],
       "sections": [],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1891,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 528,
         "text": "| Concern | Decision |\n| --- | --- |\n| Corpus placement | A **fourth Operational corpus**, **`Transcript`**, keyed **per job** (`queue_job` grain), standing beside `Dispatch` / `Message` / `Delivery` |\n| Why not an extension of `Dispatch` | Wrong grain. A `Dispatch` is one Scan firing over a fan-out of many jobs; a `Transcript` is one job's output |\n| Why not columns on the job record | The lean record (`kind · state · vantage`) is negligible and kept cheaply. The verbatim bytes are the volume. They must be **retirable independently** of the record |\n| The fence | No derivation may read a `Transcript`. That fence — the same one that fences `Dispatch` — is what makes a clock legal on it. Only the worker writes it; only the read handler reads it |\n| Keying grain | **One `Transcript` per `queue_job` row, which is one per attempt.** A retry enqueues a new `queue_job` row, so a superseded attempt and its successor each keep their own transcript, retired independently |\n| The value shape | A **closed union** over a common frame `{ queue_job id, kind, duration, captured-at }` — `ProberTranscript \\| CTTranscript \\| ZoneTranscript` — each variant naming the one exchange it made and carrying its **own typed outcome**. Not a struct with optional fields |\n| Retention instrument | A **duration** dial, operator-tunable. Never a byte or row budget (ADR-0041's instrument, kept) |\n| Retention default | **Ships bounded.** The one corpus that does. ADR-0041's unbounded-default ruling is reversed here because the byte-volume arithmetic does not transfer |\n| The default number | **14 days** (`retention_settings.transcript_currency_days`, migration `23700`). Floor **1 day** for any positive value (`retention.TranscriptFloorDays`); **`0` = unbounded**, the explicit operator opt-out matching the existing sentinel. The non-zero default *is* the \"ships bounded\" reversal |\n| Floor | **No coverage-style floor.** No derivation reads a `Transcript`, so no minimum-retention window applies. The 1-day floor is a fixed tightest-honoured window, not a derived one |\n| Per-stream size | A capture/transport **byte cap** bounds each stream — stdout **4 MiB**, stderr **256 KiB**, sent-scope **64 KiB** — by **head+tail truncate-and-mark**, distinct from the unchanged 64 MiB memory guard (~4.3 MiB/transcript worst case) |\n| Access control | **Admin-only.** Reuses `requireAdmin` (`cmd/web/auth.go`). `viewer` accounts **lose** the raw-output visibility they have for the state-derived log today — an intentional escalation, because a `Transcript` can carry secrets the redacted log cannot |\n| At-rest handling | **Encrypted at rest with AEAD** (XChaCha20-Poly1305). One **instance-wide symmetric key** on a service volume both `web` and `worker` mount, per-value random nonce, **never in Postgres**. No envelope encryption, no per-record data key. **Excluded from backups entirely**. **Scoped** ([#1321](https://github.com/winniel123/verge-asm/issues/1321) §3): the obligation binds a **credential**, not every value the corpus stores — see *The at-rest reversal* below |\n| The redaction reversal | Verbatim `stdout`, `stderr`, and the sent `JobSpec` persist at rest. The redacted LogViewer surface (#771/#780) is **untouched**; the verbatim bytes reach a **separate**, admin-gated view. The exception is priced and operator-visible |\n| Scope | Local **and** remote vantages. Capture scope = stdout + stderr + exec-meta. The remote transport reverses the remote-byte discard in `internal/remoteexec/probe.go` |"
@@ -11395,6 +11450,65 @@
       "decision": {
         "words": 149,
         "text": "**The undo control on an exclusion row renders its lookup instant in full, to the second, as\n`2026-08-15 09:00:00 UTC`. Every other console timestamp keeps the design system's terse relative\nform.**\n\nThe label is a disambiguator, not a timestamp. Two declines of one scope sit side by side, each\nreversing a different proposal. `relTime` buckets hours under a day and days under a week, so\nrepeats read alike. A label that cannot part two controls has failed at its only job. Two lookups\ncan land in one minute, which is what sets the precision.\n\nThe ISO string already sat in the button's `title`, which needs a mouse. The label reaches touch\nand keyboard.\n\nRejected: the relative form, with the `title` as the only disambiguator. It leaves anyone who\ncannot hover guessing.\n\nReversal cost: the convention is repo-wide, so a later sweep restores the terse form without\nreading this row."
+      }
+    },
+    {
+      "number": 1891,
+      "file": "docs/adr/1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md",
+      "title": "An operator act is recorded as a fifth Operational corpus, under a four-limb predicate",
+      "slug": "an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1826
+      },
+      "ticket": 1891,
+      "map": 1786,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 73,
+          "clause": "1"
+        },
+        {
+          "kind": "amends",
+          "adr": 74
+        },
+        {
+          "kind": "amends",
+          "adr": 87
+        },
+        {
+          "kind": "amends",
+          "adr": 93
+        },
+        {
+          "kind": "amends",
+          "adr": 126
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 147,
+        "text": "An operator act is recorded as an `Act`, the fifth Operational corpus beside `Dispatch`, `Message`,\n`Delivery` and `Transcript`. An act is auditable when a principal changed the estate's declaration,\nchanged who may act on this instance, directed the instance to act on the network, or caused the\ninstance to disclose a value from a corpus the model seals. That is a predicate, never a route list.\n\nThis reverses [#127](https://github.com/winniel123/verge-asm/issues/127). The refusal survives over\nthe Declared layer only: no Declared term acquires an actor, and the act of declaring carries one. No\nderivation may read an `Act`.\n\nRejected: #127 §5's deferral on an absent consumer, with #127 §9's reopening condition as the\ntrigger. Four ADRs already prescribe an audit write and fifteen attribution columns already shipped,\nso the ground is the demand side rather than that condition firing.\n\nReversal costs a shipped, never-deleted corpus and 42 withdrawn sentences."
       }
     }
   ]
