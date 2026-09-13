@@ -3970,7 +3970,7 @@
       "date": "2026-08-15",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -3999,10 +3999,21 @@
           "kind": "rests-on",
           "from": 187,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1902,
+          "clause": null
         }
       ],
       "sections": [],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1902,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 393,
         "text": "**A `Message` is one firing of one cause. An operator dial's movement is not one of the four causes,\nso neither declaring nor withdrawing an `Annotation` fires anything. Where the act's only consequence\nis that messages resume, the messages themselves are the carrier. And an `Annotation` never lapses —\nthe record is unchanged and it is the *subject it names* that withdraws, so the mover is the estate\nand the estate's own messages already fire.**\n\n| Concern | Decision |\n| --- | --- |\n| **Declaring** an `Annotation` | **Silent.** No message, no record beyond the row itself |\n| **Withdrawing** an `Annotation` | **Silent.** The carrier is the pair's own next `not-fired` → `fired` firing, which the withdrawal restores |\n| An acceptance **\"lapsing\"** on a redeploy | **Nothing happens to the `Annotation`.** It did not lapse, expire or change state. The `Service` it names **withdrew**; the mover is the **estate** |\n| What speaks on a lapse, then | ADR-0031's membership message on the entering root with its census, and the new pair's own `not-fired` → `fired` — both already specified, both unmuted because the new key carries no annotation |\n| A cause, a class or a member | **None minted.** Four causes, three classes, coverage **ten**, clock **three**, all unmoved |\n| What the annotation list owes | A row whose key is in **no current population** is **marked** as naming a withdrawn subject. **Derived on read** from the current subject population — stored nowhere, no status field, no expiry, no ordering claim |\n| If the key **returns** | The row is live again. A key is the thing denoted (ADR-0051), so a `returned` subject is the same `(subject, signal-name)` pair and the mute takes effect again with no operator act |\n| Auto-withdrawing a row whose subject left | **Refused.** A deletion nobody performed, on the one object whose whole job is to be enumerable |\n| Why ADR-0074 does not reach this | An `Annotation` is **not an aperture input** — it is read by nothing in the measurement path and appears in no `Batch`'s recorded scope. ADR-0074 governs aperture acts; this is a dial |\n| The general rule | **A message needs a cause, and a dial's movement is not one.** It reaches every dial in the model, not only this one |"
@@ -11523,7 +11534,13 @@
           "adr": 126
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1902,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11592,6 +11609,53 @@
       "decision": {
         "words": 148,
         "text": "**A record of the act is not residue.** ADR-0093's limb 2 tests what the act **moved** — a\nmeasurement the estate produced, or a record of the system acting on what the act changed — and a\nconsumer that exists in v1 must need the date. Both halves are required.\n\nThe `Act` corpus transcribes every Declared act, with an instant. It dates no consequence, because\nit is not one. Were a transcript to count, limb 2 would be false for every Declared term at once, and\nthe test could never fire again. `Annotation` keeps its instant.\n\nRejected: a derivation fence, refused because two of limb 2's own rows already rest on Operational\nresidue. And a reader-relative reading, which hangs a modelled field on a permissions gate.\n\nReversal costs ADR-0093's eleven-row table, which rests on this reading. Read literally, it strips a\nmodelled field the day the corpus ships."
+      }
+    },
+    {
+      "number": 1902,
+      "file": "docs/adr/1902-one-act-row-per-subject-never-one-per-request.md",
+      "title": "One Act row per subject, never one per request",
+      "slug": "one-act-row-per-subject-never-one-per-request",
+      "date": "2026-09-13",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "test": "cmd/web/act_limb1_test.go::TestDeclineRecordsOneActPerSubject"
+      },
+      "ticket": 1902,
+      "map": 1786,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 92
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1891
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 139,
+        "text": "**An `Act` is written once per subject the act directed, never once per request.** A submit that\nmoves two dials writes two rows. A decline of 200 proposals writes 200 rows, which reads as a defect\nand is not one. A declaration that directs one subject writes one.\n\nTwo grounds. A request-level row needs a list-valued subject, and `subject` is a **rendered** column,\nso the Subject cell would acquire a second thing to render. And a multi-subject handler bails\nmid-loop with the applied part already committed, so a per-subject row is the only shape that can be\ntrue about a partial batch.\n\nRejected: one row per request, carrying a list-valued subject.\n\nReversal rewrites a closed union after it ships, into a corpus that is never deleted.\n\n**So declaring an `Annotation` leaves one record beyond its own row, not none.**"
       }
     }
   ]
