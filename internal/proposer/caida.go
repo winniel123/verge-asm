@@ -61,37 +61,32 @@ type caidaSearchRow struct {
 }
 
 func (c *CAIDA) Propose(ctx context.Context, orgName string) ([]Candidate, error) {
-	ids, err := c.orgIDs(ctx, orgName)
+	idOrg, err := c.orgIDs(ctx, orgName)
 	if err != nil {
 		return nil, err
 	}
-	if len(ids) == 0 {
+	if len(idOrg) == 0 {
 		return nil, nil // no holder matched — no proposal, not a proposal of absence
 	}
-	idSet := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		idSet[id] = true
-	}
-	return c.delegations(ctx, orgName, idSet)
+	return c.delegations(ctx, idOrg)
 }
 
-func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
+func (c *CAIDA) orgIDs(ctx context.Context, orgName string) (map[string]string, error) {
 	rir := strings.ToUpper(c.rir)
 	want := strings.ToLower(orgName)
 	// The search is scored, so it answers with other RIRs and near names (ADR-0227 §2).
 	matches := func(row caidaSearchRow) bool {
 		return strings.EqualFold(row.Source, rir) && strings.Contains(strings.ToLower(row.OrgName), want)
 	}
-	seen := make(map[string]bool)
-	var ids []string
+	idOrg := make(map[string]string)
 	add := func(row caidaSearchRow) bool {
 		id := strings.TrimSuffix(row.OpaqueID, "_"+rir)
 		if id == "" {
 			return false
 		}
-		if !seen[id] {
-			seen[id] = true
-			ids = append(ids, id)
+		if _, ok := idOrg[id]; !ok {
+			// The holder the id was matched under, never the operator's search term (#1878).
+			idOrg[id] = row.OrgName
 		}
 		return true
 	}
@@ -141,11 +136,11 @@ func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
 			}
 		}
 	}
-	if len(ids) == 0 && named > 0 {
+	if len(idOrg) == 0 && named > 0 {
 		// CAIDA holds the org under no join key, which is a gap and not an absence (#50)
 		return nil, fmt.Errorf("caida search matched %d %s records for %q and none carries an opaqueId, after %d asns lookups: %w", named, rir, orgName, len(pending), ErrNoJoinKey)
 	}
-	return ids, nil
+	return idOrg, nil
 }
 
 func (c *CAIDA) searchRows(ctx context.Context, orgName string) ([]caidaSearchRow, error) {
@@ -219,7 +214,7 @@ func (c *CAIDA) fetchPage(ctx context.Context, what, u string) (*caidaSearchPage
 	return &page, nil
 }
 
-func (c *CAIDA) delegations(ctx context.Context, orgName string, ids map[string]bool) ([]Candidate, error) {
+func (c *CAIDA) delegations(ctx context.Context, idOrg map[string]string) ([]Candidate, error) {
 	u := c.delegatedBase + "/delegated-" + c.rir + "-extended-latest"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -247,7 +242,8 @@ func (c *CAIDA) delegations(ctx context.Context, orgName string, ids map[string]
 			continue // a header, summary, or non-extended row carries no delegation
 		}
 		typ, start, value, opaque := fields[2], fields[3], fields[4], fields[7]
-		if !ids[opaque] {
+		holder, ok := idOrg[opaque]
+		if !ok {
 			continue
 		}
 		prefixes, err := rowPrefixes(typ, start, value)
@@ -257,7 +253,7 @@ func (c *CAIDA) delegations(ctx context.Context, orgName string, ids map[string]
 		for _, p := range prefixes {
 			out = append(out, Candidate{
 				SourceSlug: c.slug, RecordKind: RecordRIRDelegation,
-				Scope: p, OrgName: orgName,
+				Scope: p, OrgName: holder,
 			})
 		}
 	}
