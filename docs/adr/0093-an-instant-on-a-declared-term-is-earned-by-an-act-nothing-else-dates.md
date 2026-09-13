@@ -12,6 +12,8 @@ proof: {none: "predates the governance SPEC"}
 
 # ADR-0093: An instant on a Declared term is earned by an act nothing else dates — and every Declared act but one is dated by what it moved
 
+> **Amended** by [ADR-1891: An operator act is recorded as a fifth Operational corpus, under a four-limb predicate](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md), 2026-09-13. <!-- adr-marker amends 1891 -->
+
 ## Context
 
 [ADR-0073](./0073-an-operator-dial-carries-no-author-however-specific-its-target.md) §2 kept the

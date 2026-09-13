@@ -16,6 +16,8 @@ relations:
 
 # ADR-0126: Verbatim job output is a fourth Operational corpus — the `Transcript` — retired by a duration dial that ships bounded, and it is the one corpus Postgres holds a secret for
 
+> **Amended** by [ADR-1891: An operator act is recorded as a fifth Operational corpus, under a four-limb predicate](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md), 2026-09-13. <!-- adr-marker amends 1891 -->
+
 - **Amends/reverses:** [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (the unbounded-default and the single-clock-corpus rulings, at the sites that state them) and [ADR-0053](./0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) (its *"Postgres holds no secret"* clause, for this one corpus)
 
 ## Context
