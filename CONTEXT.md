@@ -320,9 +320,9 @@ _Avoid_: prober location, scanner, agent
 
 **Vantage class**:
 Which side of the operator's boundary a `Vantage` sits on — `internet` or `internal` —
-declared as intent and verified against the **address-scope** `Seed`s the system already holds,
-and against nothing else. That verification is **derived wherever the class is used**, from the
-addresses the vantage presents and those `Seed`s, and **no row stores its result**
+verified against the **address-scope** `Seed`s the system already holds, and against nothing
+else. No control declares it. That verification is **derived wherever the class is used**, from
+the addresses the vantage presents and those `Seed`s, and **no row stores its result**
 ([#1890](https://github.com/winniel123/verge-asm/issues/1890)). No registry file may decide which
 side of the boundary a prober is on, for the same reason none may open the probing gate, and **no
 `custody extension` either**. The test is over ~~**every address the vantage holds**~~ **every
