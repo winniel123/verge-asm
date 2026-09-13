@@ -17,6 +17,8 @@ type Querier interface {
 	AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error
 	// The period's empty state and the corpus's are different facts, and E.3 claims the second.
 	AnyActRecorded(ctx context.Context) (bool, error)
+	// The hold a fold took, read from the row rather than from the knob it read (ADR-1867 §3).
+	BatchHeldItsRootCensus(ctx context.Context, batchID int64) (bool, error)
 	CTLastBatchAdmitCount(ctx context.Context) (int64, error)
 	CTReliabilityWindow(ctx context.Context, arg CTReliabilityWindowParams) (CTReliabilityWindowRow, error)
 	CTTailLastBatch(ctx context.Context) (CTTailLastBatchRow, error)

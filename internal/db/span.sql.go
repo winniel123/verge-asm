@@ -11,6 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const batchHeldItsRootCensus = `-- name: BatchHeldItsRootCensus :one
+SELECT EXISTS (
+    SELECT 1 FROM message m
+    WHERE m.census_pending_after_batch = $1::bigint
+)::boolean AS held
+`
+
+// The hold a fold took, read from the row rather than from the knob it read (ADR-1867 §3).
+func (q *Queries) BatchHeldItsRootCensus(ctx context.Context, batchID int64) (bool, error) {
+	row := q.db.QueryRow(ctx, batchHeldItsRootCensus, batchID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const closeSpan = `-- name: CloseSpan :exec
 UPDATE span
 SET closed_at = $1,

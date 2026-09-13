@@ -22,6 +22,8 @@ type fakeSettleStore struct {
 	seeds      []db.ListSeedsRow
 	exclusions []db.Exclusion
 
+	atCause bool
+
 	refuseClaim bool
 	claimErr    error
 
@@ -55,6 +57,10 @@ func (f *fakeSettleStore) ListNameRootsOpenedInBatch(_ context.Context, _ int64)
 
 func (f *fakeSettleStore) ListSubjectsOpenedSinceBatch(_ context.Context, _ int64) ([]db.ListSubjectsOpenedSinceBatchRow, error) {
 	return f.opened, nil
+}
+
+func (f *fakeSettleStore) BatchHeldItsRootCensus(_ context.Context, _ int64) (bool, error) {
+	return !f.atCause, nil
 }
 
 func (f *fakeSettleStore) ListSeeds(_ context.Context) ([]db.ListSeedsRow, error) {
@@ -102,13 +108,8 @@ func inFold(rows []db.ListSubjectsOpenedSinceBatchRow) []db.ListSubjectsOpenedSi
 
 func settleFrom(t *testing.T, store *fakeSettleStore) ([]*message.Message, []routed) {
 	t.Helper()
-	return settleWithReaper(t, store, false)
-}
-
-func settleWithReaper(t *testing.T, store *fakeSettleStore, reaperDisabled bool) ([]*message.Message, []routed) {
-	t.Helper()
 	var log []routed
-	n, err := settleRePointFold(context.Background(), store, settleBatch, produceT0, reaperDisabled, fakeEnqueuer(1, &log))
+	n, err := settleRePointFold(context.Background(), store, settleBatch, produceT0, fakeEnqueuer(1, &log))
 	if err != nil {
 		t.Fatalf("settle: %v", err)
 	}
@@ -238,7 +239,8 @@ func TestWithNoReaperTheResidueNamesTheGroundTheRootCouldNot(t *testing.T) {
 		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
 		opened: beneath(rpName, rpNew, "443"),
 	}
-	msgs, log := settleWithReaper(t, store, true)
+	store.atCause = true
+	msgs, log := settleFrom(t, store)
 	if len(msgs) != 1 {
 		t.Fatalf("an at-cause root covers no later opening, so the residue fires; got %+v", msgs)
 	}
@@ -254,6 +256,49 @@ func TestWithNoReaperTheResidueNamesTheGroundTheRootCouldNot(t *testing.T) {
 	}
 }
 
+func TestTheCoverReadsTheHoldTheRowRecords(t *testing.T) {
+	// The settle runs a hot cadence after the fold, so a restart can move the knob in between.
+	// A row that held its census counts the whole subtree at release, whatever the knob now says
+	// (ADR-1867 §3).
+	store := &fakeSettleStore{
+		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
+		opened: beneath(rpName, rpNew, "443"),
+	}
+	store.atCause = false
+
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 0 {
+		t.Fatalf("the row held its census, so the root still covers this ground; got %+v", msgs)
+	}
+}
+
+func TestWithNoReaperTheResidueNamesGroundAMembershipRootCouldNotCover(t *testing.T) {
+	// One holdCensus serves both root producers, so a Name root of this fold wrote at the cause
+	// too, and its census is as empty as the Address root's (ADR-1867 §3, ADR-1806 §4).
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = beneath(rpOther, rpNew, "443")
+	store.roots = []db.ListNameRootsOpenedInBatchRow{{SubjectKey: rpOther, Value: resolved(rpNew)}}
+
+	store.atCause = true
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 1 || msgs[0].Census.Len() != 1 {
+		t.Fatalf("an at-cause Name root counted none of this, so the residue owes it; got %+v", msgs)
+	}
+}
+
+func TestWithNoReaperTheResidueDropsWhatAMembershipRootsOwnFoldOpened(t *testing.T) {
+	// The Name root's at-cause census counted this, so the residue naming it would double it.
+	store := knownAddressStore(moveRow(rpName, resolved(rpOld), resolved(rpNew)))
+	store.opened = inFold(beneath(rpOther, rpNew, "443"))
+	store.roots = []db.ListNameRootsOpenedInBatchRow{{SubjectKey: rpOther, Value: resolved(rpNew)}}
+
+	store.atCause = true
+	msgs, _ := settleFrom(t, store)
+	if len(msgs) != 0 {
+		t.Fatalf("a membership message of the same fold already named it, got %+v", msgs)
+	}
+}
+
 func TestWithNoReaperTheResidueDropsWhatTheRootsOwnFoldOpened(t *testing.T) {
 	// An at-cause census counts the fold's own openings, so naming them again doubles them
 	// (ADR-1867).
@@ -261,7 +306,8 @@ func TestWithNoReaperTheResidueDropsWhatTheRootsOwnFoldOpened(t *testing.T) {
 		moves:  []db.ListRePointMovesForBatchRow{moveRow(rpName, resolved(rpOld), resolved(rpNew))},
 		opened: inFold(beneath(rpName, rpNew, "443")),
 	}
-	msgs, _ := settleWithReaper(t, store, true)
+	store.atCause = true
+	msgs, _ := settleFrom(t, store)
 	if len(msgs) != 0 {
 		t.Fatalf("the root's own census already named this ground, got %+v", msgs)
 	}
@@ -359,7 +405,7 @@ func TestAFailedClaimSettlesNothing(t *testing.T) {
 	store.claimErr = errors.New("boom")
 
 	var log []routed
-	if _, err := settleRePointFold(context.Background(), store, settleBatch, produceT0, false, fakeEnqueuer(1, &log)); err == nil {
+	if _, err := settleRePointFold(context.Background(), store, settleBatch, produceT0, fakeEnqueuer(1, &log)); err == nil {
 		t.Fatal("a failed claim must fail the fold, so its transaction rolls back")
 	}
 	if len(store.inserted) != 0 {

@@ -128,9 +128,8 @@ func (d *Dispatcher) settleRePoints(ctx context.Context) (int, error) {
 	if d.devMode {
 		return 0, nil
 	}
-	// One reading serves the settleability arm and the residue's cover test (ADR-1867).
-	reaperDisabled := !HotLagGateArmed(d.staleJobThreshold)
-	rows, err := d.q.ListSettleableRePointBatches(ctx, reaperDisabled)
+	// The flag excuses the drain test alone, so the fan-out still holds the fold (ADR-1867 §4).
+	rows, err := d.q.ListSettleableRePointBatches(ctx, !HotLagGateArmed(d.staleJobThreshold))
 	if err != nil {
 		return 0, fmt.Errorf("queue: list settleable re-point batches: %w", err)
 	}
@@ -146,7 +145,7 @@ func (d *Dispatcher) settleRePoints(ctx context.Context) (int, error) {
 	}
 	fired := 0
 	for _, id := range folds {
-		n, err := d.settleOne(ctx, id, settledAt, reaperDisabled)
+		n, err := d.settleOne(ctx, id, settledAt)
 		if err != nil {
 			// One fold must not hold the rest back, so the pass logs and continues (ADR-0141).
 			d.log.Printf("dispatcher: settle re-point batch %d: %v", id, err)
@@ -157,7 +156,7 @@ func (d *Dispatcher) settleRePoints(ctx context.Context) (int, error) {
 	return fired, nil
 }
 
-func (d *Dispatcher) settleOne(ctx context.Context, batchID int64, settledAt time.Time, reaperDisabled bool) (int, error) {
+func (d *Dispatcher) settleOne(ctx context.Context, batchID int64, settledAt time.Time) (int, error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
 		return 0, err
@@ -166,7 +165,7 @@ func (d *Dispatcher) settleOne(ctx context.Context, batchID int64, settledAt tim
 	defer tx.Rollback(ctx)
 	qtx := d.q.WithTx(tx)
 
-	fired, err := settleRePointFold(ctx, qtx, batchID, settledAt, reaperDisabled, func(c context.Context, messageID int64, class message.Class) (int, error) {
+	fired, err := settleRePointFold(ctx, qtx, batchID, settledAt, func(c context.Context, messageID int64, class message.Class) (int, error) {
 		return d.enqueue(c, qtx, messageID, class)
 	})
 	if err != nil {

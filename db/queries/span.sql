@@ -356,6 +356,13 @@ WHERE s.opened_batch_id >= sqlc.arg(batch_id)::bigint
 GROUP BY s.subject_kind, s.subject_key
 ORDER BY s.subject_kind, s.subject_key;
 
+-- name: BatchHeldItsRootCensus :one
+-- The hold a fold took, read from the row rather than from the knob it read (ADR-1867 §3).
+SELECT EXISTS (
+    SELECT 1 FROM message m
+    WHERE m.census_pending_after_batch = sqlc.arg(batch_id)::bigint
+)::boolean AS held;
+
 -- name: ListRePointMovesForBatch :many
 -- ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).
 SELECT n.subject_key, n.discriminator, n.vantage_id, n.source,

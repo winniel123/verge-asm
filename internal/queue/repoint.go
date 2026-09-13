@@ -166,22 +166,29 @@ func movedTimeline(moves []rePoint, r citerRef) bool {
 	return false
 }
 
-// An Address root covers the ground it named, and its hold decides how much that is (ADR-1867).
+// A root of the move's own fold covers the ground it named, whatever it roots on (ADR-0026 §2).
 
-type addressRootCover struct {
+type rootCover struct {
 	fresh   map[string]bool
 	atCause bool
 }
 
-func (c addressRootCover) covers(addrKey string, s subjectRef) bool {
-	if !c.fresh[addrKey] {
-		return false
-	}
-	// A census written at the cause counts the root's own fold alone (ADR-1867, ADR-1806 §6 row 1).
+// named reports whether a root that sits above s counted s in the census it wrote.
+
+func (c rootCover) named(s subjectRef) bool {
+	// A census written at the cause counts the root's own fold alone (ADR-1867 §3).
 	return !c.atCause || s.inFoldBatch
 }
 
-func rePointResidue(mv rePoint, subjects []subjectRef, cover addressRootCover, roots []spanChange) message.Census {
+func (c rootCover) covers(addrKey string, s subjectRef, roots []spanChange) bool {
+	// An Address root is read from the freshness test, and a Name root from the fold's own spans.
+	if !c.fresh[addrKey] && !coveredByFoldRoot(roots, s.kind, s.key) {
+		return false
+	}
+	return c.named(s)
+}
+
+func rePointResidue(mv rePoint, subjects []subjectRef, cover rootCover, roots []spanChange) message.Census {
 	seen := map[string]bool{}
 	var entries []message.CensusEntry
 	for _, s := range subjects {
@@ -194,11 +201,7 @@ func rePointResidue(mv rePoint, subjects []subjectRef, cover addressRootCover, r
 		}
 		// Only an Endpoint beneath a newly cited address is the move's consequence (ADR-0026 §2).
 		key := addr.String()
-		if !mv.after[key] || mv.before[key] || cover.covers(key, s) {
-			continue
-		}
-		// An Address root is covered above, so a Name root needs its own test (ADR-0026 §2).
-		if coveredByFoldRoot(roots, s.kind, s.key) {
+		if !mv.after[key] || mv.before[key] || cover.covers(key, s, roots) {
 			continue
 		}
 		seen[s.key] = true

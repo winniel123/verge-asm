@@ -16,14 +16,14 @@ relations:
 
 ## Decision
 
-**When the stale-running reaper is disabled, the re-point residue names every Endpoint beneath an
-address new to the estate, except the ones the root's own fold opened.**
+**When the stale-running reaper is disabled, the re-point residue waits on the hot fan-out and names
+every Endpoint beneath an address new to the estate, except the ones its own fold's roots named.**
 
-ADR-1806 §6 row 1 writes the Address root's census at the cause. A fold is one job with one Kind, so
-the `dns` fold that moved the Name opens no Endpoint, and that census is empty. ADR-0026's residue
-then drops the same ground, because its freshness test assumes the root covers it. Together they
-announce the subtree to nobody. The residue reads the reaper's state and suppresses only what the
-root counted, which `in_fold_batch` reports per subject.
+ADR-1806 §6 row 1 writes a root's census at the cause. A fold is one job with one Kind, so the `dns`
+fold that moved the Name opens no Endpoint, and that census is empty. ADR-0026's residue then drops
+the same ground, and its settle short-circuited to the next poll pass. Together they announced the
+subtree to nobody. The residue now suppresses only what a root counted, which `in_fold_batch`
+reports per subject, and its fold settles once the first `hot` dispatch after it fans out.
 
 Rejected: leaving the loss and widening the dispatch warning. An operator cannot act on a subtree no
 message names.
@@ -63,7 +63,7 @@ reach the residue. So on this one configuration both halves of the partition go 
 The dispatch warning (`internal/queue/hotlag.go`) already told the operator that each half is
 narrowed. It did not say that the two together name no endpoint at all.
 
-## 3. What the root still covers
+## 3. What a root still covers
 
 The residue cannot drop the whole address, and it cannot name the whole address either. A census
 written at the cause counts what that fold opened beneath the root, so the residue owes the operator
@@ -71,13 +71,40 @@ the rest and nothing more.
 
 `ListSubjectsOpenedSinceBatch` (`db/queries/span.sql`) already reads from the fold's own batch
 inclusive. It now reports, per subject, whether that subject opened in the fold's own batch. The
-residue suppresses a fresh address's subject when the root held its census, or when the fold's own
-batch opened it.
+residue suppresses a subject when the root above it held its census, or when the fold's own batch
+opened it.
+
+One rule serves both root kinds, because one `holdCensus` serves both root producers
+(`internal/queue/produce.go`). The Address root reads the freshness test, and a Name root opened in
+the same fold reads `coveredByFoldRoot`. On this configuration both wrote at the cause, so both
+cover their own fold alone.
 
 This states the rule rather than resting on the emptiness of a `dns` fold. A fold that both moves a
 Name and opens an `Endpoint` beneath the new address would double-name it under the weaker rule.
 
-## 4. Rejected alternatives
+The hold is read from the row, not from the knob the fold read. §4 makes the settle wait a `hot`
+cadence, so a restart can change `VERGE_STALE_JOB_TIMEOUT` in between. `BatchHeldItsRootCensus`
+(`db/queries/span.sql`) answers what the fold actually did, so a knob moved after the fact neither
+double-names the subtree nor silently restores the gap.
+
+## 4. When the fold settles
+
+A rule about what the residue names is worth nothing if the residue is read before the ground
+exists. `ListSettleableRePointBatches` (`db/queries/measurement.sql`) took the reaper's state as a
+whole disjunct, so on this configuration every fold settled on the dispatcher's next minute tick.
+The `hot` tier opens the subtree on its own cadence, which ships at 86400s. The residue read an
+empty subject set, `message.RePoint` refused it, and the fold was never read again.
+
+The settle now drops the drain test alone, and keeps the fan-out-finished test on either
+configuration. §6 row 1's wedge argument is about the drain test: it reads a job set nothing reaps.
+The fan-out fact is recorded, and ADR-1851 §3 records abandonment, so an unfinished fan-out is
+skipped rather than waited on. Nothing can wedge the fold.
+
+This differs from the held-message release path, which still leaves at once. A held row that never
+releases holds every message forever. A batch flag holds nothing: a fold that settles early fires
+no message, which is the loss this ADR closes.
+
+## 5. Rejected alternatives
 
 **Leave the loss, and widen the dispatch warning.** Cheapest, and it keeps one reading in the settle
 path. It was refused because a warning at dispatch does not reach the operator who reads the message
@@ -85,7 +112,8 @@ panel a day later, and the subtree that entered has no other carrier.
 
 **Arm the hold on the Address root whatever the reaper's state, with a bound of its own.** This
 contradicts §6 row 1's stated reason. With nothing reaping the job set, the new bound would be the
-only thing that ever releases a held row, which is the failure §6 row 1 exists to refuse.
+only thing that ever releases a held row, which is the failure §6 row 1 exists to refuse. §4 waits
+on a batch flag instead, which owes no message and so can lose none.
 
 **Rest on the invariant that a `dns` fold opens no `Endpoint`.** The resolution walk emits a `Name`
 alone (`internal/measure/resolutionwalk/emit.go`), so dropping the freshness test outright is correct

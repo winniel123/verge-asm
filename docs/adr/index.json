@@ -11287,12 +11287,13 @@
         "1",
         "2",
         "3",
-        "4"
+        "4",
+        "5"
       ],
       "markers": [],
       "decision": {
-        "words": 136,
-        "text": "**When the stale-running reaper is disabled, the re-point residue names every Endpoint beneath an\naddress new to the estate, except the ones the root's own fold opened.**\n\nADR-1806 §6 row 1 writes the Address root's census at the cause. A fold is one job with one Kind, so\nthe `dns` fold that moved the Name opens no Endpoint, and that census is empty. ADR-0026's residue\nthen drops the same ground, because its freshness test assumes the root covers it. Together they\nannounce the subtree to nobody. The residue reads the reaper's state and suppresses only what the\nroot counted, which `in_fold_batch` reports per subject.\n\nRejected: leaving the loss and widening the dispatch warning. An operator cannot act on a subtree no\nmessage names.\n\nReversal costs the query column, the settle-path thread, and every message already fired."
+        "words": 150,
+        "text": "**When the stale-running reaper is disabled, the re-point residue waits on the hot fan-out and names\nevery Endpoint beneath an address new to the estate, except the ones its own fold's roots named.**\n\nADR-1806 §6 row 1 writes a root's census at the cause. A fold is one job with one Kind, so the `dns`\nfold that moved the Name opens no Endpoint, and that census is empty. ADR-0026's residue then drops\nthe same ground, and its settle short-circuited to the next poll pass. Together they announced the\nsubtree to nobody. The residue now suppresses only what a root counted, which `in_fold_batch`\nreports per subject, and its fold settles once the first `hot` dispatch after it fans out.\n\nRejected: leaving the loss and widening the dispatch warning. An operator cannot act on a subtree no\nmessage names.\n\nReversal costs the query column, the settle-path thread, and every message already fired."
       }
     },
     {
