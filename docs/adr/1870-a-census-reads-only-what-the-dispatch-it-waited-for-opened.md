@@ -81,8 +81,9 @@ so it is what the census is about. The query now yields the last batch of that d
 `census_upper_batch`, from a `LEFT JOIN LATERAL` over the same `first_hot` selection the release arm
 reads. One subquery fixes both, so the bound and the release cannot drift apart.
 
-It reads `batch.dispatch_id`, which is set membership and exact. It does not compare `created_at`
-columns. ADR-1806 §8's second open question records that such a comparison is unsound here, because
+It reads `batch.dispatch_id`, which is set membership and exact, and
+`db/migrations/26100_batch_dispatch_index.sql` indexes that column so the read is not a sequential
+scan of `batch` once per held row. It does not compare `created_at` columns. ADR-1806 §8's second open question records that such a comparison is unsound here, because
 `InsertBatch` stamps the batch at the top of the fold transaction while the spans commit at its end.
 A batch id needs no instant.
 
