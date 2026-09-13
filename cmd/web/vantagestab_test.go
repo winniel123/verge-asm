@@ -88,6 +88,32 @@ func TestVantagesTabRendersTheDerivedTag(t *testing.T) {
 	}
 }
 
+func TestAFreshlyProvisionedProberCarriesTheUnverifiedNote(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	txt := func(s string) pgtype.Text { return pgtype.Text{String: s, Valid: true} }
+	// A prober holds no probe facts until it first probes, so its class derives unverified.
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "fresh", Class: "unverified", Resolver: "9.9.9.9:53",
+		Host: txt("fresh.example.net"), Port: pgtype.Int4{Int32: 22, Valid: true},
+		Username: txt("scanner"), Availability: txt("pending"),
+	})
+	f.vantageNextID = 2
+
+	srv := newServer(f, testKey, "", fixedClock())
+	rows := vantagesSectionRows(t, srv, httptest.NewRequest(http.MethodGet, "/settings?tab=vantages", nil))
+
+	if len(rows) != 1 {
+		t.Fatalf("vantage rows = %d, want 1", len(rows))
+	}
+	if rows[0].Class != string(custody.ClassUnverified) {
+		t.Fatalf("class = %q, want %q", rows[0].Class, custody.ClassUnverified)
+	}
+	if !rows[0].Unverified {
+		t.Error("the card carries no unverified note; the flag reads availability, which never holds that value")
+	}
+}
+
 func TestVantagesTabAndDashboardChipAgree(t *testing.T) {
 	f := newFakeStore()
 	seedClassFixtureVantages(t, f)

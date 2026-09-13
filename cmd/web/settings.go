@@ -825,7 +825,8 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 		if vr.Availability == "" {
 			vr.Availability = "pending"
 		}
-		vr.Unverified = vr.Availability == "unverified"
+		// The availability column never holds 'unverified', so only the class does.
+		vr.Unverified = vr.Class == string(custody.ClassUnverified)
 		out = append(out, vr)
 	}
 	data["Vantages"] = out
