@@ -53,8 +53,10 @@ conclude the estate is empty. The full first-run drill is in
 
 Two things sit on the page:
 
-- The **aperture statement** — one line per aperture input, its cadence, and whether it
-  is on. An **address scope** has a `Coverage` denominator (every address in it is
+- The **aperture statement** — one line per aperture input: the input, its cadence, its
+  state, and the remedy that moves it. A state is not always an on/off. Most inputs carry
+  no operator toggle, so a line with nothing to put in a column states that rather than
+  dropping the column. An **address scope** has a `Coverage` denominator (every address in it is
   walked, so *no ports responded* is a fact). A **name scope** has none, because it
   enumerates nothing on its own. That asymmetry is the same fact stated twice.
 - **`Gap`s and coverage messages** — a `Gap` is a `Span` holding no value, *the period

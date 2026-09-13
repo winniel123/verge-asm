@@ -166,7 +166,7 @@ claim. That is the honest shape of the modal cloud-resident operator on day one,
 state.
 
 **Seven aperture inputs**, each a dimension of what a `Batch` records as its completed scope:
-enabled sources, port sets, vantages, the TLS candidate set, the qtype set, the control-probe
+enabled sources, port sets, `Vantage class`, the TLS candidate set, the qtype set, the control-probe
 population (the parents of resolved names, for wildcard discrimination), and the queried address
 scope. A cadence is **not** an aperture input — a `Batch` records what it asked about, never how
 often.
@@ -666,9 +666,11 @@ vantage configured, or a connectionless leg that never decides) render the survi
 
 ### 6.3 Coverage
 
-The aperture statement — one line per aperture input (§3.2), stating what the tier is, its cadence,
-and its on/off state, never a proportion of the *operator's* estate (that is
-[#28](https://github.com/winniel123/verge-asm/issues/28)'s refused estate-completeness score). The
+The aperture statement — one line per aperture input (§3.2), stating the input, its cadence, its
+state and the remedy that moves it, never a proportion of the *operator's* estate (that is
+[#28](https://github.com/winniel123/verge-asm/issues/28)'s refused estate-completeness score). A
+state is not always an on/off. Most inputs carry no operator toggle, and an empty cell states its
+reason rather than collapsing the column. The
 sensitive-pairs line carries two figures that never fuse: pairs **outside the recorded scope**
 (an invitation the operator can act on — enabling the cold tier or a UDP leg moves this) and pairs
 **inside** the recorded scope that the instrument is structurally incapable of reporting as reached
