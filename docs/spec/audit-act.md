@@ -1078,9 +1078,9 @@ are the ground §What-this-builds rests on.
 
 `docs/guides/accounts.md:10` *"Every act in verge-asm has an author."* · `accounts.md:28` ·
 `docs/guides/first-run.md:24` · `docs/guides/running.md:61` · `docs/guides/using.md:187` *"a toggle is
-a dated, audit-trailed act"* · `docs/guides/api.md:37,:41` · `docs/spec/v1-spec.md:420-423` ·
+a dated, audit-trailed act"* · `docs/guides/api.md:37,:41` · `docs/spec/v1-spec.md:429-432` ·
 `docs/spec/packaging-and-configuration.md:260-262`, `:297-298`, `:303-305`, `:313-314`, `:332-333`,
-`:644` · `docs/adr/0053…md:97-99`, `:220-221` · `docs/adr/0113…md:76-78` · `docs/adr/0132…md:27-29` ·
+`:646` · `docs/adr/0053…md:97-99`, `:220-221` · `docs/adr/0113…md:76-78` · `docs/adr/0132…md:27-29` ·
 `docs/research/safe-active-probing.md:1248` · `docs/adr/0159…md:71,:95,:145,:193`
 
 Two riders. **The three `packaging-and-configuration.md` carve-outs strengthen** — each is granted

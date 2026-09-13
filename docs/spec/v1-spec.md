@@ -222,15 +222,24 @@ operator-configurable — an offer the operator can narrow is a finding the oper
 
 ### 3.4 Scan tiers & cadence
 
-Five `Scan`s, two of them port tiers:
+Nine `Scan`s, two of them port tiers. The count is over rows in `scan` — one per configured
+recurring intent, whatever its exchange. A worker-read poll (`zone`, `ct`, `ct-tail`) counts as
+one, and so does a dispatch that opens no timeline (`edge-fanout`):
 
 | `Scan` | Scope | Cadence | Notes |
 | --- | --- | --- | --- |
-| **hot** | `verge-core` (§3.5) | daily | the only tier that ships enabled |
+| **hot** | `verge-core` (§3.5) | daily | the only **port tier** that ships enabled — eight of the nine rows ship enabled, and `cold` is the one that does not |
 | **cold** | full 1–65535 | monthly, opt-in **per `Seed` scope** | ships configured and disabled with an empty scope list; never runs unasked, including at onboarding — a one-off has no cadence, so it has no currency bound ([ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)) |
 | **`tls-acceptance`** | every open `Service`, the TLS candidate set | weekly | no port list — an enumeration, not a port tier ([ADR-0028](../adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)) |
 | **`zone`** | name scopes holding a supplied zone file | the operator's declared re-supply interval, shipped monthly | no port list, no vantage choice, worker-read; batches restate the file's observations **at the operator's supply instant**, never at our read |
 | **`dns`** | name scopes, unconditionally | daily, independent of `Custody` | no port list; every configured `Vantage`; covers `resolution` and our own resolver's `dns-record` — the two facets that had no covering `Scan` and therefore no currency bound until [ADR-0084](../adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md) |
+| **`ct`** | every name scope, one `Batch` per scope | daily | worker-read like `zone`, with no port list and no vantage. Its source **admits without observing**, so it carries no currency bound and no withdrawal power — it schedules, and it gives `Coverage` a row ([ADR-0106](../adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), [ADR-0096](../adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md) §7). It fires over an empty scope while the `crtsh` source is off — the schedule and the source's `consent` are two controls |
+| **`http-identity`** | every reached `Endpoint`, read from the current `reachability` timelines at fan-out | daily | no port list — the `Service`s carry their own ports. One `GET /` per reached `Endpoint`, dispatching the `http-exchange` leaf, so the `Scan` kind and the leaf kind differ by design. It rides the hot tier's reachability the way `tls-acceptance` rides the open-`Service` population, and with no reached `Service` it produces no jobs |
+| **`ct-tail`** | the CT logs themselves, fanned out per log rather than per name scope | every 5 minutes | the drift tail, forward-only from a per-log cursor, so it never backfills history. It admits exactly as `ct` does, and it holds no facet, no `Signal` and no timeline. It ships enabled and enqueues no job until the operator enables the `ct-tail` source — the `Scan` carries the cadence, the source toggle carries consent ([`ct-source-replacement.md`](./ct-source-replacement.md) §4) |
+| **`edge-fanout`** | the custody-extension candidates, and the addresses of declared address scopes | daily | the no-SNI TLS handshake that reads the certificate an edge serves to a client naming nothing. Its exchange is a connect, and it runs **before its target is a member**, so it is neither `hot` nor `tls-acceptance`, which cover members only. A fixed 443/tcp rather than a port list, no vantage dimension, no facet timeline ([ADR-0129](../adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md)) |
+
+[ADR-0204](../adr/0204-a-scan-kind-and-a-leaf-kind-are-separate-namespaces-and-a-shared-string-is-a-coincidence.md) tables the same nine against the **leaf** each one
+dispatches. Three dispatch none, because the worker reads them: `zone`, `ct` and `ct-tail`.
 
 `certificate` rides whichever port tier makes the TCP connect and is not a `Scan` of its own — its
 handshake is a step inside the `reachability` exchange, not a separate measurement

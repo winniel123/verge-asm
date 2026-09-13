@@ -382,11 +382,11 @@ The operator's configured recurring intent — which scopes, ~~which ports,~~ wh
 what cadence, **and which ports only where its exchange is a connect**. The port list is
 **withdrawn from the general enumeration at this site**
 ([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)),
-two of the five carrying none. The configured thing, never the executed one. **Not every `Scan` is a port
+~~two of the five carrying none.~~ The configured thing, never the executed one. **Not every `Scan` is a port
 tier**: ~~two are, and the third is `tls-acceptance`'s weekly enumeration, whose scope is the
 open `Service` population and the TLS candidate set.~~ ~~there are four and only two are port
 tiers.~~ ~~there are five and only two are port tiers.~~ ~~there are six and only two are port
-tiers.~~ **there are seven and only two are port tiers.** The third is `tls-acceptance`'s weekly enumeration, whose scope is the open `Service`
+tiers.~~ ~~there are seven and only two are port tiers.~~ **there are nine and only two are port tiers.** The two port tiers carry the port list, and the other seven carry none. The enumeration below names seven of the nine. `http-identity` is the seventh to arrive and `ct-tail` the eighth, and the enumeration names neither. [`v1-spec.md`](./docs/spec/v1-spec.md) §3.4's table carries all nine. The third is `tls-acceptance`'s weekly enumeration, whose scope is the open `Service`
 population and the TLS candidate set. The fourth is **`zone`**, whose scope is the name scopes
 holding a supplied zone file and which has **no port list and no vantage choice at all**, the
 worker reading it. The fifth is **`dns`**, whose scope is the name scopes **unconditionally** —
@@ -430,7 +430,7 @@ schedule and the source's `consent` being two controls. See
 [ADR-0044](./docs/adr/0044-a-one-off-measurement-has-no-currency.md),
 [ADR-0096](./docs/adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md) and
 [ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
-The seventh is **`edge-fanout`**, the no-SNI TLS handshake that measures a candidate edge's **fan-out**.
+~~The seventh is~~ **The ninth is** **`edge-fanout`**, the no-SNI TLS handshake that measures a candidate edge's **fan-out**.
 Its scope is the **custody-extension candidates** — the direct-A targets, and the apex `ALIAS`/`ANAME`
 flattened to A, of in-zone names the extension would reach — **and the addresses of declared address
 scopes**, where the result is **labelling only** and decides no membership
