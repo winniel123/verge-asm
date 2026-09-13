@@ -288,9 +288,9 @@ stored `action` token. `Subject` shows the rendered cell with sample values.
   table, the `act` corpus included (`cmd/web/restore.go:265+`), so a row written before the apply is
   erased by the apply. Its actor is `Account` — the restoring admin, whose username snapshot survives
   the `TRUNCATE` because §3 captures a value and not a join.
-- **Five classes share the Action label `Dial moved`, and that is correct.** The Subject cell carries
+- **Six classes share the Action label `Dial moved`, and that is correct.** The Subject cell carries
   the dial name, so `Dial moved · transcript currency · 14 days` reads once and not twice. The
-  **stored** `action` token stays distinct for all five.
+  **stored** `action` token stays distinct for all six.
 - **Limb 4's label is `Raw output disclosed`, never *read*.** §1.4 worded the limb as a disclosure and
   refused the read register by name, so the copy follows or the interface contradicts the SPEC on the
   one act most likely to be misread as forensics.
