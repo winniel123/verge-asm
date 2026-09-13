@@ -166,10 +166,11 @@ claim. That is the honest shape of the modal cloud-resident operator on day one,
 state.
 
 **Seven aperture inputs**, each a dimension of what a `Batch` records as its completed scope:
-enabled sources, port sets, `Vantage class`, the TLS candidate set, the qtype set, the control-probe
-population (the parents of resolved names, for wildcard discrimination), and the queried address
-scope. A cadence is **not** an aperture input — a `Batch` records what it asked about, never how
-often.
+enabled sources, port and transport tiers, the custody gate, the queried qtype set, the TLS
+candidate set, `Vantage class`, and the control-probe population (the parents of resolved names,
+for wildcard discrimination). An input is named for what an operator moves, not for the field that
+records it (ADR-0079). A cadence is **not** an aperture input — a `Batch` records what it asked
+about, never how often.
 
 ### 3.3 The measurement binary
 
