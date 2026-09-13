@@ -27,7 +27,16 @@ union and [ADR-0009](./0009-verge-core-is-a-union.md) owns its membership. It st
 pairs today, and every ratio below is stated against that figure rather than depending on it.)
 
 [#44](https://github.com/winniel123/verge-asm/issues/44) put a standing **aperture statement** on
-`Coverage`, one line per aperture input, and port tiers are one of the five. A default install whose
+`Coverage`, one line per aperture input, and port tiers are one of the ~~five~~ **seven**
+*(**the count is struck in place**, per
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+intra-document unit and for [#1882](https://github.com/winniel123/verge-asm/issues/1882) /
+[#1888](https://github.com/winniel123/verge-asm/issues/1888): six since
+[ADR-0017](./0017-exposure-needs-both-legs.md) added `Vantage class`, seven since
+[#108](https://github.com/winniel123/verge-asm/issues/108) /
+[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+added the control-probe population. The statement's line count moves with it; nothing else on this
+line does)*. A default install whose
 aperture is `verge-core` and does not say so is the exact failure that statement exists to prevent,
 so whichever way this goes, the aperture statement is where it has to be legible.
 

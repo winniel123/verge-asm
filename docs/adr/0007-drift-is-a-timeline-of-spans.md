@@ -248,7 +248,22 @@ ADR-0005 treats skipped ticks as normal operation and
 [#22](https://github.com/winniel123/verge-asm/issues/22) refuses to surface a single skipped
 tick. At `k=1` every skip would open a `Gap`.
 
-### Aperture has three inputs, and widening yields `revealed`
+### Aperture has ~~three~~ **seven** inputs, and widening yields `revealed`
+
+> **The count in this heading is WITHDRAWN** —
+> [#1882](https://github.com/winniel123/verge-asm/issues/1882) /
+> [#1888](https://github.com/winniel123/verge-asm/issues/1888). The #36 amendment below carries its
+> own withdrawal note, and that note scopes itself to *this heading and the body below* it — the
+> amendment's heading, not this one.
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+> [#106](https://github.com/winniel123/verge-asm/issues/106) amendment settles that an amendment
+> section discharges no clause standing unmarked elsewhere in the same file, *"and it does not
+> matter whether the amendment sits above the superseded sentence or below it"*. So this heading
+> owed its own mark and did not carry one. The count is **seven**: five at the
+> #36 amendment, six at [ADR-0017](./0017-exposure-needs-both-legs.md), seven at
+> [#108](https://github.com/winniel123/verge-asm/issues/108) /
+> [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md).
+> The section body below is the three-input world as this ADR wrote it, and it is left as written.
 
 [#15](https://github.com/winniel123/verge-asm/issues/15) ruled that a subject first observed
 under a widened aperture is not "appeared". ADR-0006 split appearance into `appeared` and

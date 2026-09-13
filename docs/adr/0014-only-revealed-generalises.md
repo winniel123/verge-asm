@@ -174,7 +174,21 @@ nothing said what qualifies.
 
 **Aperture is what a `Batch` records as its completed scope.** Every named input is a dimension of
 that record — enabled sources, port and transport tiers, the custody gate, the queried qtype set,
-the TLS candidate set — and any future dimension is an aperture input by the same test.
+the TLS candidate set, **`Vantage class`** and the **control-probe population** — and any future
+dimension is an aperture input by the same test.
+
+> **The ~~five~~-member enumeration in the sentence above is WITHDRAWN, and struck in place at
+> seven** — [#1882](https://github.com/winniel123/verge-asm/issues/1882) /
+> [#1888](https://github.com/winniel123/verge-asm/issues/1888). This ADR stated the list at
+> **five** and carried no withdrawal note, so it was the site
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) names:
+> read alone and in the present tense, it builds a five-line aperture statement. The count moved
+> twice after this sentence was written. [ADR-0017](./0017-exposure-needs-both-legs.md) added
+> **`Vantage class`** for six, and [#108](https://github.com/winniel123/verge-asm/issues/108) /
+> [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
+> added the **control-probe population** for seven. The criterion this ADR fixes is untouched.
+> Whether `Vantage class` meets its *recorded under a name* half is open at
+> [#1890](https://github.com/winniel123/verge-asm/issues/1890); the enumeration is seven either way.
 
 The list stays **enumerated** even so, and that is not redundancy. A widening is detected by
 comparing a batch's recorded scope against the prior one's for that scope, which requires each
