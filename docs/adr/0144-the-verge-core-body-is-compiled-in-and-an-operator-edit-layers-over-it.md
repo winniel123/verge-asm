@@ -31,10 +31,10 @@ An operator edit does exist, and it **layers**. `internal/queue/hot.go:165` read
 `cmd/web/settings.go:787-789` builds the settings view the same way, from `vergecore.Default()`. The
 shipped body is the base at both sites, and the operator's rows are deltas over it.
 
-Four documents still specify the withdrawn shape. `docs/spec/v1-spec.md:247` says `verge-core` *"is
-shipped as an editable list file"*. [ADR-0009](./0009-verge-core-is-a-union.md):15 quotes #4's clause.
-`docs/research/safe-active-probing.md:245` states it as a recommendation and `:1284` as a knob
-requirement. `db/migrations/19400_hot_scan_verge_core.sql:16` repeats it in the comment above the very
+Four documents still specify the withdrawn shape. `docs/spec/v1-spec.md` §3.5 says `verge-core` *"is
+shipped as an editable list file"*. [ADR-0009](./0009-verge-core-is-a-union.md) quotes #4's clause.
+`docs/research/safe-active-probing.md` §2.3 states it as a recommendation and §9 as a knob
+requirement. `db/migrations/19400_hot_scan_verge_core.sql` repeats it in the comment above the very
 table that implements the layering. Read alone and in the present tense, each would send a session to
 build a replacement path.
 
