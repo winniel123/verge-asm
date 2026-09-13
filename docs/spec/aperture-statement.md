@@ -367,8 +367,8 @@ counted, and a clause per set covers none of them. The domain is the two `Exposu
 | --- | --- | --- | --- |
 | yes | yes | `none` | *"A vantage reads from each side of your boundary, so no class is missing."* |
 | yes | no | `Provision a prober inside your estate` → `/settings?tab=vantages` | *"No declared address scope covers any prober, so no vantage starts the internal leg. Run a prober inside your estate, then declare its egress as an address scope."* |
-| no | yes | `Provision an internet vantage` → `/settings?tab=vantages` | *"No vantage presents an address outside your declared scopes, so no vantage starts the internet leg. `Exposure` needs an outside observer, unconditionally."* |
-| no | no | `Provision an internet vantage` → `/settings?tab=vantages` | *"No vantage presents an observed address, so neither leg has a reader. `Exposure` needs an outside observer first."* |
+| no | yes | `Provision a prober` → `/settings?tab=vantages` | *"No vantage presents an address outside your declared scopes, so no vantage starts the internet leg. `Exposure` needs an outside observer, unconditionally."* |
+| no | no | `Provision a prober` → `/settings?tab=vantages` | *"No vantage presents an observed address, so neither leg has a reader. `Exposure` needs an outside observer first."* |
 
 **Four cases, no configuration uncovered.** The acceptance is discharged by the shape rather than by
 enumeration.
@@ -385,7 +385,7 @@ Four constraints a builder must not simplify away:
    necessary step, and the reason carries the second step in order.
 3. **Rows 3 and 4 share one label and differ only in reason.** The act is identical. Two labels for
    one act would teach the operator that two different things are available.
-   `Provision an internet vantage` is the shipped card title verbatim
+   `Provision a prober` is the shipped card title verbatim
    (`design-system/templates/settings.tmpl:550`). *"Exposure needs an outside observer,
    unconditionally"* is `cmd/web/auth.go:924` verbatim.
 4. **Row 4 is a fresh install, never an empty list.**
@@ -604,12 +604,12 @@ Three facts those tickets inherit:
   Every read applies the **current** predicate to historic rows, so the class has no history. The
   statement states present configuration and claims nothing about a past batch, so it does not wait
   on the repair.
-- **The Vantages tab's class tag** — [#1908](https://github.com/winniel123/verge-asm/issues/1908).
-  The tab renders the vestigial `vantage.class` column, which no query ever writes, so it tags every
-  vantage `unverified`. §4.2's remedy is correct whether or not the page is repaired. **The card
-  title `Provision an internet vantage` joins that ticket.** Row 2 sends the operator there for the
-  **internal** direction, and rows 3 and 4 quote the title verbatim. So the title and the copy must
-  move together.
+- **The Vantages tab's class tag** — [#1908](https://github.com/winniel123/verge-asm/issues/1908),
+  repaired. The tab rendered the vestigial `vantage.class` column, which no query ever writes, so it
+  tagged every vantage `unverified`. It now derives the tag through the one `addressScopeCovered`
+  binding. §4.2's remedy held either way. **The card title joined that ticket.** Row 2 sends the
+  operator there for the **internal** direction, and rows 3 and 4 quote the title verbatim. So the
+  title and the copy moved together, and the title is now `Provision a prober`.
 - **The stale `Scan` count** — [#1911](https://github.com/winniel123/verge-asm/issues/1911). Three
   documents disagree on how many `Scan`s ship.
 - **ADR-0144's stale line-anchored citation** — [#1912](https://github.com/winniel123/verge-asm/issues/1912).

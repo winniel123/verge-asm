@@ -808,10 +808,17 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 	data["ResolverID"] = f.resolverID
 	data["ResolverValue"] = f.resolverValue
 	data["ResolverUnmatched"] = f.resolverError != "" && !vantageRowsInclude(rows, f.resolverID)
+	// Failing closed here over-reports a vantage as internet rather than mislabelling it internal.
+	covered, cerr := s.addressScopeCovered(r.Context())
+	if cerr != nil {
+		log.Printf("web: settings: address scope coverage: %v", cerr)
+		covered = func(netip.Addr) bool { return false }
+	}
 	out := make([]vantageRow, 0, len(rows))
 	for _, v := range rows {
 		vr := vantageRow{
-			ID: v.ID, Name: v.Name, Class: v.Class, Availability: v.Availability.String,
+			ID: v.ID, Name: v.Name, Availability: v.Availability.String,
+			Class:    string(vantageFactsClass(v.DialledAddr, v.Egress, covered)),
 			Resolver: v.Resolver, Endpoint: endpointString(v.Host.String, v.Port.Int32),
 			Latency: vantageLatencyLabel(v.LatencyMs), Observed: v.Observed,
 		}

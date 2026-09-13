@@ -466,7 +466,7 @@
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Scanning · vantages</span>
 <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Vantages</h2>
-<p class="st-lede">The network positions a scan measures from. A vantage carries a verified class — internet or internal — and the recursive resolver it looks through; provisioning one declares it sits on the internet and opens the Reach and Exposure timelines.</p>
+<p class="st-lede">The network positions a scan measures from. A vantage carries the recursive resolver it looks through, and a class — internet or internal — derived from the addresses it presents and your declared address scopes. Provisioning one opens the Reach and Exposure timelines.</p>
 </header>
 {{if and $.IsAdmin $.ResolverUnmatched}}<div class="st-error">{{$.ResolverError}}</div>{{end}}
 {{if .Vantages}}
@@ -547,7 +547,7 @@
 {{end}}
 {{if .IsAdmin}}
 <section class="st-card">
-<div class="st-cardhead"><div class="hd"><span class="st-micro">Probers</span><h3>Provision an internet vantage</h3></div></div>
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Probers</span><h3>Provision a prober</h3></div></div>
 <div class="st-body">
 <div style="display:flex;flex-direction:column;gap:14px">
 {{if .ProberError}}<div class="st-error">{{.ProberError}}</div>{{end}}
