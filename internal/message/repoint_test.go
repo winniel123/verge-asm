@@ -37,7 +37,7 @@ func TestRePointHeadlineReadsWithinTheEstate(t *testing.T) {
 		CensusEntry{Kind: "endpoint", Key: "www.example.com@203.0.113.5:80/tcp"},
 	)
 	got := RePoint("www.example.com", census, t0).Headline
-	want := "www.example.com re-pointed within the estate · 2 endpoints · 2 timelines opened beneath it"
+	want := "www.example.com re-pointed within the estate · 2 endpoints · 2 timelines opened on an address it now cites"
 	if got != want {
 		t.Errorf("headline\n got %q\nwant %q", got, want)
 	}
@@ -47,5 +47,31 @@ func TestRePointHeadlineReadsWithinTheEstate(t *testing.T) {
 	}
 	if strings.Contains(got, "entered") {
 		t.Errorf("the pair must not read as duplicates (ADR-0026 §2): %q", got)
+	}
+}
+
+func TestASecondNameOnTheNewAddressClaimsNoMoreThanTheFirst(t *testing.T) {
+	census := NewCensus(CensusEntry{Kind: "endpoint", Key: "@203.0.113.9:443/tcp"})
+	first := RePoint("www.example.com", census, t0).Headline
+	second := RePoint("api.example.com", census, t0).Headline
+	for _, h := range []string{first, second} {
+		if want := "opened on an address it now cites"; !strings.Contains(h, want) {
+			t.Errorf("the headline states the ground it counted over\n got %q\nwant it to contain %q", h, want)
+		}
+		if strings.Contains(h, "beneath it") {
+			t.Errorf("one address carries many Names, so neither owns the ground: %q", h)
+		}
+	}
+}
+
+func TestTheRePointGroundReadsNewerThanMembershipsGround(t *testing.T) {
+	census := NewCensus(CensusEntry{Kind: "endpoint", Key: "@203.0.113.9:443/tcp"})
+	moved := RePoint("www.example.com", census, t0).Headline
+	entered := membershipHeadline(EntryAppeared, "name", "www.example.com", census)
+	if !strings.HasSuffix(moved, "opened on an address it now cites") {
+		t.Errorf("the residue is what the Name cites now and did not cite before, got %q", moved)
+	}
+	if !strings.HasSuffix(entered, "opened on an address it cites") {
+		t.Errorf("membership counts over every address the root cites, got %q", entered)
 	}
 }
