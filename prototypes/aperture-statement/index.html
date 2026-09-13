@@ -1,0 +1,603 @@
+<!doctype html>
+<!--
+  THROWAWAY PROTOTYPE — wayfinder ticket #1886 "Draw the aperture statement, seven
+  lines, on a name-only estate and a healthy one" (map #1882).
+
+  Question: what does the aperture statement look like? ADR-0044, ADR-0095 and
+  reading-the-estate.md specify it. Nothing has ever drawn it. ADR-0095 records that
+  against itself: "the surface this ADR rules on has never been drawn".
+
+  Three takes on the statement, switchable via ?variant= :
+
+    ?variant=a  — (A) Ledger. One table, four columns, seven rows. A column
+                  contract every line must fill.
+    ?variant=b  — (B) Lines. Seven free blocks, no column contract. Each line
+                  fills only the cells it has, in the left column beside the
+                  shipped Aperture meters.
+    ?variant=c  — (C) Headline + roster. The port-tier line promoted to a lead
+                  block, the other six as a compact roster. This is ruling 13's
+                  rejected alternative, drawn so it can be judged rather than
+                  assumed.
+
+  Two estates, switchable via ?estate= , plus a side-by-side compare:
+
+    ?estate=name-only  — one name scope, no address scope, custody extension off.
+                         The case #1854 reports. Port-tier line reads 38 of 38.
+    ?estate=healthy    — the same install plus one address scope. Reads 5 of 38.
+    ?estate=compare    — both statements side by side, neighbours dropped.
+
+  Flip variants with the bar below or the LEFT / RIGHT keys. Flip estates with the
+  bar or the UP / DOWN keys. Toggle dark with the circle button.
+
+  The two cards below the statement are the SHIPPED Coverage cards, drawn as they
+  ship on purpose:
+    - "Aperture / What the last batch walked" carries the micro-label the statement
+      wants (#1890 hands the SPEC that relabel).
+    - "Rules / Unevaluable this batch" means the opposite of the statement's
+      0 of 17 rules unevaluable figure (#1885).
+  Both collisions are visible on one screen here, which is the point.
+
+  Mock. No data, no backend, no persistence, no tests. Every figure is hardcoded
+  from the map's closed tickets: 38 sensitive pairs and 17 rules measured live in
+  #1884; the seven inputs enumerated in #1883; the port-tier line's seven payload
+  items listed in #1885; the vantage-class line's three cells in #1890.
+
+  Tokens and the cv-* classes are copied from design-system/ (the current system,
+  not prototypes/design-system-legacy/) so density and colour read true.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aperture statement — prototype</title>
+<style>
+:root {
+  --neutral-300: #d5d2ce; --neutral-400: #b8b5b1; --neutral-500: #9b9893;
+  --bg-page: #f9f7f5; --surface: #ffffff; --surface-sunken: #f2f0ec; --surface-raised: #ffffff; --surface-inverted: #231f19;
+  --text-ink: #231f19; --text-body: #37322c; --text-secondary: #67625c; --text-muted: #79746d; --text-faint: #949089; --text-on-inverted: #f4f2ef;
+  --border-default: #e2dfdb; --border-strong: #c7c3be; --row-sep: #efece9;
+  --accent: #037ac0; --accent-hover: #006bad; --on-accent: #ffffff; --accent-soft: #e1f6ff; --accent-softer: #effcff;
+  --link: #006eaf; --focus-ring: #037ac0; --row-selected: #e1f6ff;
+  --ok: #05773b; --ok-solid: #3d9c5e; --ok-soft: #e1fae7; --ok-border: #bfebc9;
+  --warn: #8d5500; --warn-solid: #b37903; --warn-soft: #fff0d8; --warn-border: #f8d9af;
+  --danger: #ac312c; --danger-solid: #d5584f; --danger-soft: #ffe8e2; --danger-border: #ffcac2;
+  --stale-fg: #7a5216; --stale-bg: #fbf0dd; --stale-border: #ecd7b0;
+  --shadow-sm: 0 1px 2px rgba(35,31,25,0.06), 0 2px 8px rgba(35,31,25,0.04);
+  --shadow-md: 0 4px 12px rgba(35,31,25,0.08), 0 2px 6px rgba(35,31,25,0.05);
+  --dur-fast: 120ms; --dur-slow: 280ms; --ease-out: cubic-bezier(0.2,0,0,1);
+  --font-ui: "Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --font-mono: "Geist Mono","IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --heading-tracking: -0.015em;
+}
+[data-theme="dark"] {
+  --neutral-300: #514c46; --neutral-400: #6c6864; --neutral-500: #898581;
+  --bg-page: #15120f; --surface: #1e1b17; --surface-sunken: #191613; --surface-raised: #282520; --surface-inverted: #eae7e4;
+  --text-ink: #eae7e4; --text-body: #d9d5d1; --text-secondary: #b1ada8; --text-muted: #898581; --text-faint: #6c6864; --text-on-inverted: #231f19;
+  --border-default: #383530; --border-strong: #514c46; --row-sep: #292622;
+  --accent: #6bbeff; --accent-hover: #9ddaff; --on-accent: #063352; --accent-soft: #272f33; --accent-softer: #20262a;
+  --link: #59acee; --focus-ring: #6bbeff; --row-selected: #272f33;
+  --ok: #57c07f; --ok-solid: #3d9c5e; --ok-soft: #17281c; --ok-border: #1f4029;
+  --warn: #e0aa4a; --warn-solid: #c68d00; --warn-soft: #2d2413; --warn-border: #4a3a12;
+  --danger: #f08c82; --danger-solid: #d5584f; --danger-soft: #331b17; --danger-border: #55231d;
+  --stale-fg: #d7b16a; --stale-bg: #2a2113; --stale-border: #473715;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg-page); color: var(--text-body); font-family: var(--font-ui); font-size: 13px; line-height: 1.5; }
+
+/* ---- page shell, copied from design-system/templates/coverage.tmpl ---- */
+.cv-main { max-width: 1440px; width: 100%; margin: 0 auto; padding: 28px 32px 128px; display: flex; flex-direction: column; gap: 20px; }
+.cv-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.cv-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); }
+.cv-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.cv-col { display: flex; flex-direction: column; gap: 24px; }
+.cv-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.cv-card.flush { overflow: hidden; }
+.cv-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
+.cv-card.flush .cv-cardhead { padding: 20px 20px 14px; }
+.cv-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.cv-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.cv-body { padding: 20px; }
+.cv-meter { display: flex; flex-direction: column; gap: 6px; }
+.cv-meter .top { display: flex; align-items: baseline; gap: 8px; }
+.cv-meter .top .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.cv-meter .top .val { margin-left: auto; flex: none; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.cv-meter .track { height: 6px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.cv-meter .track .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.cv-meter .census { height: 6px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }
+.cv-meter .det { font: 400 11px var(--font-ui); color: var(--text-muted); }
+.cv-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 6px 0 2px; }
+.cv-empty .msg { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.cv-empty .det { font: 400 12px/1.55 var(--font-ui); color: var(--text-muted); max-width: 58ch; }
+.cv-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); }
+.cv-btn-sm:hover { background: var(--surface-sunken); }
+.cv-btn-sm.pri { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* ---- prototype chrome ---- */
+.protonote { background: var(--accent-softer); border: 1px dashed var(--accent); border-radius: 12px; padding: 13px 15px; font: 400 12.5px/1.6 var(--font-ui); color: var(--text-body); }
+.protonote b { color: var(--text-ink); }
+.protonote code { font: 400 0.92em var(--font-mono); background: var(--surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 1px 5px; }
+.protonote ul { margin: 8px 0 0; padding-left: 20px; }
+.protonote li { margin: 3px 0; }
+.estatenote { display: flex; align-items: baseline; gap: 10px; padding: 11px 14px; border-radius: 12px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 400 12px/1.55 var(--font-ui); color: var(--text-secondary); }
+.estatenote .k { flex: none; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+
+/* ---- shared statement atoms ---- */
+.ap-fig { font: 400 12.5px var(--font-mono); color: var(--text-ink); white-space: nowrap; }
+.ap-fig .n { font-weight: 600; }
+.ap-fig.zero { color: var(--text-secondary); }
+.ap-state { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font: 400 11.5px var(--font-mono); white-space: nowrap; }
+.ap-state .d { width: 6px; height: 6px; border-radius: 999px; background: var(--neutral-400); flex: none; }
+.ap-state.on { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.ap-state.on .d { background: var(--ok-solid); }
+.ap-state.off .d { background: var(--neutral-400); }
+.ap-nodial { font: 400 11px var(--font-ui); color: var(--text-faint); white-space: nowrap; }
+.ap-none { font: 400 12px var(--font-mono); color: var(--text-faint); }
+.ap-why { font: 400 11px/1.5 var(--font-ui); color: var(--text-muted); }
+.ap-remedy { display: inline-flex; align-items: center; gap: 5px; font: 500 12.5px var(--font-ui); color: var(--link); text-decoration: none; white-space: nowrap; }
+.ap-remedy:hover { text-decoration: underline; }
+.ap-remedy .arr { font-family: var(--font-mono); opacity: 0.7; }
+
+/* ---- variant A: ledger ---- */
+.lg-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.lg-table th { padding: 9px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); text-align: left; white-space: nowrap; }
+.lg-table td { padding: 12px 16px; vertical-align: top; border-top: 1px solid var(--row-sep); }
+.lg-table tbody tr:first-child td { border-top: none; }
+.lg-table td.in { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.lg-table td.in .cite { display: block; margin-top: 2px; font: 400 11px var(--font-mono); color: var(--text-faint); }
+.lg-cad { display: flex; flex-direction: column; gap: 3px; }
+.lg-cad .v { font: 400 12.5px var(--font-mono); color: var(--text-body); }
+.lg-st { display: flex; flex-direction: column; gap: 6px; }
+.lg-st .det { font: 400 11px/1.5 var(--font-ui); color: var(--text-muted); }
+.lg-figs { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; border-radius: 10px; background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.lg-rem { display: flex; flex-direction: column; gap: 4px; }
+
+/* ---- variant B: lines ---- */
+.ln-list { display: flex; flex-direction: column; }
+.ln { display: flex; flex-direction: column; gap: 7px; padding: 14px 0; }
+.ln + .ln { border-top: 1px solid var(--row-sep); }
+.ln .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ln .hd .nm { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.ln .hd .cad { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.ln .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ln .figstack { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border-radius: 10px; background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.ln .foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---- variant C: headline + roster ---- */
+.hl { display: flex; flex-direction: column; gap: 16px; padding: 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border-default); box-shadow: var(--shadow-sm); }
+.hl .top { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+.hl .big { display: flex; flex-direction: column; gap: 3px; }
+.hl .big .n { font: 600 30px var(--font-mono); letter-spacing: -0.01em; line-height: 1; color: var(--text-ink); }
+.hl .big .u { font: 400 12.5px var(--font-ui); color: var(--text-secondary); }
+.hl .act { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.hl .sibs { display: flex; gap: 26px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--row-sep); }
+.hl .sib { display: flex; flex-direction: column; gap: 3px; }
+.hl .sib .l { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.rost { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 26px; }
+.rost .r { display: flex; align-items: baseline; gap: 10px; padding: 10px 0; border-top: 1px solid var(--row-sep); }
+.rost .r .nm { font: 500 12.5px var(--font-ui); color: var(--text-ink); min-width: 0; }
+.rost .r .st { margin-left: auto; display: flex; align-items: baseline; gap: 8px; flex: none; }
+.rost .r .cad { font: 400 11px var(--font-mono); color: var(--text-faint); }
+
+/* ---- compare mode ---- */
+.cmp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 1200px) { .cmp, .cv-grid, .rost { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- floating switcher ---- */
+.switcher { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; align-items: center; gap: 4px; background: var(--surface-inverted); color: var(--text-on-inverted); border-radius: 999px; box-shadow: var(--shadow-md); padding: 5px 6px; font: 500 12.5px var(--font-ui); }
+.switcher button { border: none; background: transparent; color: var(--text-on-inverted); cursor: pointer; height: 30px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
+.switcher .arrow { width: 30px; font-size: 15px; }
+.switcher .arrow:hover, .switcher .theme:hover, .switcher .est:hover { background: rgba(255,255,255,0.14); }
+.switcher .lbl { padding: 0 12px; white-space: nowrap; }
+.switcher .lbl .k { font-family: var(--font-mono); opacity: 0.7; margin-right: 6px; }
+.switcher .sep { width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 3px; }
+.switcher .est { padding: 0 11px; font: 500 12px var(--font-mono); opacity: 0.75; }
+.switcher .est.sel { opacity: 1; background: rgba(255,255,255,0.16); }
+.switcher .theme { width: 30px; margin-left: 3px; font-size: 14px; }
+.simleft { position: fixed; bottom: 22px; left: 18px; z-index: 200; font: 400 11px var(--font-mono); color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="cv-main">
+  <div class="protonote">
+    <b>Throwaway prototype · ticket #1886 · map #1882.</b>
+    Three takes on the aperture statement, seven lines each, on two estates. Flip takes with
+    the bar below or <code>&larr;</code> <code>&rarr;</code>. Flip estates with the bar or
+    <code>&uarr;</code> <code>&darr;</code>. Nothing here is wired to data.
+    <ul>
+      <li><b>The crowding.</b> Line 2 carries seven things. Its six siblings carry a cadence and a state. Does it read as one of seven, or as an exception?</li>
+      <li><b>The neighbours.</b> The two cards below the statement ship today. <code>Aperture / What the last batch walked</code> already holds the micro-label. <code>Rules / Unevaluable this batch</code> already means the opposite of <code>0 of 17 rules unevaluable</code>. Does the statement separate from them?</li>
+      <li><b>The empty cells.</b> Five of seven inputs have no operator toggle. Five have no cadence dial. One has no cadence at all. Every empty cell here says why.</li>
+    </ul>
+  </div>
+
+  <header style="display:flex;flex-direction:column;gap:2px">
+    <h1>Coverage</h1>
+    <span class="cv-sub">Where "we cannot construct this claim" lives &mdash; a feature, not an error.</span>
+  </header>
+
+  <div class="estatenote"><span class="k" id="est-k">Estate</span><span id="est-note"></span></div>
+
+  <div id="mount"></div>
+</div>
+
+<div class="simleft">variant and estate persist in the URL &middot; reload-stable</div>
+<div class="switcher">
+  <button class="arrow" id="prev" title="Previous take (&larr;)">&#8249;</button>
+  <span class="lbl"><span class="k" id="vkey">A</span><span id="vname">Ledger</span></span>
+  <button class="arrow" id="next" title="Next take (&rarr;)">&#8250;</button>
+  <span class="sep"></span>
+  <button class="est" data-est="name-only" title="Name-only estate (&uarr; &darr;)">name-only</button>
+  <button class="est" data-est="healthy" title="Healthy estate (&uarr; &darr;)">healthy</button>
+  <button class="est" data-est="compare" title="Both, side by side">compare</button>
+  <button class="theme" id="theme" title="Toggle dark">&#9680;</button>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Data. Every figure is hardcoded from the map's closed tickets. See the file
+// header comment for which ticket fixed which number.
+// ---------------------------------------------------------------------------
+
+var ESTATES = {
+  "name-only": {
+    label: "Name-only estate",
+    note: "One name scope, example.com. No address scope. Custody extension off. This is the case #1854 reports: nine Scans dispatch, the port tiers measure nothing, and the page says nothing about it.",
+    pairs: { unread: 38, of: 38 },
+    vantage: "1 internet",
+    vantageRemedy: { text: "Add an internal vantage", href: "/settings?tab=vantages" },
+    tierRemedy: { text: "Declare an address scope", href: "/scope" },
+    tierWhy: "No declared scope reads a sensitive pair, so every pair is unread. Declaring an address scope is the only configuration that moves this figure.",
+    meters: [
+      { lbl: "example.com", val: "census · 412 names", census: true, det: "No address scope, so no address was connected this batch." }
+    ]
+  },
+  "healthy": {
+    label: "Healthy estate",
+    note: "The same install plus one address scope, 198.51.100.0/24. Custody extension still off, so the address scope alone moves the port-tier figure. Everything else is held identical, so the two statements are comparable.",
+    pairs: { unread: 5, of: 38 },
+    vantage: "1 internet · 2 internal",
+    vantageRemedy: null,
+    vantageWhy: "The declared set holds both classes, so there is nothing to point at.",
+    tierRemedy: { text: "Go to port tiers", href: "/settings?tab=tiers" },
+    tierWhy: "The 5 pairs still unread are the UDP pairs. No tier opens them, and no operator flag exists to open them.",
+    meters: [
+      { lbl: "example.com", val: "census · 412 names", census: true },
+      { lbl: "198.51.100.0/24", val: "193 / 256 addresses", pct: 75 },
+      { lbl: "services", val: "1204 / 1311 services", pct: 92 }
+    ]
+  }
+};
+
+// The seven aperture inputs, in the enumeration #1883 reconciled.
+function lines(key) {
+  var E = ESTATES[key];
+  return [
+    {
+      n: 1,
+      name: "Enabled sources",
+      cite: "ADR-0007",
+      cadence: "daily · 5m · monthly",
+      cadenceWhy: "One per source. Only the zone file's is an operator dial.",
+      state: "1 of 3 on", stateKind: "off",
+      stateDet: "crt.sh on · CT drift tail off · Cert Spotter off",
+      figures: null,
+      remedy: { text: "Enable a source", href: "/settings?tab=sources" },
+      remedyWhy: null
+    },
+    {
+      n: 2,
+      name: "Port and transport tiers",
+      cite: "ADR-0007 · ADR-0025 · ADR-0044",
+      cadence: "daily · monthly",
+      cadenceWhy: "hot daily, cold monthly. Release-coupled: no operator dial exists.",
+      state: "hot on · cold off · udp no flag", stateKind: "off",
+      stateDet: "The cold tier's state is the shadow of an empty scope list, not a switch. UDP has no flag at all.",
+      figures: [
+        { text: E.pairs.unread + " of " + E.pairs.of + " sensitive pairs unread", zero: E.pairs.unread === 0 },
+        { text: "0 of 38 sensitive pairs the instrument cannot report as reached", zero: true },
+        { text: "0 of 17 rules unevaluable", zero: true }
+      ],
+      remedy: E.tierRemedy,
+      remedyWhy: E.tierWhy
+    },
+    {
+      n: 3,
+      name: "The custody gate",
+      cite: "ADR-0007 · ADR-0013 · ADR-0019",
+      cadence: "per dispatch",
+      cadenceWhy: "Applied on every connect Scan. The extension's fan-out limb rides edge-fanout, daily.",
+      state: "extension off", stateKind: "off",
+      stateDet: "The gate always runs. The custody extension is the operator's dial, and it ships off.",
+      figures: null,
+      remedy: { text: "Turn on the custody extension", href: "/scope" },
+      remedyWhy: null
+    },
+    {
+      n: 4,
+      name: "The queried qtype set",
+      cite: "ADR-0007 §36",
+      cadence: "daily",
+      cadenceWhy: "The dns Scan, and one of the two cadences an operator can move.",
+      state: "7 qtypes", stateKind: "fixed",
+      stateDet: "A AAAA CNAME NS SOA MX TXT. Release-coupled, with no operator state.",
+      figures: null,
+      remedy: null,
+      remedyWhy: "An offer you can narrow is a finding you can silence, so there is nothing to point at."
+    },
+    {
+      n: 5,
+      name: "The TLS candidate set",
+      cite: "ADR-0007 §36 · ADR-0025",
+      cadence: "weekly",
+      cadenceWhy: "tls-acceptance weekly, and the same list rides every port tier's handshake. No dial.",
+      state: "TLS 1.0–1.3 · 19 suites", stateKind: "fixed",
+      stateDet: "Release-coupled, with no operator state. Wide on purpose: a narrower floor hides a TLS-1.0-only listener.",
+      figures: null,
+      remedy: null,
+      remedyWhy: "Same clause as the qtype set. Nothing to point at."
+    },
+    {
+      n: 6,
+      name: "Vantage class",
+      cite: "ADR-0017",
+      cadence: null,
+      cadenceWhy: "Derived where it is used, so it is never stale and carries no cadence.",
+      state: E.vantage, stateKind: "fixed",
+      stateDet: "Counted over the vantages you declared, not over the estate. No row stores the class.",
+      figures: null,
+      remedy: E.vantageRemedy,
+      remedyWhy: E.vantageWhy || null
+    },
+    {
+      n: 7,
+      name: "The control-probe population",
+      cite: "ADR-0066",
+      cadence: "daily",
+      cadenceWhy: "The dns Scan. It has no cadence of its own.",
+      state: "derived from the declared name scopes", stateKind: "fixed",
+      stateDet: "Never a declared parameter, so it moves only when the resolution scope moves.",
+      figures: null,
+      remedy: null,
+      remedyWhy: "Not a declared parameter, so there is nothing to point at."
+    }
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Atoms
+// ---------------------------------------------------------------------------
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function fig(f) {
+  var m = /^(\d+ of \d+)(.*)$/.exec(f.text);
+  var body = m ? '<span class="n">' + esc(m[1]) + '</span>' + esc(m[2]) : esc(f.text);
+  return '<span class="ap-fig' + (f.zero ? " zero" : "") + '">' + body + '</span>';
+}
+
+function stateChip(L) {
+  var cls = L.stateKind === "on" ? "on" : (L.stateKind === "fixed" ? "" : "off");
+  return '<span class="ap-state ' + cls + '">' + (L.stateKind === "fixed" ? "" : '<span class="d"></span>') + esc(L.state) + '</span>';
+}
+
+function remedy(L) {
+  if (L.remedy) {
+    return '<a class="ap-remedy" href="' + esc(L.remedy.href) + '">' + esc(L.remedy.text) + '<span class="arr">&rarr;</span></a>';
+  }
+  return '<span class="ap-none">none</span>';
+}
+
+function cadenceCell(L) {
+  var v = L.cadence
+    ? '<span class="v">' + esc(L.cadence) + '</span>'
+    : '<span class="ap-none">no cadence</span>';
+  return '<div class="lg-cad">' + v + '<span class="ap-why">' + esc(L.cadenceWhy) + '</span></div>';
+}
+
+// ---------------------------------------------------------------------------
+// Variant A — Ledger. One table, four columns, a contract every line must fill.
+// ---------------------------------------------------------------------------
+function vLedger(key) {
+  var rows = lines(key).map(function (L) {
+    var figs = L.figures
+      ? '<div class="lg-figs">' + L.figures.map(function (f) { return fig(f); }).join("") + "</div>"
+      : "";
+    return '<tr>' +
+      '<td class="in">' + esc(L.name) + '<span class="cite">' + esc(L.cite) + '</span></td>' +
+      '<td>' + cadenceCell(L) + '</td>' +
+      '<td><div class="lg-st">' + stateChip(L) + figs +
+        '<span class="det">' + esc(L.stateDet) + '</span></div></td>' +
+      '<td><div class="lg-rem">' + remedy(L) +
+        (L.remedyWhy ? '<span class="ap-why">' + esc(L.remedyWhy) + "</span>" : "") + '</div></td>' +
+      '</tr>';
+  }).join("");
+
+  return '<section class="cv-card flush">' +
+    '<div class="cv-cardhead"><span class="cv-micro">Aperture statement</span>' +
+    '<h3>What this install is configured to look at</h3></div>' +
+    '<table class="lg-table"><thead><tr>' +
+    '<th style="width:190px">Input</th><th style="width:210px">Cadence</th><th>State</th>' +
+    '<th style="width:250px">Remedy</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '</section>';
+}
+
+// ---------------------------------------------------------------------------
+// Variant B — Lines. No column contract. Each line fills only what it has, and
+// sits in the left column so it butts against the shipped Aperture meters.
+// ---------------------------------------------------------------------------
+function vLines(key) {
+  var items = lines(key).map(function (L) {
+    var figs = L.figures
+      ? '<div class="figstack">' + L.figures.map(function (f) { return fig(f); }).join("") + "</div>"
+      : "";
+    var cad = L.cadence ? esc(L.cadence) : "";
+    return '<div class="ln">' +
+      '<div class="hd"><span class="nm">' + esc(L.name) + '</span>' +
+      (cad ? '<span class="cad">' + cad + "</span>" : "") + '</div>' +
+      '<div class="row">' + stateChip(L) + '</div>' + figs +
+      '<div class="foot">' + remedy(L) + '</div>' +
+      '<span class="ap-why">' + esc(L.stateDet) + " " + esc(L.cadenceWhy) +
+      (L.remedyWhy ? " " + esc(L.remedyWhy) : "") + '</span>' +
+      '</div>';
+  }).join("");
+
+  return '<section class="cv-card">' +
+    '<div class="cv-cardhead"><span class="cv-micro">Aperture statement</span>' +
+    '<h3>What this install is configured to look at</h3></div>' +
+    '<div class="cv-body"><div class="ln-list">' + items + "</div></div></section>";
+}
+
+// ---------------------------------------------------------------------------
+// Variant C — Headline + roster. The port-tier line promoted out of the seven.
+// This is ruling 13's rejected alternative, drawn so it can be judged.
+// ---------------------------------------------------------------------------
+function vHeadline(key) {
+  var all = lines(key), L2 = all[1], rest = all.filter(function (L) { return L.n !== 2; });
+
+  var head = '<div class="hl">' +
+    '<div class="top">' +
+      '<div class="big"><span class="n">' + esc(L2.figures[0].text.split(" sensitive")[0]) + '</span>' +
+      '<span class="u">sensitive pairs unread</span></div>' +
+      '<div class="act">' + (L2.remedy ? '<a class="cv-btn-sm pri" href="' + esc(L2.remedy.href) + '">' + esc(L2.remedy.text) + "</a>" : "") + "</div>" +
+    '</div>' +
+    '<span class="ap-why" style="max-width:78ch">' + esc(L2.remedyWhy) + "</span>" +
+    '<div class="sibs">' +
+      '<div class="sib"><span class="l">Cannot report as reached</span>' + fig(L2.figures[1]) + "</div>" +
+      '<div class="sib"><span class="l">Rules unevaluable</span>' + fig(L2.figures[2]) + "</div>" +
+      '<div class="sib"><span class="l">Tier</span>' + stateChip(L2) + "</div>" +
+      '<div class="sib"><span class="l">Cadence</span><span class="ap-fig">' + esc(L2.cadence) + "</span></div>" +
+    "</div></div>";
+
+  var roster = rest.map(function (L) {
+    return '<div class="r"><span class="nm">' + esc(L.name) + '</span>' +
+      '<span class="st">' + stateChip(L) +
+      '<span class="cad">' + (L.cadence ? esc(L.cadence) : "no cadence") + "</span></span></div>";
+  }).join("");
+
+  return '<div style="display:flex;flex-direction:column;gap:20px">' + head +
+    '<section class="cv-card">' +
+    '<div class="cv-cardhead"><span class="cv-micro">Aperture statement</span>' +
+    '<h3>The other six inputs</h3></div>' +
+    '<div class="cv-body"><div class="rost">' + roster + "</div></div></section></div>";
+}
+
+// ---------------------------------------------------------------------------
+// The shipped neighbours, drawn as they ship. Both collide with the statement.
+// ---------------------------------------------------------------------------
+function apertureCard(key) {
+  var meters = ESTATES[key].meters.map(function (m) {
+    return '<div class="cv-meter"><div class="top"><span class="lbl">' + esc(m.lbl) +
+      '</span><span class="val">' + esc(m.val) + "</span></div>" +
+      (m.census ? '<div class="census"></div>' : '<div class="track"><span class="fill" style="width:' + m.pct + '%"></span></div>') +
+      (m.det ? '<span class="det">' + esc(m.det) + "</span>" : "") + "</div>";
+  }).join("");
+  return '<section class="cv-card">' +
+    '<div class="cv-cardhead"><span class="cv-micro">Aperture</span>' +
+    '<h3>What the last batch walked</h3></div>' +
+    '<div class="cv-body"><div style="display:flex;flex-direction:column;gap:18px">' + meters +
+    "</div></div></section>";
+}
+
+function rulesCard() {
+  return '<section class="cv-card">' +
+    '<div class="cv-cardhead"><span class="cv-micro">Rules</span>' +
+    '<h3>Unevaluable this batch</h3></div>' +
+    '<div class="cv-body"><div class="cv-empty">' +
+    '<span class="msg">Every rule could evaluate</span>' +
+    '<span class="det">No rule was blocked from evaluating this batch. A rule that needs a reading the batch did not commit would be listed here with what it was waiting on.</span>' +
+    "</div></div></section>";
+}
+
+function neighbours(key) {
+  return '<div class="cv-grid"><div class="cv-col">' + apertureCard(key) + "</div>" +
+    '<div class="cv-col">' + rulesCard() + "</div></div>";
+}
+
+// ---------------------------------------------------------------------------
+// Wiring
+// ---------------------------------------------------------------------------
+var VARIANTS = [
+  { key: "a", label: "Ledger", render: vLedger },
+  { key: "b", label: "Lines", render: vLines },
+  { key: "c", label: "Headline + roster", render: vHeadline }
+];
+var ESTATE_KEYS = ["name-only", "healthy", "compare"];
+
+function params() { return new URLSearchParams(location.search); }
+function currentIndex() {
+  var v = params().get("variant") || "a";
+  var i = VARIANTS.findIndex(function (x) { return x.key === v; });
+  return i < 0 ? 0 : i;
+}
+function currentEstate() {
+  var e = params().get("estate") || "name-only";
+  return ESTATE_KEYS.indexOf(e) < 0 ? "name-only" : e;
+}
+
+function render() {
+  var V = VARIANTS[currentIndex()], est = currentEstate(), html;
+
+  if (est === "compare") {
+    html = '<div class="cmp">' +
+      ESTATE_KEYS.slice(0, 2).map(function (k) {
+        return "<div><div class=\"cv-micro\" style=\"padding-bottom:10px\">" + esc(ESTATES[k].label) +
+          "</div>" + V.render(k) + "</div>";
+      }).join("") + "</div>";
+  } else {
+    // Variant B mounts inside the left column so it butts against the meters.
+    if (V.key === "b") {
+      html = '<div class="cv-grid"><div class="cv-col">' + V.render(est) + apertureCard(est) +
+        "</div>" + '<div class="cv-col">' + rulesCard() + "</div></div>";
+    } else {
+      html = V.render(est) + neighbours(est);
+    }
+  }
+
+  document.getElementById("mount").innerHTML = html;
+  document.getElementById("vkey").textContent = V.key.toUpperCase();
+  document.getElementById("vname").textContent = V.label;
+
+  var noteEl = document.getElementById("est-note"), kEl = document.getElementById("est-k");
+  if (est === "compare") {
+    kEl.textContent = "Compare";
+    noteEl.textContent = "Both estates side by side, on the same take. The shipped neighbours are dropped here — judge those in the single-estate views.";
+  } else {
+    kEl.textContent = ESTATES[est].label;
+    noteEl.textContent = ESTATES[est].note;
+  }
+  [].forEach.call(document.querySelectorAll(".switcher .est"), function (b) {
+    b.classList.toggle("sel", b.getAttribute("data-est") === est);
+  });
+}
+
+function setParam(k, v) {
+  var p = params();
+  p.set(k, v);
+  history.replaceState(null, "", location.pathname + "?" + p.toString());
+  render();
+}
+function setVariant(i) { setParam("variant", VARIANTS[(i + VARIANTS.length) % VARIANTS.length].key); }
+function setEstate(i) { setParam("estate", ESTATE_KEYS[(i + ESTATE_KEYS.length) % ESTATE_KEYS.length]); }
+
+document.getElementById("prev").addEventListener("click", function () { setVariant(currentIndex() - 1); });
+document.getElementById("next").addEventListener("click", function () { setVariant(currentIndex() + 1); });
+[].forEach.call(document.querySelectorAll(".switcher .est"), function (b) {
+  b.addEventListener("click", function () { setParam("estate", b.getAttribute("data-est")); });
+});
+document.addEventListener("keydown", function (e) {
+  var t = e.target.tagName;
+  if (t === "INPUT" || t === "TEXTAREA" || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") setVariant(currentIndex() - 1);
+  if (e.key === "ArrowRight") setVariant(currentIndex() + 1);
+  if (e.key === "ArrowUp") setEstate(ESTATE_KEYS.indexOf(currentEstate()) - 1);
+  if (e.key === "ArrowDown") setEstate(ESTATE_KEYS.indexOf(currentEstate()) + 1);
+});
+document.getElementById("theme").addEventListener("click", function () {
+  var d = document.documentElement.getAttribute("data-theme") === "dark";
+  document.documentElement.setAttribute("data-theme", d ? "light" : "dark");
+});
+render();
+</script>
+</body>
+</html>
