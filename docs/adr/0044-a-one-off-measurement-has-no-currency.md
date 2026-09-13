@@ -219,7 +219,17 @@ false about themselves.
 > **This clause is the site that SPECIFIES the line's figures, and it gains a SECOND one —
 > 2026-08-15 by [#173](https://github.com/winniel123/verge-asm/issues/173) ·
 > [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md).**
-> Nothing above is struck; **every figure on this line is unchanged on every shipped configuration**,
+> Nothing above is struck; ~~every figure on this line is unchanged on every shipped
+> configuration~~ **figures 2 and 3 are unchanged on every shipped configuration, and the pairs
+> numerator takes two values** *(**struck in place**, per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
+> intra-document unit and for [#1882](https://github.com/winniel123/verge-asm/issues/1882) /
+> [#1885](https://github.com/winniel123/verge-asm/issues/1885) /
+> [#1889](https://github.com/winniel123/verge-asm/issues/1889): the line is estate-wide with union
+> semantics, so a pair counts as unread when no declared scope reads it. An estate declaring only a
+> name scope reads `38 of 38`, and one declaring an address scope reads `5 of 38`. Two shipped
+> configurations, two values. The rest of this clause stands, and so does every figure above it —
+> see [`aperture-statement.md`](../spec/aperture-statement.md) §3.3)*,
 > and the second figure's value today is **`0`**.
 >
 > `N of 38 sensitive pairs unread` counts pairs **outside the recorded scope**. That is one of two
