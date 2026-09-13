@@ -1372,7 +1372,12 @@ rule**, as when a clock-reading rule's observation has aged past the subject's o
 — it returns `not-evaluable`,
 which is not the same as not firing. But that word needs a **subject**, and where the
 aperture never produced one there is no outcome to return and no row to render. So the
-honesty lands on the aperture statement rather than on the rule. Its census is therefore
+honesty lands on the aperture statement rather than on the rule. **That statement carries the
+adjective *unevaluable*, and the two words are not one word.** *Unevaluable* is a property of a
+**rule** over our own rule set. It names a rule that can never speak.
+`not-evaluable` is a value about one **subject**. The two counts share no population and never fuse
+([#1889](https://github.com/winniel123/verge-asm/issues/1889)).
+Its census is therefore
 three members over one population — fired, did not fire, `not-evaluable` — counted over the
 rule's `Predicate domain` and never over the timelines it happens to hold. Otherwise the
 never-evaluable population is invisible by construction, and the census is the clean bill of
@@ -1837,7 +1842,10 @@ by a later tick rather than by a clock
 ([ADR-1851](./docs/adr/1851-a-dispatch-records-that-its-fan-out-finished-and-a-later-tick-retires-one-that-never-did.md)).
 A tier that is enabled and admits nothing is **drained and not
 pending** — every candidate address refused by `Custody`, or no `Vantage` provisioned. The openings
-it would carry never arrive. Draining is a property of one `Dispatch` and never of a `Scan`. The bound names a tier by
+it would carry never arrive. **The aperture statement's port-tier line tells the operator.** That
+line states the unread pair count and the act that moves it. The `Dispatch` row is not the surface
+([#1889](https://github.com/winniel123/verge-asm/issues/1889)).
+Draining is a property of one `Dispatch` and never of a `Scan`. The bound names a tier by
 Kind, and does not derive it from the estate. See
 [ADR-1806](./docs/adr/1806-a-census-is-computed-once-from-a-cause-frozen-basis-when-the-admitting-tier-has-drained.md) §3.
 _Avoid_: complete, finished, idle, settled (a re-point batch **settles**, which is a different move)
