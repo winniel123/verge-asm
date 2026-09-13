@@ -226,7 +226,7 @@ the partition the single line exists to keep together.
 its denominator is the shape ADR-0095 refused across two lines, and the same argument reaches two
 cells.
 
-**Figures 1 and 2 are not in conflict, and never were.** `docs/spec/v1-spec.md:673-677` separates
+**Figures 1 and 2 are not in conflict, and never were.** `docs/spec/v1-spec.md:682-686` separates
 them by which side of the recorded scope a pair sits on. Figure 1 counts pairs **outside** the
 recorded scope, an invitation the operator can act on. Figure 2 counts pairs **inside** it that the
 instrument cannot report as reached. UDP is never probed, so no UDP pair is ever inside the
@@ -610,6 +610,6 @@ Three facts those tickets inherit:
   binding. §4.2's remedy held either way. **The card title joined that ticket.** Row 2 sends the
   operator there for the **internal** direction, and rows 3 and 4 quote the title verbatim. So the
   title and the copy moved together, and the title is now `Provision a prober`.
-- **The stale `Scan` count** — [#1911](https://github.com/winniel123/verge-asm/issues/1911). Three
-  documents disagree on how many `Scan`s ship.
+- **The stale `Scan` count** — [#1911](https://github.com/winniel123/verge-asm/issues/1911),
+  repaired. Nine `Scan` rows ship, and `docs/spec/v1-spec.md` §3.4's table carries all nine.
 - **ADR-0144's stale line-anchored citation** — [#1912](https://github.com/winniel123/verge-asm/issues/1912).

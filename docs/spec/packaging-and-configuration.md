@@ -518,13 +518,15 @@ staleness is unbounded unless something covers it. Nothing did.
 **A fourth `Scan`, `zone`.** Scope: the name scopes holding a supplied zone. **No port list, no
 vantage choice** — the worker reads it.
 
-> **There are now five, and this section's *fourth* is an ordinal rather than a count** —
-> [#142](https://github.com/winniel123/verge-asm/issues/142) /
+> **`zone` was the fourth `Scan` to arrive, and this section's *fourth* is an ordinal rather than a
+> count.** [#142](https://github.com/winniel123/verge-asm/issues/142) /
 > [ADR-0084](../adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)
-> added **`dns`** on the same reasoning, covering `resolution` and our own resolver's `dns-record`.
-> Read **two port tiers and five `Scan`s** wherever this document counts them. *(ADR-0005's #124
-> amendment points at this section for the "full statement" of that hole. The statement was never
-> written here, and it is now discharged rather than transcribed.)* Cadence: the **operator's re-supply interval**, shipped at
+> added **`dns`** on the same reasoning, covering `resolution` and our own resolver's `dns-record`,
+> and `ct`, `http-identity`, `ct-tail` and `edge-fanout` followed it. Two `Scan`s are port tiers,
+> and no other `Scan` carries a port list. The live count and the full table are
+> [`v1-spec.md`](./v1-spec.md) §3.4's, never this document's. *(ADR-0005's #124 amendment points at
+> this section for the "full statement" of that hole. The statement was never written here, and it
+> is now discharged rather than transcribed.)* Cadence: the **operator's re-supply interval**, shipped at
 **monthly**, which is their declaration of how often they will re-export. Its batches restate the
 stored file's observations at the **supply instant**, so `k × cadence` bounds the operator's promise
 rather than our read, and a zone last supplied more than two cadences ago ages into a `Gap` — #48's
