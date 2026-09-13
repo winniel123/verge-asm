@@ -136,7 +136,53 @@ Recording anyway writes the row this ADR bars, and that row can never be retract
 the operator an error and a retry. The refusal is also the shape `updateCoverageRetention` already
 had, so the corpus gains no second failure mode.
 
-## 6. What reversal costs
+**The refusal does not branch on direction, and that costs something.** During a database fault the
+handler refuses an admin turning API access **off**. The read that refuses them exists only to decide
+whether to write an audit row. A rule that let the safe direction through would draw a boundary on the
+submitted value. Every later dial class would then have to interpret that boundary. One rule beat a
+narrower one that reads better in one incident.
+
+### 5.1 The attribution columns still record the no-op, and this ADR does not move them
+
+The mutation is unguarded. A no-op submit still runs the `UPDATE`, so `api_updated_by`,
+`api_updated_at` and their five siblings take the submitting account and the current instant. The
+settings panel renders that pair, so an operator who saves an unmoved toggle sees a fresh **By** and
+**At** while the corpus writes nothing.
+
+**This divergence is deliberate and narrow.** The two mechanisms answer different questions. An
+attribution column answers *who last wrote this row*, which a no-op write genuinely did. An `Act`
+answers *what a principal changed*, which a no-op did not. §9 governs the columns, and narrowing them
+is a separate decision about a shipped rendering with its own reversal cost.
+
+## 6. The guard is not atomic, stated rather than smoothed
+
+**The comparison read and the mutation are two statements, and nothing holds them together.** Every
+handler issues a standalone `SELECT`, then an unrelated `UPDATE`, on no transaction. Two
+interleavings misbehave, and this ADR ships with both.
+
+- **A repeated row.** API access stands on. Two admins submit *off*. Both read `true`, both write
+  `false`, both compare `false != true`, and the corpus takes **two** `Dial moved · API access · off`
+  rows for one move. The second row is the phantom §7.6 bars.
+- **A lost row.** API access stands off. One admin reads `false` from a stale page. A second admin
+  writes `true` and records it. The first then writes `false`, compares `false == false`, and records
+  nothing. The estate is off and the corpus's last row says on.
+
+**This is not new, and this ADR did not introduce it.** `updateCoverageRetention` has carried the
+identical shape since the corpus shipped, and [`docs/spec/audit-act.md`](../spec/audit-act.md) §2.2
+blessed it. What changed is the count: two sites carried the race before, and eight carry it now.
+
+**The repair is a separate decision, on three grounds.** A conditional mutation —
+`UPDATE … WHERE col IS DISTINCT FROM $1`, recording on rows affected — is atomic and drops the extra
+read. It reaches **five** of the eight. The three retention dials share one row, so a per-dial
+predicate cannot express them. A partial repair therefore puts two guard mechanisms in one corpus,
+against §7.6 ruling 1's preference for one shape. It would also stop the no-op reaching the
+attribution columns, which is §9's territory and §5.1's stated behaviour. And `cmd/web` holds no
+transaction outside `restore.go` by §7.6 ruling 4, so the transactional repair fights that shape too.
+
+**So the race is named here and repaired nowhere.** A session that takes it up rules on the mechanism
+first, and on §5.1 second.
+
+## 7. What reversal costs
 
 Unguarding the six handlers is a small diff. It does not undo the decision.
 

@@ -889,7 +889,10 @@ loops over N proposals, does two unrelated writes per iteration, and **bails mid
    stood — and is untouched. **Two prices accepted.** Five handlers now read a value their mutation
    does not need; `updateRetention` already read its settings row and pays nothing. And a failed read
    refuses the act, because a handler that cannot see the stored value cannot tell a move from a
-   repeat, and recording anyway writes the row this ruling bars.
+   repeat, and recording anyway writes the row this ruling bars. **The comparison is not atomic with
+   the mutation**, so two concurrent submits can still repeat a row or lose one.
+   [ADR-1909](../adr/1909-a-dial-submitted-at-its-current-value-writes-no-act-row.md) §6 names both
+   interleavings and leaves the repair to a later ruling.
 
 ### 7.7 The notice cannot be made durable, and the SPEC says so
 

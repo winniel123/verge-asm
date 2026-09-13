@@ -17,7 +17,7 @@ import (
 
 func TestTheZoneAndDNSCadenceDialsEachRecordTheirOwnDial(t *testing.T) {
 	f := newFakeStore()
-	// The fake stands the dns dial at one day, and a dial that did not move records nothing (§7.6).
+	// Off the fake's own default of one day, because an unmoved dial records nothing (§7.6).
 	f.dnsCadence = 7 * 86400
 	base, ac := adminSession(t, f)
 
