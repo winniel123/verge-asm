@@ -346,12 +346,22 @@ ORDER BY a.addr, r.subject_key, r.discriminator, r.vantage_id, r.source;
 
 -- name: ListSubjectsOpenedSinceBatch :many
 -- What opened beneath a held message's root, read at release (ADR-1806 §3).
-SELECT DISTINCT s.subject_kind, s.subject_key
+SELECT s.subject_kind, s.subject_key,
+       -- An at-cause census counts its own fold alone, so the residue needs this (ADR-1867).
+       bool_or(s.opened_batch_id = sqlc.arg(batch_id)::bigint) AS in_fold_batch
 FROM span s
   -- The residue suppresses a subject the root's own fold covers, so the bound includes it (#1816).
 WHERE s.opened_batch_id >= sqlc.arg(batch_id)::bigint
   AND s.subject_kind IN ('service', 'endpoint')
+GROUP BY s.subject_kind, s.subject_key
 ORDER BY s.subject_kind, s.subject_key;
+
+-- name: BatchHeldItsRootCensus :one
+-- The hold a fold took, read from the row rather than from the knob it read (ADR-1867 §3).
+SELECT EXISTS (
+    SELECT 1 FROM message m
+    WHERE m.census_pending_after_batch = sqlc.arg(batch_id)::bigint
+)::boolean AS held;
 
 -- name: ListRePointMovesForBatch :many
 -- ADR-0026 §2's predicate, read from the two adjacent spans and no fold-local state (#1818).

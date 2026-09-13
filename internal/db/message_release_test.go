@@ -151,6 +151,34 @@ func TestTheCensusReadIsBoundedByTheRootsOwnBatch(t *testing.T) {
 	}
 }
 
+// TestWithNoReaperTheSettleWaitsOnTheFanOut guards ADR-1867 §4. The held-message
+// release path leaves at once when the reaper is disabled, because a held row
+// that never releases holds every message forever. The re-point settle path
+// carries no such row: it stamps a batch flag, and a fold that settles early
+// simply reads an empty subject set and fires nothing. Settling on the next
+// minute tick therefore lost the whole residue, since the hot tier opens the
+// subtree on its own cadence, which ships at 86400s.
+//
+// So this query drops the drain test alone. The fan-out-finished fact still
+// holds the fold, and it cannot wedge: ADR-1851 §3 records abandonment, and the
+// inner select skips an abandoned dispatch and takes the next one.
+func TestWithNoReaperTheSettleWaitsOnTheFanOut(t *testing.T) {
+	q := strings.ToLower(listSettleableRePointBatches)
+	if !strings.Contains(q, "$1::boolean or not exists") {
+		t.Errorf("the flag excuses the drain test alone (ADR-1867 §4), got:\n%s", listSettleableRePointBatches)
+	}
+	// A bare disjunct would settle the fold on the tick after the move.
+	if strings.Contains(q, "and (\n      $1::boolean") {
+		t.Errorf("the flag is no longer a disjunct of the whole arm (ADR-1867 §4), got:\n%s", listSettleableRePointBatches)
+	}
+	if !strings.Contains(q, "first_hot.fanout_complete") {
+		t.Errorf("the fan-out fact holds the fold on either configuration (ADR-1867 §4), got:\n%s", listSettleableRePointBatches)
+	}
+	if !strings.Contains(q, "d.fanout_abandoned = false") {
+		t.Errorf("an abandoned fan-out would wedge the fold (ADR-1851 §3), got:\n%s", listSettleableRePointBatches)
+	}
+}
+
 // TestEachDegradationLeavesAPathOutOfTheHold guards ADR-1806 §6. The hold reads
 // the state of the hot tier, and two operator configurations make that state
 // meaningless. With no stale-running reaper the drain test reads a job set that
