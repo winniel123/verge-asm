@@ -301,6 +301,9 @@ It moves the observation currency and the dispatch cadence in one submit. **Two 
 Folding both into one Subject cell is the list-valued subject §4.1 bars, because Subject is a rendered
 column. Price accepted: one submit writes two rows, and a submit that moves only one dial writes one.
 
+A submit that moves **neither** dial writes none. That is not a rule about this route. §7.6 ruling 9
+carries it to every dial class, and this route is the case it was first worked on.
+
 ### 2.3 The 23 exemptions
 
 Each carries its reason. A later session that re-derives the surface will find these tested, not
@@ -846,7 +849,7 @@ estimate and was not measured.
 loops over N proposals, does two unrelated writes per iteration, and **bails mid-loop** via
 `s.serverError`, leaving a partially applied batch already committed.
 
-**Eight further rulings the recorder carries.**
+**Nine further rulings the recorder carries.**
 
 1. **Uniform across all 61 classes.** One recorder, one call-site shape, one thing for §7 to find. A
    split by limb would put a limb classifier inside a conformance test.
@@ -875,6 +878,18 @@ loops over N proposals, does two unrelated writes per iteration, and **bails mid
 8. **`now()` is transaction-start**, so under ruling 4 the restore's `Act` is stamped at the moment the
    restore began, not when the replay finished. For a long restore that gap is minutes. That is correct
    rather than defective: **the row marks where the discontinuity starts.**
+9. **A dial that did not move writes no `Act`.** The handler reads the stored value before the
+   mutation, compares, and records only on a difference. **Ruling 7 does not carry here.** A
+   zero-jobs dispatch left a `Dispatch` row behind, so the instance acted; a toggle re-submitted at
+   its current position left nothing behind at all. A row reading `Dial moved · transcript currency ·
+   14 days` after a submit that moved nothing is an **`Act` with no act**, which this section already
+   bars on the recorder-before path, and append-only can never retract it. **The rule reaches the
+   eight classes that embed `act.DialMove` and no others.** An install is not a dial. `cold.moved`
+   guards on its own ground — its mutation returns no rows when the scope was already where it
+   stood — and is untouched. **Two prices accepted.** Five handlers now read a value their mutation
+   does not need; `updateRetention` already read its settings row and pays nothing. And a failed read
+   refuses the act, because a handler that cannot see the stored value cannot tell a move from a
+   repeat, and recording anyway writes the row this ruling bars.
 
 ### 7.7 The notice cannot be made durable, and the SPEC says so
 
@@ -1415,7 +1430,8 @@ would ask why**, **chosen over a named alternative**. This SPEC applies them and
 Only a human opens the issue that becomes an ADR, and its number becomes the ADR's number
 (`docs/spec/adr-governance.md`).
 
-Seven candidates pass. They are ordered by what a later one depends on.
+Eight candidates pass. The first seven are ordered by what a later one depends on. The eighth arrived
+after them, out of [#1901](https://github.com/winniel123/verge-asm/issues/1901).
 
 | # | Decision | Hard to reverse | Reader asks why | Named alternative |
 |---|---|---|---|---|
@@ -1426,6 +1442,7 @@ Seven candidates pass. They are ordered by what a later one depends on.
 | 5 | **A migration is not a principal, so an upgrade writes no `Act`** — with the empty variant as its consequence, never its subject | A shipped corpus that never records upgrades | An audit log with no system actor at all is unusual | #1789's destructiveness split, refused on the axis |
 | 6 | **An Operational corpus makes its own rendering unambiguous rather than constraining a Declared-neighbouring term** | The refusal compounds — every day without a username rule adds accounts no later rule can reach | A reader finds `@alice` on Audit and `alice` on Team | A reserved-username list, costed at one `case` in `validateCredentials` |
 | 7 | **An `Act` corpus buys the right to stop pinning an account to the objects it declared** | A widened column does not re-tighten while a NULL exists | It reverses a shipped refusal that a guide documents as a feature | Keep restrict-and-refuse |
+| 8 | **An `Act` asserts a change of state, not an intent to set, so a dial that did not move writes no row** (§7.6 ruling 9) | A false `Dial moved` row is permanent in an append-only corpus, and every later dial class inherits the rule | Six of the eight dial sites recorded unconditionally, and two recorded under a guard, in one corpus | Unconditional recording on ruling 7's reached-the-setter boundary |
 
 **Two riders on this table.**
 
