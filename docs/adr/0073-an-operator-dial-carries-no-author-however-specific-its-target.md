@@ -79,6 +79,8 @@ site, and it reopens on #127's condition and on no other.** One trigger, not two
 
 ### 2. The declaration instant stays, and the asymmetry owes its reason
 
+> **Amended** by [ADR-1892: A record of the act is not residue, so an Annotation keeps its instant](./1892-a-record-of-the-act-is-not-residue-so-an-annotation-keeps-its-instant.md), 2026-09-13. <!-- adr-marker amends 1892 -->
+
 ADR-0016 rider 6 named two fields together. One is struck and one is kept, so the cut is stated:
 
 **An `Annotation` carries the instant it was declared.** It creates no identity, it names nobody,
@@ -118,6 +120,8 @@ rider 3 refuses has arrived without anybody rendering it.
 this is annotated*. It does not say how much.
 
 ### 4. The instant renders as an absolute date, never as an age
+
+> **Amended** by [ADR-1892: A record of the act is not residue, so an Annotation keeps its instant](./1892-a-record-of-the-act-is-not-residue-so-an-annotation-keeps-its-instant.md), 2026-09-13. <!-- adr-marker amends 1892 -->
 
 `accepted 412 days ago`, particularly with a colour that deepens, is an **expiry the operator
 implements by eye**. Rider 4 refused an expiry because a state that changes because time passed with
