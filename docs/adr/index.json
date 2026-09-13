@@ -1108,7 +1108,13 @@
           "adr": 12
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1875,
+          "clause": null
+        }
+      ],
       "sections": [],
       "markers": [],
       "decision": {
@@ -11230,6 +11236,45 @@
       "decision": {
         "words": 141,
         "text": "A `dispatch` carries a boolean recording that its fan-out finished. Both release predicates read\nthat column for the first half of ADR-1806 §3's bound, in place of the job-existence proxy #1816\nused.\n\nA streamed tier commits its dispatch row before its jobs, so a job count cannot separate a fan-out\nstill streaming from one that finished with nothing to enqueue. A `hot` tier that is enabled and\nadmits nothing is the second case, and the proxy held its membership message forever.\n\nA crashed fan-out marks itself never. The next claimed `hot` tick marks it abandoned in a second\ncolumn, and the bound skips such a row. A tick is a cadence, so no clock enters the predicate.\n\nRejected: an age bound on a jobless dispatch, which ADR-1806 §7 and\n[#27](https://github.com/winniel123/verge-asm/issues/27) both refuse.\n\nReversal costs a migration and every census already computed."
+      }
+    },
+    {
+      "number": 1875,
+      "file": "docs/adr/1875-an-undo-control-renders-the-exact-lookup-instant-against-the-relative-timestamp-convention.md",
+      "title": "An undo control renders the exact lookup instant, against the relative-timestamp convention",
+      "slug": "an-undo-control-renders-the-exact-lookup-instant-against-the-relative-timestamp-convention",
+      "date": "2026-09-12",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "cmd/web/proposals_test.go::TestUndoControlsDateEveryDeclineOfOneScope"
+      },
+      "ticket": 1875,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 22
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 149,
+        "text": "**The undo control on an exclusion row renders its lookup instant in full, to the second, as\n`2026-08-15 09:00:00 UTC`. Every other console timestamp keeps the design system's terse relative\nform.**\n\nThe label is a disambiguator, not a timestamp. Two declines of one scope sit side by side, each\nreversing a different proposal. `relTime` buckets hours under a day and days under a week, so\nrepeats read alike. A label that cannot part two controls has failed at its only job. Two lookups\ncan land in one minute, which is what sets the precision.\n\nThe ISO string already sat in the button's `title`, which needs a mouse. The label reaches touch\nand keyboard.\n\nRejected: the relative form, with the `title` as the only disambiguator. It leaves anyone who\ncannot hover guessing.\n\nReversal cost: the convention is repo-wide, so a later sweep restores the terse form without\nreading this row."
       }
     }
   ]

@@ -25,7 +25,7 @@ Both inputs arrived as session uploads. Neither is in this repo, so these notes 
 - **Sentence case everywhere** — headings, buttons, labels, nav. Never Title Case.
 - Imperative verbs on actions: `Add seed`, `Run scan`, `Export CSV`. (**seed**, not target — the component-gaps glossary supersedes the original brief’s example, per the client’s call.)
 - No exclamation marks, no emoji, no marketing-breathless copy.
-- Terse relative timestamps (`4m`, `1h`, `3d`); absolute ISO 8601 on hover.
+- Terse relative timestamps (`4m`, `1h`, `3d`); absolute ISO 8601 on hover. One exception, ruled by [ADR-1875](../../docs/adr/1875-an-undo-control-renders-the-exact-lookup-instant-against-the-relative-timestamp-convention.md): a label whose job is to part two otherwise identical controls renders the instant in full, because the relative form buckets siblings together and a hover tooltip is unreachable by touch and keyboard. The undo control on an exclusion row is the only such label today.
 - Numbers use thousands separators; deltas signed with a true minus: `+12`, `−5`.
 - Empty states = fact + next action: `No seeds yet. Add a domain or CIDR range to start scanning.`
 - **Vocabulary** (glossary from the component-gaps audit): **signal** never finding · **seed/scope** never target · **channel** never webhook/integration · **vantage** never probe/scanner/agent · **annotation** never mute/status/triage · signals leave by being **withdrawn** (the world moved), operators never "resolve" · `asset` only as a UI collective noun.

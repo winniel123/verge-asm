@@ -9,7 +9,6 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -357,10 +356,24 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 
 type undoControlView struct {
 	ProposalID int64
+	Org        string
 	Source     string
 	Record     string
-	Rel        string
 	ISO        string
+}
+
+func (v undoControlView) Label() string {
+	parts := make([]string, 0, 4)
+	// Two ARIN holders in one response tie on every other axis (#1873).
+	if v.Org != "" {
+		parts = append(parts, v.Org)
+	}
+	parts = append(parts, v.Source, v.Record)
+	// relTime buckets a repeated lookup with its sibling, so the instant stands in full (ADR-1875).
+	if v.ISO != "" {
+		parts = append(parts, v.ISO)
+	}
+	return strings.Join(parts, " · ")
 }
 
 func (s *server) declinedProposalScopes(ctx context.Context) map[string][]undoControlView {
@@ -369,20 +382,20 @@ func (s *server) declinedProposalScopes(ctx context.Context) map[string][]undoCo
 	if err != nil {
 		return nil
 	}
-	return toUndoControls(rows, s.now().UTC())
+	return toUndoControls(rows)
 }
 
-func toUndoControls(rows []db.ListDeclinedProposalScopesRow, now time.Time) map[string][]undoControlView {
+func toUndoControls(rows []db.ListDeclinedProposalScopesRow) map[string][]undoControlView {
 	out := make(map[string][]undoControlView, len(rows))
 	for _, row := range rows {
 		// One lookup answers with both record kinds, so source and instant alone tie (#1803).
 		v := undoControlView{
-			ProposalID: row.ID, Source: row.SourceSlug, Record: recordLabel(row.RecordKind),
+			ProposalID: row.ID, Org: row.OrgName, Source: row.SourceSlug,
+			Record: recordLabel(row.RecordKind),
 		}
 		if row.LookupAt.Valid {
-			at := row.LookupAt.Time.UTC()
-			v.Rel = relTime(at, now)
-			v.ISO = at.Format("2006-01-02 15:04 UTC")
+			// A double-submitted lookup files its repeat in the same minute (ADR-1875 §4).
+			v.ISO = row.LookupAt.Time.UTC().Format("2006-01-02 15:04:05 UTC")
 		}
 		// A proposal scope has no unique constraint, so one range holds two declines (#1777).
 		scope := row.AddressCidr.String()
