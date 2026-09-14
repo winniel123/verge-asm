@@ -1,8 +1,7 @@
 
-{{define "assetexposure"}}<span class="as-leg {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
-
 {{define "asset"}}{{template "head" .}}
 {{template "chrome" .}}
+{{template "legchipcss"}}
 <style>
 @keyframes as-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .as-main { max-width: 1440px; width: 100%; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
@@ -18,12 +17,8 @@
 .as-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .as-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
 .as-body { padding: 20px; }
+.as-hleg { display: inline-flex; align-items: center; gap: 6px; }
 .as-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
-.as-leg { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
-.as-leg.exposed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
-.as-leg.firewalled { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
-.as-leg.notreached { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
-.as-leg.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
 .as-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
 .as-btn:hover { background: var(--surface-sunken); }
 .as-table { width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -109,7 +104,7 @@
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="as-tag">{{.Type}}</span>
 {{if .Severity}}{{template "sevbadge" .}}{{end}}
-{{if .Exposure}}{{template "assetexposure" .Exposure}}{{end}}
+{{with .InternetLeg}}<span class="as-hleg"><span class="as-micro">Internet leg</span>{{template "legchip" .}}</span>{{end}}
 {{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}seen {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
 </div>
 </div>
@@ -132,18 +127,19 @@
 <div class="as-cardhead"><span class="as-micro">Census</span><h3>Open ports</h3></div>
 {{if .Ports}}
 <table class="as-table">
-<thead><tr><th style="width:90px">Port</th><th>Service</th><th style="width:150px">Exposure</th><th style="width:110px;text-align:right">First seen</th></tr></thead>
+<thead><tr><th style="width:90px">Port</th><th>Service</th><th style="width:130px">Internal leg</th><th style="width:130px">Internet leg</th><th style="width:110px;text-align:right">First seen</th></tr></thead>
 <tbody>
 {{range .Ports}}<tr>
 <td class="mono">{{.Port}}</td>
 <td class="mono">{{.Service}}</td>
-<td>{{template "assetexposure" .Exposure}}</td>
+<td>{{template "legchip" .Internal}}</td>
+<td>{{template "legchip" .Internet}}</td>
 <td class="mono" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
 </tr>{{end}}
 </tbody>
 </table>
 {{else}}
-<div class="as-empty"><span class="msg">No open port measured</span><span class="det">No Service holds an open reachability span on this asset's addresses yet. Let a scan reach for its ports; each one that answers appears here with its exposure.</span></div>
+<div class="as-empty"><span class="msg">No open port measured</span><span class="det">No Service holds an open reachability span on this asset's addresses yet. Let a scan reach for its ports; each one that answers appears here with both of its Reach legs.</span></div>
 {{end}}
 </section>
 <section class="as-card flush">

@@ -1398,7 +1398,7 @@
     "type": "subdomain",
     "severity": "critical",
     "sev_label": "Critical",
-    "exposure": "exposed",
+    "internet_leg": "reached",
     "seen": "4m",
     "in_scope_since": "2026-06-14",
     "withdrawn": false,
@@ -1406,19 +1406,22 @@
       {
         "port": ":443",
         "service": "https · nginx/1.25.0",
-        "exposure": "exposed",
+        "internal": "reached",
+        "internet": "reached",
         "since": "2026-06-14"
       },
       {
         "port": ":5900",
         "service": "vnc — no transport encryption",
-        "exposure": "exposed",
+        "internal": "reached",
+        "internet": "reached",
         "since": "2026-08-22"
       },
       {
         "port": ":22",
         "service": "ssh · OpenSSH 9.6",
-        "exposure": "firewalled",
+        "internal": "reached",
+        "internet": "not-reached",
         "since": "2026-06-14"
       }
     ],

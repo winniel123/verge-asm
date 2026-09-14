@@ -6,6 +6,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func TestAssetDetailRendersSections(t *testing.T) {
@@ -14,7 +18,7 @@ func TestAssetDetailRendersSections(t *testing.T) {
 	addNameSeed(t, f, admin.ID, "example.com")
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
 	f.addDNSRecord(t, "api.example.com", "TXT", obsClock, `{"rrs":[{"name":"api.example.com","type":"TXT","data":"\"v=spf1 -all\""}]}`)
-	f.addReachability(t, "198.51.100.1:443/tcp", obsClock, `{"outcome":"reached","result":"open"}`)
+	f.addClassReachability(t, "198.51.100.1:443/tcp", "internet", obsClock, `{"outcome":"reached","result":"open"}`)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
@@ -37,7 +41,9 @@ func TestAssetDetailRendersSections(t *testing.T) {
 		"198.51.100.1",
 		"v=spf1 -all",
 		":443",
-		"exposed",
+		"Internal leg",
+		"Internet leg",
+		"reached",
 		"appeared",
 	} {
 		if !strings.Contains(page, want) {
@@ -116,22 +122,138 @@ func TestAssetDetailHeaderAggregateBadges(t *testing.T) {
 		}
 	})
 
-	t.Run("exposure", func(t *testing.T) {
+	// The header chip ranks the internet leg alone, so the reached class decides its tone.
+	headerFor := func(t *testing.T, class string) string {
+		t.Helper()
 		f := newFakeStore()
 		admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 		addNameSeed(t, f, admin.ID, "example.com")
 		f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
-		f.addReachability(t, "198.51.100.1:443/tcp", obsClock, `{"outcome":"reached","result":"open"}`)
+		f.addClassReachability(t, "198.51.100.1:443/tcp", class, obsClock, `{"outcome":"reached","result":"open"}`)
 
 		base := start(t, f, "")
 		ac := login(t, base, "admin", "hunter2hunter2")
-		page := getBody(t, ac, base+"/asset/api.example.com", http.StatusOK)
+		return assetHeader(getBody(t, ac, base+"/asset/api.example.com", http.StatusOK))
+	}
 
-		hdr := assetHeader(page)
-		if !strings.Contains(hdr, `class="as-leg exposed"`) {
-			t.Errorf("header missing aggregate ExposureBadge; header: %s", hdr)
+	t.Run("internet leg reached", func(t *testing.T) {
+		hdr := headerFor(t, "internet")
+		if !strings.Contains(hdr, `class="vg-leg danger">reached`) {
+			t.Errorf("header missing the danger internet-leg chip; header: %s", hdr)
+		}
+		if !strings.Contains(hdr, "Internet leg") {
+			t.Errorf("header chip is not named as the internet leg; header: %s", hdr)
 		}
 	})
+
+	t.Run("internal leg only", func(t *testing.T) {
+		hdr := headerFor(t, "internal")
+		if strings.Contains(hdr, `class="vg-leg danger"`) {
+			t.Errorf("an internal-only reach raised a danger header chip; header: %s", hdr)
+		}
+		if !strings.Contains(hdr, `class="vg-leg absent">never looked`) {
+			t.Errorf("header internet-leg chip does not read never looked; header: %s", hdr)
+		}
+	})
+}
+
+func TestAssetDetailInternalReachIsNeverExposed(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.addClassReachability(t, "198.51.100.1:443/tcp", "internal", obsClock, `{"outcome":"reached","result":"open"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/asset/api.example.com", http.StatusOK)
+
+	// The shell nav links the Exposure board, so only the page body carries the claim.
+	main := page[strings.Index(page, `class="as-main"`):]
+	for _, banned := range []string{"exposed", "firewalled", "Exposure"} {
+		if strings.Contains(main, banned) {
+			t.Errorf("asset body named %q for a service never observed from the internet; body: %s", banned, main)
+		}
+	}
+	if !strings.Contains(main, `class="vg-leg absent">never looked`) {
+		t.Errorf("internet leg does not read never looked; body: %s", main)
+	}
+	if !strings.Contains(main, `class="vg-leg neutral">reached`) {
+		t.Errorf("internal leg does not read a neutral reached; body: %s", main)
+	}
+}
+
+func TestAssetPortsCollapseSpansToOneRowPerPort(t *testing.T) {
+	// A span keys on vantage, so two probers on one service open two spans (#1962).
+	span := func(at time.Time) db.ListAllOpenSpansRow {
+		return db.ListAllOpenSpansRow{
+			SubjectKind: "service", SubjectKey: "198.51.100.1:443/tcp", Facet: "reachability",
+			OpenedAt: pgtype.Timestamptz{Time: at, Valid: true},
+		}
+	}
+	rows := []db.ListAllOpenSpansRow{
+		span(time.Date(2026, 8, 22, 9, 0, 0, 0, time.UTC)),
+		span(time.Date(2026, 6, 14, 9, 0, 0, 0, time.UTC)),
+	}
+	legs := map[string]map[string]legInfo{
+		"198.51.100.1:443/tcp": {"internal": {outcome: "reached", present: true}},
+	}
+
+	ports := buildAssetPorts(rows, legs, map[string]bool{"198.51.100.1": true})
+
+	if len(ports) != 1 {
+		t.Fatalf("ports = %d rows, want 1; got %+v", len(ports), ports)
+	}
+	if ports[0].Since != "2026-06-14 09:00 UTC" {
+		t.Errorf("first seen = %q, want the earliest span of the two", ports[0].Since)
+	}
+	if ports[0].Internal.Label != "reached" || ports[0].Internal.Tone != "neutral" {
+		t.Errorf("internal leg = %+v, want a neutral reached", ports[0].Internal)
+	}
+	if ports[0].Internet.Label != "never looked" {
+		t.Errorf("internet leg = %+v, want never looked", ports[0].Internet)
+	}
+}
+
+func TestAssetPortsSeparateTheTwoAbsences(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{{
+		SubjectKind: "service", SubjectKey: "198.51.100.1:443/tcp", Facet: "reachability",
+		OpenedAt: pgtype.Timestamptz{Time: time.Date(2026, 6, 14, 9, 0, 0, 0, time.UTC), Valid: true},
+	}}
+	legs := map[string]map[string]legInfo{
+		"198.51.100.1:443/tcp": {"internal": {isGap: true, present: true}},
+	}
+
+	ports := buildAssetPorts(rows, legs, map[string]bool{"198.51.100.1": true})
+
+	if len(ports) != 1 {
+		t.Fatalf("ports = %d rows, want 1", len(ports))
+	}
+	// The two absences keep their two statements (ADR-0017 decision 4).
+	if ports[0].Internal.Label == ports[0].Internet.Label {
+		t.Errorf("a Gap and a never-configured leg both read %q", ports[0].Internal.Label)
+	}
+	if ports[0].Internal.Label != "stopped looking" || ports[0].Internal.Tone != "warn" {
+		t.Errorf("gap leg = %+v, want a warn stopped looking", ports[0].Internal)
+	}
+}
+
+func TestAssetDetailPortlessAssetRendersNoLegChip(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/asset/api.example.com", http.StatusOK)
+
+	if !strings.Contains(page, "No open port measured") {
+		t.Errorf("ports card did not fall to its empty state; body: %s", page)
+	}
+	if strings.Contains(page, `class="vg-leg`) {
+		t.Errorf("a portless asset rendered a leg chip; body: %s", page)
+	}
 }
 
 func TestAssetDetailCertificateCard(t *testing.T) {
@@ -238,5 +360,19 @@ func TestAssetDetailFailsLoudlyWhenItsPortsReadFails(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	// A 200 is the defect: the page renders, and its empty port list reads as no exposure (#1948).
+	getBody(t, ac, base+"/asset/api.example.com", http.StatusInternalServerError)
+}
+
+func TestAssetDetailFailsLoudlyWhenItsLegReadFails(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.reachSpansErr = errors.New("class-aware reach read failed")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A swallowed leg read renders every leg as never looked, which is a false claim (#1948).
 	getBody(t, ac, base+"/asset/api.example.com", http.StatusInternalServerError)
 }
