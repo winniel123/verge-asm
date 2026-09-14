@@ -1,5 +1,3 @@
-{{define "assetexposure"}}<span class="as-leg {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
-
 {{define "subjectstyle"}}<style>
 @keyframes sd-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .sd-main { max-width: 1440px; width: 100%; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
@@ -12,13 +10,9 @@
 .sd-card.flush { overflow: hidden; }
 .sd-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
 .sd-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.sd-hleg { display: inline-flex; align-items: center; gap: 6px; }
 .sd-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
 .sd-body { padding: 20px; }
-.as-leg { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
-.as-leg.exposed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
-.as-leg.firewalled { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
-.as-leg.notreached { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
-.as-leg.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
 .sd-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
 .sd-wmark { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: transparent; border: 1px dashed var(--drift-loss-border); color: var(--drift-loss-fg); font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; }
 .sd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
@@ -197,6 +191,7 @@
 {{define "service"}}{{template "head" .}}
 {{template "chrome" .}}
 {{template "subjectstyle" .}}
+{{template "legchipcss"}}
 <main class="sd-main" data-screen-label="Service detail">
 {{with .Service}}
 {{template "subjectbreadcrumb" .Key}}
@@ -205,7 +200,7 @@
 <h1>{{.Key}}</h1>
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="sd-tag">service</span>
-{{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{else if .Exposure}}{{template "assetexposure" .Exposure}}{{end}}
+{{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{else}}{{with .InternetLeg}}<span class="sd-hleg"><span class="sd-micro">Internet leg</span>{{template "legchip" .}}</span>{{end}}{{end}}
 {{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
 </div>
 </div>

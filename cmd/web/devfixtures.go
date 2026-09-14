@@ -425,6 +425,12 @@ func devLegInfo(state string) legInfo {
 	}
 }
 
+func devInternetLegChip(state string) *legChip {
+	// The fixture header renders through the live formatter, so it cannot drift off it.
+	chip := reachLegChip(custody.ClassInternet, legFrom(devLegInfo(state)))
+	return &chip
+}
+
 func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
 	data := pageData(acct, "Exposure", "exposure")
 	if variant == devExposureWithheldVariant {
@@ -1686,7 +1692,7 @@ func devServiceData() servicePageData {
 		Key:          devServiceKey,
 		CopyKey:      "203.0.113.7:5900 tcp",
 		Withdrawn:    false,
-		Exposure:     "exposed",
+		InternetLeg:  devInternetLegChip("reached"),
 		Seen:         "4m",
 		InScopeSince: "2026-08-22",
 		Citation: []citationHop{
@@ -1728,7 +1734,7 @@ func devServiceWithdrawnData() servicePageData {
 		Key:          devServiceWithdrawnKey,
 		CopyKey:      "203.0.113.29:8080 tcp",
 		Withdrawn:    true,
-		Exposure:     "",
+		InternetLeg:  nil,
 		Seen:         "12d",
 		InScopeSince: "2026-07-18",
 		Citation: []citationHop{
