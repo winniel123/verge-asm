@@ -621,6 +621,38 @@ test("a sibling line-anchor token names a target, not a declaration", () => {
   assert.equal(r.anchor, "Alpha");
 });
 
+// `pkg/dir.Name` parses as a path, and rule 1 must still reach it (SPEC §5.2, #2013).
+test("a package-qualified name spelled before the citation degrades the token", () => {
+  const token = goToken("return 1");
+  const citing = `\`internal/queue.Delta.Epsilon\` (\`${token}\`) caps it`;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /names `Delta\.Epsilon` before the citation/);
+});
+
+test("a package-qualified name spelled after the citation enters the review queue", () => {
+  const token = goToken("return 1");
+  const citing = `\`${token}\` holds \`internal/queue.Delta.Epsilon\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "anchor");
+  assert.deepEqual(r.review, { rival: "Delta.Epsilon", position: "after" });
+});
+
+// The dotted tail tells the two apart, so an extension the tree uses still reads as a path.
+test("a sibling path corroborates nothing with an anchor, a line, or neither", () => {
+  const token = goToken("return 1");
+  for (const sibling of [
+    `${FIXTURE}/go/decls.go#Delta.Epsilon`,
+    `${FIXTURE}/go/decls.go:${goLine("func (d *Delta) Epsilon() {}")}`,
+    `${FIXTURE}/Delta/Epsilon`,
+  ]) {
+    const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, `\`${sibling}\` and \`${token}\``);
+    assert.equal(r.outcome, "anchor", sibling);
+    assert.equal(r.anchor, "Alpha", sibling);
+    assert.equal(r.review, undefined, sibling);
+  }
+});
+
 test("a bare-prose copy of the token does not reorder the rival", () => {
   const token = goToken("return 1");
   const citing = `see ${token} and \`Delta.Epsilon\` then \`${token}\``;

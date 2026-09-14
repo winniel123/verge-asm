@@ -35,7 +35,7 @@ export function writtenAnchors(repoRoot, env, files) {
 }
 
 // A containment anchor names no declaration, so no rival can contradict one (SPEC §3.2 rule 2).
-function judgeRow(repoRoot, row, anchors) {
+function judgeRow(repoRoot, env, row, anchors) {
   let inventory;
   try {
     inventory = row.inventory(repoRoot, [...new Set(anchors.map((a) => a.path))].sort());
@@ -48,7 +48,7 @@ function judgeRow(repoRoot, row, anchors) {
     if (entry === undefined) return { ...a, verdict: "unreadable", detail: "the inventory names no such target" };
     if (entry.error) return { ...a, verdict: "unreadable", detail: entry.error };
     if (!entry.spans) return { ...a, verdict: "unreadable", detail: "the target declares no anchor vocabulary" };
-    const judged = rivalName(a.lineText, a.raw, entry.spans.keys(), a.anchor);
+    const judged = rivalName(a.lineText, a.raw, entry.spans.keys(), a.anchor, env.extensions);
     return { ...a, row: row.name, ...judged };
   });
 }
@@ -66,7 +66,7 @@ export function auditAnchors(repoRoot, env, files, rows = ROWS) {
     if (!byRow.has(row)) byRow.set(row, []);
     byRow.get(row).push(a);
   }
-  for (const [row, cited] of byRow) judged.push(...judgeRow(repoRoot, row, cited));
+  for (const [row, cited] of byRow) judged.push(...judgeRow(repoRoot, env, row, cited));
   return judged.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 }
 

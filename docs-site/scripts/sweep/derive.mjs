@@ -56,7 +56,7 @@ function held(entry, reason) {
 }
 
 // A token is derived against one row's inventory, or it keeps its path and loses the line (§8.4).
-function deriveOne(token, inventory) {
+function deriveOne(token, inventory, extensions) {
   const entry = inventory.get(token.path);
   if (entry === undefined) return degraded(token, "the inventory names no such target");
   if (entry.error) return degraded(token, `unreadable target: ${entry.error}`);
@@ -86,7 +86,7 @@ function deriveOne(token, inventory) {
     return degraded(token, `\`${region.name}\` leaves the anchor character class`);
   }
   // A stale line resolves as a live one does, so a name the citing line spells overrules it.
-  const judged = rivalName(token.lineText, token.token, entry.spans.keys(), region.name);
+  const judged = rivalName(token.lineText, token.token, entry.spans.keys(), region.name, extensions);
   if (judged.verdict === "suspect" && judged.position === "before") {
     return degraded(
       token,
@@ -165,7 +165,7 @@ export function derive(repoRoot, env, found, rows = ROWS) {
       for (const token of tokens) done.push(degraded(token, `the ${row.name} row could not run: ${detail}`));
       continue;
     }
-    for (const token of tokens) done.push(deriveOne(token, inventory));
+    for (const token of tokens) done.push(deriveOne(token, inventory, env.extensions));
   }
 
   return done.sort(
