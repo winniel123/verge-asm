@@ -93,6 +93,11 @@ const CODE_PATH = new RegExp(
   `^[A-Za-z0-9_.@][A-Za-z0-9_.@+-]*(?:/[A-Za-z0-9_.@+-]+)+(?:/|#${ANCHOR_CHARS}+)?$`,
 );
 
+// One class for the extractor and the guard, so a sibling citation span is not a name (#2007).
+export function spellsPath(value) {
+  return fromCode(value) !== null;
+}
+
 function fromCode(value) {
   const raw = value.trim();
   if (raw === "" || /\s/.test(raw)) return null;

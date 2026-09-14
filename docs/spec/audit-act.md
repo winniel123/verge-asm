@@ -463,7 +463,7 @@ and **`invite 12`**, each as an `st-tag`.
 | `GrantHolder(Invite{12})` | `invite 12` | `st-tag` |
 
 **The problem this solves.** `account.username` is `TEXT NOT NULL UNIQUE` (`db/migrations/00002_accounts.sql`)
-with no format check and no reserved list. `validateCredentials` (`cmd/web/auth.go#initials`) caps
+with no format check and no reserved list. `validateCredentials` (`cmd/web/auth.go`) caps
 the length at 64 and requires non-empty, and that is all. So an account named `setup token` renders
 identically to a `GrantHolder`. The collision is **adversarial**: `inviteAccept`
 (`cmd/web/auth.go`) lets an invitee choose their own username while unauthenticated, before
@@ -1507,7 +1507,7 @@ warning holds: most of what people mean by "audit trail" is this half, and it ne
 **No client IP on an `Act`.** The ground is **§5.1, not ADR-0159.** ADR-0159's Decision rules
 `clientIP`, the forwarding-header path, and its §4 names an audit column as a future consumer that
 *"needs a ruling against this ADR before it ships"* — it gates, it never forbade. **Do not re-cite
-ADR-0159 for this.** `sessionIP` (`cmd/web/auth.go#profileRelTime`) is a second shipped derivation that reads
+ADR-0159 for this.** `sessionIP` (`cmd/web/auth.go`) is a second shipped derivation that reads
 `RemoteAddr` only and feeds `session.ip`, rendered on the admin Sessions tab — the same screen, the
 same datum. The column loses because **an `Act` is never deleted**, so the address would be retained
 permanently with no mechanism to remove it, while a `session` row expires and CASCADEs. The precedent
