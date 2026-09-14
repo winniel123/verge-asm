@@ -45,15 +45,15 @@ IP question is its item 2, which poses rather than rules.
 
 **What is written covers neighbours only.** `weak-key-and-signature.md` §4.1 states the
 shared-predicate half and nothing about byte-exactness; the sweep kept that citation at
-`cmd/web/signals.go:1084`, correctly. `docs/spec/golden-corpus.md` §10.3 states that an `iPAddress`
+`cmd/web/signals.go#server.deriveSignalInstances`, correctly. `docs/spec/golden-corpus.md` §10.3 states that an `iPAddress`
 SAN *"raise[s] the count by zero"* — but in the shared-edge reduction, a different path, whose
-`internal/queue/edgefanout.go:299-310` returns `cert.DNSNames` alone. A search of `docs/spec/`,
+`internal/queue/edgefanout.go` returns `cert.DNSNames` alone. A search of `docs/spec/`,
 `docs/adr/`, `docs/guides/`, `docs/research/` and `CONTEXT.md` returns nothing for either rule here.
 
-**The code, verified in this tree.** `selfSignedOf` is `cmd/web/signals.go:1083-1086` and its body
+**The code, verified in this tree.** `selfSignedOf` is `cmd/web/signals.go` and its body
 is `return subject == issuer && selfSigVerifies`. The two strings are not DER: they are
-`pkix.Name.String()` renderings taken at measure time (`internal/measure/connectoutcome/tls.go:203`,
-`:204`), carried as `chain_certs[].subject` and `.issuer` and decoded at `cmd/web/signals.go:1029`.
+`pkix.Name.String()` renderings taken at measure time (`internal/measure/connectoutcome/tls.go#NetHandshaker.Handshake`,
+`:204`), carried as `chain_certs[].subject` and `.issuer` and decoded at `cmd/web/signals.go#server.buildEndpointFacts`.
 That rendering discards the ASN.1 string type and emits the nine standard attribute types in a fixed
 order, so it is neither raw bytes nor RFC 5280 §7.1. `selfSigVerifies` does come from
 `CheckSignatureFrom` — `tls.go:201` — captured in-leaf and stored at `:205`. Two callers, both in
@@ -61,8 +61,8 @@ this file: `certDetailsFromValue` on `chain_certs[0]` at `:1076`, and `weakKeyOr
 at `:1171`. There is no third outside the test.
 
 **`san_ip` is captured and read by nothing.** `tls.go:165-168` renders every `leaf.IPAddresses`
-entry, `certificate.go:63` emits it, `cmd/web/signals.go:1022` decodes it — and no expression reads
-that field. `certcorpus/rows.go:293-318` pins the shape as `cert_v3_san_ip_only.ndjson`, whose own
+entry, `certificate.go:63` emits it, `cmd/web/signals.go#server.buildEndpointFacts` decodes it — and no expression reads
+that field. `certcorpus/rows.go` pins the shape as `cert_v3_san_ip_only.ndjson`, whose own
 claim says the read side *"ignores san_ip entirely"*.
 
 ## Decision
@@ -125,7 +125,7 @@ shapes are reachable:
 | Endpoint | Certificate | What happens |
 | --- | --- | --- |
 | Named | Only `iPAddress` SANs | `sanMatchesName` ORs over an empty set, `SANMatchesName` is `false`, `certificate-hostname-san-mismatch` **fires** |
-| Nameless | Only `iPAddress` SANs | `HasName` is false (`cmd/web/signals.go:995`), so `Eval` returns `OutsideDomain` (`internal/signal/endpoint.go:156-158`) and the rule never runs |
+| Nameless | Only `iPAddress` SANs | `HasName` is false (`cmd/web/signals.go#server.buildEndpointFacts`), so `Eval` returns `OutsideDomain` (`internal/signal/endpoint.go`) and the rule never runs |
 
 The first is correct under §6.4: a DNS reference identifier with no DNS-ID to match does not match.
 The second is where `san_ip` would have had work, and it is where the rule declines to have a
@@ -139,7 +139,7 @@ domain. **An address-keyed endpoint asks no hostname question, so a captured `sa
   insignificant whitespace, Unicode normalisation form, a multi-valued RDN, and an unknown-OID
   attribute, rendered `oid=#<hex of the DER>`. For one certificate both fields are written by one
   tool from one template, and every self-issued corpus row is byte-identical
-  (`certcorpus/rows.go:368`, `:422`, `:450`). **Not reached in this corpus** — and an open risk
+  (`certcorpus/rows.go`, `:422`, `:450`). **Not reached in this corpus** — and an open risk
   rather than a bounded cost, because a cross-signed or hand-built root can produce it and nothing
   detects it when it does.
 - **A certificate issued for an IP address always mismatches a named `Endpoint`**, and RFC 6125
@@ -165,5 +165,5 @@ domain. **An address-keyed endpoint asks no hostname question, so a captured `sa
 | **Full RFC 5280 §7.1 normalisation before comparing** — LDAP StringPrep, `caseIgnoreMatch`, order-free RDN matching | It cannot be built from what we hold. §7.1's algorithm is defined over **attributes** with per-type equality rules, and the comparison runs on renderings (`tls.go:203-204`) that have already flattened multi-valued RDNs and dropped the string type. Doing it correctly means carrying `RawSubject` and `RawIssuer` DER through the wire and the store, which moves the `certificate` value space and re-escrows every golden. It also plants a normaliser inside a rule's predicate whose output moves on a Go or ICU revision with nothing in the world having changed — ADR-0021's test failed in the place ADR-0051 spends its argument protecting |
 | **Case-insensitive comparison as a middle path** — `strings.EqualFold(subject, issuer)` | The worst of the three positions. §7.1's floor is StringPrep **and** `caseIgnoreMatch` **and** order-free RDN matching, so folding case alone implements no reading of the specification: stricter than §7.1, looser than the presented bytes, and a reader cannot say which certificates it is right about. `EqualFold` is Unicode simple folding over the rendered string, so it would fold inside an `oid=#hex` blob and compare hex digits case-blind. A rule that is neither available reading is the interpretation ADR-0060 refuses, dressed as a compromise |
 | **Admit `iPAddress` SANs for an address-keyed endpoint** — match `san_ip` against the `Service`'s address | There is no reference identifier to match. A nameless `Endpoint` is `CONTEXT.md`'s *default response to a client that names nothing*, and the handshake sends no SNI, so the address we dialled is our routing decision and not an identity the peer was asked to prove. Matching against it invents a claim the exchange never made, and fires `certificate-hostname-san-mismatch` on every correctly-configured address-scope probe of a name-based virtual host. It also needs ADR-0051's key form to compare an address, so the rendered `san_ip` string is the wrong object and a second address normalisation site enters the model — the seam ADR-0051 closed |
-| **Fold `san_ip` into `san_dns` at the producer**, so one list is matched | It destroys a distinction the wire carries: RFC 5280 §4.2.1.6 gives `iPAddress` an OCTET STRING and `dNSName` an IA5String, and a leaf presenting `192.0.2.10` as a `dNSName` is a different, worse certificate. It also silently changes the shared-edge reduction, which counts registrable domains over `cert.DNSNames` (`internal/queue/edgefanout.go:310`) and whose fixtures assert an `iPAddress` SAN adds zero (`golden-corpus.md` §10.3) |
+| **Fold `san_ip` into `san_dns` at the producer**, so one list is matched | It destroys a distinction the wire carries: RFC 5280 §4.2.1.6 gives `iPAddress` an OCTET STRING and `dNSName` an IA5String, and a leaf presenting `192.0.2.10` as a `dNSName` is a different, worse certificate. It also silently changes the shared-edge reduction, which counts registrable domains over `cert.DNSNames` (`internal/queue/edgefanout.go`) and whose fixtures assert an `iPAddress` SAN adds zero (`golden-corpus.md` §10.3) |
 | **Drop the DN conjunct and read `self_sig_verifies` alone** | The conjunct looks redundant — a self-signature verifies on a non-self-issued certificate only by accident of key reuse — but it is what makes the predicate implement RFC 5280 §3.2 rather than *the leaf's key signed the leaf*, and it is the half that does not depend on a library call whose strictness has moved and will move again (see Consequences) |

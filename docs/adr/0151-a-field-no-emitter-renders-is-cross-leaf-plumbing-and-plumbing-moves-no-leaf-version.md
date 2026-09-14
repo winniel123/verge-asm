@@ -27,7 +27,7 @@ relations:
 `certificate` facet from it. `internal/measure/edgefanout` folds it into the `edge-fanout` leaf's
 own outcome. The struct carries one field that is not a certificate fact.
 
-[`internal/measure/connectoutcome/tls.go:85`](../../internal/measure/connectoutcome/tls.go) carried
+[`internal/measure/connectoutcome/tls.go#HandshakeResult`](../../internal/measure/connectoutcome/tls.go) carried
 this, until #1297 compressed it to one trailing line:
 
 ```go
@@ -53,13 +53,13 @@ Unreachable bool
 | --- | --- |
 | The `certificate` value space has no `unreachable` variant | `certificateValue` in [`certificate.go:24`](../../internal/measure/connectoutcome/certificate.go) has nine JSON fields and no such field |
 | The `certificate` handshake follows a `reached` connect | [`certificate.go:153`](../../internal/measure/connectoutcome/certificate.go) runs `Probe` first and skips the handshake unless the outcome is `Reached` |
-| `edge-fanout` reads the field and renders its own value | [`edgefanout/leaf.go:62`](../../internal/measure/edgefanout/leaf.go) reads it ahead of the TLS negatives and returns `Unreachable` |
+| `edge-fanout` reads the field and renders its own value | [`edgefanout/leaf.go`](../../internal/measure/edgefanout/leaf.go) reads it ahead of the TLS negatives and returns `Unreachable` |
 | The field moves no digest and no row | The word appears in no file under `connectoutcome/corpus` or `connectoutcome/certcorpus`, and in no field of `HandshakeParams` |
 | The zero value models a peer that answered | `certcorpus`'s `scriptHandshaker` returns `HandshakeResult{Outcome: co.NoTLS}` and never sets the field |
 
 **The same shape is already in a second leaf, and it is spelled differently.**
 `resolutionwalk.Result.Unreachable` carries the tag `json:"-"`
-([`resolutionwalk/leaf.go:98`](../../internal/measure/resolutionwalk/leaf.go)). It decides a
+([`resolutionwalk/leaf.go`](../../internal/measure/resolutionwalk/leaf.go)). It decides a
 dead-letter at [`run.go:44`](../../internal/measure/resolutionwalk/run.go) and reaches no emitted
 value. One leaf keeps the fact out of the value by omitting it from the emitter's struct. The other
 keeps it out with a struct tag. Neither states the rule the two share.
@@ -129,7 +129,7 @@ fails after the connect completed is never unreachable, however it failed.
 
 An address this project got wrong is none of the three, and reporting it as unreachable would
 manufacture a measurement.
-[`resolutionwalk/netpeer.go:48`](../../internal/measure/resolutionwalk/netpeer.go) already rules this
+[`resolutionwalk/netpeer.go`](../../internal/measure/resolutionwalk/netpeer.go) already rules this
 way at its own site, on [ADR-0108](./0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md):
 *a build error is our own bug, not the network's, so it is never `Unreachable`*.
 
@@ -138,7 +138,7 @@ way at its own site, on [ADR-0108](./0108-a-batch-whose-instrument-could-not-rea
 invalid-address guard. Both production callers filter such an address before the call —
 `Scope.targets()` in [`run.go:46`](../../internal/measure/connectoutcome/run.go) skips an address
 `netip.ParseAddr` rejects, and `edgeTarget` in
-[`edgefanout/run.go:59`](../../internal/measure/edgefanout/run.go) does the same — so no observation
+[`edgefanout/run.go`](../../internal/measure/edgefanout/run.go) does the same — so no observation
 renders from that branch. This ADR states the rule and changes no code. The branch is a defensive
 backstop and a later ticket owns it.
 
@@ -175,7 +175,7 @@ field. The two are one grep apart and must not be read as one thing.
 | Alternative | Why not |
 | --- | --- |
 | **Make `unreachable` a fourth `certificate` outcome**, so both leaves read one union | It records a reachability answer on a certificate timeline, where the `reachability` facet already carries one. Two representations of one fact, and the second one moves a version leaf every time the first one moves |
-| **Give `edge-fanout` its own handshaker** rather than share `HandshakeResult` | The share is what brings `connectoutcome`'s egress guard along (ADR-0079, stated at `edgefanout/leaf.go:78`). A second dial path is a second place the guard can be forgotten, and the guard is the rebinding backstop |
+| **Give `edge-fanout` its own handshaker** rather than share `HandshakeResult` | The share is what brings `connectoutcome`'s egress guard along (ADR-0079, stated at `edgefanout/leaf.go`). A second dial path is a second place the guard can be forgotten, and the guard is the rebinding backstop |
 | **Split the struct** into an emitted part and a transport part | Two types where the grep in limb 1 answers the question for nothing. It also forces every fake to construct two values, and limb 4's zero value stops reading as an assertion |
 | **Rule that plumbing must never exist**, and let each leaf dial for itself | Deletes the seam [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md) rules and the corpus depends on. A leaf with no shared result type has no scripted peer either |
 | **Read the rule off `resolutionwalk`'s `json:"-"` tag** and require the tag everywhere | The tag works only where the result type is also the emitted type. `connectoutcome` emits a separate `certificateValue`, so there is no field to tag, and the convention would be unstatable at half the sites |

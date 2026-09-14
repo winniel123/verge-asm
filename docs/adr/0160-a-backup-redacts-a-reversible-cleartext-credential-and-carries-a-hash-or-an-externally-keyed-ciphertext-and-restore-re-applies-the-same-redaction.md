@@ -36,18 +36,18 @@ Three more write-only values ride in the same tables.
 
 | Column | What it is | Verified at |
 | --- | --- | --- |
-| `account.password_hash` | a bcrypt hash ([`internal/auth/password.go:9`](../../internal/auth/password.go)) | [`internal/db/models.go:17`](../../internal/db/models.go) |
-| `personal_token.token_hash` | a token hash | [`internal/db/models.go:173`](../../internal/db/models.go) |
-| `account.totp_secret` | base64 XChaCha20-Poly1305 ciphertext | [`internal/auth/totpsecret.go:26`](../../internal/auth/totpsecret.go) |
+| `account.password_hash` | a bcrypt hash ([`internal/auth/password.go#HashPassword`](../../internal/auth/password.go)) | [`internal/db/models.go#Account`](../../internal/db/models.go) |
+| `personal_token.token_hash` | a token hash | [`internal/db/models.go#InstanceConfig`](../../internal/db/models.go) |
+| `account.totp_secret` | base64 XChaCha20-Poly1305 ciphertext | [`internal/auth/totpsecret.go#EncryptTOTPSecret`](../../internal/auth/totpsecret.go) |
 
-The TOTP key is not in Postgres. `DeriveTOTPKey` ([`internal/auth/totpsecret.go:16`](../../internal/auth/totpsecret.go))
+The TOTP key is not in Postgres. `DeriveTOTPKey` ([`internal/auth/totpsecret.go#DeriveTOTPKey`](../../internal/auth/totpsecret.go))
 derives it by HKDF from the session signing key, and that key lives on the `web-state` volume.
 
 **The code already draws the line and nothing on disk states it.**
-`backupRedactedColumns` ([`cmd/web/backup.go:77`](../../cmd/web/backup.go)) names the first two
+`backupRedactedColumns` ([`cmd/web/backup.go`](../../cmd/web/backup.go)) names the first two
 columns and no others. `redactBackupRow` emits each named column as JSON `null`.
 `dumpBackupTable` calls it on the export path. `applyRestore`
-([`cmd/web/restore.go:293`](../../cmd/web/restore.go)) calls the same function on the restore path.
+([`cmd/web/restore.go#archiveName`](../../cmd/web/restore.go)) calls the same function on the restore path.
 
 **The only citation the deleted comment carried was `#739`, and that issue is deleted.**
 `gh api repos/winniel123/verge-asm/issues/739` returns HTTP 410.
@@ -115,7 +115,7 @@ One function serves both. A second implementation would be a second thing to kee
 ### 4. The cost is a named re-entry, and the operator is told before the restore, not after
 
 A restore truncates the tables the manifest names and replays the archive
-([`cmd/web/restore.go:271`](../../cmd/web/restore.go)). The two redacted columns therefore land NULL,
+([`cmd/web/restore.go#server.restoreApply`](../../cmd/web/restore.go)). The two redacted columns therefore land NULL,
 whatever the database held a moment earlier. The webhook signing key and the OAuth client secret are
 gone, and delivery signing and the SSO token exchange stay broken until the operator types each one
 again.
@@ -130,9 +130,9 @@ operator reads it in the guide before they restore. Limb 4 is not discharged by 
   `personal_token.token_hash` ride. A hash resists reversal. It does not resist an offline guess
   against a weak password. The archive still deserves care.
 - **It does not rule that the archived `account.totp_secret` is usable after a restore.** It is not.
-  A restore rotates the session signing key ([`cmd/web/restore.go:226`](../../cmd/web/restore.go)),
+  A restore rotates the session signing key ([`cmd/web/restore.go#server.restorePreflight`](../../cmd/web/restore.go)),
   and `rotateSessionKey` re-derives the TOTP key from the new key
-  ([`cmd/web/restore.go:395`](../../cmd/web/restore.go)). The restored ciphertext was sealed under
+  ([`cmd/web/restore.go#replayArchive`](../../cmd/web/restore.go)). The restored ciphertext was sealed under
   the old key. This ADR records the fact because it is the ground of limb 1 for that column. It
   rules nothing about the second-factor path, which is out of this ticket's scope. The lockout that
   follows is filed as [#1419](https://github.com/winniel123/verge-asm/issues/1419).

@@ -38,7 +38,7 @@ same row. The push rule is
 `prober-linux-amd64` and `prober-linux-arm64` in the **same builder stage** as `web` and `worker`,
 and `Dockerfile:68` copies them into the worker image at `/app/probers`.
 
-**The code's trust boundary points the other way.** `internal/remoteexec/probe.go:126` names the
+**The code's trust boundary points the other way.** `internal/remoteexec/probe.go#proberOutcome` names the
 prober untrusted and caps its stdout, and `internal/remoteexec/conn.go` pins the host key on first
 use. Verge distrusts the host, and that half is built.
 
@@ -54,10 +54,10 @@ project already signs.**
 
 ### 1. The origin is the image, and the release pipeline needs no prober step
 
-`cmd/worker/main.go:59` reads `VERGE_PROBER_DIR`, default `/app/probers`.
+`cmd/worker/main.go#main` reads `VERGE_PROBER_DIR`, default `/app/probers`.
 `DirBinaryProvider.Binary` opens `prober-<goos>-<goarch>` from that directory, and serves the
 own-arch fallback only where the requested platform is the instance's own
-(`internal/remoteexec/binary.go:36-52`).
+(`internal/remoteexec/binary.go`).
 
 **Every read path hits the worker image's read-only filesystem. No path fetches a release asset,
 and no path reaches the network.**

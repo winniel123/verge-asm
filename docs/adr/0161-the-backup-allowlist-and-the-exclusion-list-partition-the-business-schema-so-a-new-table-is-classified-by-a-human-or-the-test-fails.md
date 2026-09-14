@@ -23,15 +23,15 @@ Three hand-written lists decide what the in-app archive carries.
 
 | List | Site | Entries |
 | --- | --- | --- |
-| `backupTables` | [`cmd/web/backup.go:19`](../../cmd/web/backup.go) | 32 |
-| `backupExcluded` | [`cmd/web/backup.go:59`](../../cmd/web/backup.go) | 8 |
-| `knownBusinessTables` | [`cmd/web/backup_test.go:13`](../../cmd/web/backup_test.go) | 40 |
+| `backupTables` | [`cmd/web/backup.go`](../../cmd/web/backup.go) | 32 |
+| `backupExcluded` | [`cmd/web/backup.go`](../../cmd/web/backup.go) | 8 |
+| `knownBusinessTables` | [`cmd/web/backup_test.go`](../../cmd/web/backup_test.go) | 40 |
 
 `backupTables` is ordered FK-parents-first, because the restore replays it in order.
 `backupExcluded` is a map from table name to the reason that table is left out. Every value is a
 sentence a reader can weigh, not a marker.
 
-`TestBackupTablesPartitionSchema` ([`cmd/web/backup_test.go:24`](../../cmd/web/backup_test.go))
+`TestBackupTablesPartitionSchema` ([`cmd/web/backup_test.go`](../../cmd/web/backup_test.go))
 asserts both directions. Every name in `knownBusinessTables` appears in exactly one of the two
 lists. Every name in either list appears in `knownBusinessTables`. So 32 plus 8 equals 40, and the
 test fails on any other arithmetic.
@@ -103,7 +103,7 @@ change.
 ### 4. A place in `backupTables` is a place in the restore's replay order
 
 `backupTables` is ordered, and `applyRestore` replays the archive in the order the file
-carries ([`cmd/web/restore.go:276`](../../cmd/web/restore.go)). A table added to the allowlist goes after
+carries ([`cmd/web/restore.go`](../../cmd/web/restore.go)). A table added to the allowlist goes after
 the tables its foreign keys point at. Classification therefore answers two questions and not one.
 
 ## Consequences

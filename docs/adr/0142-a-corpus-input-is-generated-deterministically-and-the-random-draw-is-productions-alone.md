@@ -21,17 +21,17 @@ relations:
 ## Context
 
 Two leaves generate their own input. `CryptoPorts` draws `ControlPortCount` = 8 ports from
-`crypto/rand` inside the 49152–65535 band (`internal/measure/blanketdiscrim/ports.go:20-35`).
+`crypto/rand` inside the 49152–65535 band (`internal/measure/blanketdiscrim/ports.go`).
 `CryptoLabels` draws 9 random labels and 1 structured label over an RFC 5737 address
-(`internal/measure/wildcarddiscrim/labels.go:32-50`). **These are the only two `crypto/rand` sites
+(`internal/measure/wildcarddiscrim/labels.go`). **These are the only two `crypto/rand` sites
 under `internal/measure`.** Both draws are the defence working: a control set an origin can predict
 is a control set an origin can allowlist.
 
 A corpus row renders by running the real leaf against an authored peer and hashing the NDJSON it
 writes. So the render walks straight through the generator. Both corpora already handle it, and
 each handled it separately: `blanketdiscrim`'s passes `FixedPorts{P: []uint16{50001, 50002, 50003}}`
-(`corpus/rows.go:8`), and `wildcarddiscrim`'s passes `DeterministicLabels{}`
-(`corpus/script.go:90`). The second was written without a rule to read, because there was none.
+(`corpus/rows.go`), and `wildcarddiscrim`'s passes `DeterministicLabels{}`
+(`corpus/script.go`). The second was written without a rule to read, because there was none.
 
 **ADR-0021's hermeticity argument reaches the peer and stops at it.** Its ruling is that the fixture
 is in-process, "no network, no container, no image", and that a captured transcript "bought nothing

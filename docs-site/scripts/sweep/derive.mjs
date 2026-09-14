@@ -4,6 +4,7 @@ import { ANCHOR } from "../citations/extract.mjs";
 import { holdsSnippet } from "../citations/armb.mjs";
 import { classify } from "../citations/classify.mjs";
 import { namesAnotherSite } from "./rewrite.mjs";
+import { rivalName } from "./corroborate.mjs";
 
 // A retired token spells its line two ways, and both carry an optional end (SPEC §5).
 const SPLIT = /^(.*?)(?::(\d+)(?:-(\d+))?|#L(\d+)(?:-[Ll]?(\d+))?)$/;
@@ -83,6 +84,15 @@ function deriveOne(token, inventory) {
   // An anchor outside the extractor's character class is unreadable (SPEC §3.3 rule 4).
   if (!ANCHOR.test(region.name)) {
     return degraded(token, `\`${region.name}\` leaves the anchor character class`);
+  }
+  // A stale line resolves as a live one does, so a name the citing line spells overrules it.
+  const rival = rivalName(token.lineText, token.token, entry.spans.keys(), region.name);
+  if (rival) {
+    return degraded(
+      token,
+      `the citing line names \`${rival}\`, and line ${token.fromLine} of ${token.path} sits in ` +
+        `${region.name}, so the line has drifted`,
+    );
   }
   // Converting mints a snippet claim over the next code span (SPEC §3.4).
   if (token.snippet != null && !holdsSnippet(entry.lines, entry.spans.get(region.name), token.snippet)) {

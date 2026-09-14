@@ -21,13 +21,13 @@ relations:
 ## Context
 
 `ReapStaleRunningJobs` reclaims a `running` job whose worker died. It is the only exit from `running`
-that no worker drives ([`internal/queue/reaper.go:45`](../../internal/queue/reaper.go)), and without
+that no worker drives ([`internal/queue/reaper.go#Reaper.Sweep`](../../internal/queue/reaper.go)), and without
 it a dead worker strands its job and blocks its `Dispatch` forever
 ([#853](https://github.com/winniel123/verge-asm/issues/853)).
 
 The rule that a reap is not evidence was written down once, in the query's own comment. #1392
 compressed it to one uncited line, and the gap is recorded because no document states it. **The
-issue's location is stale:** the block sat at `db/queries/measurement.sql:132-134` on `860fa97` and
+issue's location is stale:** the block sat at `db/queries/measurement.sql` on `860fa97` and
 now reads as one line at `:84`, above a query occupying `:83-90`.
 
 ### What the reap actually writes
@@ -43,23 +43,23 @@ SET state      = CASE WHEN attempt >= max_attempts THEN 'dead' ELSE 'ready' END,
 WHERE state = 'running' AND claimed_at < @cutoff::timestamptz;
 ```
 
-That is `db/queries/measurement.sql:85-90`. **It can set `state = 'dead'`** — line `:86`, when the
+That is `db/queries/measurement.sql`. **It can set `state = 'dead'`** — line `:86`, when the
 job's `attempt` has already reached `max_attempts`. It touches no other table, and it never writes
-`batch_id`, which `db/migrations/18804_measurement_queue.sql:24` declares nullable.
+`batch_id`, which `db/migrations/18804_measurement_queue.sql` declares nullable.
 
-`internal/queue/reaper.go:24-26` narrows the store to that one method, so the reaper cannot reach
-another query even by mistake, and `internal/queue/reaper.go:50` is its only call.
+`internal/queue/reaper.go#ReaperStore` narrows the store to that one method, so the reaper cannot reach
+another query even by mistake, and `internal/queue/reaper.go#Reaper.Sweep` is its only call.
 
 ### Where `Availability` moves
 
-`applyAvailability` (`internal/queue/availability.go:37-46`) is the only caller of
-`MarkVantageAvailable` and `MarkVantageUnavailable` (`db/queries/vantages.sql:74`, `:79`), at
-`internal/queue/availability.go:40` and `:42`. It has **exactly two call sites**:
+`applyAvailability` (`internal/queue/availability.go#applyAvailability`) is the only caller of
+`MarkVantageAvailable` and `MarkVantageUnavailable` (`db/queries/vantages.sql`, `:79`), at
+`internal/queue/availability.go#applyAvailability` and `:42`. It has **exactly two call sites**:
 
 | Site | Transaction | Batch written |
 | --- | --- | --- |
-| `internal/queue/worker.go:396` | `complete`'s job transaction, opened at `:382` | `InsertBatch` with `outcomeCompleted` at `:383`, `markDone` at `:454` |
-| `internal/queue/worker.go:479` | `deadLetter`'s job transaction, opened at `:466` | `InsertBatch` with `outcomeDeadLettered` at `:467`, `markDead` at `:486` |
+| `internal/queue/worker.go` | `complete`'s job transaction, opened at `:382` | `InsertBatch` with `outcomeCompleted` at `:383`, `markDone` at `:454` |
+| `internal/queue/worker.go` | `deadLetter`'s job transaction, opened at `:466` | `InsertBatch` with `outcomeDeadLettered` at `:467`, `markDead` at `:486` |
 
 Both sit inside the job's terminal transaction, downstream of the `InsertBatch` that carries the
 outcome, and both pass that same outcome as the argument.
@@ -86,7 +86,7 @@ corpus. ADR-0108 is live and on topic and states the positive limb alone.
 
 ### The nearest neighbour rules coverage, not `Availability`
 
-`docs/adr/0005-scan-execution-model.md:134-135` is the closest sentence on disk: *"A port attempted
+`docs/adr/0005-scan-execution-model.md#one-job-is-one-batch-sized-by-enumerability` is the closest sentence on disk: *"A port attempted
 and timed out is completed (a timeout* is *a measurement). A port whose worker died before recording
 a result is not."* That rules what a `Batch`'s **recorded scope** may claim — the extent over which
 its silence is evidence. It is about coverage. It says nothing about the `Vantage`'s `Availability`,
@@ -97,7 +97,7 @@ this ADR uses: **evidential coverage and operational attempt are two different r
 ### The reaper's other two neighbours
 
 ADR-0141 bounds ADR-0108 limb 6 at the reaper and rules that a **failed** sweep pass logs and
-continues, because the next tick retries. `internal/queue/reaper.go:68` already carries that
+continues, because the next tick retries. `internal/queue/reaper.go#Reaper.sweepAndLog` already carries that
 citation. This ADR rules the complementary question — what a **succeeding** pass may write.
 
 ADR-0164 and ADR-0165 rule an operator ending a `Dispatch`: a recorded human decision, written once
@@ -117,13 +117,13 @@ Five limbs.
 
 The reaper may reset a job's state, spend an attempt, clear its lease and re-time it. It may not
 insert a `batch` row, insert an `observation` row, or move a `vantage`'s availability flag. Its store
-interface (`internal/queue/reaper.go:24-26`) is one method wide, and that narrowness is a commitment,
+interface (`internal/queue/reaper.go#ReaperStore`) is one method wide, and that narrowness is a commitment,
 not an accident.
 
 ### 2. A reaped `dead` job is terminal without a `Batch`, and that is not a contradiction
 
 `state = 'dead'` on `queue_job` means *this job will not run again*. It does not mean *this job
-dead-lettered*. The two are told apart in the row: `MarkJobDead` (`db/queries/measurement.sql:117`)
+dead-lettered*. The two are told apart in the row: `MarkJobDead` (`db/queries/measurement.sql`)
 sets `batch_id` alongside the state, and the reap (`:85-90`) leaves it `NULL`. **A `dead` job with a
 `NULL` `batch_id` is a job whose worker died, and it has produced no evidence of any kind.**
 
@@ -133,9 +133,9 @@ which no reaped job can supply.
 
 ### 3. What the reap does move is the operational record, and that is legible and correct
 
-A reaped `dead` job counts in `db/queries/dispatch.sql:12`, `:32` and `:52`'s
+A reaped `dead` job counts in `db/queries/dispatch.sql#ListDispatchProgress`, `:32` and `:52`'s
 `FILTER (WHERE j.state = 'dead')` rollups, colours a run-log line `error`
-(`cmd/web/scans.go:727-728`), adds to the *"N dead-lettered"* stage detail (`:707-708`), and marks
+(`cmd/web/scans.go`), adds to the *"N dead-lettered"* stage detail (`:707-708`), and marks
 its vantage `degraded` on that run page with *"missed N of M checks"* (`:756-757`, `:785-793`).
 
 **All of that is permitted, and none of it is a claim about the estate.** *This run missed N checks
@@ -156,8 +156,8 @@ the distinction each ADR exists to hold.
 
 ### 5. The attempt increment is the only coupling, and it moves nothing by itself
 
-The reap spends an attempt (`db/queries/measurement.sql:87`), and `exhaustedRetries`
-(`internal/queue/pure.go:36-38`) reads `attempt >= max_attempts` at `internal/queue/worker.go:303`.
+The reap spends an attempt (`db/queries/measurement.sql#ClaimJob`), and `exhaustedRetries`
+(`internal/queue/pure.go`) reads `attempt >= max_attempts` at `internal/queue/worker.go#Worker.drain`.
 So repeated worker crashes shorten the retry budget a later genuine probe failure spends before it
 dead-letters.
 
@@ -175,12 +175,12 @@ crash-looping worker retry one job forever, so the bounded budget is the safer f
   nothing there*; this is its mirror image, *our worker died* reading as *the resolver is down*, and
   it is equally a false report.
 - **No production behaviour changes.** The tree already obeys this. `applyAvailability`'s two call
-  sites (`internal/queue/worker.go:396`, `:479`) both carry a batch outcome, and
+  sites (`internal/queue/worker.go#markDead`, `:479`) both carry a batch outcome, and
   `internal/queue/reaper.go` reaches one query.
-- **The surviving line at `db/queries/measurement.sql:84` gains this ADR's citation** and stops being
+- **The surviving line at `db/queries/measurement.sql#ClaimJob` gains this ADR's citation** and stops being
   the only statement of the rule.
 - **A reaped `dead` job is still labelled `dead-lettered` on the run page**
-  (`cmd/web/scans.go:707-708`). The count is right and the word is wrong. The fix is a
+  (`cmd/web/scans.go#applyJobFilter`). The count is right and the word is wrong. The fix is a
   `batch_id IS NULL` read in the dispatch job projection, carried as follow-up; this ADR records the
   defect rather than smuggling a display change into a document.
 - **ADR-0108 is amended nowhere.** Limb 4 is written as a rule about batch outcomes and licenses
@@ -192,7 +192,7 @@ crash-looping worker retry one job forever, so the bounded budget is the safer f
   host-key TOFU path as a future second writer of the same scalar. Anything else — including anything
   reading `queue_job.state` — has to overturn this ADR first.
 - **Turning the reaper off creates no availability hazard.** `VERGE_STALE_JOB_TIMEOUT <= 0` disarms
-  the sweep (`internal/queue/reaper.go:17-22`), which strands jobs and disarms the `hot` lag gate
+  the sweep (`internal/queue/reaper.go#StaleCutoff`), which strands jobs and disarms the `hot` lag gate
   (ADR-0137). It moves no vantage either way, because there was never a move to lose.
 
 ## Alternatives rejected
@@ -202,7 +202,7 @@ crash-looping worker retry one job forever, so the bounded budget is the safer f
 | **Mark the vantage `unavailable` on a reap**, treating a dead worker as evidence the position cannot observe | Attributes our own process failure to the vantage. The worker runs on our host and reaches every vantage, so a crash is uncorrelated with any one position and this marks whichever vantage the crashed job happened to name. It is ADR-0108 limb 1's rejected shape in a new place: a signal inferred from an absence of results rather than proved at the socket. The cost is a `Gap` on `Reach` and an absent `Exposure` for a resolver that answered fine |
 | **Write a `Batch` for the reaped job with outcome `dead-lettered`** and let the existing path move availability | Manufactures evidence. A `Batch` records what the batch **completed** (ADR-0005:129-135), and a job whose worker died completed nothing. It also makes the reap a writer of the drift-engine record from outside a job transaction, and a dead-lettered `dns` batch marks the vantage `unavailable` under ADR-0108 limb 4 — so it is the first row's cost by a longer route |
 | **Add a third `Batch` outcome, `reaped` or `abandoned`**, with an availability rule of `unchanged` | Buys the correct behaviour by minting an object with no reader, which ADR-0108 rejected once already for `failed` / `vantage-unavailable`: *"a third terminal outcome would split the failure population without a reader for the split"*. The record for a died-mid-flight job already exists — `queue_job.state` with a `NULL` `batch_id` — and costs no row in the evidential store |
-| **Forbid the reap from ever setting `state = 'dead'`**, so a reaped job is always `ready` | Removes the state whose ambiguity §2 resolves and buys an unbounded one: a job that deterministically crashes its worker requeues forever, spinning the queue against a poison payload with no terminal state and no `Dispatch` ever completing. The `attempt >= max_attempts` cap at `db/queries/measurement.sql:86` is what bounds that |
+| **Forbid the reap from ever setting `state = 'dead'`**, so a reaped job is always `ready` | Removes the state whose ambiguity §2 resolves and buys an unbounded one: a job that deterministically crashes its worker requeues forever, spinning the queue against a poison payload with no terminal state and no `Dispatch` ever completing. The `attempt >= max_attempts` cap at `db/queries/measurement.sql#ClaimJob` is what bounds that |
 | **Rule this inside ADR-0108 as an amendment to limb 4** | Under ADR-0058's split an amendment carries a claim about the world that has changed. Nothing changed: limb 4 was always exclusive and the reaper was always outside it. This is a rule about a subject ADR-0108 never named, so it takes its own record and cites limb 4 as its ground |
 | **Leave it as the uncited line in the SQL** | The statement then lives in the file least likely to be read by someone changing `internal/queue`, and dies at the next sweep that judges it recoverable. It also binds `worker.go`, `availability.go` and `vantages.sql`, which is `comment-policy.md` §8.2's gate B and is what makes it an ADR rather than a comment |
 | **Have the reaper move availability only for `dns` jobs**, mirroring ADR-0108 limb 4's kind scoping | Copies limb 4's scoping without limb 4's premise. The kind gate exists because a **port probe** says nothing about resolver health; it does not license a **`dns` job that never ran** saying something about it. A job the resolver was never asked is not weaker evidence about the resolver — it is no evidence |

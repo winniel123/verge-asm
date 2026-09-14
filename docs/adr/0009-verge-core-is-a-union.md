@@ -28,11 +28,11 @@ numbers**, and specified that it ship ~~"as an editable list file, not compiled 
 > [ADR-0144](./0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md) ratifies
 > the **embed**, per
 > [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md):
-> `internal/vergecore/vergecore.go:47` compiles `verge-core.tsv` into the binary, and no production
+> `internal/vergecore/vergecore.go#shipped` compiles `verge-core.tsv` into the binary, and no production
 > path parses any other body. **Nothing in this ADR's Decision reads the clause.** What survives is
 > this ADR's own rule — the frequency half alone is operator-editable — and an operator exercises it
 > by **layering** `verge_core_frequency_edit` deltas over the shipped base
-> (`internal/queue/hot.go:165`), never by supplying a replacement file. ADR-0144 §2 records why: the
+> (`internal/queue/hot.go#hotCore`), never by supplying a replacement file. ADR-0144 §2 records why: the
 > body carries the `half` column, so a replaceable body would hand the operator the sensitive half
 > that this ADR reserves to the release.
 

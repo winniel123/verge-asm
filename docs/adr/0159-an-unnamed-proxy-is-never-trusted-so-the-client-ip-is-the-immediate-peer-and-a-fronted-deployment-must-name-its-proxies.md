@@ -38,7 +38,7 @@ deleted it:
 ```
 
 **The rule is unwritten everywhere else.** `VERGE_TRUSTED_PROXIES` appears in exactly two places in
-the tree, both in code: `cmd/web/main.go:125` and `:127`. `docs/spec/`, `docs/adr/`,
+the tree, both in code: `cmd/web/main.go#main` and `:127`. `docs/spec/`, `docs/adr/`,
 `docs/research/`, `docs/guides/`, `CONTEXT.md` and `.env.example` hold zero occurrences.
 
 ### The citation is dead, so §8.3 does not suppress the record
@@ -60,7 +60,7 @@ conditions holds. The peer address does not parse, or the trusted set is empty, 
 in the trusted set. Only after all three fail does the function read `X-Forwarded-For`. It then
 walks the chain from the right and stops at the first hop it does not vouch for.
 
-`parseTrustedProxies` returns an error on a malformed IP or CIDR. `cmd/web/main.go:127` turns that
+`parseTrustedProxies` returns an error on a malformed IP or CIDR. `cmd/web/main.go#main` turns that
 error into `log.Fatalf`, so a typo fails the boot instead of quietly trusting a smaller set.
 
 ### The derived IP reaches one consumer
@@ -79,7 +79,7 @@ release ceiling.
 
 So a deployment behind an unnamed proxy gives every client the single key `ip:<proxy address>`. Five
 failed logins by anyone then lock **every account on the instance**, and repeated failures hold the
-lock open. The surviving comment at `cmd/web/clientip.go:83` states this consequence and does not
+lock open. The surviving comment at `cmd/web/clientip.go#server.loginIPKey` states this consequence and does not
 state the default that produces it.
 
 The opposite error costs the other way. A trusted set wider than the real proxy fleet lets a client
@@ -132,7 +132,7 @@ trust. A hop that `web` does not trust cannot have vouched for anything to its l
 attacker prepends never wins. A malformed entry is not a trusted proxy, so the walk stops at it. If
 every entry is trusted, `web` returns the peer address.
 
-The code states this limb already, at `cmd/web/clientip.go:67` and `:71`. It is written here so the
+The code states this limb already, at `cmd/web/clientip.go#server.clientIP` and `:71`. It is written here so the
 Decision is applicable without reading the code.
 
 ### 4. The scope is the rate-limit key, and the scope does not grow by default
@@ -189,7 +189,7 @@ Each needs a ruling against this ADR before it ships. A new caller is not a mech
 | **Take the leftmost `X-Forwarded-For` entry, the conventional "original client"** | The leftmost entry is the one furthest from `web` and the one nothing vouched for. An attacker prepends any value they want. §3's right-to-left walk exists because trust decays from the peer outward, and the leftmost reading inverts that |
 | **Warn at boot when `VERGE_TRUSTED_PROXIES` is empty** | `web` cannot tell a direct-facing deployment from a fronted one, so the warning fires on every correct direct-facing boot. A log line that is wrong most of the time trains an operator to ignore it. The deployment that needs the warning is then the one deployment that gets no signal from it |
 | **Detect the proxy at run time from the presence of `X-Forwarded-For`** | The header is caller-supplied. Detecting a proxy from it means an attacker enables proxy trust by sending one header. That is the default this ADR refuses, reached by a longer route |
-| **Skip a malformed entry in the list and keep the rest** | A typo would then shrink the trusted set in silence, and a shrunk set is §Context's whole-instance lockout lever. The operator gets no signal, because the boot succeeds. The code already fails the deployment at `cmd/web/main.go:127` and this ADR keeps that |
+| **Skip a malformed entry in the list and keep the rest** | A typo would then shrink the trusted set in silence, and a shrunk set is §Context's whole-instance lockout lever. The operator gets no signal, because the boot succeeds. The code already fails the deployment at `cmd/web/main.go#main` and this ADR keeps that |
 | **Let the derived client IP key identity, an allow list or an audit column too** | `v1-spec.md` §4.3 refuses header-trust for identity, and the value's whole safety argument is that a forged one costs only a rate-limit key. Widening the reach without widening the check is the bypass class §4.3 names |
 | **State the rule in `v1-spec.md` §4.3 instead** | §4.3 rules identity and access. Putting a rate-limiter keying rule inside it invites the reading that the two are one control, which is the confusion §4.3 exists to prevent. §4.3 stays the identity clause and this ADR cites it |
 | **State it only in [`running.md`](../guides/running.md)** | The guide tells an operator what to set. It does not carry why the default denies, why the set must be exact in both directions, or why the value may not reach identity. A later session proposing a friendlier default would find an instruction and no position to argue against |
