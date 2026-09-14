@@ -46,7 +46,7 @@ declared scope against the cadence. Neither bounds the work inside one job.
 | The probe bracket | [`internal/queue/worker.go`](../../internal/queue/worker.go) | `DefaultProbeTimeout = 5 * time.Minute`, overridable by `VERGE_PROBE_TIMEOUT` at [`cmd/worker/main.go#main`](../../cmd/worker/main.go) |
 | What the bracket wraps | `Worker.probe` | The probe alone. The terminal transaction runs under the parent context |
 | How the bracket ends a probe | [`internal/queue/worker.go#ExecProber.Probe`](../../internal/queue/worker.go) | `exec.CommandContext(ctx, p.Path)`. The deadline kills the prober process |
-| One candidate's own bound | [`internal/measure/edgefanout/run.go#Run`](../../internal/measure/edgefanout/run.go) | `NetHandshaker{Timeout: 3 * time.Second}`, and [`internal/measure/connectoutcome/tls.go#NetHandshaker`](../../internal/measure/connectoutcome/tls.go) wraps the dial **and** the handshake in it |
+| One candidate's own bound | [`internal/measure/edgefanout/run.go#Run`](../../internal/measure/edgefanout/run.go) | `NetHandshaker{Timeout: 3 * time.Second}`, and [`internal/measure/connectoutcome/tls.go`](../../internal/measure/connectoutcome/tls.go) wraps the dial **and** the handshake in it |
 | How the leaf walks its scope | `RunWithHandshaker` | Serially, one candidate at a time |
 | The chunk | [`internal/scan/edgefanout.go`](../../internal/scan/edgefanout.go) | `EdgeFanoutAddressesPerJob = 50` |
 | The worst case | arithmetic | 50 × 3 s = 150 s, which is half of the 5-minute bracket |

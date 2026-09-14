@@ -58,7 +58,7 @@ none.
 | Fact | Preview side | Act side |
 | --- | --- | --- |
 | Which declared scope the receipt names | `FindCoveringAddressSeed` (`internal/db/subjects.sql.go`), `address_cidr >>= $1::inet`, `ORDER BY masklen(address_cidr) DESC LIMIT 1` | `narrowingScope` (`withdrawal.go:104`), `Contains(excluded.Addr())`, keep the largest `Bits()` |
-| Fallback where no scope covers | `scope = p.String()` (`cmd/web/exclusions.go#server.declareExclusion`) | `return excluded.String()` (`withdrawal.go:121`) |
+| Fallback where no scope covers | `scope = p.String()` (`cmd/web/exclusions.go`) | `return excluded.String()` (`withdrawal.go:121`) |
 | How the counts become a sentence | `message.PreviewNarrowing(scope, p.String(), …)` (`exclusions.go:97`) | `message.PreviewNarrowing(c.scope, key, …)` (`withdrawal.go:81`) |
 
 ## Decision

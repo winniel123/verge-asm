@@ -22,7 +22,7 @@ relations:
 
 ## Context
 
-[`internal/scan/scan.go#scopeRecord`](../../internal/scan/scan.go) carried this text until #1318 deleted it:
+[`internal/scan/scan.go`](../../internal/scan/scan.go) carried this text until #1318 deleted it:
 
 ```go
 	// The resolver is carried on the Vantage and copied onto the job's spec by

@@ -54,7 +54,7 @@ the ruling below cheap, and §4 turns on it.
 | ADR-0044, Decision table | Opt-in is per `Seed` scope, and the tier ships configured and disabled | Rules the granularity of the opt-in and the tier's shipped state. Says nothing about what happens at the moment of the opt-in |
 | `v1-spec.md` §3.4, cold row | *"never runs unasked, including at onboarding"* | Rules the unasked case. The opt-in **is** an ask, so §3.4 stops exactly where this question starts |
 
-`cmd/web/cold.go#coveragePct` already cites both, which is why the gap went unnoticed: the handler looks
+`cmd/web/cold.go` already cites both, which is why the gap went unnoticed: the handler looks
 covered, and the citation is true of the half those sources rule.
 
 **The deleted comment overstates, and the survivor still does.** `Dispatcher.Trigger`
@@ -129,7 +129,7 @@ a run sooner than the tier's cadence. This ADR says no.
 
 ### 5. The bound: a manual dispatch is a second act
 
-An enabled cold `Scan` can be dispatched on demand (`internal/queue/queue.go#Dispatcher.Run`,
+An enabled cold `Scan` can be dispatched on demand (`internal/queue/queue.go`,
 `cmd/web/scantrigger.go`). This ADR does not change that and does not refuse it.
 
 What it refuses is the causal claim. The opt-in did not fire the sweep. The operator did, in a second

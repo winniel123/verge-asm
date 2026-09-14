@@ -51,7 +51,7 @@ case, and it does not re-rule `devMode`.
 | Fact | Site | Value |
 | --- | --- | --- |
 | `internal/delivery` imports `internal/queue` | `internal/delivery/runner.go` | one import, for one symbol |
-| The one symbol it uses | `internal/delivery/runner.go#Runner.send` | `queue.Backoff(claim.Attempt + 1)` |
+| The one symbol it uses | `internal/delivery/runner.go` | `queue.Backoff(claim.Attempt + 1)` |
 | `internal/queue` imports `internal/delivery` | — | nowhere |
 | First-party packages in `internal/queue`'s transitive closure | `go list -deps` | 22, and `internal/delivery` is not one |
 | Packages in `internal/queue`'s whole transitive closure | `go list -deps` | 276 |
@@ -127,7 +127,7 @@ error and not the reason the compiler error is welcome, so the reason has never 
 ### The transaction fact the schema already carries
 
 `db/migrations/20700_delivery.sql` declares `message_id BIGINT NOT NULL REFERENCES message (id)`.
-A `Delivery` row cannot exist before its `Message` row. `internal/queue/produce.go#spanChange` inserts the
+A `Delivery` row cannot exist before its `Message` row. `internal/queue/produce.go` inserts the
 `Message` and `:72` enqueues against it, in the order the constraint requires, inside one transaction.
 
 `db/migrations/20700_delivery.sql` then declares `UNIQUE (message_id, channel_id)`. One routed
@@ -235,7 +235,7 @@ already on disk.
   `UNIQUE (message_id, channel_id)` (`:42`) makes one routed pair one row. A commit that lands the
   message and then fails to enqueue leaves a message no later pass re-routes.
 - **A terminate must discard the whole staged batch.** ADR-0164 rules it, and
-  `internal/queue/worker.go#Worker.probe` implements it. A message written outside the batch transaction
+  `internal/queue/worker.go` implements it. A message written outside the batch transaction
   survives that rollback, and an operator then reads a message for work that never happened.
 
 **This is also why a callback fired after commit is refused.** Such a callback moves the message and
@@ -254,7 +254,7 @@ layer.
 
 **The CT seams refuse and this one does not, and the difference is evidential.** An unwired CT
 fetcher that returned a clean, empty CT batch would assert that certificate transparency named
-nothing. That is a false absence, and `internal/queue/crtsh.go#Worker.reserveCTSlot` refuses rather than state it.
+nothing. That is a false absence, and `internal/queue/crtsh.go` refuses rather than state it.
 A message asserts nothing about the estate. ADR-0064 rules that a message names what moved, and the
 timelines hold the fact whether or not a message reports it. An absent message loses a notification.
 It never creates a false reading.
@@ -314,7 +314,7 @@ may. A package that wants a batch to route a message asks `cmd/worker` to wire i
 | Alternative | Why not |
 | --- | --- |
 | **Import `internal/delivery` from `internal/queue` and call `delivery.EnqueueForMessage` directly** | It does not compile. `internal/delivery/runner.go` imports `internal/queue`, so the reverse edge closes a cycle. Suppose the cycle were opened first, by moving `queue.Backoff` below both packages. The call would then compile and the layering would be gone: `internal/queue`'s dependency closure would name the notification layer, `go test ./internal/queue` would link the outbound HTTP client, the HMAC signer and `custody.IsNonGloballyReachable`'s dial guard, and the eight unwired workers in `internal/queue`'s tests would carry a webhook path they never exercise. Delivery's closure is queue's plus one package (277 against 276), so the direction is free to state and free to keep, and only one of the two directions lets the lower layer stand alone |
-| **Move `queue.Backoff` into a shared package and then reverse the edge** | The move on its own is defensible — `internal/delivery/runner.go#Runner.send` and `internal/report/notify.go#NotifyRunner.post` both call it. Reversing the edge afterwards is not. It would put a webhook client, a shared-secret signer and a retry runner underneath every measurement test in the repo, to save one function parameter at one call site |
+| **Move `queue.Backoff` into a shared package and then reverse the edge** | The move on its own is defensible — `internal/delivery/runner.go` and `internal/report/notify.go#NotifyRunner.post` both call it. Reversing the edge afterwards is not. It would put a webhook client, a shared-secret signer and a retry runner underneath every measurement test in the repo, to save one function parameter at one call site |
 | **Declare a one-method `MessageEnqueuer` interface in `internal/queue` instead of a function field** | The seam has one implementation, `delivery.EnqueueForMessage`, and it is a package-level function with no receiver and no state. An interface would force a wrapper type in `internal/delivery` and a named type in `internal/queue`, and state nothing the function type does not. `internal/queue/produce.go` already narrows the seam once inside the package, to a closure that carries `qtx`, which an interface method cannot express without a second constructor per transaction |
 | **Fire the enqueue from a callback after the batch commits** | It breaks all three atomicity facts at once. `delivery.message_id` references `message (id)`, so the callback must run after commit and can then fail on its own. ADR-0064 computes a message once at the cause and `UNIQUE (message_id, channel_id)` makes one routed pair one row, so a failed callback loses the routing permanently. ADR-0164's terminate rolls a job's staged work back, and a post-commit callback would route a message for a batch that rolled back |
 | **Have the delivery runner poll `message` for unrouted rows instead of taking an enqueue at all** | It replaces an exact seam with a scan of the message corpus, and it needs a second piece of state — routed or not — that the schema does not have. The `Delivery` row is that state today, and it is written by the act that creates the message. The poll would also route a message whose batch is still in flight, because the runner cannot see the worker's open transaction |

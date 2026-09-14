@@ -41,7 +41,7 @@ conflict is why it needed a ruling rather than a transcription.
 | Enumerator | Site | What the dedup set holds | Callers |
 | --- | --- | --- | --- |
 | `candidateAddrs` | [`internal/queue/hot.go`](../../internal/queue/hot.go) | `resolved`, sized `len(resolved)` | `fanOutHot` (`hot.go:35`), `fanOutCold` (`cold.go:29`) |
-| `Estate.EdgeFanoutPopulation` | [`internal/custody/candidates.go#Estate.ExtensionCandidates`](../../internal/custody/candidates.go) | `ExtensionCandidates()`, sized `len(candidates)` | the `edge-fanout` `Scan` |
+| `Estate.EdgeFanoutPopulation` | [`internal/custody/candidates.go`](../../internal/custody/candidates.go) | `ExtensionCandidates()`, sized `len(candidates)` | the `edge-fanout` `Scan` |
 
 In both, the scope loop **reads** the set and never writes to it. `hot.go:140` is
 `if _, ok := seen[a]; ok { continue }` with no matching insert, and `candidates.go:53` is the same
