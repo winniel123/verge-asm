@@ -210,11 +210,14 @@ Six rules govern the row.
 
 **A new line anchor is refused inside the §1.2 boundary.** A citation names no line.
 
-The refusal covers a line anchor in any position:
+The refusal covers a line anchor in any position. An inline-code span, a Markdown link target, and a
+line fragment:
 
-- an inline-code span, `` `path/to/file.md:247` ``,
-- a Markdown link target, `](path/to/file.md:247)`,
-- a line fragment, `#L247` or `#L247-L260`.
+```
+`path/to/file.md:247`
+](path/to/file.md:247)
+#L247   #L247-L260
+```
 
 The installed base outside the code span is zero. The `#L` form is the one to expect next, because
 GitHub's own "copy permalink" produces it.

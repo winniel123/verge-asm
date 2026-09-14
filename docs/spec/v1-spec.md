@@ -280,12 +280,12 @@ in the release, and none is ever operator-configurable, because moving one would
 > **`verge-core` is not shipped as a file the operator may edit. Its body is compiled in.** Withdrawn
 > by [ADR-0144](../adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md)
 > per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
-> `internal/vergecore/vergecore.go:47` embeds `verge-core.tsv`, and `mustParse(shipped)` on line 50 is
+> `internal/vergecore/vergecore.go#shipped` embeds `verge-core.tsv`, and `mustParse(shipped)` on line 50 is
 > the only body any production path parses.
 >
 > **The rest of the sentence survives unchanged.** The frequency half alone is operator-editable, and
 > the operator moves it by **layering** `verge_core_frequency_edit` deltas over the shipped base
-> (`internal/queue/hot.go:165`, `cmd/web/settings.go:789`) — never by supplying a body. A replaceable
+> (`internal/queue/hot.go#hotCore`, `cmd/web/settings.go#server.renderSettings`) — never by supplying a body. A replaceable
 > body would let the operator author the `half` column, and so move the sensitive half, which is the
 > very thing this sentence goes on to forbid.
 

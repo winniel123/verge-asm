@@ -15,8 +15,8 @@ An **`Act`** is one recorded act by one principal on this instance. It is the **
 corpus, beside `Dispatch`, `Message`, `Delivery` and `Transcript`.
 
 Today the admin `audit` tab renders an empty state and says so in shipped copy:
-*"This build keeps no separate queryable log of admin acts"* (`design-system/templates/settings.tmpl:867`).
-`fillAuditSection` returns nil (`cmd/web/settings.go:918`). `docs/guides/accounts.md:152-154` states
+*"This build keeps no separate queryable log of admin acts"* (`design-system/templates/settings.tmpl#settings-sessions`).
+`fillAuditSection` returns nil (`cmd/web/settings.go#server.fillAPISection`). `docs/guides/accounts.md#accounts-invites--roles` states
 it more baldly still — *"the **Audit** tab is honestly empty"*.
 
 This effort ends that. It adds one append-only corpus, one recorder, one CI gate, one admin reader,
@@ -125,11 +125,11 @@ party on the other end. Limbs 1 and 2 both drop it.
 **Reader:** the admin asking *which of us three opened that transcript*.
 
 1 class, reaching exactly one act today: a `Transcript` disclosure at `GET /run/{id}/raw` and
-`GET /runs/{id}/raw` (`cmd/web/handlers.go:388-389`).
+`GET /runs/{id}/raw` (`cmd/web/handlers.go#server.handler`).
 
 **The wording is load-bearing and was measured.** The loose first wording — *"a value it holds as a
 secret"* — was **rejected**: it admits `GET /account/totp/enroll`, which renders the plaintext TOTP
-seed to the enrolling account (`cmd/web/auth.go:1010`) while `account.totp_secret` is ciphertext under
+seed to the enrolling account (`cmd/web/auth.go#server.beginTOTPEnroll`) while `account.totp_secret` is ciphertext under
 ADR-0172. That is a mint-to-owner step with no accountability question — the instance minted the
 secret **for the principal it handed it to**. So the limb borrows **ADR-0126's own corpus/column
 line**: it is *"the first **corpus** Postgres holds a secret for"*. The mint-to-owner case falls out
@@ -141,7 +141,7 @@ ADR-0126 at the price of reversing ADR-0053. The limb names that claim, never th
 the nonce and the volume key may all change without touching the predicate.
 
 **Trigger: the disclosure, never the request.** `rawOutputPage` renders a complete page on
-`pgx.ErrNoRows` (`cmd/web/rawoutput.go:105-108`) and discloses nothing. The disclosure is the three
+`pgx.ErrNoRows` (`cmd/web/rawoutput.go#server.rawOutputPage`) and discloses nothing. The disclosure is the three
 `transcript.Open` calls in `fillRawOutputView` (`:140,159,163`). **A miss writes no `Act`.**
 
 **Guarantee: #1788's, with no exception, and the failure mode is named here rather than inherited
@@ -187,7 +187,7 @@ Three measurements support it, and each closes a route a later session would try
   encoder, where §7's gate can never see it. Go in `migrateUp` keeps the encoder, but `migrateUp`
   knows only which version numbers it applied — its only expressible subject is a `goose_db_version`
   row rendered a second time.
-- **A restore never runs `goose.Up`.** `cmd/web/restore.go:204-212` refuses any archive on a different
+- **A restore never runs `goose.Up`.** `cmd/web/restore.go#server.restorePreflight` refuses any archive on a different
   schema version.
 
 **There is no migration-side gate, and this SPEC says so** rather than letting a reader infer that
@@ -281,11 +281,11 @@ stored `action` token. `Subject` shows the rendered cell with sample values.
 
 **Four notes on this table.**
 
-- **Two acts are not POST routes.** `sso.binding.created` is a `GET` (`cmd/web/sso.go:295`) and it is
+- **Two acts are not POST routes.** `sso.binding.created` is a `GET` (`cmd/web/sso.go`) and it is
   one of ADR-0113's three named audited acts. `transcript.disclosed` is a `GET` pair. A sweep of the
   81 POST registrations misses both. §7.2 turns on this.
 - **`restore.applied` is written after `applyRestore` returns.** `applyRestore` truncates every backup
-  table, the `act` corpus included (`cmd/web/restore.go:265+`), so a row written before the apply is
+  table, the `act` corpus included (`cmd/web/restore.go#server.restoreApply`), so a row written before the apply is
   erased by the apply. Its actor is `Account` — the restoring admin, whose username snapshot survives
   the `TRUNCATE` because §3 captures a value and not a join.
 - **Six classes share the Action label `Dial moved`, and that is correct.** The Subject cell carries
@@ -317,27 +317,27 @@ missed.
 `POST /settings/sessions/revoke-account` · `GET /login/sso/{slug}/callback`
 
 Two riders. **The two admin session revokes are the hardest of the family** — cross-principal,
-admin-only, one of them typed-name-confirmed (`cmd/web/settings.go:978,997`). They stay exempt for
+admin-only, one of them typed-name-confirmed (`cmd/web/settings.go#server.fillTeamSection,997`). They stay exempt for
 consistency, because the target's grant is untouched. A SPEC that wants them in wants a session-event
 log and should say so rather than smuggling one in through limb 2. And **the SSO login callback
-creates no binding** — an unlinked identity is refused (`cmd/web/sso.go:249`). It establishes a
+creates no binding** — an unlinked identity is refused (`cmd/web/sso.go#server.ssoCallback`). It establishes a
 session only.
 
 **Staged acts — the second step is the act.**
 
 | exempt | reason |
 |---|---|
-| `POST /account/totp/enable` | Stages an encrypted secret with `totp_enabled` still false (`cmd/web/auth.go:980-1009`). The confirm is the act |
-| `POST /settings/restore/preflight` | Stages the archive in process memory only (`cmd/web/restore.go:222-229`). A reload abandons it. The apply is the act |
+| `POST /account/totp/enable` | Stages an encrypted secret with `totp_enabled` still false (`cmd/web/auth.go`). The confirm is the act |
+| `POST /settings/restore/preflight` | Stages the archive in process memory only (`cmd/web/restore.go#server.restorePreflight`). A reload abandons it. The apply is the act |
 | `GET /profile/sso/{slug}/link` | Writes a tx cookie and redirects. No store write. The callback is the act |
 
 **Read-only and per-account state.**
 
 | exempt | reason |
 |---|---|
-| `POST /onboarding` | Wizard step navigation; writes nothing (`cmd/web/onboarding.go:127`) |
-| `POST /seeds/preview` | Renders a withdrawal receipt into a flash and writes nothing (`cmd/web/seeds.go:285`) |
-| `POST /exclusions/preview` | Read-only preview (`cmd/web/exclusions.go:76`) |
+| `POST /onboarding` | Wizard step navigation; writes nothing (`cmd/web/onboarding.go#server.onboardingStep`) |
+| `POST /seeds/preview` | Renders a withdrawal receipt into a flash and writes nothing (`cmd/web/seeds.go`) |
+| `POST /exclusions/preview` | Read-only preview (`cmd/web/exclusions.go#server.declareExclusion`) |
 | `POST /messages/read`, `/read-all`, `/unread` | Per-account read state; already legible to its own reader |
 
 **Two acts exempt on a measurement, not on convenience.**
@@ -345,12 +345,12 @@ session only.
 - **`POST /settings/backup`.** It changes no declaration, changes no access, and directs no network
   act. It writes only `SetLastBackup`. The tempting counter — *a backup is a `Transcript` read at
   maximum scale, so limb 4 reaches it* — is **false against the tree**: `transcript` is on
-  `backupExcluded` (`cmd/web/backup.go:80`), and `account.totp_secret`, `channel.secret` and
+  `backupExcluded` (`cmd/web/backup.go#backupExcluded`), and `account.totp_secret`, `channel.secret` and
   `sso_provider.client_secret` are redacted to `null` on the way out (`:88-97`). ADR-0124's *a backup
   carries data and no credential* holds.
 - **`POST /reports/schedule/run` — exempt by one line, with a tripwire.** Today it inserts one
   `report_delivery` at state `generated` and pushes nothing to a channel
-  (`cmd/web/reports_schedule.go:383-428`). **The day "run now" actually delivers it becomes limb 3**,
+  (`cmd/web/reports_schedule.go`). **The day "run now" actually delivers it becomes limb 3**,
   the same class as `POST /settings/channels/test`. Name it at review.
 
 **Session expiry is not an act at all.** No handler runs. `requireLogin` refuses and redirects. There
@@ -358,7 +358,7 @@ is no principal and no site to hang a recorder on.
 
 ### 2.4 The bearer path expresses no act at all
 
-`cmd/web/api_v1.go:27-36` mounts exactly six patterns and every one begins `GET `: inventory,
+`cmd/web/api_v1.go` mounts exactly six patterns and every one begins `GET `: inventory,
 subjects, drift, signals, coverage, and `apiNotFound`. There is no POST, no PUT, no PATCH, no DELETE
 and **no method-less pattern** — the comment at `:27` records why (*"A method-less pattern neither
 dominates nor is dominated by GET /, which net/http refuses"*), so the absence is load-bearing.
@@ -414,9 +414,9 @@ fact lives in the corpus as a row and not as a variant.
 ### 3.3 Four rulings the union carries
 
 **`/reset` is `GrantHolder(PasswordReset)`, not `Account`.** Measured: the reset link rides the
-instance's own web log — `db/migrations/21400_password_reset.sql:8-10` says the plaintext is *"written
+instance's own web log — `db/migrations/21400_password_reset.sql` says the plaintext is *"written
 to the web logs, exactly as the first-boot setup token is"*, gated by `VERGE_LOG_RESET_LINKS`
-(`cmd/web/auth.go:1102-1104`). There is no mail on a self-hosted install, so the log reader and the
+(`cmd/web/auth.go#server.forgotSubmit`). There is no mail on a self-hosted install, so the log reader and the
 account holder are often different people. A row rendering `alice` would assert that alice reset her
 own password when the host operator may have taken over her account. **A wrong attribution is worse
 than a vague one.**
@@ -433,9 +433,9 @@ exactly when a second `Act` names the same grant.* `Invite` carries one. `POST /
 audited, so the id joins the mint to the acceptance. And `21600_invite.sql:19-21` uses
 `ON DELETE SET NULL` on both FKs *"so an invite outlives either account's deletion as a record."*
 `PasswordReset` carries none, because `POST /forgot` is exempt and a consumed reset row is deleted by
-**every** `POST /forgot` (`db/queries/password_reset.sql:14-16`, fired at `cmd/web/auth.go:1088`).
+**every** `POST /forgot` (`db/queries/password_reset.sql#DeleteSpentPasswordResets`, fired at `cmd/web/auth.go#server.forgotForm`).
 `SetupToken` carries none, because **no row exists** — it is an in-memory string compared by
-`auth.TokensEqual` (`cmd/web/auth.go:216`). That is a meaning, not a `NULL`. The rule is stated rather
+`auth.TokensEqual` (`cmd/web/auth.go`). That is a meaning, not a `NULL`. The rule is stated rather
 than the three cases, so a fourth grant answers it on arrival.
 
 **`GrantHolder` carries no account and `Account` carries no session id.** The Subject column already
@@ -462,11 +462,11 @@ and **`invite 12`**, each as an `st-tag`.
 | `GrantHolder(PasswordReset)` | `password-reset link` | `st-tag` |
 | `GrantHolder(Invite{12})` | `invite 12` | `st-tag` |
 
-**The problem this solves.** `account.username` is `TEXT NOT NULL UNIQUE` (`db/migrations/00002_accounts.sql:9`)
-with no format check and no reserved list. `validateCredentials` (`cmd/web/auth.go:1876-1889`) caps
+**The problem this solves.** `account.username` is `TEXT NOT NULL UNIQUE` (`db/migrations/00002_accounts.sql`)
+with no format check and no reserved list. `validateCredentials` (`cmd/web/auth.go#initials`) caps
 the length at 64 and requires non-empty, and that is all. So an account named `setup token` renders
 identically to a `GrantHolder`. The collision is **adversarial**: `inviteAccept`
-(`cmd/web/auth.go:1206-1210`) lets an invitee choose their own username while unauthenticated, before
+(`cmd/web/auth.go`) lets an invitee choose their own username while unauthenticated, before
 they are an account at all. And it is unretractable — an `Act` is never deleted, so a false
 attribution is permanent. (`session.ip` does not carry as a precedent: a `session` row expires and
 CASCADEs, so an ambiguous rendering there is self-clearing.)
@@ -504,7 +504,7 @@ username`, so a create-time rule would have no rename backdoor.)
    else does — not cost, and not a new grant kind.
 
 **Two costs, stated rather than hidden.** `[thin]` `@` is an **infix** in this system today
-(`{{.RuleID}}@{{.RuleVersion}}` at `design-system/templates/coverage.tmpl:183`,
+(`{{.RuleID}}@{{.RuleVersion}}` at `design-system/templates/coverage.tmpl#coverage`,
 `{{$p.Username}}@{{$p.Endpoint}}` at `settings.tmpl:513`), so prefix position is a new use of a
 character that currently means *joins two things*. Judged acceptable, because the second operand is
 absent. And the same person reads `@alice` on Audit and `alice` on Team. That is the price of holding
@@ -545,7 +545,7 @@ has, one level up.
 ### 4.1 The row
 
 `action TEXT` plus `subject JSONB` is **`transcript`'s `variant TEXT` plus `outcome JSONB` one corpus
-over** (`db/migrations/23700_transcript.sql:36-42`), so the precedent is exact and already shipped.
+over** (`db/migrations/23700_transcript.sql`), so the precedent is exact and already shipped.
 
 ```sql
 CREATE TABLE act (
@@ -607,7 +607,7 @@ id degrades to a dangling number** the day the dial retires the row.
 ### 4.4 The rendered table
 
 The **four** shipped columns are kept: **When · Actor · Action · Subject**
-(`design-system/templates/settings.tmpl:869-876`). All 61 variants fill them with **no empty cell**, so
+(`design-system/templates/settings.tmpl`). All 61 variants fill them with **no empty cell**, so
 no fifth column is owed.
 
 **Two facts the implementation must carry.**
@@ -618,7 +618,7 @@ no fifth column is owed.
   `settings.tmpl:584` renders the SSO issuer as
   `overflow:hidden;text-overflow:ellipsis;max-width:220px`.
 - **`When` renders as a relative stamp** (`4m`), the design system's rule
-  (`design-system/README.md:47`), with ISO 8601 on hover. §8 · D.2 rules the ADR-0073 §4 collision this
+  (`design-system/README.md#content-rules-enforced-in-copy-not-just-style`), with ISO 8601 on hover. §8 · D.2 rules the ADR-0073 §4 collision this
   creates.
 
 ### 4.5 The drawn example, reconciled
@@ -682,7 +682,7 @@ recording the break**, after the truncation.
 `account.username` is `UNIQUE` but reusable after a delete, so neither alone is sufficient.
 
 **The shipped precedent is rejected deliberately.** The attribution columns name no `ON DELETE`
-action, so they restrict, and `removeAccount` (`cmd/web/settings.go:479-486`) catches the violation and
+action, so they restrict, and `removeAccount` (`cmd/web/settings.go#server.removeAccount`) catches the violation and
 refuses the removal. Copy that, and once every admin act writes an `Act`, **no admin who has ever
 acted can be removed at all.** An FK from an Operational record into the identity table also
 re-couples what the Operational fence exists to keep apart.
@@ -702,7 +702,7 @@ ordering that ADR exists to fix. Cite it. Do not re-derive it.
 ### 6.1 Admin only, and ADR-0173 is untouched
 
 The `api` tab stays *"the single carve-out"*. `audit` is one of the thirteen identifiers that refuse a
-viewer outright (`cmd/web/auth.go:105-107`).
+viewer outright (`cmd/web/auth.go`).
 
 **A viewer can take an auditable act** under limb 2 — an SSO self-link, a TOTP enrolment — **and still
 gets no reader.** Those acts are already legible to that viewer on Profile, so a second carve-out would
@@ -714,11 +714,11 @@ re-litigate it.
 **`?tab=audit&period=<token>`.** This is not a free choice. ADR-0158 limb 4 — *"a screen that needs a
 scope over the whole population needs a server-side predicate"* — bites, because §5.1's corpus is
 unbounded and a client-side scope reaches only the rows already sent. The idiom is already ported
-twice: `design-system/templates/drift.tmpl:101-111` and `reports.tmpl:109-111` both ship a
+twice: `design-system/templates/drift.tmpl#drift` and `reports.tmpl:109-111` both ship a
 server-rendered `?period=` preset panel with an apply form.
 
 **ADR-0173's rider does not bite.** *"A tab that grows a control loses the carve-out"* governs `api`.
-`audit` holds no carve-out to lose. And `validTab` reads `Get("tab")` only (`cmd/web/auth.go:105`,
+`audit` holds no carve-out to lose. And `validTab` reads `Get("tab")` only (`cmd/web/auth.go#dashboardStore`,
 `settings.go:279`), so a second query key changes no gate and ADR-0173 §1's *one identifier admits one
 section* property is untouched.
 
@@ -813,7 +813,7 @@ do that.
 2. **Non-route acts sit outside the mux walk.** The bootstrap and the restore are both routes, so both
    are covered. `goose.Up` is not — and §1.6 rules it writes no `Act`, so nothing is owed there.
 3. **The five integrations routes register inside `if integrationsEnabled`.** The flag is
-   `const … = true` (`cmd/web/integrations.go:33`), so they harvest today. The **handlers** compile
+   `const … = true` (`cmd/web/integrations.go`), so they harvest today. The **handlers** compile
    unconditionally. Only the **registrations** are gated. If the flag flipped, the harvest would read
    their absence as compliance rather than as a gap.
 
@@ -849,7 +849,7 @@ not ~60 adapters. ADR-0149's objection was to the 178-method aggregate, so this 
 barred. **A later session may reopen it on those grounds and no others.** The 60-method figure is an
 estimate and was not measured.
 
-**A shipped precedent for non-atomicity already exists**: `declineLookup` (`cmd/web/proposals.go:281-317`)
+**A shipped precedent for non-atomicity already exists**: `declineLookup` (`cmd/web/proposals.go`)
 loops over N proposals, does two unrelated writes per iteration, and **bails mid-loop** via
 `s.serverError`, leaving a partially applied batch already committed.
 
@@ -873,7 +873,7 @@ loops over N proposals, does two unrelated writes per iteration, and **bails mid
 5. **The recorder call uses a context detached from request cancellation**, with its own short
    timeout. On `r.Context()` the record dies when the operator navigates away, so *an act with no
    `Act`* would fire on ordinary use rather than on a database fault. **Without this the failure mode
-   is mispriced by an order of magnitude.** `cmd/web/auth.go:1948` already reaches for
+   is mispriced by an order of magnitude.** `cmd/web/auth.go#server.render` already reaches for
    `context.Background()` in the chrome render for the same reason. **A tx-bound recorder detaches
    nothing**, because a detached insert would outlive the rollback tearing its own transaction down. A
    cancelled act under rulings 4 or 10 therefore leaves neither a mutation nor a row, which is the
@@ -999,7 +999,7 @@ Four sites. The replacement text is in §9.
 | Site | Verbatim (abridged) | Call |
 | --- | --- | --- |
 | `CONTEXT.md:33-35` | *"It records what the system *did*, never what is true of the estate. The comparison path may read nothing in it at all."* | Sentences 1 and 3 **confirmed** — sentence 3 is the group's load-bearing clause and is what makes an `Act` safe here. Sentence 2 widens |
-| `CONTEXT.md:1796` | *"so the operational record is **four** corpora"* | **five**. The adjacent ordinals stay right: `Transcript`'s *"fourth Operational corpus"* names its own position and does **not** move, nor does `db/migrations/23700_transcript.sql:4` or `docs/spec/raw-job-output.md:55` |
+| `CONTEXT.md:1796` | *"so the operational record is **four** corpora"* | **five**. The adjacent ordinals stay right: `Transcript`'s *"fourth Operational corpus"* names its own position and does **not** move, nor does `db/migrations/23700_transcript.sql` or `docs/spec/raw-job-output.md#1-data-model--the-transcript-corpus` |
 | `CONTEXT.md:530-532` (`Annotation`) | *"So #127's ruling that no operator act is recorded with an actor on it holds here **without exception**."* | First sentence (*"the instant it was declared and no author"*) **confirmed**. Second replaced |
 | `CONTEXT.md:1581` (`Span` closure) | *"It records **no actor**, which would be the operator-act record **the model refuses**…"* | Outcome **confirmed and now more important**. Re-ground on the fence: an actor there would put operator identity in the **Observed** corpus, one join from the comparison path |
 
@@ -1013,31 +1013,31 @@ Final strings are in §8 · E. The sites:
 
 | Site | Verbatim (abridged) | Call |
 | --- | --- | --- |
-| `design-system/templates/settings.tmpl:867` | the audit tab lede | *"Who did what, when."* survives verbatim and becomes the whole lede |
+| `design-system/templates/settings.tmpl#settings-sessions` | the audit tab lede | *"Who did what, when."* survives verbatim and becomes the whole lede |
 | `settings.tmpl:882-883` | *"No audit log"* + the two substitute links | Becomes a genuine #47 empty state — *no acts recorded yet* — never a statement that the facility is absent |
 | `settings.tmpl:898` | the Sources callout — *"it keeps no log line of its own; it is dated by the batch…"* | A toggle is limb 1 and writes an `Act`. **#1787's bare strike is not sufficient** — see §8 · E.4 |
-| `design-system/examples/console/Sources.jsx:64` | the same sentence in the React example | Same replacement. ADR-0110 makes the examples the console's IA spec |
-| `cmd/web/settings.go:918` | `// No queryable log exists, so this ships an empty state, never fabricated data (ADR-0110).` | **Deleted** when `fillAuditSection` reads the corpus |
-| `cmd/web/annotations.go:57` | `// An operator dial carries no author, so neither act records who declared it (ADR-0073).` | Half stays true, half becomes false. Replacement, within the comment gates: `// The row carries no author; the act does (ADR-0073, #1786).` |
-| `db/migrations/18500_source_state.sql:18-19` | *"ADR-0073 rules that no operator act is written down with an actor on it"* | *"carries NO actor and NO instant of its own"* **confirmed**. The gloss becomes: ADR-0073 rules that no **Declared term** carries an actor |
+| `design-system/examples/console/Sources.jsx` | the same sentence in the React example | Same replacement. ADR-0110 makes the examples the console's IA spec |
+| `cmd/web/settings.go#server.fillAPISection` | `// No queryable log exists, so this ships an empty state, never fabricated data (ADR-0110).` | **Deleted** when `fillAuditSection` reads the corpus |
+| `cmd/web/annotations.go#server.declareAnnotation` | `// An operator dial carries no author, so neither act records who declared it (ADR-0073).` | Half stays true, half becomes false. Replacement, within the comment gates: `// The row carries no author; the act does (ADR-0073, #1786).` |
+| `db/migrations/18500_source_state.sql` | *"ADR-0073 rules that no operator act is written down with an actor on it"* | *"carries NO actor and NO instant of its own"* **confirmed**. The gloss becomes: ADR-0073 rules that no **Declared term** carries an actor |
 
-**`db/migrations/21200_integration_state.sql:17` is confirmed and needs nothing** — it states the
+**`db/migrations/21200_integration_state.sql` is confirmed and needs nothing** — it states the
 per-object refusal without the generalisation. `20400_annotation.sql` is amended by §8 · D.3 rather
 than by this row.
 
 **No `sqlc` regeneration is forced by the withdrawal set.** `sqlc` lifts comments from `db/queries/`,
 not `db/migrations/`, and `internal/db` is clean of these sentences. The one ADR-0073 citation that
-*is* lifted (`db/queries/annotations.sql:7`) cites §3/§4 and is untouched. **§9's `JOIN` sweep does
+*is* lifted (`db/queries/annotations.sql#ListAnnotations`) cites §3/§4 and is untouched. **§9's `JOIN` sweep does
 force a regeneration** — that is a different change.
 
 ### A.5 · Specs and guides
 
 | Site | Verbatim (abridged) | Call |
 | --- | --- | --- |
-| `docs/guides/accounts.md:152-154` | *"There is no audit log of these acts … the **Audit** tab is honestly empty."* | **The baldest statement of the refusal in the tree.** Replaced wholesale when the tab ships. It is a paragraph rewrite against a shipped tab, not a string swap |
-| `docs/guides/sources.md:140-143` | *"…which is where the audit trail lives … not by a log line on the toggle."* | *"no per-toggle history and carries no actor or timestamp of its own"* **confirmed** (the row). *"which is where the audit trail lives"* withdrawn — the batch dates the **estate-side** fact. The final clause withdrawn outright |
-| `docs/spec/raw-job-output.md:385-387` | *"**Reads are unaudited.** … The audit facility is a repo-wide stub … **No audit-of-reads in v1.**"* | §1.4 removes the stated ground, so the deferral cannot be inherited. Replacement: a `Transcript` disclosure is the **one** auditable read, and every other read stays unaudited on a **named** ground rather than on the stub |
-| `docs/spec/raw-job-output.md:522-523` | *"**Open, accepted.** Reads are unaudited (§5.4)…"* | Moves from *open, accepted* to *closed by #1786* |
+| `docs/guides/accounts.md#accounts-invites--roles` | *"There is no audit log of these acts … the **Audit** tab is honestly empty."* | **The baldest statement of the refusal in the tree.** Replaced wholesale when the tab ships. It is a paragraph rewrite against a shipped tab, not a string swap |
+| `docs/guides/sources.md#enabling-and-disabling--admin-only` | *"…which is where the audit trail lives … not by a log line on the toggle."* | *"no per-toggle history and carries no actor or timestamp of its own"* **confirmed** (the row). *"which is where the audit trail lives"* withdrawn — the batch dates the **estate-side** fact. The final clause withdrawn outright |
+| `docs/spec/raw-job-output.md#54-blast-radius-note--residual-risk-accepted` | *"**Reads are unaudited.** … The audit facility is a repo-wide stub … **No audit-of-reads in v1.**"* | §1.4 removes the stated ground, so the deferral cannot be inherited. Replacement: a `Transcript` disclosure is the **one** auditable read, and every other read stays unaudited on a **named** ground rather than on the stub |
+| `docs/spec/raw-job-output.md#10-where-this-is-thin-stated-rather-than-smoothed` | *"**Open, accepted.** Reads are unaudited (§5.4)…"* | Moves from *open, accepted* to *closed by #1786* |
 | `docs/adr/0126…md:119` | *"Audit every read of a `Transcript` \| The audit facility is a repo-wide stub…"* | Withdrawn: **the alternative is now adopted**, and ADR-0126's own ground — the one corpus Postgres holds a secret for — is what selects it |
 | `docs/adr/0126…md:124` | *"**Reads are unaudited in v1.** … Accepted residual risk."* | Withdrawn with `:119` |
 
@@ -1064,7 +1064,7 @@ refusal.** The amendment is owed on **#11**, not on #127.
 
 ### A.8 · Prototypes — 2 sites, flagged
 
-`prototypes/signals-annotated/index.html:9-11` and `:869-873` both state the refusal as a rule.
+`prototypes/signals-annotated/index.html` and `:869-873` both state the refusal as a rule.
 **A genuine conflict of precedent, and this SPEC does not resolve it.** ADR-0075 says a prototype is
 *a dated record of a reading, never of a rule*, which exempts both lines. But ADR-0093's Context read
 two prototypes as *"drawn states a session would build from"* and treated them as evidence.
@@ -1084,25 +1084,25 @@ them.
 | #127 §7, fourth bullet — *accountability, never forensics* | Adopted verbatim (§5.2) |
 | #127 §6 | Shipped exactly as described: own surface under `Settings`, no nav slot, #47's empty rule |
 | `docs/adr/0073…md:186-189` — *"the option that lost: store the author, render nothing"* | This effort renders. The refusal of the store-only shape is untouched |
-| `db/migrations/20400_annotation.sql:10-11`, `21200_integration_state.sql:17`, `docs/guides/integrations.md:54` | Per-object refusals. True |
+| `db/migrations/20400_annotation.sql`, `21200_integration_state.sql:17`, `docs/guides/integrations.md#what-a-tile-is--catalogue-plus-one-install-fact` | Per-object refusals. True |
 | `docs/adr/0074…md:43-44` | Scoping about ADR-0074's own reach. `[thin]` **Low confidence — a strict reading would list it beside `:76`** |
 | `docs/adr/0039…md:194` | The operator/system split survives; ADR-0039's point is untouched |
 | `docs/adr/0092…md:86`, `CONTEXT.md:516`, `signals.tmpl:241`, `db/migrations/25000…sql:11` — *"with no operator act"* | **A different sense entirely** — *nobody did anything*, never *nothing was recorded*. Not sites |
 | `docs/wayfinder/map-*.md` (8 files) | Dated archives, all last written 2026-08-14/15 |
 | `docs/adr/index.json` | **Derived.** Regenerated by the `doclint` workflow. It moves when the ADRs move |
-| `docs/adr/0173…md:65`, `cmd/web/settings.go:221`, `settings_test.go:84`, `settings_fixtures.go:381,504-505` | Plumbing, not prose. It changes when the corpus lands |
+| `docs/adr/0173…md:65`, `cmd/web/settings.go#settingsTabs`, `settings_test.go:84`, `settings_fixtures.go:381,504-505` | Plumbing, not prose. It changes when the corpus lands |
 
 ### C · The demand side — 18 sentences that become true, owing no withdrawal
 
 **Not one of these is in the withdrawal set.** They are the contradiction, not the refusal, and they
 are the ground §What-this-builds rests on.
 
-`docs/guides/accounts.md:10` *"Every act in verge-asm has an author."* · `accounts.md:28` ·
-`docs/guides/first-run.md:24` · `docs/guides/running.md:61` · `docs/guides/using.md:187` *"a toggle is
-a dated, audit-trailed act"* · `docs/guides/api.md:37,:41` · `docs/spec/v1-spec.md:429-432` ·
-`docs/spec/packaging-and-configuration.md:260-262`, `:297-298`, `:303-305`, `:313-314`, `:332-333`,
+`docs/guides/accounts.md#accounts-invites--roles` *"Every act in verge-asm has an author."* · `accounts.md:28` ·
+`docs/guides/first-run.md#the-three-layers-declared-observed-derived` · `docs/guides/running.md#configuration` · `docs/guides/using.md#reading-what-it-found` *"a toggle is
+a dated, audit-trailed act"* · `docs/guides/api.md#enabling-the-api,:41` · `docs/spec/v1-spec.md#43-auth--access` ·
+`docs/spec/packaging-and-configuration.md#44-the-intent-and-where-it-is-declared`, `:297-298`, `:303-305`, `:313-314`, `:332-333`,
 `:646` · `docs/adr/0053…md:97-99`, `:220-221` · `docs/adr/0113…md:76-78` · `docs/adr/0132…md:27-29` ·
-`docs/research/safe-active-probing.md:1248` · `docs/adr/0159…md:71,:95,:145,:193`
+`docs/research/safe-active-probing.md#82-design-consequences` · `docs/adr/0159…md:71,:95,:145,:193`
 
 Two riders. **The three `packaging-and-configuration.md` carve-outs strengthen** — each is granted
 because *this object has no author, so it owes no audit trail*, and the test becomes a real test rather
@@ -1179,12 +1179,12 @@ the keystroke objection in the same terms.
 
 **Amended for form** (both survive literally, because an `Act` is none of the corpora they list, and
 both still lead a reader wrong): `CONTEXT.md:535` — *"no `Message`, `Batch`, `Gap` or `revealed`
-anywhere in the model dates the act"* — and `db/migrations/20400_annotation.sql:16-18` — *"no `Message`
+anywhere in the model dates the act"* — and `db/migrations/20400_annotation.sql` — *"no `Message`
 anywhere in the model dates the act"*. **This amends §8 · A.4's row for that file.** No `sqlc`
 regeneration is forced.
 
-**Confirmed and needing nothing:** `docs/guides/using.md:193`, `docs/adr/0073…md:251`,
-`db/migrations/18500_source_state.sql:18-19`, `21200_integration_state.sql:17`.
+**Confirmed and needing nothing:** `docs/guides/using.md#annotations`, `docs/adr/0073…md:251`,
+`db/migrations/18500_source_state.sql`, `21200_integration_state.sql:17`.
 
 **An enumeration of corpora goes stale the next time a corpus lands. That is what just happened, and it
 is why the restated limb names no corpus.**
@@ -1213,8 +1213,8 @@ and nothing else.**
 Written against the shipped `st-` block. Copy is `verge-asm-design`'s to confirm when the
 implementation map lands.
 
-**E.1 · The remove-member dialog** — `design-system/templates/settings.tmpl:743`, and its twins
-`design-system/examples/console/Settings.jsx:456` and `design-system/examples/DocsPage.jsx:113`.
+**E.1 · The remove-member dialog** — `design-system/templates/settings.tmpl#settings-team`, and its twins
+`design-system/examples/console/Settings.jsx` and `design-system/examples/DocsPage.jsx`.
 
 Replaces *"Their annotations and audit history stay attributed. Personal API tokens are revoked."*
 
@@ -1262,7 +1262,7 @@ line of its own;"* leaves *"Enabling or disabling is an admin act — it is date
 subject is **an admin act**. An `Act` carries its own `When`, so the bare strike leaves the same error
 one clause later. The replacement gives the batch clause a subject that really is the estate.
 
-**E.5 · The removal refusal** — `cmd/web/settings.go:483`.
+**E.5 · The removal refusal** — `cmd/web/settings.go#server.removeAccount`.
 
 Today: *"…has declared scopes, channels, or other **attributed acts** and cannot be removed — reassign
 or keep the account."*
@@ -1282,7 +1282,7 @@ restrict-and-refuse is gone under §9, not merely re-worded.
 restrict. One already ships `ON DELETE SET NULL`.** All fourteen become **nullable
 `ON DELETE SET NULL`**. **None is deleted, and nothing new is rendered.**
 
-**The ground is already written in the tree**, at `db/migrations/24700_seed_withdrawal.sql:32-38`:
+**The ground is already written in the tree**, at `db/migrations/24700_seed_withdrawal.sql`:
 *"The attribution is worth keeping while the account exists and is not worth making a member
 undeletable."* That sentence is the rule. `seed_withdrawal` is only where it first bit, and
 `db/migrations/seed_withdrawal_test.go` already holds it there. §5.4 reached the same conclusion one
@@ -1298,22 +1298,22 @@ widen from `NOT NULL`.
 the object vanish from the result set.** Two consequences are behavioural, not cosmetic:
 
 - **`verge_core`.** `ListVergeCoreFrequencyEditsWithAuthor` feeds `shipped.WithFrequencyEdits(edits)`
-  (`cmd/web/settings.go:827-838`). A dropped row **silently reverts that port's frequency action** —
+  (`cmd/web/settings.go#server.fillVantagesSection`). A dropped row **silently reverts that port's frequency action** —
   *"a port you can hide is a signal you can silence"* (`docs/spec/v1-spec.md` §3.5).
 - **`subjects`.** `FindCoveringAddressSeed` is `:one`. A dropped row returns `ErrNoRows`, so the subject
   **loses its `Declared · Seed` hop** and its citation chain reads unterminated
-  (`cmd/web/subjects.go:296-311,434-449`).
+  (`cmd/web/subjects.go#server.buildEndpointCitation,434-449`).
 
 **The FK widening and the `JOIN` sweep land in one change.** The sweep has three limbs.
 
-1. **Delete six dead JOINs** — `db/queries/exclusions.sql:15`, `vantages.sql:24`, `zone.sql:21`,
+1. **Delete six dead JOINs** — `db/queries/exclusions.sql#CreateDeclinedProposalExclusion`, `vantages.sql:24`, `zone.sql:21`,
    `verge_core.sql:12`, `proposals.sql:16` **and `seeds.sql:15`**. Each JOINs `account` only to select a
    username that Go then discards. Deleting beats widening.
    **`seed` keeps its JOIN on the subject-detail path and loses it on the scope path — say this
    explicitly, or a later session tidies it back.**
 2. **`LEFT JOIN` five live ones** — `subjects.sql:314,323,333`, `channels.sql:12`, `sso.sql:14`.
 3. **Three dial sites need no SQL.** They resolve the name by scanning `ListAccounts` in Go
-   (`cmd/web/settings.go:807,1345,1394`) and already blank on no match.
+   (`cmd/web/settings.go#server.fillVantagesSection,1345,1394`) and already blank on no match.
 
 **Two consequences for the implementation map.** `ListVergeCoreFrequencyEditsWithAuthor` is **misnamed
 afterwards**, and every `db/queries/` edit **forces a `sqlc` regeneration in the same PR** — the `sqlc`
@@ -1327,7 +1327,7 @@ none of them redundant.
 
 | | Column | Render site |
 | --- | --- | --- |
-| **Rendered · 6** | `seed.created_by` | `subjectdetail.tmpl:117` via `cmd/web/subjects.go:303,441` — *prose* |
+| **Rendered · 6** | `seed.created_by` | `subjectdetail.tmpl:117` via `cmd/web/subjects.go#server.buildEndpointCitation,441` — *prose* |
 | | `sso_provider.created_by` | `settings.tmpl:588` "Declared by" — *table cell* |
 | | `channel.created_by` | `settings.tmpl:1254` "Declared by" — *table cell* |
 | | `instance_config.api_updated_by` | `settings.tmpl:1223` "Enabled by" — *prose* |
@@ -1338,7 +1338,7 @@ none of them redundant.
 
 **An authorless object renders `removed account`** as an `st-tag` in the two table cells, and
 **`a removed account`** as plain text in the four prose sites. **A blank is refused**: `channelView.At`
-is declared at `cmd/web/settings.go:86` and never assigned, so `settings.tmpl:1254` already ships a
+is declared at `cmd/web/settings.go#channelView` and never assigned, so `settings.tmpl:1254` already ships a
 username beside a blank date, and it reads as a bug. *(A finding for the implementation map: that blank
 is a pre-existing defect in the same cell the sweep touches.)*
 
@@ -1404,8 +1404,8 @@ That phrasing is #127 §1's own.
 *"so the operational record is **four** corpora"* → **five**, with `Act` named beside `Transcript`.
 
 **Three adjacent ordinals stay right and must not be moved:** `Transcript`'s own *"fourth Operational
-corpus, beside `Dispatch`, `Message` and `Delivery`"*, `db/migrations/23700_transcript.sql:4`, and
-`docs/spec/raw-job-output.md:55`. Each names `Transcript`'s position, not the count.
+corpus, beside `Dispatch`, `Message` and `Delivery`"*, `db/migrations/23700_transcript.sql`, and
+`docs/spec/raw-job-output.md#1-data-model--the-transcript-corpus`. Each names `Transcript`'s position, not the count.
 
 ### 10.3 The `Annotation` entry — `CONTEXT.md:530-532`
 
@@ -1441,7 +1441,7 @@ append-only, no dial. And its own bar:
 > `_Avoid_`: audit entry, log line, event, activity, history, ledger.
 
 `log` is already barred by `Transcript`, and `event`/`activity`/`history` by `Message`. `AUDIT-LEDGER`
-is a recorded dead token (`docs/spec/comment-policy.md:1166`). **The interface label stays "Audit
+is a recorded dead token (`docs/spec/comment-policy.md#47-a-reason-with-no-adr-to-cite`). **The interface label stays "Audit
 log"**, on the `Asset` precedent — *acceptable as a collective noun in the interface, never as a
 modelled thing*.
 
@@ -1507,7 +1507,7 @@ warning holds: most of what people mean by "audit trail" is this half, and it ne
 **No client IP on an `Act`.** The ground is **§5.1, not ADR-0159.** ADR-0159's Decision rules
 `clientIP`, the forwarding-header path, and its §4 names an audit column as a future consumer that
 *"needs a ruling against this ADR before it ships"* — it gates, it never forbade. **Do not re-cite
-ADR-0159 for this.** `sessionIP` (`cmd/web/auth.go:1858`) is a second shipped derivation that reads
+ADR-0159 for this.** `sessionIP` (`cmd/web/auth.go#profileRelTime`) is a second shipped derivation that reads
 `RemoteAddr` only and feeds `session.ip`, rendered on the admin Sessions tab — the same screen, the
 same datum. The column loses because **an `Act` is never deleted**, so the address would be retained
 permanently with no mechanism to remove it, while a `session` row expires and CASCADEs. The precedent
