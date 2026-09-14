@@ -98,6 +98,28 @@
 .cv-proj .big { font: 600 20px var(--font-mono); color: var(--text-ink); }
 .cv-proj .tx { font: 400 12px/1.6 var(--font-ui); color: var(--text-secondary); }
 .cv-subhead { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; }
+.cv-ledger { width: 100%; border-collapse: separate; border-spacing: 0; }
+.cv-ledger th { padding: 9px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); text-align: left; white-space: nowrap; }
+.cv-ledger td { padding: 12px 16px; vertical-align: top; border-top: 1px solid var(--row-sep); }
+.cv-ledger tbody tr:first-child td { border-top: none; }
+.cv-ledger td.in { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.cv-cad { display: flex; flex-direction: column; gap: 3px; }
+.cv-cad .v { font: 400 12.5px var(--font-mono); color: var(--text-body); }
+.cv-st { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.cv-st .det { font: 400 11px/1.5 var(--font-ui); color: var(--text-muted); }
+.cv-figs { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; border-radius: var(--r-sm); background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.cv-fig { font: 400 12.5px/1.5 var(--font-mono); color: var(--text-ink); }
+.cv-fig.zero { color: var(--text-secondary); }
+.cv-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font: 400 11.5px var(--font-mono); }
+.cv-chip .d { width: 6px; height: 6px; border-radius: 999px; background: var(--neutral-400); flex: none; }
+.cv-chip.on { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.cv-chip.on .d { background: var(--ok-solid); }
+.cv-rem { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.cv-remlink { display: inline-flex; align-items: center; gap: 5px; font: 500 12.5px var(--font-ui); color: var(--link); text-decoration: none; }
+.cv-remlink:hover { text-decoration: underline; }
+.cv-remlink .arr { font-family: var(--font-mono); opacity: 0.7; }
+.cv-none { font: 400 12px var(--font-mono); color: var(--text-muted); }
+.cv-why { font: 400 11px/1.5 var(--font-ui); color: var(--text-muted); }
 @media (max-width: 900px) { .cv-dials { grid-template-columns: minmax(0, 1fr); } }
 </style>
 <main class="cv-main" data-screen-label="Coverage">
@@ -105,6 +127,26 @@
 <h1>Coverage</h1>
 <span class="cv-sub">Where "we cannot construct this claim" lives — a feature, not an error.</span>
 </header>
+{{if .Statement}}
+<section class="cv-card flush">
+<div class="cv-cardhead"><span class="cv-micro">Aperture statement</span><h3>What this install is configured to look at</h3></div>
+<table class="cv-ledger">
+<thead><tr><th style="width:190px">Input</th><th style="width:220px">Cadence</th><th>State</th><th style="width:250px">Remedy</th></tr></thead>
+<tbody>
+{{range .Statement}}
+<tr>
+<td class="in">{{.Input}}</td>
+<td><div class="cv-cad"><span class="v">{{.Cadence}}</span><span class="cv-why">{{.CadenceWhy}}</span></div></td>
+<td><div class="cv-st"><span class="cv-chip{{if eq .StateKind "on"}} on{{end}}">{{if ne .StateKind "fixed"}}<span class="d"></span>{{end}}{{.State}}</span>
+{{if .Figures}}<div class="cv-figs">{{range .Figures}}<span class="cv-fig{{if .Zero}} zero{{end}}">{{.Text}}</span>{{end}}</div>{{end}}
+<span class="det">{{.StateDetail}}</span></div></td>
+<td><div class="cv-rem">{{if .RemedyHref}}<a class="cv-remlink" href="{{.RemedyHref}}">{{.Remedy}}<span class="arr">&rarr;</span></a>{{else}}<span class="cv-none">{{.Remedy}}</span>{{end}}<span class="cv-why">{{.RemedyWhy}}</span></div></td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</section>
+{{end}}
 <div class="cv-grid">
 <div class="cv-col">
 <section class="cv-card">
