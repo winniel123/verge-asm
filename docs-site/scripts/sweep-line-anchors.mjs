@@ -13,6 +13,8 @@ import {
 } from "./citations/burndown.mjs";
 import { derive } from "./sweep/derive.mjs";
 import { rewriteDocument, trailingGlue } from "./sweep/rewrite.mjs";
+import { auditAnchors, reportAudit } from "./sweep/audit.mjs";
+import { inScopeFiles } from "./citations/scope.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -21,10 +23,51 @@ const USAGE = `usage:
   sweep-line-anchors [<path>...]            # a dry run, and it writes nothing
   sweep-line-anchors --write <path>...      # convert those documents and delete their entries
   sweep-line-anchors --report <file> ...    # also write the plan as JSON
+  sweep-line-anchors --audit [<path>...]    # judge the anchors already written, and write nothing
 
 A <path> is a document or a directory prefix, spelled from the repository root.
 A dry run with no path reads the whole burn-down list.
+An --audit run reads the citations boundary instead, because the written tokens left the list.
 `;
+
+// The audit reads the tree, so it selects documents rather than burn-down entries (SPEC §6.1).
+export function selectFiles(repoRoot, files, prefixes) {
+  if (prefixes.length === 0) return files;
+  return files.filter((abs) => {
+    const rel = abs.slice(repoRoot.length + 1).replace(/\\/g, "/");
+    return prefixes.some((p) => rel === p || rel.startsWith(`${p}/`));
+  });
+}
+
+function audit(prefixes, reportFile) {
+  const env = environment(REPO_ROOT);
+  const files = selectFiles(REPO_ROOT, inScopeFiles(REPO_ROOT), prefixes);
+  const judged = auditAnchors(REPO_ROOT, env, files);
+  const { suspects, review } = reportAudit(judged);
+  if (reportFile) {
+    writeFileSync(reportFile, `${JSON.stringify(auditRecord(judged), null, 2)}\n`);
+    console.log("");
+    console.log(`  wrote the audit to ${reportFile}`);
+  }
+  console.log("");
+  console.log(
+    `  the audit writes nothing. Of ${suspects.length + review.length} suspect anchor(s), ` +
+      `${suspects.length} degrade by hand (SPEC §6.3) and ${review.length} enter the review queue.`,
+  );
+}
+
+// A suspect anchor is repaired by a human, so the record carries the pair and never a new target.
+export function auditRecord(judged) {
+  return judged.map((a) => ({
+    file: a.file,
+    line: a.line,
+    family: a.family,
+    target: `${a.value}#${a.anchor}`,
+    verdict: a.verdict,
+    ...(a.rival ? { rival: a.rival, position: a.position } : {}),
+    ...(a.detail ? { detail: a.detail } : {}),
+  }));
+}
 
 // A --write run leaves no trace of a degradation, and SPEC §8.4 feeds a later repair effort.
 export function reportRecord(results) {
@@ -35,6 +78,7 @@ export function reportRecord(results) {
     outcome: r.outcome,
     row: r.row?.name,
     ...(r.outcome === "anchor" ? { anchor: `${r.value}#${r.anchor}` } : { reason: r.reason }),
+    ...(r.review ? { review: r.review } : {}),
   }));
 }
 
@@ -96,6 +140,15 @@ function report(results, missing) {
     console.log(`  ${String(r.line).padStart(5)}  ${r.token}  ->  ${r.value}#${r.anchor}  [${r.row.name}]`);
   }
 
+  const review = anchors.filter((r) => r.review);
+  if (review.length > 0) {
+    console.log("");
+    console.log("Review queue — a rival spelled only afterwards, so a human reads the pair (SPEC §5.2 rule 2):");
+    for (const r of review) {
+      console.log(`  ${r.file}:${r.line}  ${r.value}#${r.anchor}  vs  \`${r.review.rival}\``);
+    }
+  }
+
   if (degradations.length > 0) {
     console.log("");
     console.log("Degraded — the anchor drops and the bare path stays (SPEC §8.4):");
@@ -136,6 +189,7 @@ function report(results, missing) {
   const n = (rows) => String(rows.length).padStart(5);
   console.log(`sweep — ${results.length} token(s) read from the burn-down list.`);
   console.log(`  ${n(anchors)}  derive an anchor`);
+  console.log(`  ${n(review)}  of those enter the review queue`);
   console.log(`  ${n(degradations)}  degrade to a bare path`);
   console.log(`  ${n(holds)}  held back: the path itself is gone`);
   console.log(`  ${n(missing)}  listed, and no scan finds them`);
@@ -201,8 +255,17 @@ function main() {
     console.error("sweep: --report names the file it writes the plan to");
     process.exit(2);
   }
-  const args = argv.filter((a, i) => !a.startsWith("--") && i !== at + 1);
+  // An absent --report puts `at` at -1, and the old guard then dropped the first path (#2007).
+  const args = argv.filter((a, i) => !a.startsWith("--") && (at < 0 || i !== at + 1));
   const prefixes = args.map((p) => p.replace(/\/+$/, ""));
+  if (argv.includes("--audit")) {
+    if (write) {
+      console.error("sweep: --audit reports, and a suspect anchor is repaired by a human (SPEC §6.3)");
+      process.exit(2);
+    }
+    audit(prefixes, reportFile);
+    return;
+  }
   if (write && prefixes.length === 0) {
     console.error("sweep: --write names the documents it rewrites, so it takes a path");
     process.exit(2);

@@ -8,7 +8,16 @@ import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
 import { ROWS } from "./citations/rows.mjs";
 import { derive, splitToken } from "./sweep/derive.mjs";
 import { rewriteDocument, replacementFor, trailingGlue, namesAnotherSite } from "./sweep/rewrite.mjs";
-import { selectEntries, planFor, scanDocuments, reportRecord } from "./sweep-line-anchors.mjs";
+import { auditAnchors, countByFamily } from "./sweep/audit.mjs";
+import { familyOf } from "./citations/scope.mjs";
+import {
+  selectEntries,
+  selectFiles,
+  planFor,
+  scanDocuments,
+  reportRecord,
+  auditRecord,
+} from "./sweep-line-anchors.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -465,4 +474,171 @@ test("planFor reports a listed token no scan finds", () => {
   assert.equal(results.length, 1);
   assert.equal(results[0].anchor, "Alpha");
   assert.deepEqual(missing, [entries[1]]);
+});
+
+// SPEC §4.3 class A: the rival belongs to a second claim, and the site cell comes first.
+test("a rival spelled only after the citation converts and enters the review queue", () => {
+  const token = goToken("return 1");
+  const citing = `\`${token}\` holds \`Delta.Epsilon\`, the shipped precedent`;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+  assert.deepEqual(r.review, { rival: "Delta.Epsilon", position: "after" });
+});
+
+test("the review queue names both candidates, so a human reads the pair", () => {
+  const token = goToken("return 1");
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, `\`${token}\` holds \`Delta.Epsilon\``);
+  const [record] = reportRecord([r]);
+  assert.equal(record.anchor, `${FIXTURE}/go/decls.go#Alpha`);
+  assert.equal(record.review.rival, "Delta.Epsilon");
+});
+
+// SPEC §5.3: rule 1 stands, so a rival on both sides still degrades.
+test("a rival spelled before the citation outranks one spelled after", () => {
+  const token = goToken("return 1");
+  const citing = `\`Delta.Epsilon\` and \`${token}\` and \`Delta.Epsilon\` again`;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /names `Delta\.Epsilon` before the citation/);
+});
+
+// SPEC §4.3 class B: `POST /onboarding` collides with the declaration `server.onboarding`.
+test("a route span spells no declaration name, so the conversion stands", () => {
+  const citing = "| `POST /Delta.Epsilon` | Wizard step (`x.go:1`) |";
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+  assert.equal(r.review, undefined);
+});
+
+test("a leading slash spells a route too, and a bare segment corroborates nothing", () => {
+  const citing = "see `/Delta.Epsilon` and `x.go:1`";
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "anchor");
+});
+
+// A converted sibling on one line named its own target, and each read the other as a rival.
+test("a second citation's own span names a target, not a declaration", () => {
+  const citing = `\`${FIXTURE}/go/decls.go#Delta.Epsilon\` and \`${goToken("return 1")}\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("familyOf reads the boundary's own entries, so no caller copies the list", () => {
+  assert.equal(familyOf("docs/spec/audit-act.md"), "docs/spec");
+  assert.equal(familyOf("docs/adr/0001-a.md"), "docs/adr");
+  assert.equal(familyOf("CONTEXT.md"), ".");
+  assert.equal(familyOf("docs/research/note.md"), null);
+});
+
+test("selectFiles reads a path as a document or a directory prefix", () => {
+  const files = [`${REPO_ROOT}/docs/spec/a.md`, `${REPO_ROOT}/docs/adr/0001-b.md`];
+  assert.equal(selectFiles(REPO_ROOT, files, []).length, 2);
+  assert.deepEqual(selectFiles(REPO_ROOT, files, ["docs/spec"]), [files[0]]);
+  assert.deepEqual(selectFiles(REPO_ROOT, files, ["docs/adr/0001-b.md"]), [files[1]]);
+  assert.deepEqual(selectFiles(REPO_ROOT, files, ["docs/none"]), []);
+});
+
+// The audit reads written anchors, because the repaired tokens' burn-down entries are gone.
+const AUDIT_DOC = [
+  "# Page",
+  "",
+  `\`Alpha\` returns one (\`${FIXTURE}/go/decls.go#Alpha\`)`,
+  "",
+  `\`Delta.Epsilon\` (\`${FIXTURE}/go/decls.go#Alpha\`) caps it`,
+  "",
+  `\`${FIXTURE}/go/decls.go#Alpha\` holds \`Delta.Epsilon\``,
+  "",
+  `a bare mention of \`${FIXTURE}/go/decls.go#Alpha\``,
+  "",
+  `| \`POST /Delta.Epsilon\` | writes nothing (\`${FIXTURE}/go/decls.go#Alpha\`) |`,
+  "",
+  `\`${FIXTURE}/go/decls.go#Delta.Epsilon\` and \`${FIXTURE}/go/decls.go#Alpha\``,
+  "",
+].join("\n");
+
+function auditFixture() {
+  const paths = fixture({ "go/decls.go": GO_SOURCE, "docs/spec/page.md": AUDIT_DOC });
+  const abs = join(REPO_ROOT, FIXTURE, "docs/spec/page.md");
+  return auditAnchors(REPO_ROOT, envFor(paths), [abs], AT_FIXTURE);
+}
+
+test("the audit judges every written region anchor the tree holds", () => {
+  const judged = auditFixture();
+  assert.deepEqual(
+    judged.map((a) => `${a.line}:${a.verdict}`),
+    ["3:corroborated", "5:suspect", "7:suspect", "9:unproven", "11:unproven", "13:unproven", "13:unproven"],
+  );
+});
+
+test("the audit reports the rival and its position, and never a new target", () => {
+  const judged = auditFixture();
+  const before = judged.find((a) => a.line === 5);
+  const after = judged.find((a) => a.line === 7);
+  assert.deepEqual([before.anchor, before.rival, before.position], ["Alpha", "Delta.Epsilon", "before"]);
+  assert.deepEqual([after.anchor, after.rival, after.position], ["Alpha", "Delta.Epsilon", "after"]);
+});
+
+test("countByFamily reports suspect, corroborated and unproven per family", () => {
+  const [row] = countByFamily(auditFixture());
+  assert.deepEqual(row, {
+    family: ".",
+    anchors: 7,
+    suspect: 2,
+    corroborated: 1,
+    unproven: 4,
+    unreadable: 0,
+  });
+});
+
+test("auditRecord carries the pair a human reads, and proposes no anchor", () => {
+  const record = auditRecord(auditFixture());
+  const suspect = record.find((a) => a.line === 5);
+  assert.equal(suspect.verdict, "suspect");
+  assert.equal(suspect.rival, "Delta.Epsilon");
+  assert.equal(suspect.target, `${FIXTURE}/go/decls.go#Alpha`);
+  assert.equal(record.find((a) => a.line === 9).rival, undefined);
+});
+
+// A signature span carries a space and no slash, and rule 3 must not read it as a route.
+test("a span that spells a signature still corroborates the region", () => {
+  const token = goToken("return 1");
+  const citing = `\`func Alpha() int\` and \`Delta.Epsilon\` hold \`${token}\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+  assert.equal(r.review, undefined);
+});
+
+// A retired token hides its path from the path class, so the class reads it without the line.
+test("a sibling line-anchor token names a target, not a declaration", () => {
+  const token = goToken("return 1");
+  const citing = `\`${FIXTURE}/go/other.go:12\` then \`${token}\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("a bare-prose copy of the token does not reorder the rival", () => {
+  const token = goToken("return 1");
+  const citing = `see ${token} and \`Delta.Epsilon\` then \`${token}\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /names `Delta\.Epsilon` before the citation/);
+});
+
+test("the audit counts a row that could not run apart from a missing vocabulary", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE, "docs/spec/page.md": AUDIT_DOC });
+  const abs = join(REPO_ROOT, FIXTURE, "docs/spec/page.md");
+  const broken = AT_FIXTURE.map((row) =>
+    row.name === "go"
+      ? { ...row, inventory: () => { throw new Error("godecls did not finish"); } }
+      : row,
+  );
+  const judged = auditAnchors(REPO_ROOT, envFor(paths), [abs], broken);
+  assert.equal(judged.length, 7);
+  assert.ok(judged.every((a) => a.verdict === "unreadable"));
+  assert.match(judged[0].detail, /the go row could not run: godecls did not finish/);
 });

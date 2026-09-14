@@ -54,6 +54,12 @@ export function inScopeFiles(repoRoot) {
   return files.sort();
 }
 
+// A report groups by the boundary's own entries, so no caller copies the list (SPEC §1.2).
+export function familyOf(relPath) {
+  const rel = relPath.replace(/\\/g, "/");
+  return FAMILY_DIRS.find((dir) => rel.startsWith(`${dir}/`)) ?? (ROOT_FILES.includes(rel) ? "." : null);
+}
+
 export function isInScope(repoRoot, absPath) {
   const rel = relative(repoRoot, absPath).replace(/\\/g, "/");
   if (rel === "" || rel.startsWith("../")) return false;

@@ -86,14 +86,16 @@ function deriveOne(token, inventory) {
     return degraded(token, `\`${region.name}\` leaves the anchor character class`);
   }
   // A stale line resolves as a live one does, so a name the citing line spells overrules it.
-  const rival = rivalName(token.lineText, token.token, entry.spans.keys(), region.name);
-  if (rival) {
+  const judged = rivalName(token.lineText, token.token, entry.spans.keys(), region.name);
+  if (judged.verdict === "suspect" && judged.position === "before") {
     return degraded(
       token,
-      `the citing line names \`${rival}\`, and line ${token.fromLine} of ${token.path} sits in ` +
-        `${region.name}, so the line has drifted`,
+      `the citing line names \`${judged.rival}\` before the citation, and line ${token.fromLine} ` +
+        `of ${token.path} sits in ${region.name}, so the line has drifted`,
     );
   }
+  // A silent degrade drops a sound anchor and a silent conversion keeps a wrong one (SPEC §5.2).
+  const review = judged.verdict === "suspect" ? { rival: judged.rival, position: judged.position } : null;
   // Converting mints a snippet claim over the next code span (SPEC §3.4).
   if (token.snippet != null && !holdsSnippet(entry.lines, entry.spans.get(region.name), token.snippet)) {
     return degraded(
@@ -102,7 +104,7 @@ function deriveOne(token, inventory) {
         `${region.name} holds it`,
     );
   }
-  return { ...token, outcome: "anchor", anchor: region.name };
+  return { ...token, outcome: "anchor", anchor: region.name, ...(review ? { review } : {}) };
 }
 
 // One derivation for all four conversion tickets, so no batch re-invents the conversion (#1975).
