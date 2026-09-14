@@ -25,7 +25,7 @@ renumbers, or retitles no existing ADR.
 | Decision proposal block | Five PR-body fields: Thesis (16 words or fewer), Site (`file:line`), Alternative, Reversal, Proof. One unticked "Ratified" checkbox ends it. |
 | Touch | A PR diff that includes an ADR file, a line that cites it, or the code beside a comment that cites it. |
 
-## 3. The file (#1641)
+## 3. The file (#1641, #1912)
 
 The file is `docs/adr/<number>-<slug>.md`, zero-padded to four digits and never more. It opens with
 YAML front matter, one blank line, then the H1. The parser loads the YAML core schema, so an unquoted
@@ -52,6 +52,13 @@ the body, 150 words or fewer, and numbered sections follow it.
 An ADR never amends itself in place. It changes only through a later ADR with an `amends`, `retires`,
 or `supersedes` relation. The citation `ADR-nnnn #nnn` names a legacy in-file amendment and is valid
 at 227 and below only.
+
+A cross-file citation names a `§` where the target numbers its headings, and a bare path where it
+does not. It names no line. A line anchor shifts under every insertion above it. No check reads one:
+the path pattern in `docs-site/scripts/citations/extract.mjs` admits no colon, so a `path:NNN` token
+never becomes a citation candidate. Repointing a stale anchor is a factual repair, and it needs no
+relation. Changing what an ADR asserts is not a repair, and it runs through a later ADR's relation
+under §4.
 
 ## 4. Relations and status (#1641)
 
