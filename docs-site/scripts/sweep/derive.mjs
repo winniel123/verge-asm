@@ -3,6 +3,7 @@ import { CONTAINMENT_ROW } from "../citations/rows/containment.mjs";
 import { ANCHOR } from "../citations/extract.mjs";
 import { holdsSnippet } from "../citations/armb.mjs";
 import { classify } from "../citations/classify.mjs";
+import { namesAnotherSite } from "./rewrite.mjs";
 
 // A retired token spells its line two ways, and both carry an optional end (SPEC §5).
 const SPLIT = /^(.*?)(?::(\d+)(?:-(\d+))?|#L(\d+)(?:-[Ll]?(\d+))?)$/;
@@ -110,6 +111,11 @@ export function derive(repoRoot, env, found, rows = ROWS) {
     // A reversed range satisfies the containment test against a region holding neither line.
     if (parts.fromLine > parts.toLine) {
       done.push(degraded(base, `the range ${parts.fromLine}-${parts.toLine} runs backwards`));
+      continue;
+    }
+    // One anchor represents neither of two places, and the sweep never picks one (§3.3 rule 3).
+    if (namesAnotherSite(hit.glue)) {
+      done.push(degraded(base, `the token names another place at \`${hit.glue.trim()}\``));
       continue;
     }
     const { status, path } = resolvePath(env, hit.file, parts.value);

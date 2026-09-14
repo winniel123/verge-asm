@@ -7,17 +7,25 @@ export function replacementFor(result) {
 
 const GLUE = "[A-Za-z0-9_.@+/-]*";
 
+// `a/b.go:978,997` names a second place, and the scan reads only the first (#1976).
+const SITES = String.raw`(?:[,:]\s*:?\d+(?:-\d+)?)*`;
+
+// A residue the rewrite leaves behind keeps a line number the ratchet can no longer see (#1976).
+export function namesAnotherSite(glue) {
+  return /[,:]\s*:?\d/.test(glue ?? "");
+}
+
 // `a/b.go:265+` spells "onwards", and a region subsumes that, so the rewrite eats it (#1975).
 function gluedPattern() {
   const { source, flags } = lineAnchorPattern();
-  return new RegExp(`${source}${GLUE}`, flags);
+  return new RegExp(`${source}${GLUE}${SITES}`, flags);
 }
 
 export function trailingGlue(markdown, hit) {
   const slice = markdown.slice(hit.start, hit.end);
   const at = slice.indexOf(hit.token);
   if (at < 0) return "";
-  return new RegExp(`^${GLUE}`).exec(slice.slice(at + hit.token.length))?.[0] ?? "";
+  return new RegExp(`^${GLUE}${SITES}`).exec(slice.slice(at + hit.token.length))?.[0] ?? "";
 }
 
 // `internal/x.go:4` is a prefix of `internal/x.go:42`, so the scan's own pattern bounds the edit.
