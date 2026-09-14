@@ -129,7 +129,7 @@
 </header>
 {{if .Statement}}
 <section class="cv-card flush">
-<div class="cv-cardhead"><span class="cv-micro">Aperture statement</span><h3>What this install is configured to look at</h3></div>
+<div class="cv-cardhead"><span class="cv-micro">Aperture</span><h3>What this install is configured to look at</h3></div>
 <table class="cv-ledger">
 <thead><tr><th style="width:190px">Input</th><th style="width:220px">Cadence</th><th>State</th><th style="width:250px">Remedy</th></tr></thead>
 <tbody>
@@ -150,7 +150,7 @@
 <div class="cv-grid">
 <div class="cv-col">
 <section class="cv-card">
-<div class="cv-cardhead"><span class="cv-micro">Aperture</span><h3>What the last batch walked</h3></div>
+<div class="cv-cardhead"><span class="cv-micro">Address scopes</span><h3>What the last batch walked</h3></div>
 <div class="cv-body">
 {{if .Meters}}
 <div style="display:flex;flex-direction:column;gap:18px">
@@ -216,7 +216,7 @@
 {{end}}
 </section>
 <section class="cv-card">
-<div class="cv-cardhead"><span class="cv-micro">Rules</span><h3>Unevaluable this batch</h3></div>
+<div class="cv-cardhead"><span class="cv-micro">Rules</span><h3>Rules waiting on a reading</h3></div>
 <div class="cv-body">
 {{if .Unevaluable}}
 <div class="cv-rules">
@@ -229,7 +229,7 @@
 </div>
 {{else}}
 <div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
-<span class="msg">Every rule could evaluate</span>
+<span class="msg">Every rule read every subject in its domain.</span>
 <span class="det">No rule was blocked from evaluating this batch. A rule that needs a reading the batch did not commit — a handshake never completed, a zone that aged into a gap — would be listed here with what it was waiting on.</span></div>
 {{end}}
 </div>
