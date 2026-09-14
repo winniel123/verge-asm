@@ -21,9 +21,9 @@ relations:
 
 ## Context
 
-`custody.EgressGuard` (`internal/custody/egressguard.go:10`) returns a `net.Dialer.Control`
+`custody.EgressGuard` (`internal/custody/egressguard.go`) returns a `net.Dialer.Control`
 function. It refuses any address `IsNonGloballyReachable` marks, before the socket opens
-(`internal/custody/egressguard.go:22`).
+(`internal/custody/egressguard.go#EgressGuard`).
 
 ### The four install sites, confirmed by symbol on `38eec12`
 
@@ -43,7 +43,7 @@ it two dialers on a stated ground. This ADR does not reach it.
 ### One site already holds the seam this ticket asks for
 
 `httpexchange.NetExchanger` carries an **unexported** `control` field
-(`internal/measure/httpexchange/exchange.go:119`). `Exchange` reads it and installs
+(`internal/measure/httpexchange/exchange.go`). `Exchange` reads it and installs
 `custody.EgressGuard` when it is `nil` (`exchange.go:150-153`). One test sets it
 (`exchange_net_test.go:33`), so an `httptest` server on loopback is reachable.
 
@@ -82,9 +82,9 @@ Measured on `38eec12` with an `Estate` holding one address scope of `10.0.0.0/24
 | `EgressGuard("connectoutcome")("tcp", "10.0.0.5:80", nil)` | refusal |
 
 The path is live. `fanOutHot` enumerates every declared address scope
-(`internal/queue/hot.go:34`, `internal/queue/hot.go:135-150`). `BuildHotJobs` applies `MayProbe`
-at dispatch (`internal/scan/hot.go:53`). The shipped `local` vantage presents no address, so
-`exposure.VerifyClass` derives `unverified` (`internal/exposure/exposure.go:94`), and
+(`internal/queue/hot.go#Dispatcher.fanOutHot`, `internal/queue/hot.go#candidateAddrs`). `BuildHotJobs` applies `MayProbe`
+at dispatch (`internal/scan/hot.go#BuildHotJobs`). The shipped `local` vantage presents no address, so
+`exposure.VerifyClass` derives `unverified` (`internal/exposure/exposure.go#VerifyClass`), and
 `vc.IsInternet()` is false. The job reaches `NetConnector.Connect`, and the guard refuses it.
 
 ADR-0079's worked table states the opposite outcome for that exact case: *"Operator declares

@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-[`internal/queue/hot.go:171`](../../internal/queue/hot.go) carried this text, until #1322 deleted it:
+[`internal/queue/hot.go#hotCore`](../../internal/queue/hot.go) carried this text, until #1322 deleted it:
 
 ```go
 // Two declared scopes that OVERLAP are not deduped against each other, so the overlap
@@ -40,8 +40,8 @@ conflict is why it needed a ruling rather than a transcription.
 
 | Enumerator | Site | What the dedup set holds | Callers |
 | --- | --- | --- | --- |
-| `candidateAddrs` | [`internal/queue/hot.go:120`](../../internal/queue/hot.go) | `resolved`, sized `len(resolved)` | `fanOutHot` (`hot.go:35`), `fanOutCold` (`cold.go:29`) |
-| `Estate.EdgeFanoutPopulation` | [`internal/custody/candidates.go:36`](../../internal/custody/candidates.go) | `ExtensionCandidates()`, sized `len(candidates)` | the `edge-fanout` `Scan` |
+| `candidateAddrs` | [`internal/queue/hot.go`](../../internal/queue/hot.go) | `resolved`, sized `len(resolved)` | `fanOutHot` (`hot.go:35`), `fanOutCold` (`cold.go:29`) |
+| `Estate.EdgeFanoutPopulation` | [`internal/custody/candidates.go#Estate.ExtensionCandidates`](../../internal/custody/candidates.go) | `ExtensionCandidates()`, sized `len(candidates)` | the `edge-fanout` `Scan` |
 
 In both, the scope loop **reads** the set and never writes to it. `hot.go:140` is
 `if _, ok := seen[a]; ok { continue }` with no matching insert, and `candidates.go:53` is the same
@@ -50,7 +50,7 @@ never added to it.
 
 **The rule is locked by exactly one test, in the package that is not the one gap 6 names.**
 `TestEdgeFanoutPopulationDoesNotDedupOverlappingScopes`
-(`internal/custody/candidates_test.go:209`) declares `104.16.132.0/31` and `104.16.132.0/30` and
+(`internal/custody/candidates_test.go#TestEdgeFanoutPopulationDoesNotDedupOverlappingScopes`) declares `104.16.132.0/31` and `104.16.132.0/30` and
 asserts the yielded sequence is `.0 .1 .0 .1 .2 .3` — the overlap, twice, in declaration order.
 `internal/queue/candidate_test.go` holds seven tests and none of them overlaps two scopes.
 `TestCandidateAddrsUnionsMultipleScopes` uses two **disjoint** `/31`s.
@@ -72,7 +72,7 @@ because there is no size at which a declaration is refused.
 that ADR-0133 §3 *"caps a tick at 65,536 addresses"*. It does not. §3's sentence is *"an excluded
 `/16` inside a declared `/8` is 65,536 addresses walked per tick and refused one at a time"*, and
 that number is the size of a `/16`, offered as the cost the exclusion skip avoids. The nearest
-65,536 in the tree is `seed.maxEnumCapHint = 1 << 16` (`internal/seed/seed.go:98`), whose own
+65,536 in the tree is `seed.maxEnumCapHint = 1 << 16` (`internal/seed/seed.go`), whose own
 comment reads *"caps the size guess only, never a walk"*. **No rule caps a tick.** ADR-0127 removed
 the only ceiling there was.
 
@@ -175,7 +175,7 @@ What the duplicate buys the operator is nothing, and what it costs is bounded th
 | --- | --- |
 | **Rule ADR-0127's clause correct and record the double probe as a defect** | The fix is a dedup set over every enumerated address, which contradicts ADR-0127's own guarantee two clauses later that no record holds the whole scope. Under a cap with no upper bound the set is unbounded, so the defect could not be repaired at all for a declared `/8` or for any IPv6 scope above `/104` |
 | **Dedup only below a size threshold — hold the map for a small scope, stream a large one** | Two behaviours for one declaration, switching on a number with no owner and no derivation. ADR-0049 rejected exactly that shape, and ADR-0127 rejected the ceiling that would have to set the number. It also gives a scope's coverage a discontinuity: adding one address to a scope changes whether a *different* scope walks its overlap |
-| **Subtract the overlap with prefix arithmetic before enumerating** | `internal/custody/candidates.go:62` already refuses this in one line — *"never prefix arithmetic: subtraction is easy to get wrong at the family boundary"*. Subtracting one CIDR from another yields a set of prefixes, the IPv4-in-IPv6 mapped forms make containment subtle, and a wrong subtraction silently stops probing declared ground |
+| **Subtract the overlap with prefix arithmetic before enumerating** | `internal/custody/candidates.go#Estate.EdgeFanoutPopulation` already refuses this in one line — *"never prefix arithmetic: subtraction is easy to get wrong at the family boundary"*. Subtracting one CIDR from another yields a set of prefixes, the IPv4-in-IPv6 mapped forms make containment subtle, and a wrong subtraction silently stops probing declared ground |
 | **Deduplicate at the queue instead, with a unique key on the enqueued job** | Moves an unbounded set from the dispatcher's memory into an index on the `job` table, and the fan-out is streamed and chunk-committed (ADR-0127), so the key would have to survive across commits within one tick. It also makes a second declaration's job silently vanish, which is §3's invisible outcome with an extra moving part |
 | **Fold overlapping declarations at declaration time, so the operator holds one merged scope** | Destroys the operator's own statement of their estate. Two ranges declared for two reasons are two facts, and `Coverage` and every future per-scope surface read the declarations. ADR-0047 makes a declaration the unit, and a merge would answer a question the operator did not ask |
 | **Leave the rule uncited and let ADR-0127's clause stand** | The state #1323 recorded. A reader reaches ADR-0127 first, reads *single-probing is required*, and grades the enumerator wrong. The next change writes the map, and it is the map ADR-0127's own memory guarantee forbids |

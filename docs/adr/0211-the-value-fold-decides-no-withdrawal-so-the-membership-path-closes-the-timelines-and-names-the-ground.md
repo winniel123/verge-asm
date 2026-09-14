@@ -21,7 +21,7 @@ relations:
 
 ## Context
 
-`internal/queue/spanfold.go:31` carried this in declaration position, until #1327 deleted it:
+`internal/queue/spanfold.go#spanFoldStore` carried this in declaration position, until #1327 deleted it:
 
 ```go
 // A withdrawal is NOT decided here: whether a subject left the estate is a
@@ -37,7 +37,7 @@ move needs none — the next span is the fact."* So the gap is narrower than #13
 uncovered part is the division of labour: which fold decides a departure, and where the ground is
 named.
 
-**Five folds run in one transaction, in this order** (`internal/queue/worker.go:429-445`):
+**Five folds run in one transaction, in this order** (`internal/queue/worker.go`):
 
 | Order | Fold | Site | What it closes | Reason it records |
 | --- | --- | --- | --- | --- |

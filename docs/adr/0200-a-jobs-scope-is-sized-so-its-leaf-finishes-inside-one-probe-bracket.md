@@ -19,7 +19,7 @@ relations:
 
 ## Context
 
-[`internal/scan/edgefanout.go:18`](../../internal/scan/edgefanout.go) carried this text until #1318 deleted it:
+[`internal/scan/edgefanout.go`](../../internal/scan/edgefanout.go) carried this text until #1318 deleted it:
 
 ```go
 // EdgeFanoutAddressesPerJob bounds how many candidate edges one job measures. The leaf
@@ -43,14 +43,14 @@ declared scope against the cadence. Neither bounds the work inside one job.
 
 | Element | Site | Value |
 | --- | --- | --- |
-| The probe bracket | [`internal/queue/worker.go:208`](../../internal/queue/worker.go) | `DefaultProbeTimeout = 5 * time.Minute`, overridable by `VERGE_PROBE_TIMEOUT` at [`cmd/worker/main.go:90`](../../cmd/worker/main.go) |
+| The probe bracket | [`internal/queue/worker.go`](../../internal/queue/worker.go) | `DefaultProbeTimeout = 5 * time.Minute`, overridable by `VERGE_PROBE_TIMEOUT` at [`cmd/worker/main.go#main`](../../cmd/worker/main.go) |
 | What the bracket wraps | `Worker.probe` | The probe alone. The terminal transaction runs under the parent context |
-| How the bracket ends a probe | [`internal/queue/worker.go:41`](../../internal/queue/worker.go) | `exec.CommandContext(ctx, p.Path)`. The deadline kills the prober process |
-| One candidate's own bound | [`internal/measure/edgefanout/run.go:35`](../../internal/measure/edgefanout/run.go) | `NetHandshaker{Timeout: 3 * time.Second}`, and [`internal/measure/connectoutcome/tls.go:133`](../../internal/measure/connectoutcome/tls.go) wraps the dial **and** the handshake in it |
+| How the bracket ends a probe | [`internal/queue/worker.go#ExecProber.Probe`](../../internal/queue/worker.go) | `exec.CommandContext(ctx, p.Path)`. The deadline kills the prober process |
+| One candidate's own bound | [`internal/measure/edgefanout/run.go#Run`](../../internal/measure/edgefanout/run.go) | `NetHandshaker{Timeout: 3 * time.Second}`, and [`internal/measure/connectoutcome/tls.go#NetHandshaker`](../../internal/measure/connectoutcome/tls.go) wraps the dial **and** the handshake in it |
 | How the leaf walks its scope | `RunWithHandshaker` | Serially, one candidate at a time |
 | The chunk | [`internal/scan/edgefanout.go`](../../internal/scan/edgefanout.go) | `EdgeFanoutAddressesPerJob = 50` |
 | The worst case | arithmetic | 50 × 3 s = 150 s, which is half of the 5-minute bracket |
-| The retry budget | [`internal/queue/edgefanout.go:60`](../../internal/queue/edgefanout.go) | `MaxAttempts: 5` |
+| The retry budget | [`internal/queue/edgefanout.go#enqueueEdgeFanoutJob`](../../internal/queue/edgefanout.go) | `MaxAttempts: 5` |
 
 ### A job that outlasts the bracket records nothing at all, five times over
 
@@ -176,5 +176,5 @@ it constrains a number the operator does not set and cannot see.
 | **Cap the declared scope so that a job never needs a chunk** | Reintroduces the ceiling ADR-0127 removed, and reintroduces it in the safety path — [#27](https://github.com/winniel123/verge-asm/issues/27)'s refused threshold shape. It also solves nothing, because the item count in one job is not a function of the declared scope size once the fan-out streams |
 | **Let an oversized job dead-letter, and read the dead-letter as the report** | The record is already honest — an empty scope licenses no absence — and it is still wrong for the product. `edge-fanout` candidates in a dead-lettered chunk stay **held** forever, so the custody extension stalls with no `Gap` and no message anywhere. The failure is invisible in every derived value |
 | **Resume a partial batch instead of retrying it whole** | ADR-0005 rules that a retry is a new `Batch`, and its ground stands: a batch resumed later carries a timestamp that misstates when half its observations were made, and a retry on another worker could carry a different vantage. Resumption also needs the leaf to stream its output and the worker to keep a partial commit, which reopens ADR-0001's commit-together invariant |
-| **Raise `DefaultProbeTimeout` until the largest job fits** | Trades a bounded failure for an unbounded one. The drain loop is single-threaded ([#853](https://github.com/winniel123/verge-asm/issues/853)), so a longer bracket lets one wedged job block every later job for longer, and the stale-job reaper's threshold must then move with it — [`internal/queue/reaper_test.go:32`](../../internal/queue/reaper_test.go) pins that ordering |
+| **Raise `DefaultProbeTimeout` until the largest job fits** | Trades a bounded failure for an unbounded one. The drain loop is single-threaded ([#853](https://github.com/winniel123/verge-asm/issues/853)), so a longer bracket lets one wedged job block every later job for longer, and the stale-job reaper's threshold must then move with it — [`internal/queue/reaper_test.go#TestStaleThresholdExceedsCTTailRenewalGap`](../../internal/queue/reaper_test.go) pins that ordering |
 | **A `go vet` or `commentlint` check on the job size** | Not decidable at any single site. The item count is in the builder, the per-item bound is in the leaf, and the bracket is in the environment. No one file holds two of the three |

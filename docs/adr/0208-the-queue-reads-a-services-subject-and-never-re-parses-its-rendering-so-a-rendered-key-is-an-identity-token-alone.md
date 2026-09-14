@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-`internal/queue/tlsacceptance.go:83` carried this in Go declaration position, until #1324 deleted it:
+`internal/queue/tlsacceptance.go#enqueueTLSAcceptanceJob` carried this in Go declaration position, until #1324 deleted it:
 
 ```go
 // parseServiceKey folds a `address:port/tcp` Service subject key back to its
@@ -32,7 +32,7 @@ relations:
 // not parse, is rejected rather than guessed at.
 ```
 
-#1324 compressed it to one surviving line at `internal/queue/tlsacceptance.go:66`:
+#1324 compressed it to one surviving line at `internal/queue/tlsacceptance.go#parseServiceKey`:
 
 ```go
 // The inverse of the ServiceKey the connect-outcome leaf renders, so the two move together.
@@ -48,12 +48,12 @@ That is wrong, and two of the three renderers say so themselves in comments #132
 
 | Leaf | Renderer | Its own surviving comment |
 | --- | --- | --- |
-| `connect-outcome` | `ServiceKey` (`internal/measure/connectoutcome/emit.go:12`) | *"The Address renders from its own key, never a restated string, so one host has one spelling."* |
-| `tls-acceptance` | `ServiceKey` (`internal/measure/tlsacceptance/emit.go:17`) | *"The connect-outcome leaf renders the same triple, so the two timelines name one Service."* |
-| `http-exchange` | `Target.ServiceKey` (`internal/measure/httpexchange/exchange.go:25`) | *"The same triple connect-outcome renders, so the Endpoint's Service leg names one Service."* |
+| `connect-outcome` | `ServiceKey` (`internal/measure/connectoutcome/emit.go#ServiceKey`) | *"The Address renders from its own key, never a restated string, so one host has one spelling."* |
+| `tls-acceptance` | `ServiceKey` (`internal/measure/tlsacceptance/emit.go#ServiceKey`) | *"The connect-outcome leaf renders the same triple, so the two timelines name one Service."* |
+| `http-exchange` | `Target.ServiceKey` (`internal/measure/httpexchange/exchange.go`) | *"The same triple connect-outcome renders, so the Endpoint's Service leg names one Service."* |
 
 `connectoutcome.ServiceKey` also composes the `Endpoint` key through
-`internal/measure/connectoutcome/certificate.go:19`, and `httpexchange.EndpointKey` composes the
+`internal/measure/connectoutcome/certificate.go#EndpointKey`, and `httpexchange.EndpointKey` composes the
 other one, so the form reaches two subject kinds rather than one.
 
 **The three are not identical, and the difference is the hazard arriving.**
@@ -64,13 +64,13 @@ already not inverses, in the shipped tree, on one of the three sides.
 
 ### The parser's real input, measured rather than assumed
 
-`reachedServices` reads `ListReachedServices` (`db/queries/span.sql:165`), which filters
+`reachedServices` reads `ListReachedServices` (`db/queries/span.sql`), which filters
 `subject_kind = 'service' AND facet = 'reachability' AND closed_at IS NULL AND is_gap = FALSE AND
 (value ->> 'outcome') = 'reached'`.
 
 `connectoutcome.FacetReachability` is the only facet constant with that value, so the rows the
 parser reads today were written from `connectoutcome.ServiceKey`. That narrows the **input** and not
-the **coupling**: `subjectKindFor` (`internal/queue/pure.go:81`) maps both
+the **coupling**: `subjectKindFor` (`internal/queue/pure.go`) maps both
 `connectoutcome.FacetReachability` and `tlsacceptance.Facet` to `subject_kind = 'service'`, and
 `span.subject_key` is free `TEXT` with no constraint on its shape. Any leaf that renders the form
 writes rows into the same column, and any future leaf that renders it joins the contract on the day
@@ -84,15 +84,15 @@ two parses — for a value the writer already held in its measured form.
 | # | Act | Site |
 | --- | --- | --- |
 | 1 | render `netip.AddrPort` → `"198.51.100.7:443/tcp"` | `connectoutcome.ServiceKey`, at emit |
-| 2 | store the string | `foldOne` → `OpenSpan` (`internal/queue/spanfold.go:88`) |
-| 3 | **parse** the string → `netip.AddrPort` | `parseServiceKey` (`internal/queue/tlsacceptance.go:65`) |
-| 4 | render again → `ReachedService.Address string` | `reachedServices` (`internal/queue/tlsacceptance.go:58`) |
-| 5 | **parse** again → `netip.Addr` | `BuildTLSAcceptanceJobs` (`internal/scan/tlsacceptance.go:60`), `BuildHTTPIdentityJobs` (`internal/scan/httpidentity.go:56`) |
+| 2 | store the string | `foldOne` → `OpenSpan` (`internal/queue/spanfold.go#foldOne`) |
+| 3 | **parse** the string → `netip.AddrPort` | `parseServiceKey` (`internal/queue/tlsacceptance.go#parseServiceKey`) |
+| 4 | render again → `ReachedService.Address string` | `reachedServices` (`internal/queue/tlsacceptance.go#reachedServices`) |
+| 5 | **parse** again → `netip.Addr` | `BuildTLSAcceptanceJobs` (`internal/scan/tlsacceptance.go#BuildTLSAcceptanceJobs`), `BuildHTTPIdentityJobs` (`internal/scan/httpidentity.go#BuildHTTPIdentityJobs`) |
 | 6 | render again, at the next emit | `tlsacceptance.ServiceKey` / `httpexchange.Target.ServiceKey` |
 
 **The fold already holds the address and throws it away.** `wire.Observation` carries an `Address`
 field, `connectoutcome.EmitService` sets it to `target.Addr().String()`, and `foldOne`
-(`internal/queue/spanfold.go:36`) never reads it. So step 3 exists to recover a value the writer
+(`internal/queue/spanfold.go#foldObservationsIntoSpans`) never reads it. So step 3 exists to recover a value the writer
 had, sent, and the reader discarded one function earlier.
 
 ### The failure is silent, and no test would catch it
@@ -113,9 +113,9 @@ reached from seven call sites in six files.
 
 | Site | Act |
 | --- | --- |
-| `parseServiceKey` (`internal/queue/tlsacceptance.go:65`) | `CutSuffix("/tcp")` then `netip.ParseAddrPort` |
-| `serviceAddress` (`internal/queue/membership.go:293`) | `LastIndex(":")`, then trim `[` and `]` |
-| `subjectAddress` (`internal/queue/membership.go:209`) | calls `serviceAddress` for `service` and `endpoint` keys |
+| `parseServiceKey` (`internal/queue/tlsacceptance.go#parseServiceKey`) | `CutSuffix("/tcp")` then `netip.ParseAddrPort` |
+| `serviceAddress` (`internal/queue/membership.go`) | `LastIndex(":")`, then trim `[` and `]` |
+| `subjectAddress` (`internal/queue/membership.go`) | calls `serviceAddress` for `service` and `endpoint` keys |
 | `membership.go:205` | address membership of a subject |
 | `withdrawal.go:50` | the address-exclusion narrowing fold |
 | `seedwithdrawal.go:74` | the address `Seed` withdrawal fold |
@@ -135,7 +135,7 @@ ADR-0051's named hazard, arrived at, and it is a package habit rather than one f
 
 ### 1. The `connect-outcome` leaf owns the rendered form, and two more leaves follow it
 
-`connectoutcome.ServiceKey` (`internal/measure/connectoutcome/emit.go:12`) is the definition. It
+`connectoutcome.ServiceKey` (`internal/measure/connectoutcome/emit.go#ServiceKey`) is the definition. It
 renders `(Address, port, transport)` as `<addr:port>/<transport>` from the `netip.AddrPort` it
 measured, which is what its own comment means by *the Address renders from its own key, never a
 restated string*.
@@ -238,20 +238,20 @@ branch emits a form `parseServiceKey` rejects. Reading the subject has one party
 
 - **This ADR changes no Go code and no SQL.** It rules a contract that the code does not yet keep.
 - **The shipped parse-back is a defect, and it is not fixed here.** Named precisely:
-  - `parseServiceKey` (`internal/queue/tlsacceptance.go:65`) — the parser itself.
-  - `reachedServices` (`internal/queue/tlsacceptance.go:41`) — its only caller, and the enumeration
+  - `parseServiceKey` (`internal/queue/tlsacceptance.go#parseServiceKey`) — the parser itself.
+  - `reachedServices` (`internal/queue/tlsacceptance.go#reachedServices`) — its only caller, and the enumeration
     that depends on it.
-  - `ListReachedServices` (`db/queries/span.sql:165`) — the reachability span read that supplies the
+  - `ListReachedServices` (`db/queries/span.sql`) — the reachability span read that supplies the
     parser its input, and the query that must return the subject's components instead.
   - The three renderers the parse-back couples to: `connectoutcome.ServiceKey`
-    (`internal/measure/connectoutcome/emit.go:12`), `tlsacceptance.ServiceKey`
-    (`internal/measure/tlsacceptance/emit.go:17`) and `httpexchange.Target.ServiceKey`
-    (`internal/measure/httpexchange/exchange.go:25`).
+    (`internal/measure/connectoutcome/emit.go#ServiceKey`), `tlsacceptance.ServiceKey`
+    (`internal/measure/tlsacceptance/emit.go#ServiceKey`) and `httpexchange.Target.ServiceKey`
+    (`internal/measure/httpexchange/exchange.go`).
 
   It ships as its own ticket, taking §3's four steps. **This branch fixes none of it.**
 - **The defect is wider than gap 3 recorded, and the wider span is one ticket's second half.** Six
   further sites recover an address by taking a composed key apart: `serviceAddress`
-  (`internal/queue/membership.go:293`), `subjectAddress` (`internal/queue/membership.go:209`) and its
+  (`internal/queue/membership.go`), `subjectAddress` (`internal/queue/membership.go`) and its
   callers at `membership.go:205`, `withdrawal.go:50`, `seedwithdrawal.go:74`, `produce.go:357` and
   `:359`, and `scopegate.go:113`. They are the same act on the same key. Their route changes and
   their outcomes do not, so ADR-0153's and ADR-0154's rulings are untouched by the fix.

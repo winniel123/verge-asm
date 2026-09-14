@@ -22,7 +22,7 @@ relations:
 
 ## Context
 
-[`internal/queue/withdrawal.go:76`](../../internal/queue/withdrawal.go), `:170` and `:192` carried
+[`internal/queue/withdrawal.go`](../../internal/queue/withdrawal.go), `:170` and `:192` carried
 this text, until #1322 deleted it:
 
 ```go
@@ -46,7 +46,7 @@ reference arrives at ADR-0133 §8.1, which rules when the withdrawal runs and wh
 match the preview's, and never rules how a second fold is safe.
 
 **The closure is the marker, and the query is where that is visible.**
-`ListAddressExclusionWithdrawals` (`internal/db/messages.sql.go:72`) filters `s.closed_at IS NULL`
+`ListAddressExclusionWithdrawals` (`internal/db/messages.sql.go`) filters `s.closed_at IS NULL`
 three times: in the `withdrawn_addr` CTE, in the resolution-survivor `NOT EXISTS`, and in the outer
 `SELECT`. `closeSpansByID` calls `CloseSpan`, which writes `closed_at`, `closure_reason` and
 `closed_batch_id` (`membership.go:186`). The rows the fold just closed are gone from the next fold's
@@ -57,8 +57,8 @@ none.
 
 | Fact | Preview side | Act side |
 | --- | --- | --- |
-| Which declared scope the receipt names | `FindCoveringAddressSeed` (`internal/db/subjects.sql.go:15`), `address_cidr >>= $1::inet`, `ORDER BY masklen(address_cidr) DESC LIMIT 1` | `narrowingScope` (`withdrawal.go:104`), `Contains(excluded.Addr())`, keep the largest `Bits()` |
-| Fallback where no scope covers | `scope = p.String()` (`cmd/web/exclusions.go:79`) | `return excluded.String()` (`withdrawal.go:121`) |
+| Which declared scope the receipt names | `FindCoveringAddressSeed` (`internal/db/subjects.sql.go`), `address_cidr >>= $1::inet`, `ORDER BY masklen(address_cidr) DESC LIMIT 1` | `narrowingScope` (`withdrawal.go:104`), `Contains(excluded.Addr())`, keep the largest `Bits()` |
+| Fallback where no scope covers | `scope = p.String()` (`cmd/web/exclusions.go#server.declareExclusion`) | `return excluded.String()` (`withdrawal.go:121`) |
 | How the counts become a sentence | `message.PreviewNarrowing(scope, p.String(), …)` (`exclusions.go:97`) | `message.PreviewNarrowing(c.scope, key, …)` (`withdrawal.go:81`) |
 
 ## Decision
@@ -161,7 +161,7 @@ and the fold legitimately moves the firing site as well as the counts. This ADR 
   needs no edit, because it asserts the property rather than specifying a mechanism. ADR-0058 does
   not reach it.
 - **`narrowingScope` and `FindCoveringAddressSeed` are twins that no test compares.**
-  `withdrawal_test.go` exercises the Go side and `cmd/web/handlers_test.go:2055` hand-writes a fake
+  `withdrawal_test.go` exercises the Go side and `cmd/web/handlers_test.go` hand-writes a fake
   that reimplements the SQL side. A change to either passes both suites. **A test that drives one
   input through both and asserts one answer ships as its own ticket.** It needs a database, so it
   belongs beside the other query-level tests rather than in `internal/queue`.

@@ -20,7 +20,7 @@ relations:
 
 ## Context
 
-[`internal/scan/edgefanout.go:24`](../../internal/scan/edgefanout.go) carried this text until #1318
+[`internal/scan/edgefanout.go#EdgeFanoutJob`](../../internal/scan/edgefanout.go) carried this text until #1318
 deleted it:
 
 ```go

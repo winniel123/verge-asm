@@ -20,8 +20,8 @@ relations:
 
 ## Context
 
-[`internal/queue/cttail.go:179`](../../internal/queue/cttail.go) and
-[`internal/queue/ctverify.go:31`](../../internal/queue/ctverify.go), `:233` and `:275` carried this
+[`internal/queue/cttail.go#Worker.completeCTTailTiled`](../../internal/queue/cttail.go) and
+[`internal/queue/ctverify.go#VerifyLogged`](../../internal/queue/ctverify.go), `:233` and `:275` carried this
 text, until #1322 deleted it:
 
 ```go
@@ -48,8 +48,8 @@ exchange. The triage record on #1323 states that no audit path is recomputed any
 wrong for the RFC arm, and this ADR is written to the code.
 
 **No log signature is verified on either arm, and the key material is not in the tree.**
-`scan.ParseSTH` (`internal/scan/cttail.go:183`) unmarshals one field, `tree_size`. RFC 6962's
-`tree_head_signature` is never read. `scan.ParseCheckpoint` (`internal/scan/cttail.go:308`) splits
+`scan.ParseSTH` (`internal/scan/cttail.go`) unmarshals one field, `tree_size`. RFC 6962's
+`tree_head_signature` is never read. `scan.ParseCheckpoint` (`internal/scan/cttail.go`) splits
 the C2SP note on newlines, reads line 1 as a decimal tree size, and keeps the body in `Raw`. The
 signature lines below the head are never parsed. `internal/scan/log_list.json` carries 26 RFC logs
 and 22 tiled logs, and **zero** of the 48 entries carry a `key` field —
@@ -160,7 +160,7 @@ Each is real, and naming them stops a later session reading the silence as a rul
   log's maximum merge delay, so a certificate observed minutes after issue legitimately carries an
   index past a current checkpoint. That is *not yet included*, which is a doubt rather than a denial,
   and ADR-0193 §3's warrant does not cover it. `scan.LeafHashInTile` already states the correct
-  reading for the sibling case at `internal/scan/ctverify.go:395` — *"a short head tile has not yet
+  reading for the sibling case at `internal/scan/ctverify.go#LeafHashInTile` — *"a short head tile has not yet
   reached the index: not-yet-inclusion, never a mismatch"* — and returns `checkErrored`. The two
   sites disagree. **The one-line change to `checkErrored` ships as its own ticket**, against
   ADR-0193's rule rather than against this one.

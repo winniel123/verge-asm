@@ -16,7 +16,7 @@ relations:
 
 ## Context
 
-[`internal/scan/httpidentity.go:63`](../../internal/scan/httpidentity.go) carried this text until
+[`internal/scan/httpidentity.go#BuildHTTPIdentityJobs`](../../internal/scan/httpidentity.go) carried this text until
 #1318 deleted it:
 
 ```go
