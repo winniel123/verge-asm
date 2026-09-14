@@ -255,6 +255,18 @@ per aperture input, as the Coverage screen renders it.
       "remedy": "Declare an address scope",
       "remedy_href": "/scope",
       "remedy_why": "…"
+    },
+    {
+      "input": "Vantage class",
+      "cadence": "none",
+      "cadence_why": "…",
+      "state": "1 internet · 2 internal",
+      "state_kind": "on",
+      "figures": [],
+      "state_detail": "…",
+      "remedy": "none",
+      "remedy_href": "",
+      "remedy_why": "…"
     }
   ]
 }
@@ -266,8 +278,11 @@ shows. Neither claims a proportion of the estate.
 
 On a statement row, `remedy_href` is empty where no act exists. The `remedy` value
 then carries the literal word `none`. No cell is ever blank. `remedy_why` states the
-reason either way. The figures count our own lists and our own rules. They never
-state a count or a proportion of your estate.
+reason either way. `cadence` carries the same word where the input is derived at the
+point of use and has no cadence, and `figures` is empty where the row states no
+figure. The figures count our own lists and our own rules. They never state a count
+or a proportion of your estate. The `Vantage class` row counts declared vantages,
+which is our own list too.
 
 ---
 

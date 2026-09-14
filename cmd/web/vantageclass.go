@@ -57,6 +57,14 @@ func deriveVantageClasses(vantages []db.Vantage, covered func(netip.Addr) bool) 
 	return out
 }
 
+func listedVantageClasses(rows []db.ListVantagesRow, covered func(netip.Addr) bool) []custody.VantageClass {
+	out := make([]custody.VantageClass, 0, len(rows))
+	for _, v := range rows {
+		out = append(out, vantageFactsClass(v.DialledAddr, v.Egress, covered))
+	}
+	return out
+}
+
 func runningVantageClasses(vantages []db.ListVantagesForDispatchRow, covered func(netip.Addr) bool) []string {
 	// An unavailable vantage still names its class; the gap reads not-evaluable (ADR-0080).
 	seen := map[string]struct{}{}

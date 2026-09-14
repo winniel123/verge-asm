@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/winniel123/verge-asm/internal/custody"
 )
 
 type fixtureDevPackage struct {
@@ -446,6 +448,18 @@ func TestExposureFixtureMatchesPackage(t *testing.T) {
 		p := devExposureRows[i]
 		if r.Asset != p.asset || r.Svc != p.svc || r.Internal != p.internal || r.Internet != p.internet || r.Since != p.since {
 			t.Errorf("row %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, r, p)
+		}
+	}
+}
+
+func TestAssetFixturePortsCarryKnownLegStates(t *testing.T) {
+	// An unrecognised state reaches the page as `never looked`, which is a false claim.
+	known := []string{"reached", "not-reached", "gap", "never-looked"}
+	for i, p := range devAssetPorts {
+		for class, state := range map[string]string{"internal": p.internal, "internet": p.internet} {
+			if !slices.Contains(known, state) {
+				t.Errorf("port %d %s leg = %q, want one of %q", i, class, state, known)
+			}
 		}
 	}
 }
@@ -1261,14 +1275,15 @@ type fixtureAssetPackage struct {
 		Type         string `json:"type"`
 		Severity     string `json:"severity"`
 		SevLabel     string `json:"sev_label"`
-		Exposure     string `json:"exposure"`
+		InternetLeg  string `json:"internet_leg"`
 		Seen         string `json:"seen"`
 		InScopeSince string `json:"in_scope_since"`
 		Withdrawn    bool   `json:"withdrawn"`
 		Ports        []struct {
 			Port     string `json:"port"`
 			Service  string `json:"service"`
-			Exposure string `json:"exposure"`
+			Internal string `json:"internal"`
+			Internet string `json:"internet"`
 			Since    string `json:"since"`
 		} `json:"ports"`
 		DNS []struct {
@@ -1322,16 +1337,21 @@ func TestAssetFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("key drift: fixtures.json = %q, pinned = %q/%q", a.Key, d.Key, devAssetKey)
 	}
 	if a.Type != d.Type || a.Severity != d.Severity || a.SevLabel != d.SevLabel ||
-		a.Exposure != d.Exposure || a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.Withdrawn != d.Withdrawn {
+		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.Withdrawn != d.Withdrawn {
 		t.Errorf("header drift:\n fixtures.json = %+v\n pinned        = %+v", a, d)
 	}
+	wantLeg := reachLegChip(custody.ClassInternet, legFrom(devLegInfo(a.InternetLeg)))
+	if d.InternetLeg == nil || *d.InternetLeg != wantLeg {
+		t.Errorf("internet-leg chip drift: fixtures.json = %q, pinned = %+v", a.InternetLeg, d.InternetLeg)
+	}
 
-	if len(a.Ports) != len(d.Ports) {
-		t.Fatalf("ports length drift: fixtures.json = %d, pinned = %d", len(a.Ports), len(d.Ports))
+	if len(a.Ports) != len(devAssetPorts) {
+		t.Fatalf("ports length drift: fixtures.json = %d, pinned = %d", len(a.Ports), len(devAssetPorts))
 	}
 	for i, p := range a.Ports {
-		q := d.Ports[i]
-		if p.Port != q.Port || p.Service != q.Service || p.Exposure != q.Exposure || p.Since != q.Since {
+		q := devAssetPorts[i]
+		if p.Port != q.port || p.Service != q.service || p.Internal != q.internal ||
+			p.Internet != q.internet || p.Since != q.since {
 			t.Errorf("ports[%d] drift: fixtures.json = %+v, pinned = %+v", i, p, q)
 		}
 	}
@@ -1798,5 +1818,21 @@ func TestRunningRunJobsFixtureMatchesPackage(t *testing.T) {
 			j.Retrying != p.Retrying || j.Attempt != p.Attempt || j.MaxAttempts != p.MaxAttempts || j.Batch != p.Batch {
 			t.Errorf("job %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, j, p)
 		}
+	}
+}
+
+// The dev estate holds one vantage roster, so the statement's classes count it member by member.
+
+func TestDevCoverageClassesCoverEveryDevVantage(t *testing.T) {
+	if len(devCoverageVantageClasses) != len(devDashVantages) {
+		t.Errorf("class entries = %d, dev vantages = %d", len(devCoverageVantageClasses), len(devDashVantages))
+	}
+	for _, v := range devDashVantages {
+		if _, ok := devCoverageVantageClasses[v.Name]; !ok {
+			t.Errorf("the dev vantage %q carries no class, so the fixture statement reads it unverified", v.Name)
+		}
+	}
+	if got := len(devCoverageClasses()); got != len(devDashVantages) {
+		t.Errorf("the fixture statement counts %d vantages, and the dev estate declares %d", got, len(devDashVantages))
 	}
 }

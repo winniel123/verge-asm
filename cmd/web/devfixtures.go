@@ -549,6 +549,26 @@ func devCoverageSeeds() []db.ListSeedsRow {
 	return out
 }
 
+var devCoverageVantageClasses = map[string]custody.VantageClass{
+	"eu-west-1":  custody.ClassInternet,
+	"us-east-2":  custody.ClassInternet,
+	"ap-south-1": custody.ClassInternal,
+}
+
+// The classes key off the dashboard's vantage roster, so one estate holds one list (ADR-0167 §2).
+
+func devCoverageClasses() []custody.VantageClass {
+	out := make([]custody.VantageClass, 0, len(devDashVantages))
+	for _, v := range devDashVantages {
+		class, ok := devCoverageVantageClasses[v.Name]
+		if !ok {
+			class = custody.ClassUnverified
+		}
+		out = append(out, class)
+	}
+	return out
+}
+
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := pageData(acct, "Coverage", "coverage")
 
@@ -557,7 +577,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	s.coverageEmptyOnce = false
 	s.coverageMu.Unlock()
 	if empty {
-		data["Statement"] = apertureStatement(nil)
+		data["Statement"] = apertureStatement(nil, nil, true)
 		data["Meters"] = []coverageMeterView(nil)
 		data["Messages"] = []coverageMessageView(nil)
 		data["Gaps"] = []coverageGapView(nil)
@@ -596,7 +616,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
 	}
 
-	data["Statement"] = apertureStatement(devCoverageSeeds())
+	data["Statement"] = apertureStatement(devCoverageSeeds(), devCoverageClasses(), true)
 	data["Meters"] = meters
 	data["Messages"] = messages
 	data["Gaps"] = gaps
@@ -1509,10 +1529,31 @@ const devAssetKey = "edge-gw-03.acmecorp.io"
 
 const devAssetCertFingerprint = "SHA256:2b:9e:44:a1:7c:03:d8:f2:61:5b:c9:10:8e:af:72:d4" // #nosec G101 -- a public TLS certificate fingerprint fixture, not a credential
 
-var devAssetPorts = []assetPort{
-	{Port: ":443", Service: "https · nginx/1.25.0", Exposure: "exposed", Since: "2026-06-14"},
-	{Port: ":5900", Service: "vnc — no transport encryption", Exposure: "exposed", Since: "2026-08-22"},
-	{Port: ":22", Service: "ssh · OpenSSH 9.6", Exposure: "firewalled", Since: "2026-06-14"},
+type devAssetPort struct {
+	port     string
+	service  string
+	internal string
+	internet string
+	since    string
+}
+
+var devAssetPorts = []devAssetPort{
+	{port: ":443", service: "https · nginx/1.25.0", internal: "reached", internet: "reached", since: "2026-06-14"},
+	{port: ":5900", service: "vnc — no transport encryption", internal: "reached", internet: "reached", since: "2026-08-22"},
+	{port: ":22", service: "ssh · OpenSSH 9.6", internal: "reached", internet: "not-reached", since: "2026-06-14"},
+}
+
+func devAssetPortRows() []assetPort {
+	rows := make([]assetPort, 0, len(devAssetPorts))
+	for _, p := range devAssetPorts {
+		rows = append(rows, assetPort{
+			Port: p.port, Service: p.service, Since: p.since,
+			// The fixture page renders through the live formatter, so it cannot drift off it.
+			Internal: reachLegChip(custody.ClassInternal, legFrom(devLegInfo(p.internal))),
+			Internet: reachLegChip(custody.ClassInternet, legFrom(devLegInfo(p.internet))),
+		})
+	}
+	return rows
 }
 
 var devAssetDNS = []assetDNSRow{
@@ -1551,6 +1592,7 @@ var devAssetDrift = []assetDriftEvent{
 }
 
 func devAssetData() assetPageData {
+	ports := devAssetPortRows()
 	return assetPageData{
 		Key:          devAssetKey,
 		Type:         "subdomain",
@@ -1559,8 +1601,8 @@ func devAssetData() assetPageData {
 		InScopeSince: "2026-06-14",
 		Severity:     "critical",
 		SevLabel:     "Critical",
-		Exposure:     "exposed",
-		Ports:        devAssetPorts,
+		InternetLeg:  assetHeaderInternetLeg(ports),
+		Ports:        ports,
 		DNS:          devAssetDNS,
 		Cert:         devAssetCert,
 		Provenance:   devAssetProvenance,
