@@ -4,7 +4,7 @@ import { Card } from "../../components/display/Card.jsx";
 import { Table } from "../../components/display/Table.jsx";
 import { Tag } from "../../components/display/Tag.jsx";
 import { SeverityBadge } from "../../components/display/SeverityBadge.jsx";
-import { ExposureBadge } from "../../components/display/ExposureBadge.jsx";
+import { ReachLegBadge } from "../../components/display/ReachLegBadge.jsx";
 import { KeyValueList } from "../../components/display/KeyValueList.jsx";
 import { CertificateCard } from "../../components/display/CertificateCard.jsx";
 import { Timeline } from "../../components/display/Timeline.jsx";
@@ -32,7 +32,10 @@ export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSi
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <Tag>subdomain</Tag>
             <SeverityBadge level="critical" size="sm" />
-            <ExposureBadge state="exposed" />
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>Internet leg</span>
+              <ReachLegBadge state="reached" legClass="internet" />
+            </span>
             <span style={{ font: "400 12px var(--font-mono)", color: "var(--text-muted)" }}>seen 4m ago · in scope since 2026-06-14</span>
           </div>
         </div>
@@ -52,12 +55,13 @@ export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSi
             <Table framed={false} dense columns={[
               { key: "port", label: "Port", mono: true, width: 90 },
               { key: "svc", label: "Service", mono: true },
-              { key: "exp", label: "Exposure", width: 150, render: (r) => <ExposureBadge state={r.exp} /> },
+              { key: "internal", label: "Internal leg", width: 130, render: (r) => <ReachLegBadge state={r.internal} legClass="internal" /> },
+              { key: "internet", label: "Internet leg", width: 130, render: (r) => <ReachLegBadge state={r.internet} legClass="internet" /> },
               { key: "seen", label: "First seen", mono: true, align: "right", width: 110 },
             ]} rows={[
-              { port: ":443", svc: "https · nginx/1.25.0", exp: "exposed", seen: "2026-06-14" },
-              { port: ":5900", svc: "vnc — no transport encryption", exp: "exposed", seen: "2026-08-22" },
-              { port: ":22", svc: "ssh · OpenSSH 9.6", exp: "firewalled", seen: "2026-06-14" },
+              { port: ":443", svc: "https · nginx/1.25.0", internal: "reached", internet: "reached", seen: "2026-06-14" },
+              { port: ":5900", svc: "vnc — no transport encryption", internal: "reached", internet: "reached", seen: "2026-08-22" },
+              { port: ":22", svc: "ssh · OpenSSH 9.6", internal: "reached", internet: "not-reached", seen: "2026-06-14" },
             ]} rowKey="port" />
           </Card>
           <Card microLabel="Resolution" title="DNS records" pad={0}>
