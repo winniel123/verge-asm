@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -23,13 +24,14 @@ func main() {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	for _, a := range args {
-		if a == "-h" || a == "--help" {
-			usage(stderr)
-			return 2
-		}
+	fs := flag.NewFlagSet("godecls", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	fs.Usage = func() { usage(stderr) }
+	dir := fs.String("root", ".", "the directory every path resolves against")
+	if err := fs.Parse(args); err != nil {
+		return 2
 	}
-	paths := args
+	paths := fs.Args()
 	if len(paths) == 0 {
 		var err error
 		if paths, err = readLines(stdin); err != nil {
@@ -37,9 +39,18 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 2
 		}
 	}
+	// os.Root refuses a path that leaves the root, symlinks included, so no argument
+	// reaches a file outside the tree this command inventories.
+	root, err := os.OpenRoot(*dir)
+	if err != nil {
+		fmt.Fprintf(stderr, "godecls: %v\n", err)
+		return 2
+	}
+	defer root.Close()
+
 	out := make(map[string]entry, len(paths))
 	for _, p := range paths {
-		names, err := inventory(p)
+		names, err := inventory(root, p)
 		if err != nil {
 			out[p] = entry{Error: err.Error()}
 			continue
@@ -57,8 +68,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func usage(w io.Writer) {
 	fmt.Fprint(w, "usage:\n"+
-		"  godecls <paths...>\n"+
-		"  godecls            # one path per line on stdin\n")
+		"  godecls [--root DIR] <paths...>\n"+
+		"  godecls [--root DIR]              # one path per line on stdin\n"+
+		"\nEvery path is read under --root, which defaults to the working directory.\n")
 }
 
 func readLines(r io.Reader) ([]string, error) {
@@ -73,8 +85,8 @@ func readLines(r io.Reader) ([]string, error) {
 	return lines, s.Err()
 }
 
-func inventory(path string) ([]string, error) {
-	src, err := os.ReadFile(path)
+func inventory(root *os.Root, path string) ([]string, error) {
+	src, err := root.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

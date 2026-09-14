@@ -2,9 +2,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { writeFileSync, rmSync, existsSync } from "node:fs";
+import { writeFileSync, rmSync, mkdtempSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { delimiter, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { extractCitations } from "./citations/extract.mjs";
 import { classify } from "./citations/classify.mjs";
 import { armB, formatBroken, formatFatal } from "./citations/armb.mjs";
@@ -48,7 +49,7 @@ function stubbed(markdown, row) {
 
 function cliStatus(args, env = process.env) {
   try {
-    execFileSync("node", [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
+    execFileSync(process.execPath, [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
       encoding: "utf8",
       stdio: "pipe",
       env,
@@ -61,7 +62,7 @@ function cliStatus(args, env = process.env) {
 
 function cliOutput(args) {
   try {
-    return execFileSync("node", [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
+    return execFileSync(process.execPath, [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
       encoding: "utf8",
       stdio: "pipe",
     });
@@ -197,12 +198,20 @@ test("a row whose inventory cannot run at all is fatal, never a violation", () =
 });
 
 test("the Go inventory reports an unparseable file rather than throwing", () => {
-  const fixture = join(SCRIPT_DIR, "citations", `broken-${process.pid}.go.txt`);
+  const rel = `docs-site/scripts/citations/broken-${process.pid}.go.txt`;
+  const fixture = join(REPO_ROOT, rel);
   try {
     writeFileSync(fixture, "package x\n\nfunc (\n");
-    assert.ok(goInventory(REPO_ROOT, [fixture]).get(fixture).error);
+    assert.ok(goInventory(REPO_ROOT, [rel]).get(rel).error);
   } finally {
     rmSync(fixture, { force: true });
+  }
+});
+
+test("the Go inventory reads no file outside the repository", () => {
+  // os.Root refuses a path that leaves the root, so no citation can name /etc/passwd.
+  for (const escape of ["../outside.go", "/etc/hostname"]) {
+    assert.ok(goInventory(REPO_ROOT, [escape]).get(escape).error, escape);
   }
 });
 
@@ -219,16 +228,16 @@ test("the CLI exits 1 on a broken Go anchor, and 0 on one that resolves", () => 
 });
 
 test("the CLI exits 2 when no go binary is on PATH", () => {
-  // Only `go` leaves PATH: the gate shells out to `git` too, and that absence is another fault.
-  const withoutGo = (process.env.PATH ?? "")
-    .split(delimiter)
-    .filter((dir) => dir !== "" && !existsSync(join(dir, "go")))
-    .join(delimiter);
+  // The gate shells out to `git` too, so PATH keeps git alone. An absent git is another fault.
+  const shim = mkdtempSync(join(tmpdir(), "nogo-"));
+  const git = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+  symlinkSync(git, join(shim, "git"));
   const fixture = join(SCRIPT_DIR, "citations", `nogo-${process.pid}.md`);
   try {
     writeFileSync(fixture, `The lexer is \`${GO_TARGET}#Go.Lex\`.\n`);
-    assert.equal(cliStatus([fixture], { ...process.env, PATH: withoutGo }), 2);
+    assert.equal(cliStatus([fixture], { ...process.env, PATH: shim }), 2);
   } finally {
     rmSync(fixture, { force: true });
+    rmSync(shim, { force: true, recursive: true });
   }
 });

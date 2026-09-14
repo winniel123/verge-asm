@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 // A column-0 regex fails in both directions here, so the row parses instead (SPEC §7.3).
 export function goInventory(repoRoot, paths) {
-  const out = execFileSync("go", ["run", "./cmd/godecls"], {
+  const out = execFileSync("go", ["run", "./cmd/godecls", "--root", repoRoot], {
     cwd: repoRoot,
     input: `${paths.join("\n")}\n`,
     encoding: "utf8",

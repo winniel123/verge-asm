@@ -22,8 +22,8 @@ func (q *Queue) Run() error { return nil }
 func (q Queue) Len() int { return q.n }
 
 const (
-	grouped   = 1
-	alsoHere  = 2
+	grouped  = 1
+	alsoHere = 2
 )
 
 var (
@@ -49,56 +49,48 @@ type Box[T any] struct{ v T }
 func (b *Box[T]) Get() T { return b.v }
 `
 
-func write(t *testing.T, name, body string) string {
+func write(t *testing.T, dir, name, body string) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return path
+	return name
 }
 
-func decode(t *testing.T, out string) map[string]entry {
-	t.Helper()
-	var got map[string]entry
-	if err := json.Unmarshal([]byte(out), &got); err != nil {
-		t.Fatalf("decode %q: %v", out, err)
-	}
-	return got
-}
-
-func invoke(t *testing.T, stdin string, args ...string) (map[string]entry, string, int) {
+func invoke(t *testing.T, dir, stdin string, args ...string) (map[string]entry, string, int) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := run(args, strings.NewReader(stdin), &stdout, &stderr)
+	code := run(append([]string{"--root", dir}, args...), strings.NewReader(stdin), &stdout, &stderr)
 	if code != 0 {
 		return nil, stderr.String(), code
 	}
-	return decode(t, stdout.String()), stderr.String(), code
+	var got map[string]entry
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode %q: %v", stdout.String(), err)
+	}
+	return got, stderr.String(), code
 }
 
-func namesOf(t *testing.T, path string) map[string]bool {
+func sampleNames(t *testing.T) map[string]bool {
 	t.Helper()
-	got, _, code := invoke(t, "", path)
+	dir := t.TempDir()
+	name := write(t, dir, "hot.go", sample)
+	got, _, code := invoke(t, dir, "", name)
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	e, ok := got[path]
-	if !ok {
-		t.Fatalf("no entry for %s", path)
-	}
-	if e.Error != "" {
-		t.Fatalf("error for %s: %s", path, e.Error)
+	if got[name].Error != "" {
+		t.Fatalf("error for %s: %s", name, got[name].Error)
 	}
 	set := map[string]bool{}
-	for _, n := range e.Names {
+	for _, n := range got[name].Names {
 		set[n] = true
 	}
 	return set
 }
 
 func TestInventoryNamesEveryTopLevelDeclaration(t *testing.T) {
-	names := namesOf(t, write(t, "hot.go", sample))
+	names := sampleNames(t)
 	for _, want := range []string{
 		"Queue", "hotCore", "grouped", "alsoHere", "table", "Pair", "Trio",
 		"fixture", "Generic", "Box",
@@ -110,7 +102,7 @@ func TestInventoryNamesEveryTopLevelDeclaration(t *testing.T) {
 }
 
 func TestInventorySpellsAMethodReceiverDotMethod(t *testing.T) {
-	names := namesOf(t, write(t, "hot.go", sample))
+	names := sampleNames(t)
 	for _, want := range []string{"Queue.Run", "Queue.Len", "Box.Get"} {
 		if !names[want] {
 			t.Errorf("%q is missing from the inventory", want)
@@ -124,14 +116,13 @@ func TestInventorySpellsAMethodReceiverDotMethod(t *testing.T) {
 }
 
 func TestInventoryHoldsNoNameFromARawStringLiteral(t *testing.T) {
-	names := namesOf(t, write(t, "hot.go", sample))
-	if names["fabricated"] {
+	if sampleNames(t)["fabricated"] {
 		t.Error("a name inside a raw-string literal is not a declaration")
 	}
 }
 
 func TestInventoryHoldsNoBlankIdentifierAndNoImport(t *testing.T) {
-	names := namesOf(t, write(t, "hot.go", sample))
+	names := sampleNames(t)
 	if names["_"] {
 		t.Error("a blank identifier declares no citable name")
 	}
@@ -141,48 +132,65 @@ func TestInventoryHoldsNoBlankIdentifierAndNoImport(t *testing.T) {
 }
 
 func TestUnparseableFileReportsAnError(t *testing.T) {
-	path := write(t, "broken.go", "package x\n\nfunc (\n")
-	got, _, code := invoke(t, "", path)
+	dir := t.TempDir()
+	name := write(t, dir, "broken.go", "package x\n\nfunc (\n")
+	got, _, code := invoke(t, dir, "", name)
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if got[path].Error == "" {
+	if got[name].Error == "" {
 		t.Fatal("an unparseable file must carry an error")
 	}
-	if got[path].Names != nil {
+	if got[name].Names != nil {
 		t.Fatal("an unparseable file must carry no names")
 	}
 }
 
 func TestAbsentFileReportsAnError(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "gone.go")
-	got, _, code := invoke(t, "", path)
+	got, _, code := invoke(t, t.TempDir(), "", "gone.go")
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if got[path].Error == "" {
+	if got["gone.go"].Error == "" {
 		t.Fatal("an absent file must carry an error")
 	}
 }
 
+func TestAPathThatLeavesTheRootReportsAnError(t *testing.T) {
+	// os.Root is what keeps an argument from naming a file outside the tree.
+	dir := t.TempDir()
+	write(t, dir, "hot.go", sample)
+	for _, escape := range []string{"../hot.go", filepath.Join(dir, "hot.go")} {
+		got, _, code := invoke(t, filepath.Join(dir), "", escape)
+		if code != 0 {
+			t.Fatalf("exit %d", code)
+		}
+		if got[escape].Error == "" {
+			t.Errorf("%q must not resolve", escape)
+		}
+	}
+}
+
 func TestDeclarationFreeFileCarriesAnEmptyList(t *testing.T) {
-	path := write(t, "empty.go", "package x\n")
-	got, _, code := invoke(t, "", path)
+	dir := t.TempDir()
+	name := write(t, dir, "empty.go", "package x\n")
+	got, _, code := invoke(t, dir, "", name)
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	if got[path].Error != "" {
-		t.Fatalf("unexpected error: %s", got[path].Error)
+	if got[name].Error != "" {
+		t.Fatalf("unexpected error: %s", got[name].Error)
 	}
-	if got[path].Names == nil || len(got[path].Names) != 0 {
-		t.Fatalf("want an empty list, got %#v", got[path].Names)
+	if got[name].Names == nil || len(got[name].Names) != 0 {
+		t.Fatalf("want an empty list, got %#v", got[name].Names)
 	}
 }
 
 func TestStdinCarriesOnePathPerLine(t *testing.T) {
-	a := write(t, "a.go", "package x\n\nfunc Alpha() {}\n")
-	b := write(t, "b.go", "package x\n\nfunc Beta() {}\n")
-	got, _, code := invoke(t, a+"\n"+b+"\n")
+	dir := t.TempDir()
+	a := write(t, dir, "a.go", "package x\n\nfunc Alpha() {}\n")
+	b := write(t, dir, "b.go", "package x\n\nfunc Beta() {}\n")
+	got, _, code := invoke(t, dir, a+"\n"+b+"\n")
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
@@ -191,6 +199,14 @@ func TestStdinCarriesOnePathPerLine(t *testing.T) {
 	}
 	if got[a].Names[0] != "Alpha" || got[b].Names[0] != "Beta" {
 		t.Fatalf("got %#v", got)
+	}
+}
+
+func TestAnAbsentRootExitsTwo(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	args := []string{"--root", filepath.Join(t.TempDir(), "gone"), "a.go"}
+	if code := run(args, strings.NewReader(""), &stdout, &stderr); code != 2 {
+		t.Fatalf("want 2, got %d", code)
 	}
 }
 
