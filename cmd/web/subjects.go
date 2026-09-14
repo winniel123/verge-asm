@@ -362,8 +362,9 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		}
 		if legs != nil {
 			data.InternalLeg, data.InternetLeg, data.GapNote = legs.Internal, legs.Internet, legs.Gap
-		} else {
-			// A vantage-less span names no class, and its Gap still owes its cause (#1985).
+		}
+		if data.GapNote == nil {
+			// A Gap no leg carries names no class, and it still owes its cause (#1985).
 			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
 		}
 	}

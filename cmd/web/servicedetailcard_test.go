@@ -205,6 +205,22 @@ func TestServiceReachCardRendersNoLegWhenNoSpanNamesAVantage(t *testing.T) {
 	}
 }
 
+func TestServiceReachCardStatesAGapNoLegCarries(t *testing.T) {
+	f := legProbeStore(t)
+	// A vantage presenting no address derives the unverified class, which fills neither leg.
+	f.addClassReachability(t, legProbeService, "unverified", obsClock,
+		`{"outcome":"gap","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
+
+	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
+
+	if !strings.Contains(card, "it is a proxy edge, not your origin") {
+		t.Errorf("a Gap no leg carries lost its cause; card: %s", card)
+	}
+	if strings.Contains(card, " class can tell") {
+		t.Errorf("a Gap no leg carries named a class; card: %s", card)
+	}
+}
+
 func TestServiceReachCardWithdrawnServiceCarriesNoLegCell(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
