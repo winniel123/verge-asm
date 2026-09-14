@@ -144,7 +144,7 @@ function main() {
   }
 
   const { refused, stale } = armA(lineAnchors, burndown);
-  const { anchored, broken, noRow, unresolved, fatal } = armB(REPO_ROOT, results);
+  const { anchored, verified, broken, noRow, unresolved, fatal } = armB(REPO_ROOT, results);
   const staleCount = wholeTree ? stale.length : 0;
   const of = (status) => results.filter((r) => r.status === status);
   const ok = of("ok");
@@ -214,15 +214,16 @@ function main() {
   console.log(`  ${n(refUnknown)}  name a ref this clone cannot see`);
   console.log(`  ${n(dead)}  dead`);
   console.log(`  ${skipped.length} candidate(s) were not path citations, and are not judged`);
-  const verified = anchored.length - unresolved.length - noRow.length - broken.length;
   console.log("");
   console.log(`  ${anchored.length} anchor(s) written by a citation`);
-  console.log(`  ${String(verified).padStart(5)}  resolve against their row`);
+  console.log(`  ${n(verified)}  resolve against their row`);
   console.log(`  ${n(unresolved)}  sit on a path this gate does not resolve`);
   console.log(`  ${n(noRow)}  sit on a target kind the table gives no vocabulary`);
   console.log(`  ${n(broken)}  broken: the target declares no such name`);
+  if (fatal.length > 0) console.log(`  ${n(fatal)}  this gate should have judged and could not`);
 
-  if (!verbose && judged - ok.length - dead.length > 0) {
+  const passedOverAnchors = unresolved.length + noRow.length;
+  if (!verbose && judged - ok.length - dead.length + passedOverAnchors > 0) {
     console.log("Re-run with --verbose to list every citation this gate passed over.");
   }
 

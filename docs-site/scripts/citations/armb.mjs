@@ -8,6 +8,7 @@ export function armB(repoRoot, results, rows = ROWS) {
   const unresolved = anchored.filter((r) => r.status !== "ok");
   const noRow = [];
   const broken = [];
+  const verified = [];
   const fatal = [];
 
   const byRow = new Map();
@@ -29,7 +30,8 @@ export function armB(repoRoot, results, rows = ROWS) {
       inventory = row.inventory(repoRoot, paths);
     } catch (err) {
       // An absent toolchain is a claim this gate should judge and could not (SPEC §7.7).
-      fatal.push({ row: row.name, detail: err.message.split("\n")[0] });
+      const detail = (err.message ?? "").split("\n")[0] || err.code || "it did not finish";
+      fatal.push({ row: row.name, detail });
       continue;
     }
     for (const r of cited) {
@@ -42,13 +44,14 @@ export function armB(repoRoot, results, rows = ROWS) {
         fatal.push({ ...r, row: row.name, detail: entry.error });
         continue;
       }
-      if (!entry.names.has(r.anchor)) {
-        broken.push({ ...r, row: row.name, vocabulary: row.vocabulary });
-      }
+      if (entry.names.has(r.anchor)) verified.push(r);
+      else broken.push({ ...r, row: row.name, vocabulary: row.vocabulary });
     }
   }
 
-  return { anchored, broken, noRow, unresolved, fatal };
+  // `verified` counts a resolution that happened. A count derived by subtraction would
+  // report an anchor a failed row never read as one the gate resolved.
+  return { anchored, verified, broken, noRow, unresolved, fatal };
 }
 
 export function formatBroken(r) {

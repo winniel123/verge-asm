@@ -35,11 +35,8 @@ function brokenAnchors(markdown, docFile = DOC) {
   return anchorsOf(markdown, docFile).broken.map(key);
 }
 
-// An anchor no bucket holds is one Arm B resolved against its row.
 function verifiedAnchors(markdown, docFile = DOC) {
-  const { anchored, broken, noRow, unresolved } = anchorsOf(markdown, docFile);
-  const held = new Set([...broken, ...noRow, ...unresolved].map(key));
-  return anchored.map(key).filter((k) => !held.has(k));
+  return anchorsOf(markdown, docFile).verified.map(key);
 }
 
 function stubbed(markdown, row) {
@@ -171,18 +168,19 @@ test("a target kind with no row is passed over, and neither passes nor fails", (
 
 test("a row whose inventory reports an unparseable target is fatal, never a violation", () => {
   // An unparseable target is operator error, and it takes exit 2 (SPEC §7.7).
-  const { fatal, broken } = stubbed(`It is \`${GO_TARGET}#Go.Lex\`.`, {
+  const { fatal, broken, verified } = stubbed(`It is \`${GO_TARGET}#Go.Lex\`.`, {
     name: "stub",
     matches: (path) => path.endsWith(".go"),
     inventory: (_root, paths) => new Map(paths.map((p) => [p, { error: "parse: 1:1: bad" }])),
   });
   assert.deepEqual(broken, []);
+  assert.deepEqual(verified, []);
   assert.equal(fatal.length, 1);
   assert.match(formatFatal(fatal[0]), /cannot judge .*parse: 1:1: bad/);
 });
 
 test("a row whose inventory cannot run at all is fatal, never a violation", () => {
-  const { fatal, broken } = stubbed(`It is \`${GO_TARGET}#Go.Lex\`.`, {
+  const { fatal, broken, verified } = stubbed(`It is \`${GO_TARGET}#Go.Lex\`.`, {
     name: "stub",
     matches: (path) => path.endsWith(".go"),
     inventory: () => {
@@ -190,6 +188,8 @@ test("a row whose inventory cannot run at all is fatal, never a violation", () =
     },
   });
   assert.deepEqual(broken, []);
+  // A count by subtraction would report this anchor as one the gate resolved.
+  assert.deepEqual(verified, []);
   assert.deepEqual(
     fatal.map((f) => f.row),
     ["stub"],

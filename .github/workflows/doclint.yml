@@ -119,7 +119,10 @@ jobs:
   # that lives only on origin/research/843-rawoutput-prototype, and the gate resolves it
   # with `git cat-file -e <ref>:<path>`. A ref the clone cannot see is reported as an
   # unreachable ref, never counted as a pass and never counted as a dead path. The gate
-  # makes no network call of its own.
+  # fetches no ref of its own. Arm B's Go row runs `go run ./cmd/godecls`, which imports
+  # the standard library alone, so it resolves no module over the network. The row still
+  # caps that call with a timeout, because a cold module cache behind a slow proxy would
+  # otherwise hang a required check rather than take the exit 2 SPEC §7.7 prescribes.
   citations:
     runs-on: ubuntu-latest
     steps:
@@ -141,6 +144,11 @@ jobs:
         working-directory: docs-site
         run: npm ci
 
+      # `test:citations` runs its two suites in sequence, not as one `node --test` call.
+      # `node --test` runs FILES in parallel, and both suites mutate the same tree: one
+      # corrupts line-anchors.json on purpose, and the other writes a broken-anchor fixture
+      # under docs-site/, which the first suite's whole-tree run then walks. Parallel is a
+      # flaky red on a required check. Keep the `&&`.
       - name: Cited-path gate tests
         working-directory: docs-site
         run: npm run test:citations

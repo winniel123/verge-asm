@@ -7,6 +7,8 @@ export function goInventory(repoRoot, paths) {
     input: `${paths.join("\n")}\n`,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
+    // A cold module cache behind a slow proxy would hang a required check (SPEC §7.7).
+    timeout: 5 * 60 * 1000,
   });
   const parsed = JSON.parse(out);
   const inventory = new Map();
