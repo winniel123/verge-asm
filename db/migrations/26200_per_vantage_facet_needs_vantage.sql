@@ -29,10 +29,17 @@
 -- This is NOT `NOT VALID`. No production writer can emit a violating row —
 -- BuildColdJobs and BuildHotJobs both return early on an empty vantage list and
 -- both stamp the loop's vantage id, and vantage_id carries a plain REFERENCES
--- with no ON DELETE SET NULL. The only violating rows are in a developer's own
--- database, written by the inventory fixture seeder that this same change
--- rewrites. A plain constraint fails their migration loudly, the web binary
--- panics at boot, and they re-seed (ADR-1985 §6).
+-- with no ON DELETE SET NULL. The violating rows this change expects are the
+-- inventory fixture seeder's, and a plain constraint fails their migration
+-- loudly rather than staying silent about them (ADR-1985 §6).
+--
+-- RECOVERY IS A DROP, NOT A RE-SEED. cmd/web/main.go runs migrateUp BEFORE it
+-- reads -seed-fixtures, so the rewritten seeder cannot repair a database this
+-- migration refuses: the binary exits at migrate and never reaches it. The
+-- observation rows are further out of the seeder's reach, because it writes and
+-- clears span alone. A developer holding either drops the database volume and
+-- seeds again. No migration deletes a row here: that would be the first
+-- exception to ADR-0041 and needs its own argument.
 ALTER TABLE span
     ADD CONSTRAINT span_per_vantage_facet_needs_vantage CHECK (
         vantage_id IS NOT NULL

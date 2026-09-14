@@ -20,10 +20,12 @@ const (
 
 // Containment of a presented address in a declared scope is all that derives a class (#1985).
 
+// A declared scope is a dispatcher input, so this one is TEST-NET-1 rather than a real LAN.
+
 const (
 	fixtureVantageInternal = "fixture-internal"
 	fixtureVantageInternet = "fixture-internet"
-	fixtureAddressScope    = "10.10.0.0/24"
+	fixtureAddressScope    = "192.0.2.0/24"
 )
 
 type fixtureVantage struct {
@@ -34,7 +36,7 @@ type fixtureVantage struct {
 // class ships vestigial on the row and is derived per read from dialled_addr (#709).
 
 var inventoryFixtureVantages = []fixtureVantage{
-	{name: fixtureVantageInternal, dialled: "10.10.0.5"},
+	{name: fixtureVantageInternal, dialled: "192.0.2.5"},
 	{name: fixtureVantageInternet, dialled: "203.0.113.9"},
 }
 

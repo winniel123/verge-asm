@@ -24,6 +24,18 @@ func fixtureVantageByName(t *testing.T, name string) fixtureVantage {
 	return fixtureVantage{}
 }
 
+func fixtureVantageID(t *testing.T, name string) pgtype.Int8 {
+	t.Helper()
+	for i, fv := range inventoryFixtureVantages {
+		if fv.name == name {
+			// The seeder's real ids come from the identity column, so only distinctness matters.
+			return pgtype.Int8{Int64: int64(i + 1), Valid: true}
+		}
+	}
+	t.Fatalf("no fixture vantage named %q", name)
+	return pgtype.Int8{}
+}
+
 func TestEveryFixtureSpanNamesASeededVantage(t *testing.T) {
 	// 26200 refuses a NULL vantage outside its two exceptions, so a skipped one
 	// fails the seeder against the real schema.

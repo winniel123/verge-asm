@@ -58,10 +58,12 @@ func fixtureSpanRows(t *testing.T) []db.ListAllOpenSpansRow {
 			SubjectKey:    fs.key,
 			Facet:         fs.facet,
 			Discriminator: fs.discriminator,
-			Source:        fs.source(),
-			Value:         []byte(fs.value),
-			IsGap:         fs.isGap,
-			OpenedAt:      pgtype.Timestamptz{Time: openedAt, Valid: true},
+			// 26200 refuses a NULL vantage here, so the helper must not model one.
+			VantageID: fixtureVantageID(t, fs.vantage),
+			Source:    fs.source(),
+			Value:     []byte(fs.value),
+			IsGap:     fs.isGap,
+			OpenedAt:  pgtype.Timestamptz{Time: openedAt, Valid: true},
 		})
 	}
 	return rows
