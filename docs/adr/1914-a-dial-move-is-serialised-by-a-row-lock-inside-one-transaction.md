@@ -81,6 +81,8 @@ which is the exact case the conditional `UPDATE` could not express.
 
 ## 4. What the transaction now holds
 
+> **Amended** by [ADR-1944: The observation floor is derived in the statement that writes the dial](./1944-the-observation-floor-is-derived-in-the-statement-that-writes-the-dial.md), 2026-09-14. <!-- adr-marker amends 1944 -->
+
 The wrapper takes the lock, reads, mutates, compares and records, then commits. `txRecorder` already
 existed for the restore path, so the `Act` insert binds to the transaction without a second
 mechanism.

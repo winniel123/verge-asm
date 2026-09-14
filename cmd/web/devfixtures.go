@@ -534,6 +534,21 @@ var devCoverageStaleZones = []devCoverageStaleZone{
 	{zone: "internal.acmecorp.io", age: "2 re-supply intervals"},
 }
 
+// Derived rather than transcribed, so no drift test of its own is owed (ADR-0167 §2).
+
+func devCoverageSeeds() []db.ListSeedsRow {
+	out := make([]db.ListSeedsRow, 0, len(devCoverageMeters))
+	for _, m := range devCoverageMeters {
+		p, err := netip.ParsePrefix(m.label)
+		if err != nil {
+			out = append(out, db.ListSeedsRow{Kind: "name", NameDomain: pgtype.Text{String: m.label, Valid: true}})
+			continue
+		}
+		out = append(out, db.ListSeedsRow{Kind: "address", AddressCidr: &p})
+	}
+	return out
+}
+
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := pageData(acct, "Coverage", "coverage")
 
@@ -542,6 +557,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	s.coverageEmptyOnce = false
 	s.coverageMu.Unlock()
 	if empty {
+		data["Statement"] = apertureStatement(nil)
 		data["Meters"] = []coverageMeterView(nil)
 		data["Messages"] = []coverageMessageView(nil)
 		data["Gaps"] = []coverageGapView(nil)
@@ -580,6 +596,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
 	}
 
+	data["Statement"] = apertureStatement(devCoverageSeeds())
 	data["Meters"] = meters
 	data["Messages"] = messages
 	data["Gaps"] = gaps

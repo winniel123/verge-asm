@@ -376,6 +376,9 @@ type Querier interface {
 	UndoDeclineProposal(ctx context.Context, id int64) (netip.Prefix, error)
 	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
+	// The floor is derived here, so no scan write lands between the read and the write (ADR-1944).
+	// The caller compares the persisted value against the locked read, so the clamp comes back.
+	UpdateCoverageRetentionSettings(ctx context.Context, arg UpdateCoverageRetentionSettingsParams) (UpdateCoverageRetentionSettingsRow, error)
 	// The account rides the update's own RETURNING, so no read can blank the Act.
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) (string, error)
 	UpdatePersonalTokenLastUsed(ctx context.Context, id int64) error

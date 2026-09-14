@@ -45,6 +45,11 @@ type fakeStore struct {
 	dialMu         sync.Mutex
 	insideDialLock func()
 
+	// The lock holds no scan row, so a writer reaching one commits here: at the last instant
+	// before a dial statement runs (ADR-1944).
+
+	beforeDialWrite func()
+
 	// Two concurrent requests share one session row, and the middleware writes it.
 
 	sessMu sync.Mutex
