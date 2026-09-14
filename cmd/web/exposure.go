@@ -29,10 +29,16 @@ type exposureRow struct {
 }
 
 type exposureStats struct {
-	exposed    int
-	firewalled int
-	notReached int
+	exposed      int
+	firewalled   int
+	notReached   int
+	sinceUnknown bool
 }
+
+const (
+	exposureSinceAbsent  = "—"
+	exposureSinceUnknown = "?"
+)
 
 func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
@@ -75,11 +81,12 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	data := pageData(acct, "Exposure", "exposure", map[string]any{
-		"Withheld":   false,
-		"Rows":       rows,
-		"Exposed":    stats.exposed,
-		"Firewalled": stats.firewalled,
-		"NotReached": stats.notReached,
+		"Withheld":     false,
+		"Rows":         rows,
+		"Exposed":      stats.exposed,
+		"Firewalled":   stats.firewalled,
+		"NotReached":   stats.notReached,
+		"SinceUnknown": stats.sinceUnknown,
 	})
 	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
 		log.Printf("web: exposure: previous batch instant: %v", err)
@@ -118,35 +125,35 @@ func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, er
 	sort.Strings(order)
 
 	since := map[string]string{}
-	if spans, err := s.exposureStore.ListAllOpenSpans(ctx); err == nil {
-		for _, sp := range spans {
-			if sp.SubjectKind != "service" || sp.Facet != "reachability" || !sp.OpenedAt.Valid {
-				continue
-			}
-			d := sp.OpenedAt.Time.UTC().Format("2006-01-02")
-			if cur, ok := since[sp.SubjectKey]; !ok || d < cur {
-				since[sp.SubjectKey] = d
-			}
+	var stats exposureStats
+	spans, err := s.exposureStore.ListAllOpenSpans(ctx)
+	if err != nil {
+		// The counts do not read this input, so its failure degrades one column (#1947).
+		log.Printf("web: exposure: list all open spans: %v", err)
+		stats.sinceUnknown = true
+	}
+	for _, sp := range spans {
+		if sp.SubjectKind != "service" || sp.Facet != "reachability" || !sp.OpenedAt.Valid {
+			continue
+		}
+		d := sp.OpenedAt.Time.UTC().Format("2006-01-02")
+		if cur, ok := since[sp.SubjectKey]; !ok || d < cur {
+			since[sp.SubjectKey] = d
 		}
 	}
 
 	var rows []exposureRow
-	var stats exposureStats
 	for _, svc := range order {
 		addr, port, transport := splitServiceKey(svc)
 		internal := legs[svc]["internal"]
 		internet := legs[svc]["internet"]
 
-		sinceStr := since[svc]
-		if sinceStr == "" {
-			sinceStr = "—"
-		}
 		rows = append(rows, exposureRow{
 			Asset:    addr,
 			Svc:      ":" + port + " " + transport,
 			Internal: legDisplay(internal),
 			Internet: legDisplay(internet),
-			Since:    sinceStr,
+			Since:    sinceDisplay(since[svc], stats.sinceUnknown),
 		})
 
 		ev, ok := exposure.Project(legFrom(internet), legFrom(internal))
@@ -160,6 +167,16 @@ func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, er
 		}
 	}
 	return rows, stats, nil
+}
+
+func sinceDisplay(since string, unknown bool) string {
+	switch {
+	case unknown:
+		return exposureSinceUnknown
+	case since == "":
+		return exposureSinceAbsent
+	}
+	return since
 }
 
 func legDisplay(l legInfo) string {
