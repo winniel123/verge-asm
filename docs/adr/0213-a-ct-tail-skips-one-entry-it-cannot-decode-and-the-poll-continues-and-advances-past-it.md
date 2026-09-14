@@ -91,7 +91,7 @@ Three failure classes arrive at a tail arm, and only the third is this ADR's.
 
 The content class is five reachable errors: a leaf shorter than the header, an unsupported leaf
 version, an unsupported leaf type, a truncated or zero `opaque<1..2^24-1>` length, and a DER that
-`x509.ParseCertificate` refuses (`internal/scan/cttail.go#ParseSTH`, `:245`, `:248`, `:290` and `:277`).
+`x509.ParseCertificate` refuses (`internal/scan/cttail.go`, `:245`, `:248`, `:290` and `:277`).
 On the tiled arm only the last of those is reachable, through `CertSANs`.
 
 A failure of the transport, the status code, or the body's own frame is a failure of the **whole

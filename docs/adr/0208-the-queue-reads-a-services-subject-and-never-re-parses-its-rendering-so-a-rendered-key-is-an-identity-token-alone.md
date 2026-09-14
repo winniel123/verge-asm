@@ -92,7 +92,7 @@ two parses — for a value the writer already held in its measured form.
 
 **The fold already holds the address and throws it away.** `wire.Observation` carries an `Address`
 field, `connectoutcome.EmitService` sets it to `target.Addr().String()`, and `foldOne`
-(`internal/queue/spanfold.go#foldObservationsIntoSpans`) never reads it. So step 3 exists to recover a value the writer
+(`internal/queue/spanfold.go`) never reads it. So step 3 exists to recover a value the writer
 had, sent, and the reader discarded one function earlier.
 
 ### The failure is silent, and no test would catch it

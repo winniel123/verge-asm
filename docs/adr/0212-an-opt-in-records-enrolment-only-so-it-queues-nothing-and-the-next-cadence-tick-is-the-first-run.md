@@ -35,7 +35,7 @@ The rule binds the web opt-in handler as much as the dispatcher, and it is the o
 ADR-0044 nor the v1 SPEC rules.
 
 **What the opt-in handler actually does is three statements.** `setColdScope`
-(`cmd/web/cold.go#coveragePct`) parses the seed id, then calls `OptInColdScope` — one `INSERT INTO
+(`cmd/web/cold.go`) parses the seed id, then calls `OptInColdScope` — one `INSERT INTO
 cold_scan_scope (seed_id, created_by)` — then `SyncColdScanEnabled`, which is
 `SET enabled = EXISTS (SELECT 1 FROM cold_scan_scope)`, then redirects. There is no `EnqueueJob`, no
 `Trigger`, and no dispatch on that path.

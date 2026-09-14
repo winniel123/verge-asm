@@ -79,9 +79,9 @@ imports no other first-party package. `internal/queue` and `internal/delivery` b
 | The exported value it passes | `internal/delivery/runner.go#EnqueueForMessage` |
 | The batch transaction | `internal/queue/worker.go` (`inTx`), which calls `w.q.WithTx(tx)` at `:523` |
 | The transaction the message rides | `internal/queue/worker.go`, `complete`'s `runJobTx` call |
-| The call that binds the open handle into the seam | `internal/queue/worker.go#Worker.narrowingCollector` |
+| The call that binds the open handle into the seam | `internal/queue/worker.go` |
 | The narrowed in-package seam type | `internal/queue/produce.go` (`enqueueFunc`) |
-| The enqueue call | `internal/queue/produce.go#departure` |
+| The enqueue call | `internal/queue/produce.go` |
 
 `produce` closes over `qtx`, the handle `inTx` opened, and hands the closure to `produceMessages`:
 
@@ -221,7 +221,7 @@ in `internal/queue` and a receiver in `internal/delivery` and state nothing the 
 ### 3. The injected call joins the batch transaction and never opens its own
 
 `produce` binds the open `*db.Queries` handle into the closure it passes down
-(`internal/queue/worker.go#Worker.narrowingCollector`). Every write the injected function makes lands in the
+(`internal/queue/worker.go`). Every write the injected function makes lands in the
 transaction `inTx` opened at `worker.go:518` and commits at `:526`. The injected function takes no
 pool and begins no transaction.
 
@@ -286,8 +286,8 @@ may. A package that wants a batch to route a message asks `cmd/worker` to wire i
   `(ADR-0199 §1, #1316)`. #1316 recorded one survivor. There are three, and the record is corrected
   here.
 - **`WithMessages(nil, …)` is a defect this ruling exposes, and it ships as its own ticket.**
-  `internal/queue/worker.go#Worker.persistTranscript` sets `produceMsgs = true` whatever the enqueuer is. A caller that
-  passes `nil` turns message production on with no route. `internal/queue/produce.go#departure` then
+  `internal/queue/worker.go` sets `produceMsgs = true` whatever the enqueuer is. A caller that
+  passes `nil` turns message production on with no route. `internal/queue/produce.go` then
   skips the enqueue for every message, so the batch commits messages that no `Delivery` row carries
   and no later pass re-routes, because ADR-0064 computes a message once. Limb 2 makes the function
   value the whole payload of the option, so a `nil` payload must either leave the seam unwired or be
