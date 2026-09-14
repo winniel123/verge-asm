@@ -306,6 +306,18 @@ that list, so read the row count off your own response.
       "remedy": "none",
       "remedy_href": "",
       "remedy_why": "…"
+    },
+    {
+      "input": "The control-probe population",
+      "cadence": "daily",
+      "cadence_why": "…",
+      "state": "derived per batch · 10 control labels per parent",
+      "state_kind": "fixed",
+      "figures": [],
+      "state_detail": "…",
+      "remedy": "none",
+      "remedy_href": "",
+      "remedy_why": "…"
     }
   ]
 }
@@ -336,6 +348,13 @@ The TLS candidate set is such a row too, and its `cadence` names three edges rat
 than one. One declared list rides both TLS exchanges, so the set is re-asked on the
 weekly `tls-acceptance` scan and on whichever port tier makes the connect. No scan
 interval you set moves any of the three.
+
+The control-probe population is the last such row. Its `state` is the one that
+follows your own declaration. Its `cadence` follows the `dns` scan interval you
+set. That scan rebuilds the population from its own resolution scope. Where no
+name scope is declared, `state` carries the literal `none`. The population is
+then empty. That is a declared state, and not a read that has yet to land. The
+row counts no part of your estate, and `figures` is empty.
 
 ---
 

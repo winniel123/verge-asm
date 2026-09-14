@@ -20,6 +20,7 @@ const (
 	queriedQtypeInput   = "The queried qtype set"
 	tlsCandidateInput   = "The TLS candidate set"
 	vantageClassInput   = "Vantage class"
+	controlProbeInput   = "The control-probe population"
 )
 
 // The shipped default of db/migrations/18801_measurement_scan.sql, so the label reads `daily`.
@@ -315,7 +316,7 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 	}
 }
 
-// The ledger's order is SPEC §2.5's: sources 1, port tiers 2, gate 3, qtypes 4, TLS 5, class 6.
+// SPEC §2.5's order: sources 1, port tiers 2, gate 3, qtypes 4, TLS 5, class 6, controls 7.
 
 func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
 	rows := apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true)
@@ -323,7 +324,7 @@ func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
 	for _, r := range rows {
 		order = append(order, r.Input)
 	}
-	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, queriedQtypeInput, tlsCandidateInput, vantageClassInput}
+	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, queriedQtypeInput, tlsCandidateInput, vantageClassInput, controlProbeInput}
 	if strings.Join(order, "|") != strings.Join(want, "|") {
 		t.Errorf("ledger order = %v, want %v", order, want)
 	}

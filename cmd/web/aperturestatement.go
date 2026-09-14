@@ -10,6 +10,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/tlsoffer"
+	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -47,6 +48,7 @@ func apertureStatement(states []db.SourceState, statesRead bool, seeds []db.List
 		queriedQtypeSetRow(dnsCadence, dnsCadenceRead),
 		tlsCandidateSetRow(),
 		vantageClassRow(classes, classesRead),
+		controlProbePopulationRow(seeds, dnsCadence, dnsCadenceRead),
 	}
 }
 
@@ -419,6 +421,55 @@ func sensitiveUDPPairs(core vergecore.List) int {
 		}
 	}
 	return n
+}
+
+// A name is discriminated at its parent, so the population is that parent set (ADR-0066).
+
+const controlProbePurpose = "The population discriminates a wildcard: a name is decided at its parent, never at its own apex."
+
+const controlProbeDetail = controlProbePurpose +
+	" A control label is generated under the parent of each name the dns Scan resolves inside a declared name scope. " +
+	"The probing gate stops the population at your scope, so a parent above your own apex is never probed. " +
+	"A name whose parent went unprobed records a Gap and never a value."
+
+// An empty Seed list is a declared state, so this cell states a population and not a pending read.
+
+const controlProbeEmptyDetail = controlProbePurpose +
+	" No name scope is declared, so no name resolves under a parent inside one, and the population is empty."
+
+func controlProbePopulationRow(seeds []db.ListSeedsRow, dnsCadence int64, dnsCadenceRead bool) apertureRowView {
+	row := apertureRowView{
+		Input:   "The control-probe population",
+		Cadence: cadenceLabel(dnsCadence),
+		// This row's exchange is the dns Scan, whose cadence is one of two dials (#1883).
+		CadenceWhy: "The dns Scan rebuilds the population from its own resolution scope on every run. A cadence dial ships for this Scan: the DNS scan interval on the Scope screen moves how often it is rebuilt. No dial moves what it holds.",
+		State:      fmt.Sprintf("derived per batch · %d control labels per parent", wildcarddiscrim.LabelCount),
+		// No toggle narrows this population, so the chip carries no on and no off (ADR-0030).
+		StateKind:   "fixed",
+		StateDetail: controlProbeDetail,
+		Remedy:      apertureNone,
+		RemedyWhy:   "No setting narrows or widens this population on its own. A control probe the operator can suppress is a wildcard finding the operator can silence, so the population follows the name scopes you declare and moves with no switch of its own.",
+	}
+	if !declaresNameScope(seeds) {
+		row.State = apertureNone
+		row.StateDetail = controlProbeEmptyDetail
+	}
+	if !dnsCadenceRead {
+		row.Cadence = "not read"
+		row.CadenceWhy = "The dns Scan's interval did not resolve on this load, so this cell names no cadence. The population's construction is unchanged: every batch rebuilds it from its own resolution scope."
+	}
+	return row
+}
+
+// The gate stops the population at the Seed, so a declared name scope is its bound (ADR-0066).
+
+func declaresNameScope(seeds []db.ListSeedsRow) bool {
+	for _, sd := range seeds {
+		if sd.Kind == "name" {
+			return true
+		}
+	}
+	return false
 }
 
 // ADR-0009's union holds every TCP sensitive pair, so either lever leaves only UDP (#1883).
