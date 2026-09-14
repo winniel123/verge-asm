@@ -230,6 +230,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	s.render(w, r, "coverage", pageData(acct, "Coverage", "coverage", map[string]any{
+		"Statement":   apertureStatement(seeds),
 		"Meters":      meters,
 		"Messages":    messages,
 		"Gaps":        gaps,

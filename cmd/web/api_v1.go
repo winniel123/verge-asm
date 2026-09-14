@@ -252,7 +252,25 @@ func projectSignals(rows []signalRow) []apiSignal {
 }
 
 type apiCoverageResponse struct {
-	Meters []apiCoverageMeter `json:"meters"`
+	Meters    []apiCoverageMeter `json:"meters"`
+	Statement []apiApertureRow   `json:"statement"`
+}
+
+type apiApertureRow struct {
+	Input       string              `json:"input"`
+	Cadence     string              `json:"cadence"`
+	CadenceWhy  string              `json:"cadence_why"`
+	State       string              `json:"state"`
+	Figures     []apiApertureFigure `json:"figures"`
+	StateDetail string              `json:"state_detail"`
+	Remedy      string              `json:"remedy"`
+	RemedyHref  string              `json:"remedy_href"`
+	RemedyWhy   string              `json:"remedy_why"`
+}
+
+type apiApertureFigure struct {
+	Text string `json:"text"`
+	Zero bool   `json:"zero"`
 }
 
 type apiCoverageMeter struct {
@@ -290,7 +308,22 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	// The row's worth is the sentence beside the count, which no JSON field carries (#989).
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), nil)
 
-	out := apiCoverageResponse{Meters: make([]apiCoverageMeter, 0, len(meters))}
+	rows := apertureStatement(seeds)
+	out := apiCoverageResponse{
+		Meters:    make([]apiCoverageMeter, 0, len(meters)),
+		Statement: make([]apiApertureRow, 0, len(rows)),
+	}
+	for _, row := range rows {
+		figs := make([]apiApertureFigure, 0, len(row.Figures))
+		for _, f := range row.Figures {
+			figs = append(figs, apiApertureFigure{Text: f.Text, Zero: f.Zero})
+		}
+		out.Statement = append(out.Statement, apiApertureRow{
+			Input: row.Input, Cadence: row.Cadence, CadenceWhy: row.CadenceWhy, State: row.State,
+			Figures: figs, StateDetail: row.StateDetail,
+			Remedy: row.Remedy, RemedyHref: row.RemedyHref, RemedyWhy: row.RemedyWhy,
+		})
+	}
 	for _, m := range meters {
 		out.Meters = append(out.Meters, apiCoverageMeter{
 			Label: m.Label, Counted: m.Counted, Total: m.Total, Unit: m.Unit, Pct: m.Pct, Detail: m.Detail,

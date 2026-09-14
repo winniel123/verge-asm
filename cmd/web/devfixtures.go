@@ -518,6 +518,16 @@ var devCoverageStaleZones = []devCoverageStaleZone{
 	{zone: "internal.acmecorp.io", age: "2 re-supply intervals"},
 }
 
+// The fixture's first meter counts this scope, so the statement must agree with it (#1918).
+
+func devCoverageSeeds() []db.ListSeedsRow {
+	p := netip.MustParsePrefix("203.0.113.0/24")
+	return []db.ListSeedsRow{
+		{Kind: "address", AddressCidr: &p},
+		{Kind: "name", NameDomain: pgtype.Text{String: "acmecorp.io", Valid: true}},
+	}
+}
+
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := pageData(acct, "Coverage", "coverage")
 
@@ -526,6 +536,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	s.coverageEmptyOnce = false
 	s.coverageMu.Unlock()
 	if empty {
+		data["Statement"] = apertureStatement(nil)
 		data["Meters"] = []coverageMeterView(nil)
 		data["Messages"] = []coverageMessageView(nil)
 		data["Gaps"] = []coverageGapView(nil)
@@ -564,6 +575,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
 	}
 
+	data["Statement"] = apertureStatement(devCoverageSeeds())
 	data["Meters"] = meters
 	data["Messages"] = messages
 	data["Gaps"] = gaps
