@@ -87,6 +87,84 @@ test("a Go package.Symbol token is not a path", () => {
   assert.deepEqual(dead(markdown), []);
 });
 
+test("a code span carrying an anchor is a candidate, and the result carries the anchor", () => {
+  const hit = results("The list read is `internal/queue/hot.go#hotCore`.").find(
+    (r) => r.value === "internal/queue/hot.go",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal(hit.path, "internal/queue/hot.go");
+  assert.equal(hit.anchor, "hotCore");
+});
+
+test("a link fragment carries the same anchor as the code span", () => {
+  const hit = results("See [hotCore](internal/queue/hot.go#hotCore).").find(
+    (r) => r.value === "internal/queue/hot.go",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal(hit.path, "internal/queue/hot.go");
+  assert.equal(hit.anchor, "hotCore");
+});
+
+test("a citation with no hash carries no anchor", () => {
+  const hit = results("The list read is `internal/queue/hot.go`.").find(
+    (r) => r.value === "internal/queue/hot.go",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal("anchor" in hit, false);
+});
+
+test("an anchor on a path the tree does not hold is dead, and the path is the fault", () => {
+  const markdown = "The list read is `internal/queue/no-such-file.go#hotCore`.";
+  assert.deepEqual(dead(markdown), ["internal/queue/no-such-file.go"]);
+});
+
+test("the anchor character class admits a slash", () => {
+  const hit = results("See `docs/spec/citation-anchors.md#3-the-form/3-1-the-rule`.").find(
+    (r) => r.value === "docs/spec/citation-anchors.md",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal(hit.anchor, "3-the-form/3-1-the-rule");
+});
+
+test("a space or a quote inside an anchor makes the token no candidate", () => {
+  for (const raw of ["internal/queue/hot.go#hot Core", 'internal/queue/hot.go#"hotCore"']) {
+    assert.deepEqual(results(`The list read is \`${raw}\`.`), []);
+  }
+});
+
+test("a link fragment outside the anchor class carries no anchor, and the path still resolves", () => {
+  // A bare link destination cannot hold a space, so the space case needs the angle-bracket form.
+  for (const target of [
+    'internal/queue/hot.go#"hotCore"',
+    "<internal/queue/hot.go#hot Core>",
+    "internal/queue/hot.go#L10:20",
+    "internal/queue/hot.go#hot#Core",
+    "internal/queue/hot.go#hotCore?plain=1",
+  ]) {
+    const hit = results(`See [core](${target}).`).find(
+      (r) => r.value === "internal/queue/hot.go",
+    );
+    assert.equal(hit.status, "ok", target);
+    assert.equal("anchor" in hit, false, target);
+  }
+});
+
+test("a directory carries no anchor, because a directory declares nothing", () => {
+  assert.deepEqual(results("See `internal/queue/#hotCore`."), []);
+  const hit = results("See [queue](internal/queue/#hotCore).").find(
+    (r) => r.value === "internal/queue/",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal("anchor" in hit, false);
+});
+
+test("an anchor is never trimmed, so it reads as the document wrote it", () => {
+  const hit = results("See `docs/spec/citation-anchors.md#3-the-form.`.").find(
+    (r) => r.value === "docs/spec/citation-anchors.md",
+  );
+  assert.equal(hit.anchor, "3-the-form.");
+});
+
 test("a URL route and a markdown template are not paths", () => {
   const markdown = "Open `/settings?tab=api` and file [#NNN](url).";
   assert.deepEqual(dead(markdown), []);
