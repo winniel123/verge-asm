@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"strings"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -32,8 +36,29 @@ type apertureRowView struct {
 
 // The card renders the rows that exist and grows to the seven of the spec's order (#1917).
 
-func apertureStatement(seeds []db.ListSeedsRow) []apertureRowView {
-	return []apertureRowView{portTierRow(seeds)}
+func apertureStatement(seeds []db.ListSeedsRow, classes []custody.VantageClass, classesRead bool) []apertureRowView {
+	return []apertureRowView{portTierRow(seeds), vantageClassRow(classes, classesRead)}
+}
+
+type apertureVantageStore interface {
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+}
+
+// A failed read renders as withheld, because an empty class set would name a missing leg (#989).
+
+func (s *server) apertureVantageClasses(ctx context.Context, store apertureVantageStore, where string) ([]custody.VantageClass, bool) {
+	rows, err := store.ListVantages(ctx)
+	if err != nil {
+		log.Printf("web: %s: list vantages: %v", where, err)
+		return nil, false
+	}
+	covered, cerr := s.addressScopeCovered(ctx)
+	if cerr != nil {
+		log.Printf("web: %s: address scope coverage: %v", where, cerr)
+		// A tag failing closed to internet mislabels one vantage; here it would hide the remedy.
+		return nil, false
+	}
+	return listedVantageClasses(rows, covered), true
 }
 
 func portTierRow(seeds []db.ListSeedsRow) apertureRowView {
@@ -67,6 +92,88 @@ func portTierRow(seeds []db.ListSeedsRow) apertureRowView {
 		{Text: fmt.Sprintf("0 of %d rules unevaluable", len(signal.AllRuleNames())), Zero: true},
 	}
 	return row
+}
+
+const apertureVantagesHref = "/settings?tab=vantages"
+
+func vantageClassRow(classes []custody.VantageClass, classesRead bool) apertureRowView {
+	row := apertureRowView{
+		Input: "Vantage class",
+		// A value derived at the point of use is never stale, so it has none (ADR-0028, #1896).
+		Cadence:    apertureNone,
+		CadenceWhy: "The class is derived where it is used, so it carries no currency and needs no cadence.",
+		StateKind:  "off",
+	}
+	if !classesRead {
+		// A client reads the kind rather than the prose, so `off` would state a state we lack.
+		row.StateKind = "withheld"
+		row.State = "not read"
+		row.StateDetail = "The vantage list did not read, so this cell states no class."
+		row.Remedy = apertureNone
+		row.RemedyWhy = "A read that did not land names no missing class, so no act follows it."
+		return row
+	}
+
+	row.State = vantageClassSet(classes)
+	row.StateDetail = "A class is derived from the addresses a vantage presents and your declared address scopes, never from a stored field."
+	if row.State == "" {
+		row.State = apertureNone
+		row.StateDetail = "No prober is provisioned, so no vantage presents an address to classify."
+	}
+
+	var hasInternet, hasInternal bool
+	// Each leg is an existential over the derived class, never a second predicate (#711).
+	for _, c := range classes {
+		hasInternet = hasInternet || c == custody.ClassInternet
+		hasInternal = hasInternal || c == custody.ClassInternal
+	}
+	row.Remedy, row.RemedyHref = "Provision a prober", apertureVantagesHref
+	switch {
+	case hasInternet && hasInternal:
+		row.StateKind = "on"
+		row.Remedy, row.RemedyHref = apertureNone, ""
+		row.RemedyWhy = "A vantage reads from each side of your boundary, so no class is missing."
+	case hasInternet:
+		// The egress step flips an internet prober, so the label names the first act (#1903).
+		row.Remedy = "Provision a prober inside your estate"
+		row.RemedyWhy = "No declared address scope covers any prober, so no vantage starts the internal leg. Run a prober inside your estate, then declare its egress as an address scope."
+	case hasInternal:
+		row.RemedyWhy = "No vantage presents an address outside your declared scopes, so no vantage starts the internet leg. Exposure needs an outside observer, unconditionally."
+	default:
+		row.RemedyWhy = "No vantage presents an observed address, so neither leg has a reader. Exposure needs an outside observer first."
+	}
+	return row
+}
+
+// The count is over our own list of provisioned probers, which SPEC §8.8's bar does not reach.
+
+func vantageClassSet(classes []custody.VantageClass) string {
+	counts := map[string]int{}
+	for _, c := range classes {
+		counts[string(c)]++
+	}
+	parts := make([]string, 0, len(counts))
+	for _, name := range vantageClassOrder(counts) {
+		parts = append(parts, fmt.Sprintf("%d %s", counts[name], name))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// A class the derivation gains renders last rather than dropping out of the count.
+
+func vantageClassOrder(counts map[string]int) []string {
+	rest := make(map[string]struct{}, len(counts))
+	for name := range counts {
+		rest[name] = struct{}{}
+	}
+	out := make([]string, 0, len(counts))
+	for _, c := range []custody.VantageClass{custody.ClassInternet, custody.ClassInternal, custody.ClassUnverified} {
+		if counts[string(c)] > 0 {
+			out = append(out, string(c))
+		}
+		delete(rest, string(c))
+	}
+	return append(out, sortedKeys(rest)...)
 }
 
 // `Counts.UDP` counts the union, not the sensitive half, so the caller filters (#1884).
