@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/retention"
 )
 
 func (f *fakeStore) CountHeldObservations(_ context.Context, _ int64) (db.CountHeldObservationsRow, error) {
@@ -44,6 +46,38 @@ func (f *fakeStore) ListCoveringScanKinds(context.Context) ([]string, error) {
 		return nil, f.coveringScanErr
 	}
 	return f.coveringScans, nil
+}
+
+// The fake stands in for the clamping statement: it reads the scan set as it writes, and it
+// derives the floor from the constants the handler passes rather than its own (ADR-1944).
+
+func (f *fakeStore) UpdateCoverageRetentionSettings(
+	ctx context.Context, arg db.UpdateCoverageRetentionSettingsParams,
+) (db.UpdateCoverageRetentionSettingsRow, error) {
+	if f.beforeDialWrite != nil {
+		f.beforeDialWrite()
+	}
+	scanRows, err := f.ListEnabledScans(ctx)
+	if err != nil {
+		return db.UpdateCoverageRetentionSettingsRow{}, err
+	}
+	coveringKinds, err := f.ListCoveringScanKinds(ctx)
+	if err != nil {
+		return db.UpdateCoverageRetentionSettingsRow{}, err
+	}
+	var floorDays int64
+	tightest := retention.ObservationFloor(scanCadences(scanRows, coveringKinds)).CadenceSeconds
+	if tightest > 0 && arg.SecondsPerDay > 0 {
+		floorDays = (arg.FloorCadences*tightest + arg.SecondsPerDay - 1) / arg.SecondsPerDay
+	}
+	f.retention.ObservationCurrencyDays = retention.ClampToFloor(arg.ObservationCurrencyDays, floorDays)
+	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
+	f.retention.UpdatedBy = arg.UpdatedBy
+	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return db.UpdateCoverageRetentionSettingsRow{
+		ObservationCurrencyDays: f.retention.ObservationCurrencyDays,
+		DispatchCadenceMultiple: f.retention.DispatchCadenceMultiple,
+	}, nil
 }
 
 func seedRetentionPanel(f *fakeStore) {
@@ -275,6 +309,91 @@ func TestABelowFloorDialIsUnreachableRatherThanRefused(t *testing.T) {
 	resp.Body.Close()
 	if f.retention.ObservationCurrencyDays != 90 || f.retention.DispatchCadenceMultiple != 4 {
 		t.Errorf("an unreadable post moved a dial to keep everything: %+v", f.retention)
+	}
+}
+
+// The dial lock holds the settings row and no scan row, so a writer that moves the floor
+// commits between a read of it and the write. Each case below commits one such write at the
+// last instant the interleaving allows, and asserts what lands is at or above the floor then
+// in force (ADR-1944).
+
+func TestAScanWriteUnderTheSectionCannotPersistABelowFloorDial(t *testing.T) {
+	// A cold Scan at an hour is the tightest cover, so the floor stands at one day.
+	coldCover := func(f *fakeStore, enabled bool) {
+		f.scans = append(f.scans, db.Scan{ID: 505, Kind: "cold", Enabled: enabled, CadenceSeconds: 3600})
+	}
+
+	cases := []struct {
+		name    string
+		seed    func(*fakeStore)
+		commit  func(*fakeStore)
+		want    int64
+		because string
+	}{{
+		// The cold Scan is enabled by a subquery over the scopes, so the last opt-out drops it.
+		name: "cold custody withdraws the tightest cover",
+		seed: func(f *fakeStore) {
+			coldCover(f, true)
+			f.coveringScans = append(f.coveringScans, "cold")
+			f.coldScopes[1] = true
+		},
+		commit: func(f *fakeStore) {
+			delete(f.coldScopes, 1)
+			_ = f.SyncColdScanEnabled(context.Background())
+		},
+		want:    2,
+		because: "the floor rose to the dns cadence",
+	}, {
+		// No operator is needed here: the sweep retires the last observation the cover rests on.
+		name: "the worker retires the last observation under the tightest cover",
+		seed: func(f *fakeStore) {
+			coldCover(f, true)
+			f.coveringScans = append(f.coveringScans, "cold")
+		},
+		commit: func(f *fakeStore) {
+			f.coveringScans = []string{"dns", "zone"}
+		},
+		want:    2,
+		because: "the floor rose to the dns cadence",
+	}, {
+		// A FOR SHARE read of the enabled rows never locks this one, because it is FALSE.
+		name: "cold custody enables a tighter cover",
+		seed: func(f *fakeStore) {
+			coldCover(f, false)
+		},
+		commit: func(f *fakeStore) {
+			f.coldScopes[1] = true
+			_ = f.SyncColdScanEnabled(context.Background())
+			f.coveringScans = append(f.coveringScans, "cold")
+		},
+		want:    1,
+		because: "the floor fell to the cold cadence, so the submitted value stands",
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeStore()
+			seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+			seedRetentionPanel(f)
+			tc.seed(f)
+			f.retention.ObservationCurrencyDays = 90
+			base := start(t, f, "")
+			ac := login(t, base, "admin", "hunter2hunter2")
+
+			var once sync.Once
+			f.beforeDialWrite = func() { once.Do(func() { tc.commit(f) }) }
+
+			resp := postForm(t, ac, base+"/coverage/retention", url.Values{
+				"observation_currency_days": {"1"}, "dispatch_cadence_multiple": {"4"},
+			})
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusSeeOther {
+				t.Fatalf("below-floor post: status=%d, want a redirect", resp.StatusCode)
+			}
+			if got := f.retention.ObservationCurrencyDays; got != tc.want {
+				t.Errorf("observation dial = %d, want %d — %s", got, tc.want, tc.because)
+			}
+		})
 	}
 }
 

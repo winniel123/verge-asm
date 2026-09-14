@@ -520,35 +520,25 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 		if err != nil {
 			return err
 		}
-		scanRows, err := q.ListEnabledScans(ctx)
-		if err != nil {
-			// With no floor to raise to, a write could persist the ground (ADR-0081).
-			return fmt.Errorf("enabled scans: %w", err)
-		}
-		coveringKinds, err := q.ListCoveringScanKinds(ctx)
-		if err != nil {
-			// A write clamps to the covering floor, so a missed cover raises the wrong one.
-			return fmt.Errorf("covering scans: %w", err)
-		}
-		// The floor is read under the lock, so the clamp and the write read one scan set.
-		scans := scanCadences(scanRows, coveringKinds)
-
-		// Below the floor is not the operator's territory, so nothing is rejected (ADR-0081).
-		obs := retention.ClampToFloor(
-			parseDialValue(obsRaw, settings.ObservationCurrencyDays),
-			retention.ObservationFloor(scans).Days())
-		disp := retention.ClampToFloor(
+		// The dispatch floor is a constant, so no writer can move it under the clamp (ADR-0081).
+		submittedDisp := retention.ClampToFloor(
 			parseDialValue(dispRaw, settings.DispatchCadenceMultiple),
 			retention.FloorCadences)
 
-		if err := q.UpdateRetentionSettings(ctx, db.UpdateRetentionSettingsParams{
-			ObservationCurrencyDays: obs,
-			DispatchCadenceMultiple: disp,
-			TranscriptCurrencyDays:  settings.TranscriptCurrencyDays,
+		// The lock holds no scan row, so the statement derives the floor as it writes (ADR-1944).
+		row, err := q.UpdateCoverageRetentionSettings(ctx, db.UpdateCoverageRetentionSettingsParams{
+			ObservationCurrencyDays: parseDialValue(obsRaw, settings.ObservationCurrencyDays),
+			FloorCadences:           retention.FloorCadences,
+			SecondsPerDay:           retention.SecondsPerDay,
+			DispatchCadenceMultiple: submittedDisp,
 			UpdatedBy:               pgtype.Int8{Int64: acct.ID, Valid: true},
-		}); err != nil {
-			return err
+		})
+		if err != nil {
+			// With no floor to raise to, a write could persist the ground (ADR-0081).
+			return fmt.Errorf("update retention: %w", err)
 		}
+		// The guard compares what landed against the locked read, so the clamp cannot hide a move.
+		obs, disp := row.ObservationCurrencyDays, row.DispatchCadenceMultiple
 		// One Subject cell holding both dials is the list-valued subject §4.1 bars (spec §2.2).
 		if obs != settings.ObservationCurrencyDays {
 			if err := rec.Record(ctx, actingAccount(acct), act.ObservationCurrencySet{
