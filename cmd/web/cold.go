@@ -32,6 +32,7 @@ type coldStore interface {
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	OptInColdScope(ctx context.Context, arg db.OptInColdScopeParams) (db.OptInColdScopeRow, error)
@@ -206,6 +207,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		log.Printf("web: coverage: address-scope shared edges: %v", ferr)
 	}
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), sharedEdges)
+	classes, classesRead := s.apertureVantageClasses(ctx, s.coldStore, "coverage")
 
 	var gaps []coverageGapView
 	var messages []coverageMessageView
@@ -230,7 +232,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	s.render(w, r, "coverage", pageData(acct, "Coverage", "coverage", map[string]any{
-		"Statement":   apertureStatement(seeds),
+		"Statement":   apertureStatement(seeds, classes, classesRead),
 		"Meters":      meters,
 		"Messages":    messages,
 		"Gaps":        gaps,

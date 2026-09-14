@@ -549,6 +549,26 @@ func devCoverageSeeds() []db.ListSeedsRow {
 	return out
 }
 
+var devCoverageVantageClasses = map[string]custody.VantageClass{
+	"eu-west-1":  custody.ClassInternet,
+	"us-east-2":  custody.ClassInternet,
+	"ap-south-1": custody.ClassInternal,
+}
+
+// The classes key off the dashboard's vantage roster, so one estate holds one list (ADR-0167 §2).
+
+func devCoverageClasses() []custody.VantageClass {
+	out := make([]custody.VantageClass, 0, len(devDashVantages))
+	for _, v := range devDashVantages {
+		class, ok := devCoverageVantageClasses[v.Name]
+		if !ok {
+			class = custody.ClassUnverified
+		}
+		out = append(out, class)
+	}
+	return out
+}
+
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := pageData(acct, "Coverage", "coverage")
 
@@ -557,7 +577,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	s.coverageEmptyOnce = false
 	s.coverageMu.Unlock()
 	if empty {
-		data["Statement"] = apertureStatement(nil)
+		data["Statement"] = apertureStatement(nil, nil, true)
 		data["Meters"] = []coverageMeterView(nil)
 		data["Messages"] = []coverageMessageView(nil)
 		data["Gaps"] = []coverageGapView(nil)
@@ -596,7 +616,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
 	}
 
-	data["Statement"] = apertureStatement(devCoverageSeeds())
+	data["Statement"] = apertureStatement(devCoverageSeeds(), devCoverageClasses(), true)
 	data["Meters"] = meters
 	data["Messages"] = messages
 	data["Gaps"] = gaps

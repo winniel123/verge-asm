@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
@@ -81,6 +84,62 @@ func TestCoverageRendersThePortTierLedgerRow(t *testing.T) {
 	}
 }
 
+// The fake covers 10.0.0.0/8, so the fixture's two vantages derive one class each.
+
+func TestCoverageRendersTheVantageClassRow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedClassFixtureVantages(t, f)
+	base := start(t, f, "")
+	page := coverageBody(t, login(t, base, "admin", "hunter2hunter2"), base)
+
+	for _, want := range []string{
+		"Vantage class",
+		"1 internet · 1 internal",
+		"A vantage reads from each side of your boundary, so no class is missing.",
+		"A class is derived from the addresses a vantage presents and your declared address scopes, never from a stored field.",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the class row is missing %q; body: %s", want, page)
+		}
+	}
+	if strings.Contains(page, "Provision a prober") {
+		t.Error("both legs have a reader, so the row must offer no act")
+	}
+}
+
+func TestCoverageNamesTheMissingInternalLeg(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	txt := func(s string) pgtype.Text { return pgtype.Text{String: s, Valid: true} }
+	// One vantage, presenting an address no declared scope covers, so only the internet leg reads.
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "outside", Class: "unverified", Resolver: "9.9.9.9:53",
+		Host: txt("outside.example.net"), Port: pgtype.Int4{Int32: 22, Valid: true},
+		Username: txt("scanner"), Availability: txt("available"),
+		DialledAddr: txt("203.0.113.9"), Egress: txt("203.0.113.9"),
+	})
+	f.vantageNextID = 2
+
+	base := start(t, f, "")
+	page := coverageBody(t, login(t, base, "admin", "hunter2hunter2"), base)
+
+	for _, want := range []string{
+		"1 internet",
+		"Provision a prober inside your estate",
+		`href="/settings?tab=vantages"`,
+		"Run a prober inside your estate, then declare its egress as an address scope.",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the class row is missing %q; body: %s", want, page)
+		}
+	}
+	// No control makes a vantage internal, so the withdrawn label must not return (SPEC §4.2).
+	if strings.Contains(page, "Add an internal vantage") {
+		t.Error("the row offers a control that does not exist")
+	}
+}
+
 // One computation feeds two renderers, so a cell a later row fills must reach both (SPEC §5).
 
 func TestAPIApertureRowCarriesEveryCellOfTheComputation(t *testing.T) {
@@ -121,33 +180,36 @@ func TestAPIv1CoverageCarriesTheStatementBesideTheMeters(t *testing.T) {
 	if got.Meters == nil {
 		t.Error("the statement must ride beside meters, never replace it")
 	}
-	if len(got.Statement) != 1 {
-		t.Fatalf("statement rows = %d, want 1 (body %q)", len(got.Statement), rec.Body.String())
+	// The fake declares no vantage, so the class row reads its own no-leg case.
+	wantRows := apertureStatement(nil, nil, true)
+	if len(got.Statement) != len(wantRows) {
+		t.Fatalf("statement rows = %d, want %d (body %q)", len(got.Statement), len(wantRows), rec.Body.String())
 	}
 
-	row := got.Statement[0]
-	want := apertureStatement(nil)[0]
-	if row.StateKind != want.StateKind {
-		t.Errorf("state_kind: got %q, want %q", row.StateKind, want.StateKind)
-	}
-	if row.Input != want.Input || row.State != want.State || row.Remedy != want.Remedy {
-		t.Errorf("the API row diverges from the computation: got %+v, want %+v", row, want)
-	}
-	if len(row.Figures) != len(want.Figures) {
-		t.Fatalf("figures = %d, want %d", len(row.Figures), len(want.Figures))
-	}
-	for i, f := range row.Figures {
-		if f.Text != want.Figures[i].Text {
-			t.Errorf("figure %d: got %q, want %q", i+1, f.Text, want.Figures[i].Text)
+	for i, row := range got.Statement {
+		want := wantRows[i]
+		if row.StateKind != want.StateKind {
+			t.Errorf("%s: state_kind: got %q, want %q", want.Input, row.StateKind, want.StateKind)
 		}
-	}
-	for name, cell := range map[string]string{
-		"input": row.Input, "cadence": row.Cadence, "cadence_why": row.CadenceWhy,
-		"state": row.State, "state_detail": row.StateDetail,
-		"remedy": row.Remedy, "remedy_why": row.RemedyWhy,
-	} {
-		if strings.TrimSpace(cell) == "" {
-			t.Errorf("%s is blank, and SPEC §2.3 bars a blank cell on either renderer", name)
+		if row.Input != want.Input || row.State != want.State || row.Remedy != want.Remedy || row.RemedyHref != want.RemedyHref {
+			t.Errorf("the API row diverges from the computation: got %+v, want %+v", row, want)
+		}
+		if len(row.Figures) != len(want.Figures) {
+			t.Fatalf("%s: figures = %d, want %d", want.Input, len(row.Figures), len(want.Figures))
+		}
+		for j, f := range row.Figures {
+			if f.Text != want.Figures[j].Text {
+				t.Errorf("%s: figure %d: got %q, want %q", want.Input, j+1, f.Text, want.Figures[j].Text)
+			}
+		}
+		for name, cell := range map[string]string{
+			"input": row.Input, "cadence": row.Cadence, "cadence_why": row.CadenceWhy,
+			"state": row.State, "state_detail": row.StateDetail,
+			"remedy": row.Remedy, "remedy_why": row.RemedyWhy,
+		} {
+			if strings.TrimSpace(cell) == "" {
+				t.Errorf("%s: %s is blank, and SPEC §2.3 bars a blank cell on either renderer", want.Input, name)
+			}
 		}
 	}
 }

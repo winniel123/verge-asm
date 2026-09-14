@@ -1800,3 +1800,19 @@ func TestRunningRunJobsFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+// The dev estate holds one vantage roster, so the statement's classes count it member by member.
+
+func TestDevCoverageClassesCoverEveryDevVantage(t *testing.T) {
+	if len(devCoverageVantageClasses) != len(devDashVantages) {
+		t.Errorf("class entries = %d, dev vantages = %d", len(devCoverageVantageClasses), len(devDashVantages))
+	}
+	for _, v := range devDashVantages {
+		if _, ok := devCoverageVantageClasses[v.Name]; !ok {
+			t.Errorf("the dev vantage %q carries no class, so the fixture statement reads it unverified", v.Name)
+		}
+	}
+	if got := len(devCoverageClasses()); got != len(devDashVantages) {
+		t.Errorf("the fixture statement counts %d vantages, and the dev estate declares %d", got, len(devDashVantages))
+	}
+}

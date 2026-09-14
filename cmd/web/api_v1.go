@@ -20,6 +20,7 @@ type apiV1Store interface {
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
 	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 }
 
@@ -309,7 +310,8 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	// The row's worth is the sentence beside the count, which no JSON field carries (#989).
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), nil)
 
-	rows := apertureStatement(seeds)
+	classes, classesRead := s.apertureVantageClasses(ctx, s.apiV1Store, "api: coverage")
+	rows := apertureStatement(seeds, classes, classesRead)
 	out := apiCoverageResponse{
 		Meters:    make([]apiCoverageMeter, 0, len(meters)),
 		Statement: make([]apiApertureRow, 0, len(rows)),
