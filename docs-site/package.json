@@ -18,7 +18,7 @@
     "test:doclint": "node --test scripts/doclint.test.mjs",
     "test:version-ref": "node --test scripts/version-ref.test.mjs",
     "check:citations": "node scripts/check-citations.mjs",
-    "test:citations": "node --test scripts/check-citations.test.mjs && node --test scripts/check-citations-armb.test.mjs",
+    "test:citations": "node --test scripts/check-citations.test.mjs && node --test scripts/check-citations-armb.test.mjs && node --test scripts/check-citations-site.test.mjs",
     "check:adr-sections": "node scripts/check-adr-sections.mjs",
     "test:adr-sections": "node --test scripts/check-adr-sections.test.mjs",
     "check:adr-index": "node scripts/check-adr-index.mjs --check",

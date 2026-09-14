@@ -20,6 +20,13 @@ import {
   BURNDOWN_FILE,
   LIST_COMMENT,
 } from "./citations/burndown.mjs";
+import {
+  judgeSite,
+  formatSiteLineAnchor,
+  fetchPullBody,
+  pullContext,
+  apiBase,
+} from "./citations/site.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -35,8 +42,7 @@ export function environment(repoRoot, exemptionsFile) {
   };
 }
 
-export function run(repoRoot, files) {
-  const env = environment(repoRoot);
+export function run(repoRoot, files, env = environment(repoRoot)) {
   const results = [];
   const lineAnchors = [];
   const unreadable = [];
@@ -113,7 +119,67 @@ function pruneList(lineAnchors, entries) {
   return entries.length - kept.length;
 }
 
-function main() {
+// This gate also judges the Site of a Decision block (SPEC docs/spec/citation-anchors.md §6).
+export async function siteArm(env, repoRoot, verbose, deps = {}) {
+  const {
+    processEnv = process.env,
+    readEvent = (p) => readFileSync(p, "utf8"),
+    fetchImpl = fetch,
+  } = deps;
+  let context;
+  try {
+    context = pullContext(processEnv, readEvent);
+  } catch (err) {
+    // A payload named and unreadable is not the same claim as no payload at all (SPEC §7.7).
+    console.error(`check:citations: cannot read the event payload (${err.message})`);
+    return { violations: 0, fatal: 1 };
+  }
+  if (context === null) {
+    console.log("");
+    console.log("  this run has no pull-request context, so it judged no Site field");
+    return { violations: 0, fatal: 0 };
+  }
+  let body;
+  try {
+    body = await fetchPullBody({
+      ...context,
+      token: processEnv.GITHUB_TOKEN,
+      api: apiBase(processEnv),
+      fetchImpl,
+    });
+  } catch (err) {
+    // An unreadable body is a claim this gate should judge and could not (SPEC §7.7).
+    console.error(`check:citations: ${err.message}`);
+    return { violations: 0, fatal: 1 };
+  }
+
+  const where = `PR #${context.number} body`;
+  const site = judgeSite(env, repoRoot, body, where);
+  for (const f of site.fatal) console.error(formatFatal(f));
+  for (const a of site.refused) console.log(formatSiteLineAnchor(a));
+  for (const r of site.broken) console.log(formatBroken(r));
+  for (const r of site.dead) console.log(formatDead(r));
+  if (verbose) {
+    for (const r of site.unresolved) {
+      console.log(`  ${where}:${r.line}  ->  ${r.value}  (#${r.anchor} on a ${r.status} path)`);
+    }
+  }
+
+  console.log("");
+  const n = (rows) => String(rows.length).padStart(5);
+  console.log(`  ${site.fields} Site field(s) in the body of PR #${context.number}`);
+  console.log(`  ${n(site.anchored)}  write an anchor`);
+  console.log(`  ${n(site.verified)}  resolve against their row`);
+  console.log(`  ${n(site.broken)}  broken: the target declares no such name`);
+  console.log(`  ${n(site.dead)}  dead`);
+  console.log(`  ${n(site.refused)}  refused: a Site field names no line`);
+  return {
+    violations: site.refused.length + site.broken.length + site.dead.length,
+    fatal: site.fatal.length,
+  };
+}
+
+async function main() {
   const argv = process.argv.slice(2);
   const inScopeOnly = argv.includes("--in-scope-only");
   const verbose = argv.includes("--verbose");
@@ -132,7 +198,8 @@ function main() {
     process.exit(2);
   }
 
-  const { results, lineAnchors, unreadable } = run(REPO_ROOT, files);
+  const env = environment(REPO_ROOT);
+  const { results, lineAnchors, unreadable } = run(REPO_ROOT, files, env);
 
   if (prune) {
     if (!wholeTree) {
@@ -229,10 +296,17 @@ function main() {
   if (wholeTree) console.log(`  ${n(stale)}  stale: an entry no scan finds`);
   else console.log("  the stale-entry rule needs the whole tree, and this run named paths");
 
-  if (unreadable.length + fatal.length > 0) process.exit(2);
-  if (dead.length + broken.length + refused.length + staleCount > 0) process.exit(1);
+  const site = await siteArm(env, REPO_ROOT, verbose);
+
+  if (unreadable.length + fatal.length + site.fatal > 0) process.exit(2);
+  if (dead.length + broken.length + refused.length + staleCount + site.violations > 0) {
+    process.exit(1);
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  main();
+  main().catch((err) => {
+    console.error(`check:citations: ${err.stack ?? err.message}`);
+    process.exit(2);
+  });
 }
