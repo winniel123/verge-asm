@@ -16,7 +16,7 @@ function collapse(text) {
 }
 
 // The snippet holds a verbatim substring of one line inside the declaration (SPEC §3.4).
-function holdsSnippet(lines, regions, snippet) {
+export function holdsSnippet(lines, regions, snippet) {
   const want = collapse(snippet);
   if (want === "") return false;
   for (const [start, end] of regions) {
