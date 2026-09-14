@@ -99,10 +99,9 @@ jobs:
   # that PR need touch no document at all.
   #
   # ARM A, the line-anchor refusal (SPEC docs/spec/citation-anchors.md §5, §7.5, #1969). A
-  # citation names no line. The job also fails on a `path:NNN` or `#L247` token that
-  # docs-site/scripts/citations/line-anchors.json does not already hold, and on an entry in
-  # that list no scan finds. The list holds the anchors the sweep has not reached, and an
-  # empty list is what proves the sweep complete.
+  # citation names no line. The job fails on every `path:NNN` or `#L247` token inside the
+  # SPEC §1.2 boundary. The refusal is unconditional: the sweep emptied its burn-down list,
+  # and #1980 retired the list with it, so there is nothing left to consult (SPEC §8.2).
   #
   # THE `Site` ARM (SPEC §6, #1974). This gate also asserts over ONE pull-request-body field:
   # the `Site` of a Decision proposal block, per SPEC docs/spec/adr-governance.md §2. It
@@ -156,10 +155,9 @@ jobs:
         run: npm ci
 
       # `test:citations` runs its three suites in sequence, not as one `node --test` call.
-      # `node --test` runs FILES in parallel, and the suites mutate the same tree: one
-      # corrupts line-anchors.json on purpose, and another writes a broken-anchor fixture
-      # under docs-site/, which the first suite's whole-tree run then walks. Parallel is a
-      # flaky red on a required check. Keep the `&&`.
+      # `node --test` runs FILES in parallel, and the suites mutate the same tree: each
+      # writes fixture documents under docs-site/, which another suite's whole-tree run then
+      # walks. Parallel is a flaky red on a required check. Keep the `&&`.
       - name: Cited-path gate tests
         working-directory: docs-site
         run: npm run test:citations

@@ -412,6 +412,12 @@ are one act.
 too large to review. This SPEC rules that the sweep is staged. It does not design the per-pull-request
 slices. `/to-tickets` cuts those.
 
+**The sweep is complete, and the list retired.** Four conversion tickets emptied it, and
+[#1980](https://github.com/winniel123/verge-asm/issues/1980) then deleted the file, its loader and
+the stale-entry rule of rule 4. The refusal of §5 is now unconditional, and the check consults no
+list. The rules above record why the list took the shape it did. They govern no live file, and
+`--prune-list` is gone with the rest.
+
 ### 8.3 A citation converts, the extractor changes first
 
 `#` joins the extractor's character class **before** any citation converts.

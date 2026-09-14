@@ -8,7 +8,7 @@ import { ROWS, rowFor } from "../citations/rows.mjs";
 import { CONTAINMENT_ROW } from "../citations/rows/containment.mjs";
 import { rivalName } from "./corroborate.mjs";
 
-// The burn-down entries are deleted, so the audit reads the tree and not the list (SPEC §6.1).
+// The conversion arm reads a line anchor, and these are already written regions (SPEC §6.1).
 export function writtenAnchors(repoRoot, env, files) {
   const out = [];
   for (const abs of files) {
