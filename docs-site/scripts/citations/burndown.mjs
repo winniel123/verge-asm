@@ -12,7 +12,8 @@ export const LIST_COMMENT =
   "(SPEC docs/spec/citation-anchors.md §5, §8.2). It also refuses an entry no scan finds, so a " +
   "conversion pull request edits the document and this list together. An entry carries no reason: " +
   "a reason makes the list permanent, and an empty list is what proves the sweep complete. " +
-  "Regenerate with `npm run check:citations -- --write-list` (#1969).";
+  "`npm run check:citations -- --prune-list` drops every converted entry. It only removes, " +
+  "because a command that could add an entry would re-admit the token the ratchet refuses (#1969).";
 
 export function burndownKey(file, token) {
   return JSON.stringify([file, token]);

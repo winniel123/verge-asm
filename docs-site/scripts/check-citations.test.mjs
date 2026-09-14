@@ -396,7 +396,27 @@ test("an anchored citation and a bare path are no line anchor", () => {
   assert.deepEqual(tokens("The list read is `internal/queue/hot.go#hotCore`."), []);
   assert.deepEqual(tokens("The list read is `internal/queue/hot.go`."), []);
   assert.deepEqual(tokens("The tunnel opens `http://127.0.0.1:8090/` on this host."), []);
-  assert.deepEqual(tokens("The base image is `ghcr.io/owner/app:1.26`."), []);
+});
+
+test("a URL names no path in this repository, with or without its scheme", () => {
+  const blob = "github.com/winniel123/verge-asm/blob/main/internal/queue/hot.go#L247";
+  for (const markdown of [
+    `See \`${blob}\`.`,
+    `See \`https://${blob}\`.`,
+    `See [core](https://${blob}).`,
+    "The base image is `ghcr.io/owner/app:1.26`.",
+    "The base image is `ghcr.io/owner/app:126`.",
+  ]) {
+    assert.deepEqual(tokens(markdown), [], markdown);
+  }
+});
+
+test("an image target is a link target, and a malformed range keeps its whole token", () => {
+  assert.deepEqual(tokens("![shot](internal/queue/hot.go:165)"), ["internal/queue/hot.go:165"]);
+  // A truncated token would name text the document never wrote, so no entry could clear it.
+  assert.deepEqual(tokens("GitHub writes `internal/queue/hot.go#L247-l260`."), [
+    "internal/queue/hot.go#L247-l260",
+  ]);
 });
 
 test("a line anchor in docs/research is outside the boundary", () => {
@@ -478,6 +498,40 @@ test("a line anchor a named ref pins passes the CLI, and a bare path passes", ()
     assert.equal(cliStatus([fixture]), 0);
   } finally {
     rmSync(fixture, { force: true });
+  }
+});
+
+test("the CLI exits 2 on a list it cannot read, never 1", () => {
+  const list = join(SCRIPT_DIR, "citations", "line-anchors.json");
+  const saved = readFileSync(list, "utf8");
+  const doc = join(SCRIPT_DIR, "citations", `readable-${process.pid}.md`);
+  try {
+    writeFileSync(doc, "The engine is `docs-site/scripts/doclint/engine.mjs`.\n");
+    // SPEC §7.7 separates operator error from a violation, and a broken list is the former.
+    writeFileSync(list, "{ not json");
+    assert.equal(cliStatus([doc]), 2);
+    writeFileSync(list, JSON.stringify({ entries: [{ file: DOC, token: "a/b.go:1", reason: "no" }] }));
+    assert.equal(cliStatus([doc]), 2);
+  } finally {
+    writeFileSync(list, saved);
+    rmSync(doc, { force: true });
+  }
+});
+
+test("--prune-list only removes, so no re-seed re-admits a refused token", () => {
+  const list = join(SCRIPT_DIR, "citations", "line-anchors.json");
+  const saved = readFileSync(list, "utf8");
+  const before = loadBurndown().length;
+  const doc = join(SCRIPT_DIR, "citations", `newanchor-${process.pid}.md`);
+  try {
+    writeFileSync(doc, "The rule sits at `docs/spec/v1-spec.md:247` today.\n");
+    assert.equal(cliStatus(["--prune-list"]), 0);
+    assert.equal(loadBurndown().length, before);
+    // The new token is still refused, because the prune added no entry for it.
+    assert.equal(cliStatus([doc]), 1);
+  } finally {
+    writeFileSync(list, saved);
+    rmSync(doc, { force: true });
   }
 });
 

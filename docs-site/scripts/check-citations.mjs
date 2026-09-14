@@ -3,7 +3,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, relative, resolve } from "node:path";
 import { inScopeFiles, isInScope } from "./citations/scope.mjs";
-import { extractCitations } from "./citations/extract.mjs";
+import { extractCitationsFromTree } from "./citations/extract.mjs";
+import { parse } from "./doclint/engine.mjs";
 import {
   classify,
   trackedPaths,
@@ -11,7 +12,7 @@ import {
   topLevelEntries,
 } from "./citations/classify.mjs";
 import { loadExemptions, exemptionMatcher } from "./citations/exempt.mjs";
-import { scanLineAnchors } from "./citations/lineanchor.mjs";
+import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
 import {
   loadBurndown,
   burndownKey,
@@ -48,11 +49,13 @@ export function run(repoRoot, files) {
       unreadable.push({ file: docFile, code: err.code ?? err.message });
       continue;
     }
-    for (const r of classify(env, docFile, extractCitations(markdown))) {
+    // One parse for both arms, because the whole-tree run gates every merge on `main`.
+    const tree = parse(markdown);
+    for (const r of classify(env, docFile, extractCitationsFromTree(tree))) {
       results.push({ ...r, file: docFile });
     }
     // Arm A reads its own scanner, because the extractor's path class holds no colon (SPEC §7.5).
-    for (const a of scanLineAnchors(markdown)) {
+    for (const a of scanLineAnchorsFromTree(tree)) {
       lineAnchors.push({ ...a, file: docFile });
     }
   }
@@ -97,41 +100,48 @@ function resolveFiles(paths, inScopeOnly) {
   return inScopeOnly ? abs.filter((a) => isInScope(REPO_ROOT, a)) : abs;
 }
 
-function writeList(lineAnchors) {
-  const pairs = new Map();
-  // One entry per document and token, so the list and the check agree by construction (§8.2).
-  for (const a of lineAnchors) {
-    pairs.set(burndownKey(a.file, a.token), { file: a.file, token: a.token });
-  }
-  const entries = [...pairs.values()].sort(
-    (x, y) => x.file.localeCompare(y.file) || x.token.localeCompare(y.token),
-  );
-  writeFileSync(BURNDOWN_FILE, `${JSON.stringify({ comment: LIST_COMMENT, entries }, null, 2)}\n`);
-  return entries.length;
+function pruneList(lineAnchors, entries) {
+  const found = new Set(lineAnchors.map((a) => burndownKey(a.file, a.token)));
+  // Shrink only. A command that could add an entry would re-admit the token the ratchet refuses.
+  const kept = entries
+    .filter((e) => found.has(burndownKey(e.file, e.token)))
+    .map((e) => ({ file: e.file, token: e.token }))
+    .sort((x, y) => x.file.localeCompare(y.file) || x.token.localeCompare(y.token));
+  const body = { comment: LIST_COMMENT, entries: kept };
+  writeFileSync(BURNDOWN_FILE, `${JSON.stringify(body, null, 2)}\n`);
+  return entries.length - kept.length;
 }
 
 function main() {
   const argv = process.argv.slice(2);
   const inScopeOnly = argv.includes("--in-scope-only");
   const verbose = argv.includes("--verbose");
-  const writeSeed = argv.includes("--write-list");
+  const prune = argv.includes("--prune-list");
   const paths = argv.filter((a) => !a.startsWith("--"));
   const files = resolveFiles(paths, inScopeOnly);
   // A partial file set cannot tell a stale entry from one this run never opened.
   const wholeTree = paths.length === 0 && !inScopeOnly;
 
+  let burndown;
+  try {
+    burndown = loadBurndown();
+  } catch (err) {
+    // An unreadable list is a claim this gate should judge and could not (SPEC §7.7).
+    console.error(`check:citations: ${err.message}`);
+    process.exit(2);
+  }
+
   const { results, lineAnchors, unreadable } = run(REPO_ROOT, files);
 
-  if (writeSeed) {
+  if (prune) {
     if (!wholeTree) {
-      console.error("check:citations: --write-list seeds from the whole tree, so it takes no path");
+      console.error("check:citations: --prune-list reads the whole tree, so it takes no path");
       process.exit(2);
     }
-    console.log(`check:citations — wrote ${writeList(lineAnchors)} burn-down entr(ies).`);
+    console.log(`check:citations — pruned ${pruneList(lineAnchors, burndown)} burn-down entr(ies).`);
     return;
   }
 
-  const burndown = loadBurndown();
   const { refused, stale } = armA(lineAnchors, burndown);
   const staleCount = wholeTree ? stale.length : 0;
   const of = (status) => results.filter((r) => r.status === status);

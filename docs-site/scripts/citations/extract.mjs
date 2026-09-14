@@ -102,7 +102,10 @@ function fromCode(value) {
 }
 
 export function extractCitations(markdown) {
-  const tree = parse(markdown);
+  return extractCitationsFromTree(parse(markdown));
+}
+
+export function extractCitationsFromTree(tree) {
   const { refsByBlock, proseByBlock } = refTokensOf(tree);
   const out = [];
 

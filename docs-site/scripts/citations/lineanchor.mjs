@@ -5,18 +5,27 @@ import { inOpaque, nearestBlock, refTokensOf } from "./extract.mjs";
 const SEGMENT = "[A-Za-z0-9_.@+-]";
 const PATH = `[A-Za-z0-9_.@]${SEGMENT}*(?:/${SEGMENT}+)+`;
 
-// SPEC docs/spec/citation-anchors.md §5 lists a colon form and GitHub's own `#L` permalink.
-const LINE = String.raw`(?::\d+(?:-\d+)?|#L\d+(?:-L?\d+)?)`;
+// Either case of the second L, so a malformed range records no truncated token (SPEC §5).
+const LINE = String.raw`(?::\d+(?:-\d+)?|#L\d+(?:-[Ll]?\d+)?)`;
 
 // A search, never a whole-span anchor: the retired form also sits inside a longer span.
-// The trailing dot is refused, so an image tag such as ghcr.io/owner/app:1.26 is no anchor.
 const LINE_ANCHOR = new RegExp(
   `(?<![A-Za-z0-9_.@/+-])(${PATH}${LINE})(?![0-9A-Za-z_.])`,
   "g",
 );
 
+// classify.mjs reads these two the same way, so both arms judge one set of paths (#1450).
+const HOSTNAME = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i;
+const TLD = /\.[a-z]{2,}$/i;
+
+function hosted(token) {
+  const first = token.slice(0, token.indexOf("/"));
+  return HOSTNAME.test(first) && TLD.test(first);
+}
+
 function tokensIn(value) {
-  return [...value.matchAll(LINE_ANCHOR)].map((m) => m[1]);
+  // A URL names no path in this repository, and a registry tag is no line either.
+  return [...value.matchAll(LINE_ANCHOR)].map((m) => m[1]).filter((t) => !hosted(t));
 }
 
 function linkTarget(url) {
@@ -29,7 +38,10 @@ function linkTarget(url) {
 }
 
 export function scanLineAnchors(markdown) {
-  const tree = parse(markdown);
+  return scanLineAnchorsFromTree(parse(markdown));
+}
+
+export function scanLineAnchorsFromTree(tree) {
   // Arm A reads one on-ref implementation rather than a second copy (SPEC §5).
   const { refsByBlock } = refTokensOf(tree);
   const out = [];
@@ -41,7 +53,8 @@ export function scanLineAnchors(markdown) {
     if (node.type === "inlineCode") {
       value = node.value;
       kind = "code";
-    } else if (node.type === "link" || node.type === "definition") {
+    } else if (node.type === "link" || node.type === "definition" || node.type === "image") {
+      // An image spells its target exactly as a link does, so one arm reads both.
       value = linkTarget(node.url);
       kind = "link";
     }
