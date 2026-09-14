@@ -12,6 +12,7 @@
 .ex-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 14px; }
 .ex-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .ex-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.ex-cardhead .ex-sub { white-space: normal; }
 .ex-stat { padding: 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ex-stat .val { display: flex; align-items: baseline; gap: 8px; }
 .ex-stat .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
@@ -73,7 +74,7 @@
 <section class="ex-card"><div class="ex-stat"><span class="ex-micro">Not reached</span><span class="val"><span class="num">{{.NotReached}}</span></span><span class="cap">no leg concluded this batch</span></div></section>
 </div>
 <section class="ex-card flush">
-<div class="ex-cardhead"><span class="ex-micro">Both legs</span><h3>Service exposure</h3></div>
+<div class="ex-cardhead"><span class="ex-micro">Both legs</span><h3>Service exposure</h3>{{if and .SinceUnknown .Rows}}<span class="ex-sub">Since is unknown — the open-spans read failed. Both legs are unaffected.</span>{{end}}</div>
 {{if .Rows}}
 <table class="ex-table">
 <thead><tr><th>Asset</th><th style="width:150px">Service</th><th style="width:140px">Internal leg</th><th style="width:140px">Internet leg</th><th style="width:70px;text-align:right">Since</th></tr></thead>
@@ -83,7 +84,7 @@
 <td class="mono">{{.Svc}}</td>
 <td>{{template "expleg" .Internal}}</td>
 <td>{{template "expleg" .Internet}}</td>
-<td class="mono" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
+<td class="mono ex-since" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
 </tr>{{end}}
 </tbody>
 </table>

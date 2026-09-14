@@ -920,7 +920,13 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
 	data.DNS = s.assetDNS(r, key, res)
-	data.Ports = s.assetPorts(r, res.Addresses)
+	ports, err := s.assetPorts(r, res.Addresses)
+	if err != nil {
+		// An empty list is the honest no-ports answer, so a swallow erases the verdict (#1948).
+		s.serverError(w, "asset ports", err)
+		return
+	}
+	data.Ports = ports
 	data.Cert = s.assetCertificate(r, key, res.Addresses)
 	data.Signals = s.assetSignals(r, key)
 	data.Severity = assetHeaderSeverity(data.Signals)
@@ -1030,9 +1036,9 @@ func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) []as
 	return rows
 }
 
-func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
+func (s *server) assetPorts(r *http.Request, addresses []string) ([]assetPort, error) {
 	if len(addresses) == 0 {
-		return nil
+		return nil, nil
 	}
 	addrSet := make(map[string]bool, len(addresses))
 	for _, a := range addresses {
@@ -1040,7 +1046,7 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 	}
 	rows, err := s.subjectsStore.ListAllOpenSpans(r.Context())
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	servers := map[string]string{}
 	for _, row := range rows {
@@ -1072,7 +1078,7 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 			Since:    row.OpenedAt.Time.UTC().Format(spanTimeFmt),
 		})
 	}
-	return ports
+	return ports, nil
 }
 
 func assetPortService(transport, server string) string {
