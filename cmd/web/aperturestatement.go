@@ -8,6 +8,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
@@ -36,8 +37,27 @@ type apertureRowView struct {
 
 // The card renders the rows that exist and grows to the seven of the spec's order (#1917).
 
-func apertureStatement(seeds []db.ListSeedsRow, classes []custody.VantageClass, classesRead bool) []apertureRowView {
-	return []apertureRowView{portTierRow(seeds), vantageClassRow(classes, classesRead)}
+func apertureStatement(states []db.SourceState, statesRead bool, seeds []db.ListSeedsRow, classes []custody.VantageClass, classesRead bool) []apertureRowView {
+	return []apertureRowView{
+		enabledSourcesRow(states, statesRead),
+		portTierRow(seeds),
+		vantageClassRow(classes, classesRead),
+	}
+}
+
+type apertureSourceStore interface {
+	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
+}
+
+// A failed read renders as withheld, because an empty override set would name the defaults (#989).
+
+func apertureSourceStates(ctx context.Context, store apertureSourceStore, where string) ([]db.SourceState, bool) {
+	rows, err := store.ListSourceStates(ctx)
+	if err != nil {
+		log.Printf("web: %s: list source states: %v", where, err)
+		return nil, false
+	}
+	return rows, true
 }
 
 type apertureVantageStore interface {
@@ -59,6 +79,83 @@ func (s *server) apertureVantageClasses(ctx context.Context, store apertureVanta
 		return nil, false
 	}
 	return listedVantageClasses(rows, covered), true
+}
+
+const apertureSourcesHref = "/settings?tab=sources"
+
+// Selection is config-time by key presence, so a declared source is not a source that ran (#1520).
+
+const apertureSourceDetail = "Your own toggles over the shipped defaults, never a batch. " +
+	"The count is over sources that admit a Name, so it counts no proposer. " +
+	"Only the worker key selects Cert Spotter in place of crt.sh, so this row names what is declared, never what ran."
+
+// A proposer admits no Name, and a bar outranks every toggle, so neither is a source (ADR-0012).
+
+func apertureToggleableSources() []catalogSource {
+	out := make([]catalogSource, 0, len(sourceCatalog))
+	for _, c := range sourceCatalog {
+		if c.IsProposer || c.Barred || c.NoRunner {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+func enabledSourcesRow(states []db.SourceState, statesRead bool) apertureRowView {
+	row := apertureRowView{
+		Input:      "Enabled sources",
+		Cadence:    "daily · every 5 minutes",
+		CadenceWhy: "The ct Scan asks daily and the ct-tail Scan every 5 minutes. Release-coupled: a cadence dial ships for the dns and zone Scans alone.",
+		StateKind:  "off",
+	}
+	if !statesRead {
+		// A client reads the kind rather than the prose, so `off` would state a state we lack.
+		row.StateKind = "withheld"
+		row.State = "not read"
+		row.StateDetail = "Your source overrides did not read, so this cell names no source."
+		row.Remedy = apertureNone
+		row.RemedyWhy = "A read that did not land names no source still off, so no act follows it."
+		return row
+	}
+
+	override := sourceOverrides(states)
+	var on, off []string
+	var crtshOn, spotterOn bool
+	for _, c := range apertureToggleableSources() {
+		if !sourceEnabledState(c, override) {
+			off = append(off, c.Name)
+			continue
+		}
+		on = append(on, c.Name)
+		crtshOn = crtshOn || c.Slug == scan.CrtshSource
+		spotterOn = spotterOn || c.Slug == scan.CertSpotterSource
+	}
+
+	row.State = strings.Join(on, " · ")
+	row.StateDetail = apertureSourceDetail
+	if len(on) > 0 {
+		row.StateKind = "on"
+	} else {
+		row.State = apertureNone
+		row.StateDetail = "Every source in this count is switched off. " + apertureSourceDetail
+	}
+	// A zero here is the worst state the row reaches, so it never takes the muted styling.
+	row.Figures = []apertureFigureView{{Text: fmt.Sprintf("%d of %d sources enabled", len(on), len(on)+len(off))}}
+
+	if len(off) == 0 {
+		row.Remedy = apertureNone
+		// A pointer at a screen holding no relevant control is #1854's silence in a new costume.
+		row.RemedyWhy = "Every source that admits a Name is enabled. This row counts no proposer and no source barred on terms, because neither admits a Name."
+		return row
+	}
+	row.Remedy, row.RemedyHref = "Enable a source", apertureSourcesHref
+	row.RemedyWhy = fmt.Sprintf("A toggle on the Sources tab reaches each source still off: %s.", strings.Join(off, " · "))
+	if !spotterOn {
+		// The toggle alone never selects it, so a remedy that stops at the tab is unreachable.
+		row.RemedyWhy += " Cert Spotter also needs its key on the worker."
+	}
+	return row
 }
 
 func portTierRow(seeds []db.ListSeedsRow) apertureRowView {

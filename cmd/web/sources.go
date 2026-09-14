@@ -301,25 +301,36 @@ func consentTerms(c catalogSource) []string {
 	return terms
 }
 
+func sourceOverrides(states []db.SourceState) map[string]bool {
+	override := make(map[string]bool, len(states))
+	for _, st := range states {
+		override[st.Slug] = st.Enabled
+	}
+	return override
+}
+
+// One resolution feeds the Sources tab and the aperture statement, so the two screens agree.
+
+func sourceEnabledState(c catalogSource, override map[string]bool) bool {
+	if c.NoRunner || c.Barred {
+		return false // a bar is authored, so it outranks a stale override (ADR-0223 §2)
+	}
+	if o, ok := override[c.Slug]; ok {
+		return o
+	}
+	return c.DefaultOn
+}
+
 func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 	states, err := s.sourcesStore.ListSourceStates(r.Context())
 	if err != nil {
 		return nil, err
 	}
-	override := make(map[string]bool, len(states))
-	for _, st := range states {
-		override[st.Slug] = st.Enabled
-	}
+	override := sourceOverrides(states)
 
 	out := make([]sourceView, 0, len(sourceCatalog))
 	for _, c := range sourceCatalog {
-		enabled := c.DefaultOn
-		if o, ok := override[c.Slug]; ok {
-			enabled = o
-		}
-		if c.NoRunner || c.Barred {
-			enabled = false // a bar is authored, so it outranks a stale override (ADR-0223 §2)
-		}
+		enabled := sourceEnabledState(c, override)
 		kind := "source"
 		if c.IsProposer {
 			kind = "proposer"

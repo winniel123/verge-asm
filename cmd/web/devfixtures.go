@@ -21,6 +21,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
@@ -569,6 +570,12 @@ func devCoverageClasses() []custody.VantageClass {
 	return out
 }
 
+// The fixture enables the tail beside crt.sh, so the card draws a two-source set.
+
+func devCoverageSourceStates() []db.SourceState {
+	return []db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}
+}
+
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := pageData(acct, "Coverage", "coverage")
 
@@ -577,7 +584,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	s.coverageEmptyOnce = false
 	s.coverageMu.Unlock()
 	if empty {
-		data["Statement"] = apertureStatement(nil, nil, true)
+		data["Statement"] = apertureStatement(nil, true, nil, nil, true)
 		data["Meters"] = []coverageMeterView(nil)
 		data["Messages"] = []coverageMessageView(nil)
 		data["Gaps"] = []coverageGapView(nil)
@@ -616,7 +623,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
 	}
 
-	data["Statement"] = apertureStatement(devCoverageSeeds(), devCoverageClasses(), true)
+	data["Statement"] = apertureStatement(devCoverageSourceStates(), true, devCoverageSeeds(), devCoverageClasses(), true)
 	data["Meters"] = meters
 	data["Messages"] = messages
 	data["Gaps"] = gaps
