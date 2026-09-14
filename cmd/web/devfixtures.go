@@ -17,6 +17,7 @@ import (
 
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/retention"
@@ -403,12 +404,24 @@ type devExposureRow struct {
 }
 
 var devExposureRows = []devExposureRow{
-	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "exposed", internet: "exposed", since: "4m"},
-	{asset: "api.acmecorp.io", svc: ":443 https", internal: "exposed", internet: "exposed", since: "69d"},
-	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "exposed", internet: "exposed", since: "41d"},
-	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "exposed", internet: "firewalled", since: "12d"},
-	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "exposed", internet: "firewalled", since: "26d"},
-	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "unverified", since: "—"},
+	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "reached", internet: "reached", since: "4m"},
+	{asset: "api.acmecorp.io", svc: ":443 https", internal: "reached", internet: "reached", since: "69d"},
+	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "reached", internet: "reached", since: "41d"},
+	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "reached", internet: "not-reached", since: "12d"},
+	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "reached", internet: "not-reached", since: "26d"},
+	{asset: "mail.acmecorp.io", svc: ":25 smtp", internal: "reached", internet: "gap", since: "8d"},
+	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "never-looked", since: "—"},
+}
+
+func devLegInfo(state string) legInfo {
+	switch state {
+	case "gap":
+		return legInfo{isGap: true, present: true}
+	case "never-looked":
+		return legInfo{}
+	default:
+		return legInfo{outcome: state, present: true}
+	}
 }
 
 func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
@@ -421,7 +434,10 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 	rows := make([]exposureRow, 0, len(devExposureRows))
 	for _, r := range devExposureRows {
 		rows = append(rows, exposureRow{
-			Asset: r.asset, Svc: r.svc, Internal: r.internal, Internet: r.internet, Since: r.since,
+			Asset: r.asset, Svc: r.svc, Since: r.since,
+			// The fixture board renders through the live formatter, so it cannot drift off it.
+			Internal: reachLegChip(custody.ClassInternal, legFrom(devLegInfo(r.internal))),
+			Internet: reachLegChip(custody.ClassInternet, legFrom(devLegInfo(r.internet))),
 		})
 	}
 	data["Withheld"] = false

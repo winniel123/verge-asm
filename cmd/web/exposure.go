@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/exposure"
 )
@@ -23,8 +24,8 @@ var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/exposure.tmpl"))
 type exposureRow struct {
 	Asset    string
 	Svc      string
-	Internal string
-	Internet string
+	Internal legChip
+	Internet legChip
 	Since    string
 }
 
@@ -145,18 +146,18 @@ func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, er
 	var rows []exposureRow
 	for _, svc := range order {
 		addr, port, transport := splitServiceKey(svc)
-		internal := legs[svc]["internal"]
-		internet := legs[svc]["internet"]
+		internal := legFrom(legs[svc]["internal"])
+		internet := legFrom(legs[svc]["internet"])
 
 		rows = append(rows, exposureRow{
 			Asset:    addr,
 			Svc:      ":" + port + " " + transport,
-			Internal: legDisplay(internal),
-			Internet: legDisplay(internet),
+			Internal: reachLegChip(custody.ClassInternal, internal),
+			Internet: reachLegChip(custody.ClassInternet, internet),
 			Since:    sinceDisplay(since[svc], stats.sinceUnknown),
 		})
 
-		ev, ok := exposure.Project(legFrom(internet), legFrom(internal))
+		ev, ok := exposure.Project(internet, internal)
 		switch {
 		case !ok:
 			stats.notReached++
@@ -179,11 +180,28 @@ func sinceDisplay(since string, unknown bool) string {
 	return since
 }
 
-func legDisplay(l legInfo) string {
-	if !l.present {
-		return "unverified"
+type legChip struct {
+	Tone  string
+	Label string
+}
+
+func reachLegChip(class custody.VantageClass, l exposure.Leg) legChip {
+	switch l.Status {
+	case exposure.LegValued:
+		if l.Value == exposure.Reached {
+			if class.IsInternet() {
+				// Only the internet leg's reached is the move the product alerts on (ADR-0029).
+				return legChip{Tone: "danger", Label: "reached"}
+			}
+			return legChip{Tone: "neutral", Label: "reached"}
+		}
+		return legChip{Tone: "neutral", Label: "not reached"}
+	case exposure.LegGap:
+		// The two absences keep their two statements (ADR-0017 decision 4).
+		return legChip{Tone: "warn", Label: "stopped looking"}
+	default:
+		return legChip{Tone: "absent", Label: "never looked"}
 	}
-	return assetExposure(l.outcome, l.isGap)
 }
 
 func legFrom(l legInfo) exposure.Leg {
