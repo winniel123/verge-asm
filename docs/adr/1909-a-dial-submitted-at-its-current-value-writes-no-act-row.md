@@ -156,6 +156,8 @@ is a separate decision about a shipped rendering with its own reversal cost.
 
 ## 6. The guard is not atomic, stated rather than smoothed
 
+> **Amended** by [ADR-1914: A dial move is serialised by a row lock inside one transaction](./1914-a-dial-move-is-serialised-by-a-row-lock-inside-one-transaction.md), 2026-09-13. <!-- adr-marker amends 1914 -->
+
 **The comparison read and the mutation are two statements, and nothing holds them together.** Every
 handler issues a standalone `SELECT`, then an unrelated `UPDATE`, on no transaction. Two
 interleavings misbehave, and this ADR ships with both.

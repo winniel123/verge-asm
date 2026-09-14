@@ -48,6 +48,7 @@ type store interface {
 	deliverySettingsStore
 	deltasStore
 	devFixtureStore
+	dialStore
 	driftStore
 	exclusionsStore
 	exposureStore
@@ -110,6 +111,7 @@ type server struct {
 	deliverySettingsStore  deliverySettingsStore
 	deltasStore            deltasStore
 	devFixtureStore        devFixtureStore
+	dialStore              dialStore
 	driftStore             driftStore
 	exclusionsStore        exclusionsStore
 	exposureStore          exposureStore
@@ -233,6 +235,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		deliverySettingsStore:  s,
 		deltasStore:            s,
 		devFixtureStore:        s,
+		dialStore:              s,
 		driftStore:             s,
 		exclusionsStore:        s,
 		exposureStore:          s,

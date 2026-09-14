@@ -63,6 +63,27 @@ func (q *Queries) GetInstanceConfig(ctx context.Context) (GetInstanceConfigRow, 
 	return i, err
 }
 
+const lockInstanceConfig = `-- name: LockInstanceConfig :one
+SELECT api_enabled, update_check_enabled, seed_address_cap
+FROM instance_config
+WHERE id = true
+FOR UPDATE
+`
+
+type LockInstanceConfigRow struct {
+	ApiEnabled         bool  `json:"api_enabled"`
+	UpdateCheckEnabled bool  `json:"update_check_enabled"`
+	SeedAddressCap     int64 `json:"seed_address_cap"`
+}
+
+// FOR UPDATE holds the row across the compare and the write, so two submits serialise (ADR-1914).
+func (q *Queries) LockInstanceConfig(ctx context.Context) (LockInstanceConfigRow, error) {
+	row := q.db.QueryRow(ctx, lockInstanceConfig)
+	var i LockInstanceConfigRow
+	err := row.Scan(&i.ApiEnabled, &i.UpdateCheckEnabled, &i.SeedAddressCap)
+	return i, err
+}
+
 const setAPIEnabled = `-- name: SetAPIEnabled :exec
 UPDATE instance_config
 SET api_enabled = $1, api_updated_by = $2, api_updated_at = now()
