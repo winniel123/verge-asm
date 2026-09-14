@@ -178,6 +178,92 @@ func seedInternetVantage(t *testing.T, f *fakeStore, admin db.Account) {
 	f.vantageNextID++
 }
 
+var legChipCell = regexp.MustCompile(`<span class="vg-leg ([a-z]+)">([^<]*)</span>`)
+
+func legChips(t *testing.T, page string) []legChip {
+	t.Helper()
+	var chips []legChip
+	for _, m := range legChipCell.FindAllStringSubmatch(page, -1) {
+		chips = append(chips, legChip{Tone: m[1], Label: m[2]})
+	}
+	if len(chips) == 0 {
+		t.Fatalf("the service table rendered no leg chip; body: %s", page)
+	}
+	return chips
+}
+
+func TestExposureLegToneKeysOnValueAndClass(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedInternetVantage(t, f, admin)
+
+	at := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	const svc = "198.51.100.10:443/tcp"
+	f.addClassReachability(t, svc, "internal", at, `{"outcome":"reached"}`)
+	f.addClassReachability(t, svc, "internet", at, `{"outcome":"reached"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/exposure", http.StatusOK)
+	want := []legChip{
+		{Tone: "neutral", Label: "reached"},
+		{Tone: "danger", Label: "reached"},
+	}
+	if got := legChips(t, page); !slices.Equal(got, want) {
+		t.Errorf("leg chips = %+v, want %+v; body: %s", got, want, page)
+	}
+}
+
+func TestExposureLegsNeverCarryAnExposureWord(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedInternetVantage(t, f, admin)
+
+	at := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	f.addClassReachability(t, "198.51.100.10:443/tcp", "internal", at, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.10:443/tcp", "internet", at, `{"outcome":"not-reached"}`)
+	f.addClassReachability(t, "198.51.100.11:22/tcp", "internal", at, `{"outcome":"not-reached"}`)
+	f.addClassReachability(t, "198.51.100.11:22/tcp", "internet", at, `{"outcome":"reached"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/exposure", http.StatusOK)
+	legWords := []string{"reached", "not reached", "never looked", "stopped looking"}
+	for _, c := range legChips(t, page) {
+		if !slices.Contains(legWords, c.Label) {
+			t.Errorf("a leg column rendered %q, which is not one of %q", c.Label, legWords)
+		}
+	}
+}
+
+func TestExposureAbsentLegsKeepTheirTwoWords(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedInternetVantage(t, f, admin)
+
+	at := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	// One Service was never looked at from the internet; the other stopped being looked at.
+	f.addClassReachability(t, "198.51.100.10:443/tcp", "internal", at, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.11:22/tcp", "internal", at, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.11:22/tcp", "internet", at, `{"outcome":"gap"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/exposure", http.StatusOK)
+	want := []legChip{
+		{Tone: "neutral", Label: "reached"},
+		{Tone: "absent", Label: "never looked"},
+		{Tone: "neutral", Label: "reached"},
+		{Tone: "warn", Label: "stopped looking"},
+	}
+	if got := legChips(t, page); !slices.Equal(got, want) {
+		t.Fatalf("leg chips = %+v, want %+v; body: %s", got, want, page)
+	}
+}
+
 var exposureSinceCell = regexp.MustCompile(`<td class="mono ex-since"[^>]*>([^<]*)</td>`)
 
 func exposureSinceCells(t *testing.T, page string) []string {

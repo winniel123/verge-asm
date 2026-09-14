@@ -453,43 +453,50 @@
       {
         "asset": "edge-gw-03.acmecorp.io",
         "svc": ":5900 vnc",
-        "internal": "exposed",
-        "internet": "exposed",
+        "internal": "reached",
+        "internet": "reached",
         "since": "4m"
       },
       {
         "asset": "api.acmecorp.io",
         "svc": ":443 https",
-        "internal": "exposed",
-        "internet": "exposed",
+        "internal": "reached",
+        "internet": "reached",
         "since": "69d"
       },
       {
         "asset": "vpn.acmecorp.io",
         "svc": ":1194 openvpn",
-        "internal": "exposed",
-        "internet": "exposed",
+        "internal": "reached",
+        "internet": "reached",
         "since": "41d"
       },
       {
         "asset": "build-07.acmecorp.io",
         "svc": ":22 ssh",
-        "internal": "exposed",
-        "internet": "firewalled",
+        "internal": "reached",
+        "internet": "not-reached",
         "since": "12d"
       },
       {
         "asset": "grafana.acmecorp.io",
         "svc": ":3000 http",
-        "internal": "exposed",
-        "internet": "firewalled",
+        "internal": "reached",
+        "internet": "not-reached",
         "since": "26d"
+      },
+      {
+        "asset": "mail.acmecorp.io",
+        "svc": ":25 smtp",
+        "internal": "reached",
+        "internet": "gap",
+        "since": "8d"
       },
       {
         "asset": "203.0.113.61",
         "svc": ":443 https",
         "internal": "not-reached",
-        "internet": "unverified",
+        "internet": "never-looked",
         "since": "—"
       }
     ]

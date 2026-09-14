@@ -1,8 +1,17 @@
 
-{{define "expleg"}}<span class="ex-leg {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
+{{define "legchipcss"}}<style>
+.vg-leg { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.vg-leg.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.vg-leg.warn { background: var(--warn-soft); border-color: var(--warn-border); color: var(--warn); }
+.vg-leg.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.vg-leg.absent { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
+</style>{{end}}
+
+{{define "legchip"}}<span class="vg-leg {{.Tone}}">{{.Label}}</span>{{end}}
 
 {{define "exposure"}}{{template "head" .}}
 {{template "chrome" .}}
+{{template "legchipcss"}}
 <style>
 .ex-main { max-width: 1440px; width: 100%; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
 .ex-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
@@ -22,11 +31,6 @@
 .ex-delta.good { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
 .ex-delta.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
 .ex-delta svg.down { transform: rotate(180deg); }
-.ex-leg { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
-.ex-leg.exposed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
-.ex-leg.firewalled { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
-.ex-leg.notreached { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
-.ex-leg.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
 .ex-table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .ex-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
 .ex-table td { padding: 10px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
@@ -82,8 +86,8 @@
 {{range .Rows}}<tr>
 <td class="mono">{{.Asset}}</td>
 <td class="mono">{{.Svc}}</td>
-<td>{{template "expleg" .Internal}}</td>
-<td>{{template "expleg" .Internet}}</td>
+<td>{{template "legchip" .Internal}}</td>
+<td>{{template "legchip" .Internet}}</td>
 <td class="mono ex-since" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
 </tr>{{end}}
 </tbody>
