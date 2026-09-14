@@ -52,7 +52,7 @@ function audit(prefixes, reportFile) {
   console.log("");
   console.log(
     `  the audit writes nothing. ${suspects.length} suspect anchor(s) degrade by hand ` +
-      `(SPEC §6.3), and ${review.length} enter the review queue.`,
+      `(SPEC §6.3), and ${review.length} enter(s) the review queue.`,
   );
 }
 
