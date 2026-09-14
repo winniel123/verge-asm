@@ -7,7 +7,7 @@ import { parse } from "./doclint/engine.mjs";
 import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
 import { ROWS } from "./citations/rows.mjs";
 import { derive, splitToken } from "./sweep/derive.mjs";
-import { rewriteDocument, replacementFor, trailingGlue } from "./sweep/rewrite.mjs";
+import { rewriteDocument, replacementFor, trailingGlue, namesAnotherSite } from "./sweep/rewrite.mjs";
 import { selectEntries, planFor, scanDocuments, reportRecord } from "./sweep-line-anchors.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -297,6 +297,28 @@ test("a suffix the anchor class would swallow is consumed by the rewrite", () =>
     { ...hits[0], outcome: "anchor", value: "a/b.go", anchor: "Apply" },
   ]);
   assert.equal(out, "See `a/b.go#Apply` here.\n");
+});
+
+test("a second line reference goes with the token it qualifies", () => {
+  const md = "See `a/b.go:978,997` and `c/d.md:37,:41` here.\n";
+  const hits = scanLineAnchorsFromTree(parse(md));
+  assert.equal(trailingGlue(md, hits[0]), ",997");
+  assert.equal(trailingGlue(md, hits[1]), ",:41");
+  assert.ok(namesAnotherSite(trailingGlue(md, hits[0])));
+  assert.ok(!namesAnotherSite("+"));
+  const out = rewriteDocument(md, [
+    { ...hits[0], outcome: "degraded", value: "a/b.go" },
+    { ...hits[1], outcome: "degraded", value: "c/d.md" },
+  ]);
+  // A residue left behind keeps a line number no arm can see (#1976).
+  assert.equal(out, "See `a/b.go` and `c/d.md` here.\n");
+});
+
+test("a token naming a second place degrades, because one anchor represents neither", () => {
+  // The verdict lands before the path resolves, so no row and no tree are read.
+  const [result] = derive(REPO_ROOT, envFor([]), [{ ...hit("a/b.go:978"), glue: ",997" }], []);
+  assert.equal(result.outcome, "degraded");
+  assert.match(result.reason, /names another place at `,997`/);
 });
 
 test("one token converts at one site and holds at another", () => {

@@ -186,7 +186,7 @@ opens with `TODO` still reports `todo-marker`. A `#nosec` line is not a way to s
 for the lines below it.
 
 **A survivor may never contain the token `#nosec`.** `gosec` reads the whole comment group, so
-prose that names a waiver can create one where none was meant. `cmd/web/logutil.go:12` did exactly
+prose that names a waiver can create one where none was meant. `cmd/web/logutil.go` did exactly
 that before #1218 swept it: the block above `func logSafe` carried the literal
 `// #nosec G706 (sanitized via logSafe)` while describing a waiver that belongs at the **caller's**
 site, not at this one. The temptation is highest in the block that explains where a waiver goes.
@@ -477,7 +477,7 @@ spliced onto `type dnsRecordValue` and placement 3's blank line is also the unwe
 can neither compress that line to the §4.4 form nor repair a citation inside it. #1182 kept
 `internal/measure/connectoutcome/tls.go`'s `#nosec G402` waiver as the keeper of the
 record-not-verify rule and deleted the rule's two other statements. #1194 did the same with
-`internal/queue/worker.go:41`'s `#nosec G204` waiver, which states ADR-0001's job-spec-in contract.
+`internal/queue/worker.go#ExecProber.Probe`'s `#nosec G204` waiver, which states ADR-0001's job-spec-in contract.
 **Choose a directive as the keeper only where its own text states the whole rule and carries no
 citation.** Keep a §4.4 survivor beside the directive where the waiver states one part of the rule.
 Do the same where the rule needs a citation a later sweep may have to repair.
@@ -506,7 +506,7 @@ nothing. Both review axes called it the branch's strongest over-delete, and the 
 **A rule stated nowhere is a gap, never a licence.**
 
 **Describing a fact that lives in unswept residue is safe. Pointing at a block there is not.**
-`cmd/web/scans_test.go:272` states the fake's seeded Scans, which live in the unswept
+`cmd/web/scans_test.go#TestScansPageHistory` states the fake's seeded Scans, which live in the unswept
 `cmd/web/handlers_test.go` (#1223). The survivor states the fact rather than naming the block, so a
 later sweep of the sibling cannot orphan it. The prohibition above is about the collapse, not about
 every mention.
@@ -559,7 +559,7 @@ nothing about anchor slugs. #1205 repaired two survivor citations in a second pa
 passed `lint`, `verify` and a naive citation check.
 
 **The orphan check runs in both directions.** A document may point into the corpus, and deleting the
-block breaks the document instead. `docs/guides/reports.md:68-69` sends an operator to "the handler
+block breaks the document instead. `docs/guides/reports.md#the-reports-screen` sends an operator to "the handler
 comment in `cmd/web/reports.go`", and #1210 deleted the comment it names (#1354). `docs/guides/` is
 the likely home, because a guide is written for an operator being sent to the code. Grep `docs/` for
 the file you are sweeping before you delete a block a document may name.
@@ -567,7 +567,7 @@ the file you are sweeping before you delete a block a document may name.
 **A document may quote the comment rather than point at it, and no "see the comment in" grep finds
 that.** Two shapes are measured, and compressing the block breaks each one silently.
 
-- **A guide block-quotes it.** `docs/guides/integrations.md:139-143` reproduces a comment verbatim
+- **A guide block-quotes it.** `docs/guides/integrations.md#disconnecting-an-integration` reproduces a comment verbatim
   under the heading "From `cmd/web/integrations.go`" (#1214). Compressing the block leaves the rule
   true and the attribution intact, and makes the quotation false. Tracked in **#1362**.
 - **An `Accepted` ADR cites it as precedent.** `ADR-0136:132` names the Drift feed's cap as "already
@@ -705,13 +705,13 @@ at `ca08e5a`: two tabs, then 93 runes. It resolves at tab = 4 alone.
 ```
 
 **The specimen is quoted, not cited, because the sweep was required to destroy it.** It lived at
-`cmd/web/exclusions.go:103` until #1470 trimmed it to 98. A calibration example that the campaign
+`cmd/web/exclusions.go#server.previewExclusion` until #1470 trimmed it to 98. A calibration example that the campaign
 must repair cannot survive as a live path and line, and the line number drifts as siblings edit
 above it.
 
 **The cap binds comment lines only.** A `var` declaration holding comment-marker string literals is
 not a comment, whatever a line scanner reads.
-`internal/commentlint/surface/golang.go:15`, `:17` and `:20` each hold `//`-prefixed strings inside
+`internal/commentlint/surface/golang.go#goWaiverPrefixes`, `:17` and `:20` each hold `//`-prefixed strings inside
 a `[]string`. No rule in this SPEC reaches one. That distinction made #1446 report four breaches
 where three existed.
 
@@ -781,7 +781,7 @@ lines sit in #1478's scope alone, and a class-blind scan re-finds them every tim
 beside any figure you report** (§7.5 rule 10).
 
 **Most of the debt is a one-word trim, and the tail is not.** At `ed0a5a5`, 286 of the 376 sit 1 to
-5 columns over. Five sit above 120, and `internal/measure/connectoutcome/tls.go:85` is the worst at
+5 columns over. Five sit above 120, and `internal/measure/connectoutcome/tls.go#HandshakeResult` is the worst at
 148.
 
 **Two shapes resist repair by editing the comment at all.** A trailing comment shares its physical
@@ -813,7 +813,7 @@ already carries the word you cut.
 
 **`commentlint` enforces constraint 4 since #1482, so a clean `lint` run is evidence.** It was not
 evidence for the whole campaign before that. The calibration line above measured **101 characters**
-with `lint` reporting zero flags on the file (#1218, at `cmd/web/exclusions.go:103` before #1470
+with `lint` reporting zero flags on the file (#1218, at `cmd/web/exclusions.go#server.previewExclusion` before #1470
 repaired it). That gap is closed.
 **Count the leading tabs anyway.** A comment three tabs deep has twelve fewer columns of room
 than one at column 0, so every trailing comment on an indented statement is at risk. The rule
@@ -858,22 +858,22 @@ are measured, and three were **already wrong before the sweep that would have br
 
 | Source | Pointer | State |
 | --- | --- | --- |
-| `docs/adr/0133` §4 | `internal/custody/scopecensus.go:29`, and it says the comment must not be deleted | Already wrong. #1187's sweep moved it (#1218) |
-| `docs/adr/0133` | `cmd/web/proposals.go:358` and `addressscopecensus.go:72` | Already wrong. #1215 then cut `proposals.go` from 387 lines to 278 (#1215, #1217) |
+| `docs/adr/0133` §4 | `internal/custody/scopecensus.go#Estate.AddressScopeCensus`, and it says the comment must not be deleted | Already wrong. #1187's sweep moved it (#1218) |
+| `docs/adr/0133` | `cmd/web/proposals.go#undoControlView` and `addressscopecensus.go:72` | Already wrong. #1215 then cut `proposals.go` from 387 lines to 278 (#1215, #1217) |
 | `docs/research/comment-gate-test.md` | **Eight** `cmd/web/handlers_test.go` pointers | All wrong after #1219 (#1219) |
 | `docs/spec/release-pipeline.md` | Four pointers, one of which the SPEC itself calls **machine-read** | Wrong after #1216 (#1216) |
 
 **Where you break one, record it and do not repair another file.** **#1369** carried these and is
 closed. `docs/spec/release-pipeline.md` broke twice more, and both breaks stand today. It names
 `credflow_sessions_test.go:37` for an ADR-0118 citation, and that file now carries no ADR citation
-at all. It names `design-system/examples/console/Settings.jsx:642` for the host-steps block, and
+at all. It names `design-system/examples/console/Settings.jsx` for the host-steps block, and
 #1231 moved that block to `:640`. **The document's own line numbers moved too**, so a reader
 chasing the first pointer looks for it where an earlier record put it and finds prose.
 
 **The defect is not confined to this SPEC's Appendix A, and every section may carry one.** An
 earlier version of this paragraph scoped it there. §4.6 rule 3's example pointed at
-`cmd/web/adr0130_contract_test.go:498`, which stage B had already moved, and §4.10 falsifier 8
-pointed at `cmd/web/proposals_test.go:257`, which #1222 moved to `:217`. **The second was written
+`cmd/web/adr0130_contract_test.go#TestTheSessionFormFlashIsSingleConsume`, which stage B had already moved, and §4.10 falsifier 8
+pointed at `cmd/web/proposals_test.go#TestDeclineIsBulkOverALookup`, which #1222 moved to `:217`. **The second was written
 into the amendment that rules against such pointers.** Both are repaired below.
 
 **Where an amendment cites a corpus location, name the symbol rather than the line.** This section
@@ -907,7 +907,7 @@ a reader cannot tell an ADR section from a spec section from an omission. The th
 leave no case where one is correct.
 
 **Ruling 8 caps a citation, not a reason.** A block may hold **one line per independent reason**. No
-block-level line cap applies. Worked example 13 forces this: `cmd/web/devfixtures.go:281` carries two
+block-level line cap applies. Worked example 13 forces this: `cmd/web/devfixtures.go` carries two
 unrelated constraints, and neither restates the other. A hard one-line cap would delete one of them
 to satisfy a format, which is the error §4.7 rejects. The discipline that prevents bloat is "every
 line passes §4.1", not a number.
@@ -1027,7 +1027,7 @@ clearest case: one `const`, no function, an 84-character declaration line.
 
 | Declaration | Body? | Placement |
 | --- | --- | --- |
-| `var libraryCiphers = func() map[string]uint16 { … }()`, `internal/measure/tlsacceptance/library.go:10` | Yes | Placement 1, inside the literal. Placement 3 here is wrong (#1172). |
+| `var libraryCiphers = func() map[string]uint16 { … }()`, `internal/measure/tlsacceptance/library.go` | Yes | Placement 1, inside the literal. Placement 3 here is wrong (#1172). |
 | `var nonGlobalTargets = []T{…}` | No | A composite literal holds no statement, so placement 1 in the usual sense is unavailable (#1184). |
 
 **A composite literal's element is a placement-1 target.** A survivor above an element —
@@ -1189,7 +1189,7 @@ states it. Three tickets reached the correction independently.
 
 | Dead token | The live source that states the rule |
 | --- | --- |
-| `DF-F4` on `internal/queue/worker.go:331` | `docs/spec/raw-job-output.md` §2.4 (#1328) |
+| `DF-F4` on `internal/queue/worker.go` | `docs/spec/raw-job-output.md` §2.4 (#1328) |
 | `PARITY-CHART P2.2`, `P0.1` on `cmd/web/signals.go` | `docs/spec/v1-spec.md` §6.5 (#1207) |
 | `SPEC-CHANGE`, the never-fabricate refusal | `docs/adr/0110` Consequences, lines 40 and 103 (#1205). **The old "line 74" pointer rotted**: line 74 is now the ADR-0109 bullet #1410 struck through |
 | `SPEC-CHANGE`, the pinned-fixture half of the same family | `docs/adr/0167` (#1333, #1339). A curated corpus is *served pinned*; ADR-0110 rules only the refusal to fabricate |
@@ -1317,7 +1317,7 @@ a behaviour change against a record nobody can read, so a reader recovers neithe
 when. Delete the marker rather than keep an unreadable date.
 
 **`#774` is a second deleted issue, and it sits in already-merged sweep output.** It returns
-HTTP 410 at `internal/seed/seed.go:24` and `:39`, in two survivors a sweep kept (#1227). **410 is
+HTTP 410 at `internal/seed/seed.go#WildcardError` and `:39`, in two survivors a sweep kept (#1227). **410 is
 not 404**, so a check written against "the issue does not exist" can miss it, and `gh` reports the
 deletion rather than a miss. #1227 correctly left its own survivor uncited rather than repairing to
 it. Recorded here, not repaired. #1462 and PR #1511 later repaired every code site in the #740-#774
@@ -1371,7 +1371,7 @@ in `cmd/web/clientip.go` above and **correct** in `cmd/web/ratelimit_test.go` (#
 below names a citation at a site. It never condemns a number.
 
 **A repair re-derives the section by reading it, and never copies the source's own
-cross-reference.** `docs/spec/ct-source-replacement.md:180` says "(runtime failover is deferred,
+cross-reference.** `docs/spec/ct-source-replacement.md#26-admission-mapping--a-decoder-translates-shape-never-fact-d-bulk` says "(runtime failover is deferred,
 §7)". The deferral is **§8** (#1212). An agent repairing a citation by lifting the source's pointer
 inherits the source's error, and the result passes every check the agent then runs.
 
@@ -1386,11 +1386,11 @@ held ten.
 | `(ADR-0134 §5)` on "the two instants' counts need not agree" | Not that rule | `#1046` (#1197) |
 | `(ADR-0129 §5, #987)` in `edgefanoutmessage_test.go` | "v1 ships fan-out alone" | The #944 amendment (#1200) |
 | `(spec §2.4)` in `certspotter_test.go` | Where the key is held | Nothing. The Bearer-header rule is stated nowhere (#1200) |
-| `(ADR-0129 §6)` on `internal/queue/edgefanout.go:268` | Not the vantage rule the comment states | `#956` (#1328) |
+| `(ADR-0129 §6)` on `internal/queue/edgefanout.go#toEdgeFanout` | Not the vantage rule the comment states | `#956` (#1328) |
 | `(ADR-0130 §3)` on `cmd/web`'s `server.routes` | "Redirects preserve the submitting URL" | Nothing. Validating a redirect against the route table is stated nowhere (#1203) |
 | `(#286)` on the anchor-slug rule in `cmd/web/seeds.go` | T10 IA reconciliation | `docs/spec/v1-spec.md` §5.3 (#1206) |
 | `ADR-0081` on the host-only redaction rule, three sites | A Delivery-has-no-cause rule | Nothing. The host-only rendering rule is stated nowhere (#1354) |
-| `(ADR-0053)` on `cmd/web/reports.go:905` — a **repair** that landed | Secret custody: `web` renders "set" or "not set", never a value | Nothing, as above (#1210, PR #1350) |
+| `(ADR-0053)` on `cmd/web/reports.go#server.reportDeliveryWithdrawals` — a **repair** that landed | Secret custody: `web` renders "set" or "not set", never a value | Nothing, as above (#1210, PR #1350) |
 | `(ADR-0134 §5)` a second time, on "a count that is advisory by construction" | §5 rules when the fold runs and when the tombstone is spent | Nothing. The advisory-count rule is written in none of the five places (#1223) |
 | `(ADR-0129 §2)` on `internal/queue/edgefanout.go`, "a negative found nothing at the address" | §2 is "It escapes ADR-0013 §3 because the failure direction is reversed" | Neither limb. Cleared by PR #1420 (#1227) |
 | `ADR-0110` cited for a rule `ADR-0053` states | Not that rule | `ADR-0053` (#1226) |
@@ -1404,7 +1404,7 @@ held ten.
 | `(§4.4)` twice in `internal/scan/ctverify.go` | "Cadence — a measured bar, and opt-in" | `ADR-0214` §2, "No log signature is checked" (#1489) |
 | `(§4.2)` once and `(§4.3)` twice in `internal/scan/cttail.go` | Scan shape and cursor, and the log-set | **C2SP** and **static-ct-api**. One was reduced to an uncited reason (#1489) |
 | `(§7)` on `internal/scan/ctreliability.go` | §7 is the schema summary | `ct-source-replacement.md` §3, whose own `(§7)` pointer the comment copied (#1489) |
-| `(§5)` on `internal/scan/edgefanout.go:3` | "v1 ships fan-out alone" | The `#954` amendment, whose own `(§5)` pointer the comment copied (#1489) |
+| `(§5)` on `internal/scan/edgefanout.go` | "v1 ships fan-out alone" | The `#954` amendment, whose own `(§5)` pointer the comment copied (#1489) |
 | `(§1.3)` on `internal/scan/zone.go` | The file names `v1 spec §3.4`, and `v1-spec.md` numbers no §1.3 | `raw-job-output.md` §1.3, "The Zone variant" (#1489) |
 
 **Three rows share one shape, and the check below now catches two of them.** They are
@@ -1416,7 +1416,7 @@ as `section-on-issue-number`.
 
 **`(ADR-0053, spec §2.4)` stays out of scope on purpose.** A word between the ADR and the `§` binds
 the section to that word. The tree writes that form at over twenty sites.
-`docs/guides/notification-channels.md:243` carries `(ADR-0108, ADR-0180 §3)`, where the `§3` is
+`docs/guides/notification-channels.md#where-a-delivery-is-seen` carries `(ADR-0108, ADR-0180 §3)`, where the `§3` is
 ADR-0180's. A rule reaching past the intervening word would misread every one. The defect at
 `cmd/worker/main.go` is the bare `spec`, which route 3 governs.
 
@@ -1440,7 +1440,7 @@ the rule is #956, and only a sweep of every `ADR-0129` reference in the file fou
 
 **`ADR-0129 §6` is a miscitation target, and #1490 ruled it.** Seven comments cite it. Two are
 right, because §6 rules that collection is CT plus an active no-SNI handshake:
-`internal/scan/edgefanout.go:1` and `internal/measure/edgefanout/leaf.go:83`. The other five each
+`internal/scan/edgefanout.go` and `internal/measure/edgefanout/leaf.go#NetHandshaker.Handshake`. The other five each
 state a **membership** rule, and §6 states none. The row above names a citation at a site, and it
 never condemns `§6` everywhere.
 
@@ -1467,9 +1467,9 @@ appears.
 
 **`ADR-0081` is misattributed, and a blanket replace would be wrong.** It contains zero occurrences
 of "host", "token" or "URL". **Three** sites cite it for the host-only redaction rule:
-`internal/message/render.go:395`, `cmd/web/reportdelivery_test.go:20` and `:102`. Its **eleven**
-other uses cite it for a Delivery-has-no-cause rule, which it does state — `cmd/web/messages.go:21`,
-`:94`, `:270` and `:508`, `cmd/web/messages_test.go:122`, and six `internal/db` sites, which are
+`internal/message/render.go`, `cmd/web/reportdelivery_test.go#TestReportDeliveryRendersRealDelivery` and `:102`. Its **eleven**
+other uses cite it for a Delivery-has-no-cause rule, which it does state — `cmd/web/messages.go#messagesStore`,
+`:94`, `:270` and `:508`, `cmd/web/messages_test.go#TestMessagePanelSurfacesUndeliveredDeliveries`, and six `internal/db` sites, which are
 three comments each written into `querier.go` and into its own query file. Those eleven are correct
 and stay. **#1354** tracks the three.
 
@@ -1480,13 +1480,13 @@ a token in it" only as an example inside its Context's "surfaces that do not exi
 It fails test 1 above. A grep of `docs/` and `CONTEXT.md` for the rendering rule returns nothing, so
 **route 3 applies: the reason goes uncited and the rule is recorded as a gap.**
 
-**#1210 made that repair, and it is on `main`.** `cmd/web/reports.go:905` reads "only its host is
+**#1210 made that repair, and it is on `main`.** `cmd/web/reports.go#server.reportDeliveryWithdrawals` reads "only its host is
 shown (ADR-0053)" (PR #1350). This is the shape a repair is most likely to produce: the ADR is
 `Accepted`, its title and its Context both name a secret in a URL, and a token grep answers. Only
 reading the Decision separates it from a target. Fold it into **#1354**.
 
 **A citation is inherited, and the sweep owns it once it keeps the block.** The token may predate
-the sweep entirely. `internal/auth/key.go:15` and `password.go:3` cite `v1 spec §4.3` for the
+the sweep entirely. `internal/auth/key.go#LoadOrCreateKey` and `password.go:3` cite `v1 spec §4.3` for the
 session-signing-key custody rule. §4.3 is *Auth & access* and states nothing about where the key is
 held. `docs/adr/0053` line 69 states it in its own voice, including the dump-and-restore cause both
 comments give. `c90112e` wrote the citation and **#1166 kept it through the sweep** in PR
@@ -1503,9 +1503,9 @@ so read this as a rate rather than as a closed list.
 | `internal/queue/worker.go` cited `DF-F4`, and `edgefanout.go` carried `(ADR-0129 §5)` on a rule §5 does not state | #1194, PR #1317 | **Repaired.** #1328 merged as `b158035`, and it fixed a third the same file held. |
 | `cmd/web/seeds.go` said the head block inlines `tokens/*.css` "only when this datum is set", against 42 `cmd/web` sites that set it `true` and 0 that set it `false` | #1206, PR #1340 | **Repaired.** #1355, PR #1356, which also deleted the inert gate. |
 | `ADR-0081` on the host-only redaction rule, three sites | Batches 5 to 10 | **Repaired.** #1354, PR #1440. The citation is dropped at both live sites, and `docs/guides/reports.md` states the rule in its own voice. |
-| `cmd/web/reports.go:905` cites `ADR-0053` for a rule `ADR-0053` does not state | #1210, PR #1350 | **Repaired.** Folded into #1354 and cleared by PR #1440. |
-| `internal/custody/census.go:5` and `scopecensus.go:7`, `:35` cite `ADR-0129 §5`, which rules "v1 ships fan-out alone" | #1187, PR #1309 | **Repaired.** #1368, PR #1440. `census.go` names the `#944` amendment and both `scopecensus.go` lines name `#956`. |
-| `internal/auth/key.go:15` and `password.go:3` cite `v1 spec §4.3` for the session-key custody rule | Inherited, kept by #1166, PR #1284 | **Repaired.** #1376, PR #1440. Both now cite `ADR-0053`, which states it. |
+| `cmd/web/reports.go#server.reportDeliveryWithdrawals` cites `ADR-0053` for a rule `ADR-0053` does not state | #1210, PR #1350 | **Repaired.** Folded into #1354 and cleared by PR #1440. |
+| `internal/custody/census.go` and `scopecensus.go:7`, `:35` cite `ADR-0129 §5`, which rules "v1 ships fan-out alone" | #1187, PR #1309 | **Repaired.** #1368, PR #1440. `census.go` names the `#944` amendment and both `scopecensus.go` lines name `#956`. |
+| `internal/auth/key.go#LoadOrCreateKey` and `password.go:3` cite `v1 spec §4.3` for the session-key custody rule | Inherited, kept by #1166, PR #1284 | **Repaired.** #1376, PR #1440. Both now cite `ADR-0053`, which states it. |
 | `docs/adr/0195` cited `ADR-0129 §5` for the display-only rule, and `docs/adr/0163` recorded the three code-side instances as untouched | The `adr-gap` sessions of batch seventeen | Open. **#1441**. Both sites are repaired in the working tree and neither is merged. |
 | `ADR-0129 §6` cited for a membership rule at five sites, in `cmd/prober`, `internal/custody` and `internal/measure/edgefanout` | Batches 2 and 8, PRs #1268 and #1278, and one carried through #1466's column trim in PR #1488 | **Repaired.** #1490. All five name the `#954` amendment. |
 
@@ -1559,8 +1559,8 @@ it on a commit before `ca08e5a`, which is where the files the check reads first 
 `#nnn §n`, and nothing wider. A `#nnn §n` naming a section of an issue body is a live convention at
 172 sites, so a general rule would be 172 false positives.
 
-**The basename allowlist exposed two code-surface defects.** `deploy/prober/Dockerfile:6` carried
-`(ADR-0103, §1.5, #14)` and `deploy/prober/entrypoint.sh:28` carried `(ADR-0053, §3)`. Both were the
+**The basename allowlist exposed two code-surface defects.** `deploy/prober/Dockerfile` carried
+`(ADR-0103, §1.5, #14)` and `deploy/prober/entrypoint.sh` carried `(ADR-0053, §3)`. Both were the
 #1455 shape, and neither file carries an extension the earlier check read. #1465 repaired both. The
 Dockerfile's rule — the instance ships the exact prober binary per invocation — is `ADR-0139` §1's
 and not ADR-0103's, so that site was re-cited rather than shortened.
@@ -1653,17 +1653,17 @@ under either form. Normalising three sites out of 74 would deepen the split rath
 and 6 of those sit in a string literal rather than a comment (#1574). §4.4 already rules that a
 literal holding a comment marker is not a comment. The six are
 `internal/vergecore/vergecore_test.go` at `:8`, `:11`, `:14`, `:17` and `:20`, plus
-`internal/commentlint/screen/screen_test.go:50`. Each of the 66 has a naming line in its own file or
+`internal/commentlint/screen/screen_test.go#TestRoundOneFailuresNowScreen`. Each of the 66 has a naming line in its own file or
 package to resolve against, except the site below. That is a resolvable pointer and not a verified
 one. §4.7's four tests still run per site. A site-level repair of the 66 is a reason-clause
 campaign, and the ruling below closes that route rather than scheduling it.
 
-**One site resolves nowhere.** `internal/seed/seed.go:17` cites `§5.3` for `DefaultAddressCap`, and
+**One site resolves nowhere.** `internal/seed/seed.go#DefaultAddressCap` cites `§5.3` for `DefaultAddressCap`, and
 its package names `v1 spec §3.2`. `v1-spec.md` §5.3 is "Messages and notification". A grep for
 `1024` across `docs/spec/`, `docs/research/passive-discovery-sources.md` and `CONTEXT.md` returns no
 address cap. The reason stands uncited under route 3, and this paragraph records the gap.
 
-**A second site reaches no section that states its rule.** `internal/seed/exclusion.go:15` cites
+**A second site reaches no section that states its rule.** `internal/seed/exclusion.go#NormalizeExclusionName` cites
 `§3.2, §6.4` for *not mine is a different claim from not there*. Its package names `v1 spec §3.2`.
 `passive-discovery-sources.md` numbers no §6.4, so only `v1-spec.md` numbers both. `v1-spec.md` §3.2
 is "Seeds & aperture". Its §6.4 lists *managing exclusions* as a Seeds-view job. Neither states the
@@ -1719,10 +1719,10 @@ owes no repair.
 **Two sites reach no rung, and reading settles both.** `internal/delivery` names
 `notification-channels.md` and `v1 spec` alike, and both documents number the cited sections.
 
-- `internal/delivery/delivery.go:113` cites `§3.2` for *no bearer header is ever set*.
+- `internal/delivery/delivery.go#NewRequest` cites `§3.2` for *no bearer header is ever set*.
   `notification-channels.md` §3.2 is "Authentication", and it states **"No bearer header, ever."**
   `v1-spec.md` §3.2 is "Seeds & aperture", which rules nothing about a header.
-- `internal/delivery/runner.go:55` cites `§4` for a refused 3xx. `notification-channels.md` §4
+- `internal/delivery/runner.go#Runner` cites `§4` for a refused 3xx. `notification-channels.md` §4
   rules any 3xx **Failed**, and its table row gives this comment's own reason in the same words.
   `v1-spec.md` §4 is "Architecture".
 
@@ -1755,7 +1755,7 @@ take, and this section forbids a citation format that destroys a reason.
 **It may never describe a symbol inside the package.**
 
 57 blocks hold 768 lines at a median of 12 lines per block, so this is the longest-per-block class in
-the corpus. Three lines cuts it to about 170 lines. `cmd/web/main.go:1` already sits at exactly three
+the corpus. Three lines cuts it to about 170 lines. `cmd/web/main.go` already sits at exactly three
 lines and needs no edit.
 
 The SPEC states both a number and a content rule. A number is what a sweep agent can apply. A content
@@ -1824,7 +1824,7 @@ ruling.
 
 **A comment spliced onto the wrong symbol is false too.** All three cases above are comments the
 world falsified: a ticket landed, a field was added, a caller changed. A splice was never true, and
-nothing moved under it. `internal/custody/fanout.go:185`, above `func numericTopLabel`, is a
+nothing moved under it. `internal/custody/fanout.go`, above `func numericTopLabel`, is a
 truncated copy of `isLDHDomain`'s docstring, welded mid-sentence onto `numericTopLabel`'s own text.
 `isLDHDomain`'s docstring still sits complete 25 lines below. As written the block asserts that
 `numericTopLabel` tests the LDH character allowlist and is "an allowlist, never a blocklist". It
@@ -1859,7 +1859,7 @@ screen's `RFC` hit withheld it from mechanical deletion, so it reached stage D i
    exist until the agent writes it, so nothing tells the agent to look. PR #1356 deleted a dead
    datum from 42 sites and falsified **two comments that were true beforehand**:
    `cmd/web/templates_inventory.go` lost the clause that scoped `designTokensCSS`, leaving its lead
-   sentence naming the wrong consumer, and `cmd/web/sso.go:482`'s "stamp both" counted two data
+   sentence naming the wrong consumer, and `cmd/web/sso.go`'s "stamp both" counted two data
    where one remained. Neither file states the retired conditional, so no grep for the false claim
    reaches either. **A ticket that deletes an identifier re-reads every surviving comment next to a
    call site it edited, before the PR opens. The blast radius is the diff, not the file list.**
@@ -1884,7 +1884,7 @@ screen's `RFC` hit withheld it from mechanical deletion, so it reached stage D i
 **Where a comment names a build-time constant, read the constant.** This is the cheapest falsifier
 detector in the section, and it costs one grep. Falsifier 2 is a live `Accepted` ADR naming a
 symbol. This is its plainer sibling. `cmd/web/integrations_test.go` carried **five** blocks
-asserting `integrationsEnabled == false` while `cmd/web/integrations.go:22` declares it `true`
+asserting `integrationsEnabled == false` while `cmd/web/integrations.go` declares it `true`
 (#1222). `cmd/web/settings_test.go` carried a sixth, citing both `#388` and the constant by name
 (#1223). The comment names the identifier that falsifies it.
 
@@ -1901,7 +1901,7 @@ falsifier above describes a comment the world moved under. None describes one th
 **re-asserted**. #1220 compressed a false TOTP claim forward, and its own falsifier-8 pass cleared
 it. **Re-verify a kept block as if you had just written it.**
 
-**A dead citation is not by itself a falsity verdict.** `cmd/web/seeds.go:700` cites the superseded
+**A dead citation is not by itself a falsity verdict.** `cmd/web/seeds.go#seedAnchor` cites the superseded
 ADR-0116 and its prose is merely redundant, so it dies on gate A with no `false` row. `:842`
 restates the retired doctrine as live and earns one (#1206). Read the prose, not the token.
 
@@ -2107,7 +2107,7 @@ comment bytes both read `changed`. `render.jsx` as shipped hits none of it, and 
 112 `.jsx` files between them.
 
 **A comment's extent is the parser's, not the reader's.** Measured on `2a0acb4`, before #1236 swept
-it: `design-system/templates/settings.tmpl:12` read `integrations{{/**/}}` inside the file's opening
+it: `design-system/templates/settings.tmpl` read `integrations{{/**/}}` inside the file's opening
 `{{/*` block. `text/template` closes the comment at that inner `*/}}`, so base lines 12 to 43 were
 template **text** and not comment. About 31 lines of retired design-system doctrine sat there, no
 `commentlint` subcommand could see them, and no sweep could delete them, because removing text moves
@@ -2318,7 +2318,7 @@ stage D2. A file-head block deletes with its trailing blank line, confirmed by #
 **`sqlc` decides by column, and it is the one placement rule this SPEC has no room for elsewhere.**
 A comment at column 0 is hoisted into the generated Go doc comment and dropped from the const. A
 comment indented one space or more stays inside the const, verbatim. Measured four ways on
-`860fa97`: `db/queries/messages.sql:92-94` and `span.sql:1` sit at column 0 and land as `//` doc
+`860fa97`: `db/queries/messages.sql#PreviewExclusionWithdrawal` and `span.sql:1` sit at column 0 and land as `//` doc
 comments in `internal/db`, while `retention.sql:110` and `subjects.sql:176` sit at column 4 and stay
 as `--` inside the const. Three consequences follow.
 
@@ -2784,7 +2784,7 @@ only thing that reaches it.
    figure the agent knows is impossible.
 9. **A defect ticket's description is not evidence about the thing it describes.** Rule 7 says a
    brief is not evidence. This is the same rule for an issue body, and it has fired twice. The
-   amendment ticket said PR #1356 had left `cmd/web/sso.go:482` wrong about stamping "both". The
+   amendment ticket said PR #1356 had left `cmd/web/sso.go` wrong about stamping "both". The
    repair had landed and the count was right, and what killed the block was a second defect the
    description never measured — it names `login.tmpl`, and the `login` define lives in
    `signin.tmpl` (#1215). The same description said PR #1356 had trimmed a clause in
@@ -3359,26 +3359,26 @@ The verdicts remain correct as worked judgments. The locations do not.
 
 | # | Location | Class | Verdict | Reason |
 | ---: | --- | --- | --- | --- |
-| 1 | `cmd/web/main.go:1` | `package-doc` | Keep as-is | Already at the §4.8 cap. States purpose and ADR-0001. Names no symbol. |
-| 2 | `cmd/prober/main.go:45` | `citation` | Rewrite | Sentence 1 restates `connectoutcome.Run`. The pacing constraint is the only cause. |
-| 3 | `cmd/web/backup.go:178` `// RFC3339 UTC` | trailing `external-spec` | Keep | The wire format is unrecoverable from `string`. External spec, two words. |
-| 4 | `cmd/web/backup.go:174` `// always "manifest"` | trailing | Delete | States a value. Names no cause. |
-| 5 | `cmd/web/backup.go:175` `// archive format version, not schema` | trailing | Delete | Ambiguous. It disambiguates from the next field but names no cause. §4.2 breaks the tie. |
-| 6 | `cmd/web/addressscopecensus.go:45` (swept by #1217, PR #1375) | `docstring-unexported`, 9 lines | Delete, salvage one line | Paragraph 1 restates the return. Paragraph 2 names a cross-module rule. **Outcome on `main`:** the nine lines are gone and the file keeps two one-line survivors, at `:34` and `:40`. Read the row for the delete-and-salvage shape, not for the line number. |
-| 7 | `cmd/web/addresscap_test.go:64` | test `docstring-exported-conventional` | Rewrite | Cites ADR-0127, so §4.6 keeps it. It opens with the identifier, which §4.4 forbids. |
-| 8 | `cmd/web/addressscopecensus_test.go:87` | `docstring-exported-other` | Delete | Uncited. The test name already states the assertion. |
-| 9 | `cmd/web/addresscap_test.go:39` | `step-narration` | Delete | Uncited. Restates the two lines below it. |
-| 10 | `cmd/web/addresscap_test.go:47` | test `citation` | Rewrite | Cites ADR-0127. Drop the leading step narration. |
-| 11 | `internal/queue/withdrawal.go:99` | `prose-other` | Keep, compressed | Explains why the read sits below the guard. Moving it above is a plausible wrong edit. Opens no issue. |
-| 12 | `cmd/web/inbox_test.go:82` | test `prose-other` | Delete | Uncited. Restates the assertion below. |
-| 13 | `cmd/web/devfixtures.go:281` | `change-narration` plus two reasons | Rewrite to two lines | Drop the history. Keep both constraints, one per line. Opens a follow-up issue. |
-| 14 | `cmd/web/asset_test.go:31` `// ports census` | trailing `short-label` | Delete | A label with no cause. Agent-judged under §3.4, not mechanical. |
-| 15 | `design-system/components/display/Sparkline.d.ts:7` | `dts-field-prose` | Keep | §4.3 carve-out. The default is unrecoverable from `color?: string`. |
+| 1 | `cmd/web/main.go` | `package-doc` | Keep as-is | Already at the §4.8 cap. States purpose and ADR-0001. Names no symbol. |
+| 2 | `cmd/prober/main.go#run` | `citation` | Rewrite | Sentence 1 restates `connectoutcome.Run`. The pacing constraint is the only cause. |
+| 3 | `cmd/web/backup.go` `// RFC3339 UTC` | trailing `external-spec` | Keep | The wire format is unrecoverable from `string`. External spec, two words. |
+| 4 | `cmd/web/backup.go` `// always "manifest"` | trailing | Delete | States a value. Names no cause. |
+| 5 | `cmd/web/backup.go` `// archive format version, not schema` | trailing | Delete | Ambiguous. It disambiguates from the next field but names no cause. §4.2 breaks the tie. |
+| 6 | `cmd/web/addressscopecensus.go#addressScopeSharedEdges` (swept by #1217, PR #1375) | `docstring-unexported`, 9 lines | Delete, salvage one line | Paragraph 1 restates the return. Paragraph 2 names a cross-module rule. **Outcome on `main`:** the nine lines are gone and the file keeps two one-line survivors, at `:34` and `:40`. Read the row for the delete-and-salvage shape, not for the line number. |
+| 7 | `cmd/web/addresscap_test.go#TestAddressCapHasNoUpperBound` | test `docstring-exported-conventional` | Rewrite | Cites ADR-0127, so §4.6 keeps it. It opens with the identifier, which §4.4 forbids. |
+| 8 | `cmd/web/addressscopecensus_test.go#TestAddressScopeCensusRowAbsentWhereTheScopeIsUnmeasured` | `docstring-exported-other` | Delete | Uncited. The test name already states the assertion. |
+| 9 | `cmd/web/addresscap_test.go#TestAddressCapPersistsAndGovernsDeclaration` | `step-narration` | Delete | Uncited. Restates the two lines below it. |
+| 10 | `cmd/web/addresscap_test.go#TestAddressCapPersistsAndGovernsDeclaration` | test `citation` | Rewrite | Cites ADR-0127. Drop the leading step narration. |
+| 11 | `internal/queue/withdrawal.go#membershipInputs.hasAddressExclusion` | `prose-other` | Keep, compressed | Explains why the read sits below the guard. Moving it above is a plausible wrong edit. Opens no issue. |
+| 12 | `cmd/web/inbox_test.go#TestInboxSelectMarksReadAndShowsDetail` | test `prose-other` | Delete | Uncited. Restates the assertion below. |
+| 13 | `cmd/web/devfixtures.go` | `change-narration` plus two reasons | Rewrite to two lines | Drop the history. Keep both constraints, one per line. Opens a follow-up issue. |
+| 14 | `cmd/web/asset_test.go` `// ports census` | trailing `short-label` | Delete | A label with no cause. Agent-judged under §3.4, not mechanical. |
+| 15 | `design-system/components/display/Sparkline.d.ts` | `dts-field-prose` | Keep | §4.3 carve-out. The default is unrecoverable from `color?: string`. |
 
 Six keeps, six deletes, and three rewrites that are compressions rather than deletions. The split
 matches the survey's headline: **the sweep's dominant act is compression, not deletion.**
 
-`cmd/web/seedfixtures.go:122` holds `//nolint:errcheck`. §2.3 protects it, and no rule in this rubric
+`cmd/web/seedfixtures.go` holds `//nolint:errcheck`. §2.3 protects it, and no rule in this rubric
 reaches it.
 
 The rewrites in full:

@@ -116,7 +116,7 @@ cells state what is there, whatever shape it has.
 line read as an exception.
 
 **Reasons ride the cell, never a tooltip.** All four cells render their reason inline.
-`design-system/docs/DESIGN-NOTES.md:28` records
+`design-system/docs/DESIGN-NOTES.md#content-fundamentals-fixed--from-the-brief-not-restyled` records
 [ADR-1875](../adr/1875-an-undo-control-renders-the-exact-lookup-instant-against-the-relative-timestamp-convention.md)
 refusing a hover tooltip on the ground that it is unreachable by touch and keyboard.
 
@@ -132,8 +132,8 @@ over an **empty** `Seed` list. An empty declaration is a declared state, not an 
 cell ever means *no value has been declared yet*. `none` carries only the case it already covers:
 **no such value exists**.
 
-Measured on this branch. `db/migrations/18801_measurement_scan.sql:19` and its eight siblings seed
-every `Scan` row with a cadence. `db/migrations/18800_measurement_vantage.sql:21` seeds one
+Measured on this branch. `db/migrations/18801_measurement_scan.sql` and its eight siblings seed
+every `Scan` row with a cadence. `db/migrations/18800_measurement_vantage.sql` seeds one
 vantage. `db/migrations/` inserts no `Seed` row at all.
 
 **Every line carries a Remedy cell.** A remedy on one row of seven teaches the operator that the
@@ -147,8 +147,8 @@ A measured read makes a line non-constant and falsifies ADR-0044 decision 10's p
 rule across seven lines is cheaper to hold than per-line provenance.
 
 **The address-coverage test has exactly one binding.** A line that must know whether a declared
-address scope covers an address calls `addressScopeCovered` (`cmd/web/vantageclass.go:24`).
-`cmd/web/vantageclass.go:22` refuses a second by name:
+address scope covers an address calls `addressScopeCovered` (`cmd/web/vantageclass.go#server.addressScopeCovered`).
+`cmd/web/vantageclass.go` refuses a second by name:
 
 > One binding serves batch gating and every render, so a second predicate is refused (#711).
 
@@ -163,7 +163,7 @@ the estate count #44 decision 7 refuses, in a new costume.
 
 ### 2.5 The seven rows, in order
 
-The Input column is fixed. The order is the ledger's, and `docs/spec/v1-spec.md:168-172` now states
+The Input column is fixed. The order is the ledger's, and `docs/spec/v1-spec.md#32-seeds--aperture` now states
 the same seven in the same order, so the two lists compare member by member.
 
 | # | Input | Copy fixed here |
@@ -186,8 +186,8 @@ ones ([#1906](https://github.com/winniel123/verge-asm/issues/1906)).
 **Seven, not eight.** The queried address scope is a **lever on** the custody gate, not a peer of
 it. ADR-0079 decided this by name. `docs/adr/0047-…md:446` states the mechanism in general terms.
 And the code carries one address dimension rather than two — `hotScopeRecord` and `coldScopeRecord`
-each hold a single `Addresses` field (`internal/scan/hot.go:110-115`,
-`internal/scan/cold.go:134-139`).
+each hold a single `Addresses` field (`internal/scan/hot.go#hotScopeRecord`,
+`internal/scan/cold.go#coldScopeRecord`).
 
 ---
 
@@ -226,7 +226,7 @@ the partition the single line exists to keep together.
 its denominator is the shape ADR-0095 refused across two lines, and the same argument reaches two
 cells.
 
-**Figures 1 and 2 are not in conflict, and never were.** `docs/spec/v1-spec.md:682-686` separates
+**Figures 1 and 2 are not in conflict, and never were.** `docs/spec/v1-spec.md#63-coverage` separates
 them by which side of the recorded scope a pair sits on. Figure 1 counts pairs **outside** the
 recorded scope, an invitation the operator can act on. Figure 2 counts pairs **inside** it that the
 instrument cannot report as reached. UDP is never probed, so no UDP pair is ever inside the
@@ -269,10 +269,10 @@ here an action genuinely exists and recommending it tells the operator nothing f
 themselves."* On a healthy estate no act exists, because UDP carries no flag at all. A button to a
 screen holding no relevant control is #1854's silence in a new costume.
 
-**`Declare scope` is refused as the label.** `cmd/web/auth.go:913` ships that label one card away,
+**`Declare scope` is refused as the label.** `cmd/web/auth.go#firstRunChecklist` ships that label one card away,
 on Coverage's own day-one checklist. It is true of a **name** scope, and a name scope moves nothing
 on this line. The reason sentence carries the custody-extension lever instead, because the extension
-is declared on the same screen (`design-system/templates/scope.tmpl:233`).
+is declared on the same screen (`design-system/templates/scope.tmpl#scope`).
 
 ### 3.5 The two renderings
 
@@ -348,8 +348,8 @@ already withdrawn for the same reason
 [#1904](https://github.com/winniel123/verge-asm/pull/1904)).
 
 **The State cell reads the live derivation** through `addressScopeCovered` (§2.4). No row stores a
-class. `internal/scan/scan.go:20` marks the `vantage.class` column vestigial, and
-`cmd/web/auth.go:627` records that the chip is derived per read.
+class. `internal/scan/scan.go` marks the `vantage.class` column vestigial, and
+`cmd/web/auth.go#server.dashboardData` records that the chip is derived per read.
 
 ### 4.2 The remedy — a total function over two legs
 
@@ -361,7 +361,7 @@ counted, and a clause per set covers none of them. The domain is the two `Exposu
 - `hasInternal` — some declared vantage derives `internal`
 
 `unverified` stops being a clause. It becomes what it is, a member that starts no leg
-(`internal/queue/vantageclass.go:76`).
+(`internal/queue/vantageclass.go#widenedClasses`).
 
 | `hasInternet` | `hasInternal` | Remedy | Reason, in the cell |
 | --- | --- | --- | --- |
@@ -376,25 +376,25 @@ enumeration.
 Four constraints a builder must not simplify away:
 
 1. **`Add an internal vantage` is withdrawn.** No control makes a vantage internal. The prober form
-   carries no class field (`cmd/web/probers.go:36-37`), and a vantage derives `internal` only when
-   every address it presents is covered (`internal/exposure/exposure.go:90-104`). On a name-only
+   carries no class field (`cmd/web/probers.go#proberView`), and a vantage derives `internal` only when
+   every address it presents is covered (`internal/exposure/exposure.go#VerifyClass`). On a name-only
    estate, adding a prober cannot move the cell.
-2. **Row 2 must not lead with the egress declaration.** `design-system/templates/settings.tmpl:538`
+2. **Row 2 must not lead with the egress declaration.** `design-system/templates/settings.tmpl#settings-vantages`
    tells the operator to declare a prober's egress as an address scope. Applied to an **internet**
    prober, that step flips it to `internal` and destroys the internet leg. The label names the
    necessary step, and the reason carries the second step in order.
 3. **Rows 3 and 4 share one label and differ only in reason.** The act is identical. Two labels for
    one act would teach the operator that two different things are available.
    `Provision a prober` is the shipped card title verbatim
-   (`design-system/templates/settings.tmpl:550`). *"Exposure needs an outside observer,
-   unconditionally"* is `cmd/web/auth.go:924` verbatim.
+   (`design-system/templates/settings.tmpl#settings-vantages`). *"Exposure needs an outside observer,
+   unconditionally"* is `cmd/web/auth.go#firstRunChecklist` verbatim.
 4. **Row 4 is a fresh install, never an empty list.**
-   `db/migrations/18800_measurement_vantage.sql:21` seeds one `local` vantage at `unverified` per
+   `db/migrations/18800_measurement_vantage.sql` seeds one `local` vantage at `unverified` per
    install. The empty vantage list is unreachable and needs no copy.
 
-**The target is real.** `cmd/web/handlers.go:366` redirects `/settings/vantages` to
+**The target is real.** `cmd/web/handlers.go#server.handler` redirects `/settings/vantages` to
 `/settings?tab=vantages`, and `message.KindVantageClass` already routes there
-(`cmd/web/messages.go:345`).
+(`cmd/web/messages.go#messageLink`).
 
 ---
 
@@ -405,11 +405,11 @@ computation. An HTML-only statement moves #1854's silence rather than ending it.
 
 ### 5.1 The home
 
-`cmd/web/cold.go:246` holds `apertureMeters`, the shipped precedent for exactly this shape. Build a
+`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`, the shipped precedent for exactly this shape. Build a
 sibling of it that returns the seven rows as a typed slice.
 
-One function feeds both renderers today. `cmd/web/cold.go:208` renders the meters into the
-template, and `cmd/web/api_v1.go:291` renders them into JSON.
+One function feeds both renderers today. `cmd/web/cold.go#server.coveragePage` renders the meters into the
+template, and `cmd/web/api_v1.go#server.apiCoverage` renders them into JSON.
 
 Do not invent a second pattern beside a working one.
 
@@ -445,9 +445,9 @@ They separate by placement and by micro-label. §7.4 moves the micro-label.
 
 | Figure | Derivation | Live value |
 | --- | --- | --- |
-| `38` | `vergecore.Default().Count().Sensitive` (`internal/vergecore/vergecore.go:160`, field at `:154`, filled at `:172`) | 38 |
-| `17` | `len(signal.AllRuleNames())` (`internal/signal/corpus.go:45`) | 17 |
-| `5` | `SensitivePairs()` (`internal/vergecore/vergecore.go:150`) filtered on `Transport == UDP` | 5 |
+| `38` | `vergecore.Default().Count().Sensitive` (`internal/vergecore/vergecore.go#List.Count`, field at `:154`, filled at `:172`) | 38 |
+| `17` | `len(signal.AllRuleNames())` (`internal/signal/corpus.go#AllRuleNames`) | 17 |
+| `5` | `SensitivePairs()` (`internal/vergecore/vergecore.go#List.SensitivePairs`) filtered on `Transport == UDP` | 5 |
 
 **The `5` numerator has no exported home.** `Counts.UDP` counts the UDP members of the **union**,
 not of the sensitive half. The caller filters it
@@ -469,14 +469,14 @@ numerator four times.
 
 **No further list-movement test is commissioned.** Six tests already gate the two lists themselves,
 two of them golden tests that re-parse the research notes and byte-compare against the shipped TSV
-(`internal/vergecore/vergecore_test.go`, `internal/vergecore/golden_test.go:192` and `:204`,
-`internal/signal/endpoint_test.go:312`). Test 1 is the only new link needed, between the shipped
+(`internal/vergecore/vergecore_test.go`, `internal/vergecore/golden_test.go#TestSensitiveHalfIsResearchNoteSection3` and `:204`,
+`internal/signal/endpoint_test.go#TestEvaluateCorpusReturnsSeventeenRules`). Test 1 is the only new link needed, between the shipped
 list and the rendered figure.
 
 ### 6.3 Why figure 3's numerator is the literal `0`
 
 Deriving it was proposed and the code falsifies the premise. 16 `return OutsideDomain` guards sit
-across the 17 rules (`internal/signal/rules.go:96`, `:118` are two of them). Configuration absence
+across the 17 rules (`internal/signal/rules.go#zoneDeclaredNameReturnsNameError.Eval`, `:118` are two of them). Configuration absence
 routes to **outside the domain**, never to unevaluable. `NotEvaluable` arises only from measurement
 outcomes, which §2.4 bars from this line.
 
@@ -494,7 +494,7 @@ land as implementation tickets.
 
 ### 7.1 ADR-0044's figure-constancy claim is struck — **landed here**
 
-`docs/adr/0044-a-one-off-measurement-has-no-currency.md:222` claims that **every figure on this
+`docs/adr/0044-a-one-off-measurement-has-no-currency.md#narrow-is-not-the-failure-narrow-and-silent-is` claims that **every figure on this
 line is unchanged on every shipped configuration**.
 
 The **pairs** figure falsifies that clause. Under the union semantics of ruling 7, a name-only
@@ -509,7 +509,7 @@ Three neighbouring sites stay untouched. All three are correct as written:
 
 - `docs/adr/0044-…md:202` — *"the numerator is unchanged"*, true of the rules numerator.
 - `docs/adr/0095-…md:61` — *"Does not move, and cannot"*, true as an absolute (§6.3).
-- `docs/research/safe-active-probing.md:377` — a restating site whose specifying site did not move.
+- `docs/research/safe-active-probing.md#24-continuous-vs-periodic--the-schedule-is-the-real-answer` — a restating site whose specifying site did not move.
 
 ### 7.2 `CONTEXT.md`'s `Drained` entry gains one clause — **landed here**
 
@@ -534,7 +534,7 @@ never defined *unevaluable*, which is how one word came to do two jobs. Figure 3
 
 ### 7.4 The `Aperture` micro-label moves to the statement — **specified**
 
-`design-system/templates/coverage.tmpl:111` carries the micro-label `Aperture` over the title
+`design-system/templates/coverage.tmpl#coverage` carries the micro-label `Aperture` over the title
 *"What the last batch walked"*, rendering the ADR-0120 meters. After §5.3 the two elements read
 different sources and move at different rates. The card's title already says what it is, so the
 micro-label is the part that overreaches.
@@ -545,8 +545,8 @@ micro-label is the part that overreaches.
 
 ### 7.5 The `Rules` card is retitled — **specified**
 
-`design-system/templates/coverage.tmpl:177` titles a card *"Unevaluable this batch"*. Its rows read
-*"N subjects in its domain could not be read this batch"* (`cmd/web/cold.go:448`), and its empty
+`design-system/templates/coverage.tmpl#coverage` titles a card *"Unevaluable this batch"*. Its rows read
+*"N subjects in its domain could not be read this batch"* (`cmd/web/cold.go#sortCoverageMessages`), and its empty
 state reads *"Every rule could evaluate"* (`:190`). That is a per-subject count wearing a per-rule
 name, which ADR-0095 refuses by name at `docs/adr/0095-…md:347`. It sits one card from figure 3.
 
@@ -590,7 +590,7 @@ Three facts those tickets inherit:
 - Only **two** inputs carry a genuine operator toggle — enabled sources through `source_state`, and
   the custody gate through `seed.custody_extension`. The `cold` tier's enable is derived from a
   non-empty scope list rather than set.
-- Only `dns` and `zone` have cadence setters (`db/queries/measurement.sql:17`, `db/queries/zone.sql:23`).
+- Only `dns` and `zone` have cadence setters (`db/queries/measurement.sql#GetDnsCadenceSeconds`, `db/queries/zone.sql#GetZoneCadenceSeconds`).
   Every other cadence is release-coupled.
 - The two `Offer`-class inputs and the control-probe population are deliberately un-toggleable. An
   offer the operator can narrow is a finding the operator can silence
