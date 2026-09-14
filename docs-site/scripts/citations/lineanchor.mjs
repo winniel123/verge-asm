@@ -1,6 +1,6 @@
 import { visitParents } from "unist-util-visit-parents";
 import { parse } from "../doclint/engine.mjs";
-import { inOpaque, nearestBlock, refTokensOf } from "./extract.mjs";
+import { inOpaque, nearestBlock, refTokensOf, snippetAfter } from "./extract.mjs";
 
 const SEGMENT = "[A-Za-z0-9_.@+-]";
 const PATH = `[A-Za-z0-9_.@]${SEGMENT}*(?:/${SEGMENT}+)+`;
@@ -37,6 +37,11 @@ function linkTarget(url) {
   return raw;
 }
 
+// One pattern, so a rewrite can never touch a token this scan did not find (#1975).
+export function lineAnchorPattern() {
+  return new RegExp(LINE_ANCHOR.source, LINE_ANCHOR.flags);
+}
+
 export function scanLineAnchors(markdown) {
   return scanLineAnchorsFromTree(parse(markdown));
 }
@@ -65,7 +70,16 @@ export function scanLineAnchorsFromTree(tree, { refPin = true } = {}) {
     // A line pinned to a named ref cannot drift, so it is the one carve-out (SPEC §5).
     if (refPin && refsByBlock.has(nearestBlock(ancestors))) return;
     for (const token of tokens) {
-      out.push({ token, kind, line: node.position?.start?.line ?? 1 });
+      // The sweep rewrites inside the node this scan read, so no second scanner drifts (#1975).
+      out.push({
+        token,
+        kind,
+        line: node.position?.start?.line ?? 1,
+        start: node.position?.start?.offset,
+        end: node.position?.end?.offset,
+        // A converted token turns the next code span into a snippet claim (SPEC §3.4, #1975).
+        snippet: snippetAfter(node, ancestors),
+      });
     }
   });
 
