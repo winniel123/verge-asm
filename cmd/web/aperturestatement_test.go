@@ -17,8 +17,13 @@ const (
 	enabledSourcesInput = "Enabled sources"
 	portTierInput       = "Port and transport tiers"
 	custodyGateInput    = "The custody gate"
+	queriedQtypeInput   = "The queried qtype set"
 	vantageClassInput   = "Vantage class"
 )
+
+// The shipped default of db/migrations/18801_measurement_scan.sql, so the label reads `daily`.
+
+const testDNSCadenceSeconds = 86400
 
 func statementRow(t *testing.T, rows []apertureRowView, input string) apertureRowView {
 	t.Helper()
@@ -33,12 +38,12 @@ func statementRow(t *testing.T, rows []apertureRowView, input string) apertureRo
 
 func vantageClassRowOf(t *testing.T, classes ...custody.VantageClass) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(nil, true, nil, classes, true), vantageClassInput)
+	return statementRow(t, apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, classes, true), vantageClassInput)
 }
 
 func portTierFigures(t *testing.T, seeds []db.ListSeedsRow) []apertureFigureView {
 	t.Helper()
-	rows := apertureStatement(nil, true, seeds, nil, true)
+	rows := apertureStatement(nil, true, seeds, testDNSCadenceSeconds, true, nil, true)
 	for _, r := range rows {
 		if r.Input == portTierInput {
 			if len(r.Figures) != 3 {
@@ -179,12 +184,12 @@ func TestEveryRuleSendsConfigurationAbsenceOutsideTheDomain(t *testing.T) {
 }
 
 func TestApertureStatementRemedySwitchesOnTheDeclaredLever(t *testing.T) {
-	nameOnly := statementRow(t, apertureStatement(nil, true, nameOnlySeeds(), nil, true), portTierInput)
+	nameOnly := statementRow(t, apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true), portTierInput)
 	if nameOnly.Remedy != "Declare an address scope" || nameOnly.RemedyHref != "/scope" {
 		t.Errorf("name-only remedy: got %q -> %q", nameOnly.Remedy, nameOnly.RemedyHref)
 	}
 
-	healthy := statementRow(t, apertureStatement(nil, true, addressScopeSeeds(t), nil, true), portTierInput)
+	healthy := statementRow(t, apertureStatement(nil, true, addressScopeSeeds(t), testDNSCadenceSeconds, true, nil, true), portTierInput)
 	if healthy.Remedy != apertureNone || healthy.RemedyHref != "" {
 		t.Errorf("address-scope remedy: got %q -> %q, want %q and no link", healthy.Remedy, healthy.RemedyHref, apertureNone)
 	}
@@ -292,7 +297,7 @@ func TestVantageClassCadenceIsNoneAndNeverEveryBatch(t *testing.T) {
 }
 
 func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
-	row := statementRow(t, apertureStatement(nil, true, nil, nil, false), vantageClassInput)
+	row := statementRow(t, apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, false), vantageClassInput)
 	if row.State == apertureNone {
 		t.Error("a failed read renders as `none`, which claims no vantage is declared")
 	}
@@ -309,15 +314,15 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 	}
 }
 
-// The ledger's order is SPEC §2.5's: sources 1, the port tiers 2, the gate 3, the class 6.
+// The ledger's order is SPEC §2.5's: sources 1, port tiers 2, gate 3, qtypes 4, class 6.
 
 func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
-	rows := apertureStatement(nil, true, nameOnlySeeds(), nil, true)
+	rows := apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true)
 	order := make([]string, 0, len(rows))
 	for _, r := range rows {
 		order = append(order, r.Input)
 	}
-	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, vantageClassInput}
+	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, queriedQtypeInput, vantageClassInput}
 	if strings.Join(order, "|") != strings.Join(want, "|") {
 		t.Errorf("ledger order = %v, want %v", order, want)
 	}
@@ -325,7 +330,7 @@ func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
 
 func enabledSourcesRowOf(t *testing.T, states ...db.SourceState) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(states, true, nil, nil, true), enabledSourcesInput)
+	return statementRow(t, apertureStatement(states, true, nil, testDNSCadenceSeconds, true, nil, true), enabledSourcesInput)
 }
 
 func sourceOn(slug string) db.SourceState  { return db.SourceState{Slug: slug, Enabled: true} }
@@ -480,7 +485,7 @@ func TestEnabledSourcesRemedyMakesNoFalseClaimAboutTheRestOfTheCatalogue(t *test
 }
 
 func TestEnabledSourcesRowWithholdsWhatItCouldNotRead(t *testing.T) {
-	row := statementRow(t, apertureStatement(nil, false, nil, nil, true), enabledSourcesInput)
+	row := statementRow(t, apertureStatement(nil, false, nil, testDNSCadenceSeconds, true, nil, true), enabledSourcesInput)
 	if row.State == apertureNone {
 		t.Error("a failed read renders as `none`, which claims every source is switched off")
 	}

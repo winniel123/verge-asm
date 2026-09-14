@@ -8,6 +8,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -37,11 +38,12 @@ type apertureRowView struct {
 
 // The card renders the rows that exist and grows to the seven of the spec's order (#1917).
 
-func apertureStatement(states []db.SourceState, statesRead bool, seeds []db.ListSeedsRow, classes []custody.VantageClass, classesRead bool) []apertureRowView {
+func apertureStatement(states []db.SourceState, statesRead bool, seeds []db.ListSeedsRow, dnsCadence int64, dnsCadenceRead bool, classes []custody.VantageClass, classesRead bool) []apertureRowView {
 	return []apertureRowView{
 		enabledSourcesRow(states, statesRead),
 		portTierRow(seeds),
 		custodyGateRow(seeds),
+		queriedQtypeSetRow(dnsCadence, dnsCadenceRead),
 		vantageClassRow(classes, classesRead),
 	}
 }
@@ -59,6 +61,26 @@ func apertureSourceStates(ctx context.Context, store apertureSourceStore, where 
 		return nil, false
 	}
 	return rows, true
+}
+
+type apertureCadenceStore interface {
+	GetDnsCadenceSeconds(ctx context.Context) (int64, error)
+}
+
+// A failed read names no cadence: the default would name a dial the operator moved (#989).
+
+func apertureDNSCadence(ctx context.Context, store apertureCadenceStore, where string) (int64, bool) {
+	seconds, err := store.GetDnsCadenceSeconds(ctx)
+	if err != nil {
+		log.Printf("web: %s: get dns cadence: %v", where, err)
+		return 0, false
+	}
+	if seconds <= 0 {
+		// The scan table's CHECK refuses this, so a read that carries it came from elsewhere.
+		log.Printf("web: %s: dns cadence is %d seconds, which names no interval", where, seconds)
+		return 0, false
+	}
+	return seconds, true
 }
 
 type apertureVantageStore interface {
@@ -247,6 +269,36 @@ func custodyGateRow(seeds []db.ListSeedsRow) apertureRowView {
 		row.Remedy, row.RemedyHref = apertureNone, ""
 		// A pointer at a screen holding no relevant control is #1854's silence in a new costume.
 		row.RemedyWhy = "Every declared name scope carries the extension, so no further switch widens this gate."
+	}
+	return row
+}
+
+const qtypeSetDetail = "The set a prober puts on the wire, never a library default. " +
+	"Each qtype is asked by name and never as ANY, because a server may answer ANY with a subset, and a subset licenses no absence. " +
+	"The wildcard control probe runs this same set and mints no second list."
+
+func queriedQtypeSetRow(dnsCadence int64, dnsCadenceRead bool) apertureRowView {
+	// The set is the leaf's declared offer, so the row reads it and not the dnsQtypeSet mirror.
+	offered := resolutionwalk.DefaultOffers().Qtypes
+	names := make([]string, 0, len(offered))
+	for _, q := range offered {
+		names = append(names, string(q))
+	}
+	row := apertureRowView{
+		Input:   "The queried qtype set",
+		Cadence: cadenceLabel(dnsCadence),
+		// This row's exchange is the dns Scan, whose cadence is one of two dials (#1883).
+		CadenceWhy:  "The dns Scan re-asks the whole set on every run. A cadence dial ships for this Scan: the DNS scan interval on the Scope screen moves it.",
+		State:       strings.Join(names, " · "),
+		StateDetail: qtypeSetDetail,
+		// No toggle narrows an offer, so the chip carries no on and no off (ADR-0030).
+		StateKind: "fixed",
+		Remedy:    apertureNone,
+		RemedyWhy: "No setting narrows this set. An offer the operator can narrow is a finding the operator can silence, so the set moves with a release and never with a switch.",
+	}
+	if !dnsCadenceRead {
+		row.Cadence = "not read"
+		row.CadenceWhy = "The dns Scan's interval did not resolve on this load, so this cell names no cadence. The set itself ships with the release and is unchanged."
 	}
 	return row
 }
