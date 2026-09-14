@@ -542,7 +542,7 @@ func TestCoverageRendersRegions(t *testing.T) {
 	}
 	for _, region := range []string{
 		"What the last batch walked", "Coverage messages",
-		"Expected, not observed", "Unevaluable this batch",
+		"Expected, not observed", "Rules waiting on a reading",
 	} {
 		if !strings.Contains(got, region) {
 			t.Errorf("Coverage region %q missing; body: %s", region, got)
@@ -705,7 +705,7 @@ func TestCoverageEmptyStates(t *testing.T) {
 
 	page := coverageBody(t, ac, base)
 	for _, want := range []string{
-		"No scope to walk yet", "No coverage messages", "No gaps this batch", "Every rule could evaluate",
+		"No scope to walk yet", "No coverage messages", "No gaps this batch", "Every rule read every subject in its domain.",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("Coverage empty-state %q missing; body: %s", want, page)
