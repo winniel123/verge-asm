@@ -16,6 +16,7 @@ import (
 const (
 	enabledSourcesInput = "Enabled sources"
 	portTierInput       = "Port and transport tiers"
+	custodyGateInput    = "The custody gate"
 	vantageClassInput   = "Vantage class"
 )
 
@@ -308,7 +309,7 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 	}
 }
 
-// The ledger's order is SPEC §2.5's: sources are row 1, the port tier row 2, the class row 6.
+// The ledger's order is SPEC §2.5's: sources 1, the port tiers 2, the gate 3, the class 6.
 
 func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
 	rows := apertureStatement(nil, true, nameOnlySeeds(), nil, true)
@@ -316,7 +317,7 @@ func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
 	for _, r := range rows {
 		order = append(order, r.Input)
 	}
-	want := []string{enabledSourcesInput, portTierInput, vantageClassInput}
+	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, vantageClassInput}
 	if strings.Join(order, "|") != strings.Join(want, "|") {
 		t.Errorf("ledger order = %v, want %v", order, want)
 	}

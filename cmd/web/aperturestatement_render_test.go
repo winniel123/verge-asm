@@ -141,6 +141,38 @@ func TestCoverageNamesTheMissingInternalLeg(t *testing.T) {
 	}
 }
 
+// The gate row sits in slot 3, between the port tiers and the class (SPEC §2.5).
+
+func TestCoverageRendersTheCustodyGateRow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declare(t, ac, base, "name", "example.com").Body.Close()
+	page := coverageBody(t, ac, base)
+
+	ports := strings.Index(page, "Port and transport tiers")
+	gate := strings.Index(page, "The custody gate")
+	class := strings.Index(page, "Vantage class")
+	if ports < 0 || gate < 0 || class < 0 || ports > gate || gate > class {
+		t.Errorf("the gate row must sit in slot 3; ports at %d, gate at %d, class at %d", ports, gate, class)
+	}
+	for _, want := range []string{
+		"every dispatch · daily",
+		"the extension&#39;s fan-out test rides the daily edge-fanout Scan",
+		"total · extension off",
+		"0 of 1 name scope extended",
+		"A declared address scope admits an address directly.",
+		"Extend custody to a name scope",
+		"A switch on the Scope screen extends custody to the addresses a name scope resolves into.",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the gate row is missing %q; body: %s", want, page)
+		}
+	}
+}
+
 // One computation feeds two renderers, so a cell a later row fills must reach both (SPEC §5).
 
 func TestAPIApertureRowCarriesEveryCellOfTheComputation(t *testing.T) {
