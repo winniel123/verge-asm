@@ -143,13 +143,17 @@ domain. **An address-keyed endpoint asks no hostname question, so a captured `sa
   rather than a bounded cost, because a cross-signed or hand-built root can produce it and nothing
   detects it when it does.
 - **A certificate issued for an IP address always mismatches a named `Endpoint`**, and RFC 6125
-  §1.7.2 bounds that population under 1% of issuance. `cmd/web/signals_cert_test.go:30` pins it:
+  §1.7.2 bounds that population under 1% of issuance.
+  `internal/signalfacts/signalfacts_test.go#TestSANMatchesName` pins it:
   *"no dNSName SANs (IP-only leaf) → false, never nil-defaulted true"*.
 - **`san_ip` is dead weight on the read side and stays.** Deleting the decode moves a golden;
   keeping it preserves the evidence a later address-identity rule would need.
-- **The byte-exactness is unpinned by test.** `TestSelfSignedOf`
-  (`cmd/web/signals_cert_test.go:47-67`) has four rows and none differs only by case. A row
-  asserting `"CN=Root"` against `"CN=root"` reads `false` and belongs there.
+- ~~**The byte-exactness is unpinned by test.** `TestSelfSignedOf` has four rows and none differs
+  only by case. A row asserting `"CN=Root"` against `"CN=root"` reads `false` and belongs there.~~
+
+  > WITHDRAWN. #1707 added the row this bullet asked for.
+  > `internal/signalfacts/signalfacts_test.go#TestSelfSignedOf` now carries five rows, and the
+  > `case-only` row reads `"CN=Root"` against `"CN=root"` as `false`. The byte-exactness is pinned.
 - **A defect in the second conjunct is exposed and not fixed here.** `CheckSignatureFrom` is
   stricter than a signature check: Go rejects an MD5 or SHA-1 signature outright, and rejects a
   parent that is not a CA. A real SHA-1 self-signed root therefore records `self_sig_verifies=false`
