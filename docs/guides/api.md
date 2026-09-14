@@ -231,8 +231,8 @@ The fired-signal census, one array per tab.
 
 Two reads ride in one response. The `meters` key is the aperture census, one meter
 per declared scope. The `statement` key is the aperture statement. It holds one row
-per aperture input, as the Coverage screen renders it. There are seven, and the
-sample below carries all seven in the order the screen renders them.
+per aperture input, as the Coverage screen renders it. The sample below carries
+the whole list, in the order the screen renders it.
 
 ```json
 {
