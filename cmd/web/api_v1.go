@@ -312,10 +312,7 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	// The row's worth is the sentence beside the count, which no JSON field carries (#989).
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), nil)
 
-	classes, classesRead := s.apertureVantageClasses(ctx, s.apiV1Store, "api: coverage")
-	states, statesRead := apertureSourceStates(ctx, s.apiV1Store, "api: coverage")
-	dnsCadence, dnsCadenceRead := apertureDNSCadence(ctx, s.apiV1Store, "api: coverage")
-	rows := apertureStatement(states, statesRead, seeds, dnsCadence, dnsCadenceRead, classes, classesRead)
+	rows := apertureStatement(s.readApertureInputs(ctx, s.apiV1Store, "api: coverage"), seeds)
 	out := apiCoverageResponse{
 		Meters:    make([]apiCoverageMeter, 0, len(meters)),
 		Statement: make([]apiApertureRow, 0, len(rows)),

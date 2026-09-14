@@ -38,17 +38,54 @@ type apertureRowView struct {
 	RemedyWhy   string
 }
 
+// A value and its own flag travel as one, so a transposed read does not compile (#2002).
+
+type apertureRead[T any] struct {
+	Value T
+	Read  bool
+}
+
+func apertureReadOf[T any](v T) apertureRead[T] {
+	return apertureRead[T]{Value: v, Read: true}
+}
+
+type apertureInputs struct {
+	SourceStates   apertureRead[[]db.SourceState]
+	DNSCadence     apertureRead[int64]
+	VantageClasses apertureRead[[]custody.VantageClass]
+}
+
+type apertureInputStore interface {
+	apertureSourceStore
+	apertureCadenceStore
+	apertureVantageStore
+}
+
+// Seeds stay a parameter, because both callers read them first and return early on their error.
+
+func (s *server) readApertureInputs(ctx context.Context, store apertureInputStore, where string) apertureInputs {
+	// Both callers read in this order before #2002, and each failed read logs a line.
+	classes := s.apertureVantageClasses(ctx, store, where)
+	states := apertureSourceStates(ctx, store, where)
+	cadence := apertureDNSCadence(ctx, store, where)
+	return apertureInputs{
+		SourceStates:   states,
+		DNSCadence:     cadence,
+		VantageClasses: classes,
+	}
+}
+
 // The card renders the rows that exist and grows to the seven of the spec's order (#1917).
 
-func apertureStatement(states []db.SourceState, statesRead bool, seeds []db.ListSeedsRow, dnsCadence int64, dnsCadenceRead bool, classes []custody.VantageClass, classesRead bool) []apertureRowView {
+func apertureStatement(in apertureInputs, seeds []db.ListSeedsRow) []apertureRowView {
 	return []apertureRowView{
-		enabledSourcesRow(states, statesRead),
+		enabledSourcesRow(in.SourceStates),
 		portTierRow(seeds),
 		custodyGateRow(seeds),
-		queriedQtypeSetRow(dnsCadence, dnsCadenceRead),
+		queriedQtypeSetRow(in.DNSCadence),
 		tlsCandidateSetRow(),
-		vantageClassRow(classes, classesRead),
-		controlProbePopulationRow(seeds, dnsCadence, dnsCadenceRead),
+		vantageClassRow(in.VantageClasses),
+		controlProbePopulationRow(seeds, in.DNSCadence),
 	}
 }
 
@@ -58,13 +95,13 @@ type apertureSourceStore interface {
 
 // A failed read renders as withheld, because an empty override set would name the defaults (#989).
 
-func apertureSourceStates(ctx context.Context, store apertureSourceStore, where string) ([]db.SourceState, bool) {
+func apertureSourceStates(ctx context.Context, store apertureSourceStore, where string) apertureRead[[]db.SourceState] {
 	rows, err := store.ListSourceStates(ctx)
 	if err != nil {
 		log.Printf("web: %s: list source states: %v", where, err)
-		return nil, false
+		return apertureRead[[]db.SourceState]{}
 	}
-	return rows, true
+	return apertureReadOf(rows)
 }
 
 type apertureCadenceStore interface {
@@ -73,18 +110,18 @@ type apertureCadenceStore interface {
 
 // A failed read names no cadence: the default would name a dial the operator moved (#989).
 
-func apertureDNSCadence(ctx context.Context, store apertureCadenceStore, where string) (int64, bool) {
+func apertureDNSCadence(ctx context.Context, store apertureCadenceStore, where string) apertureRead[int64] {
 	seconds, err := store.GetDnsCadenceSeconds(ctx)
 	if err != nil {
 		log.Printf("web: %s: get dns cadence: %v", where, err)
-		return 0, false
+		return apertureRead[int64]{}
 	}
 	if seconds <= 0 {
 		// The scan table's CHECK refuses this, so a read that carries it came from elsewhere.
 		log.Printf("web: %s: dns cadence is %d seconds, which names no interval", where, seconds)
-		return 0, false
+		return apertureRead[int64]{}
 	}
-	return seconds, true
+	return apertureReadOf(seconds)
 }
 
 type apertureVantageStore interface {
@@ -93,19 +130,19 @@ type apertureVantageStore interface {
 
 // A failed read renders as withheld, because an empty class set would name a missing leg (#989).
 
-func (s *server) apertureVantageClasses(ctx context.Context, store apertureVantageStore, where string) ([]custody.VantageClass, bool) {
+func (s *server) apertureVantageClasses(ctx context.Context, store apertureVantageStore, where string) apertureRead[[]custody.VantageClass] {
 	rows, err := store.ListVantages(ctx)
 	if err != nil {
 		log.Printf("web: %s: list vantages: %v", where, err)
-		return nil, false
+		return apertureRead[[]custody.VantageClass]{}
 	}
 	covered, cerr := s.addressScopeCovered(ctx)
 	if cerr != nil {
 		log.Printf("web: %s: address scope coverage: %v", where, cerr)
 		// A tag failing closed to internet mislabels one vantage; here it would hide the remedy.
-		return nil, false
+		return apertureRead[[]custody.VantageClass]{}
 	}
-	return listedVantageClasses(rows, covered), true
+	return apertureReadOf(listedVantageClasses(rows, covered))
 }
 
 const apertureSourcesHref = "/settings?tab=sources"
@@ -129,14 +166,14 @@ func apertureToggleableSources() []catalogSource {
 	return out
 }
 
-func enabledSourcesRow(states []db.SourceState, statesRead bool) apertureRowView {
+func enabledSourcesRow(states apertureRead[[]db.SourceState]) apertureRowView {
 	row := apertureRowView{
 		Input:      "Enabled sources",
 		Cadence:    "daily · every 5 minutes",
 		CadenceWhy: "The ct Scan asks daily and the ct-tail Scan every 5 minutes. Release-coupled: a cadence dial ships for the dns and zone Scans alone.",
 		StateKind:  "off",
 	}
-	if !statesRead {
+	if !states.Read {
 		// A client reads the kind rather than the prose, so `off` would state a state we lack.
 		row.StateKind = "withheld"
 		row.State = "not read"
@@ -146,7 +183,7 @@ func enabledSourcesRow(states []db.SourceState, statesRead bool) apertureRowView
 		return row
 	}
 
-	override := sourceOverrides(states)
+	override := sourceOverrides(states.Value)
 	var on, off []string
 	var crtshOn, spotterOn bool
 	for _, c := range apertureToggleableSources() {
@@ -281,7 +318,7 @@ const qtypeSetDetail = "The set a prober puts on the wire, never a library defau
 	"Each qtype is asked by name and never as ANY, because a server may answer ANY with a subset, and a subset licenses no absence. " +
 	"The wildcard control probe runs this same set and mints no second list."
 
-func queriedQtypeSetRow(dnsCadence int64, dnsCadenceRead bool) apertureRowView {
+func queriedQtypeSetRow(dnsCadence apertureRead[int64]) apertureRowView {
 	// The set is the leaf's declared offer, so the row reads it and not the dnsQtypeSet mirror.
 	offered := resolutionwalk.DefaultOffers().Qtypes
 	names := make([]string, 0, len(offered))
@@ -290,7 +327,7 @@ func queriedQtypeSetRow(dnsCadence int64, dnsCadenceRead bool) apertureRowView {
 	}
 	row := apertureRowView{
 		Input:   "The queried qtype set",
-		Cadence: cadenceLabel(dnsCadence),
+		Cadence: cadenceLabel(dnsCadence.Value),
 		// This row's exchange is the dns Scan, whose cadence is one of two dials (#1883).
 		CadenceWhy:  "The dns Scan re-asks the whole set on every run. A cadence dial ships for this Scan: the DNS scan interval on the Scope screen moves it.",
 		State:       strings.Join(names, " · "),
@@ -300,7 +337,7 @@ func queriedQtypeSetRow(dnsCadence int64, dnsCadenceRead bool) apertureRowView {
 		Remedy:    apertureNone,
 		RemedyWhy: "No setting narrows this set. An offer the operator can narrow is a finding the operator can silence, so the set moves with a release and never with a switch.",
 	}
-	if !dnsCadenceRead {
+	if !dnsCadence.Read {
 		row.Cadence = "not read"
 		row.CadenceWhy = "The dns Scan's interval did not resolve on this load, so this cell names no cadence. The set itself ships with the release and is unchanged."
 	}
@@ -331,7 +368,7 @@ func tlsCandidateSetRow() apertureRowView {
 
 const apertureVantagesHref = "/settings?tab=vantages"
 
-func vantageClassRow(classes []custody.VantageClass, classesRead bool) apertureRowView {
+func vantageClassRow(classes apertureRead[[]custody.VantageClass]) apertureRowView {
 	row := apertureRowView{
 		Input: "Vantage class",
 		// A value derived at the point of use is never stale, so it has none (ADR-0028, #1896).
@@ -339,7 +376,7 @@ func vantageClassRow(classes []custody.VantageClass, classesRead bool) apertureR
 		CadenceWhy: "The class is derived where it is used, so it carries no currency and needs no cadence.",
 		StateKind:  "off",
 	}
-	if !classesRead {
+	if !classes.Read {
 		// A client reads the kind rather than the prose, so `off` would state a state we lack.
 		row.StateKind = "withheld"
 		row.State = "not read"
@@ -349,7 +386,7 @@ func vantageClassRow(classes []custody.VantageClass, classesRead bool) apertureR
 		return row
 	}
 
-	row.State = vantageClassSet(classes)
+	row.State = vantageClassSet(classes.Value)
 	row.StateDetail = "A class is derived from the addresses a vantage presents and your declared address scopes, never from a stored field."
 	if row.State == "" {
 		row.State = apertureNone
@@ -358,7 +395,7 @@ func vantageClassRow(classes []custody.VantageClass, classesRead bool) apertureR
 
 	var hasInternet, hasInternal bool
 	// Each leg is an existential over the derived class, never a second predicate (#711).
-	for _, c := range classes {
+	for _, c := range classes.Value {
 		hasInternet = hasInternet || c == custody.ClassInternet
 		hasInternal = hasInternal || c == custody.ClassInternal
 	}
@@ -446,10 +483,10 @@ const controlProbeRemedyWhy = "No switch suppresses a control probe, so this pop
 const controlProbeEmptyRemedyWhy = "No switch suppresses a control probe, and none mints one. " +
 	"The population appears where a declared name scope resolves a name under a parent, so it follows the scope you declare rather than a control of its own."
 
-func controlProbePopulationRow(seeds []db.ListSeedsRow, dnsCadence int64, dnsCadenceRead bool) apertureRowView {
+func controlProbePopulationRow(seeds []db.ListSeedsRow, dnsCadence apertureRead[int64]) apertureRowView {
 	row := apertureRowView{
 		Input:   "The control-probe population",
-		Cadence: cadenceLabel(dnsCadence),
+		Cadence: cadenceLabel(dnsCadence.Value),
 		// This row's exchange is the dns Scan, whose cadence is one of two dials (#1883).
 		CadenceWhy: "The dns Scan rebuilds the population from its own resolution scope on every run. A cadence dial ships for this Scan: the DNS scan interval on the Scope screen moves how often it is rebuilt. No dial moves what it holds.",
 		State:      fmt.Sprintf("derived per batch · %d control labels per parent", wildcarddiscrim.LabelCount),
@@ -464,7 +501,7 @@ func controlProbePopulationRow(seeds []db.ListSeedsRow, dnsCadence int64, dnsCad
 		row.StateDetail = controlProbeEmptyDetail
 		row.RemedyWhy = controlProbeEmptyRemedyWhy
 	}
-	if !dnsCadenceRead {
+	if !dnsCadence.Read {
 		row.Cadence = "not read"
 		row.CadenceWhy = "The dns Scan's interval did not resolve on this load, so this cell names no cadence. The population's construction is unchanged: every batch rebuilds it from its own resolution scope."
 	}

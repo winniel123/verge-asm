@@ -27,6 +27,41 @@ const (
 
 const testDNSCadenceSeconds = 86400
 
+// Every read landed, so a test names only the input it varies (#2002).
+
+func readInputs() apertureInputs {
+	return apertureInputs{
+		SourceStates:   apertureReadOf([]db.SourceState(nil)),
+		DNSCadence:     apertureReadOf(int64(testDNSCadenceSeconds)),
+		VantageClasses: apertureReadOf([]custody.VantageClass(nil)),
+	}
+}
+
+func (in apertureInputs) withStates(states []db.SourceState) apertureInputs {
+	in.SourceStates = apertureReadOf(states)
+	return in
+}
+
+func (in apertureInputs) withoutStates() apertureInputs {
+	in.SourceStates = apertureRead[[]db.SourceState]{}
+	return in
+}
+
+func (in apertureInputs) withCadence(seconds int64, read bool) apertureInputs {
+	in.DNSCadence = apertureRead[int64]{Value: seconds, Read: read}
+	return in
+}
+
+func (in apertureInputs) withClasses(classes []custody.VantageClass) apertureInputs {
+	in.VantageClasses = apertureReadOf(classes)
+	return in
+}
+
+func (in apertureInputs) withoutClasses() apertureInputs {
+	in.VantageClasses = apertureRead[[]custody.VantageClass]{}
+	return in
+}
+
 func statementRow(t *testing.T, rows []apertureRowView, input string) apertureRowView {
 	t.Helper()
 	for _, r := range rows {
@@ -40,12 +75,12 @@ func statementRow(t *testing.T, rows []apertureRowView, input string) apertureRo
 
 func vantageClassRowOf(t *testing.T, classes ...custody.VantageClass) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, classes, true), vantageClassInput)
+	return statementRow(t, apertureStatement(readInputs().withClasses(classes), nil), vantageClassInput)
 }
 
 func portTierFigures(t *testing.T, seeds []db.ListSeedsRow) []apertureFigureView {
 	t.Helper()
-	rows := apertureStatement(nil, true, seeds, testDNSCadenceSeconds, true, nil, true)
+	rows := apertureStatement(readInputs(), seeds)
 	for _, r := range rows {
 		if r.Input == portTierInput {
 			if len(r.Figures) != 3 {
@@ -186,12 +221,12 @@ func TestEveryRuleSendsConfigurationAbsenceOutsideTheDomain(t *testing.T) {
 }
 
 func TestApertureStatementRemedySwitchesOnTheDeclaredLever(t *testing.T) {
-	nameOnly := statementRow(t, apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true), portTierInput)
+	nameOnly := statementRow(t, apertureStatement(readInputs(), nameOnlySeeds()), portTierInput)
 	if nameOnly.Remedy != "Declare an address scope" || nameOnly.RemedyHref != "/scope" {
 		t.Errorf("name-only remedy: got %q -> %q", nameOnly.Remedy, nameOnly.RemedyHref)
 	}
 
-	healthy := statementRow(t, apertureStatement(nil, true, addressScopeSeeds(t), testDNSCadenceSeconds, true, nil, true), portTierInput)
+	healthy := statementRow(t, apertureStatement(readInputs(), addressScopeSeeds(t)), portTierInput)
 	if healthy.Remedy != apertureNone || healthy.RemedyHref != "" {
 		t.Errorf("address-scope remedy: got %q -> %q, want %q and no link", healthy.Remedy, healthy.RemedyHref, apertureNone)
 	}
@@ -299,7 +334,7 @@ func TestVantageClassCadenceIsNoneAndNeverEveryBatch(t *testing.T) {
 }
 
 func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
-	row := statementRow(t, apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, false), vantageClassInput)
+	row := statementRow(t, apertureStatement(readInputs().withoutClasses(), nil), vantageClassInput)
 	if row.State == apertureNone {
 		t.Error("a failed read renders as `none`, which claims no vantage is declared")
 	}
@@ -318,7 +353,7 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 
 func enabledSourcesRowOf(t *testing.T, states ...db.SourceState) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(states, true, nil, testDNSCadenceSeconds, true, nil, true), enabledSourcesInput)
+	return statementRow(t, apertureStatement(readInputs().withStates(states), nil), enabledSourcesInput)
 }
 
 func sourceOn(slug string) db.SourceState  { return db.SourceState{Slug: slug, Enabled: true} }
@@ -473,7 +508,7 @@ func TestEnabledSourcesRemedyMakesNoFalseClaimAboutTheRestOfTheCatalogue(t *test
 }
 
 func TestEnabledSourcesRowWithholdsWhatItCouldNotRead(t *testing.T) {
-	row := statementRow(t, apertureStatement(nil, false, nil, testDNSCadenceSeconds, true, nil, true), enabledSourcesInput)
+	row := statementRow(t, apertureStatement(readInputs().withoutStates(), nil), enabledSourcesInput)
 	if row.State == apertureNone {
 		t.Error("a failed read renders as `none`, which claims every source is switched off")
 	}
