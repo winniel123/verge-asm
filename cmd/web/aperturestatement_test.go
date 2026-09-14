@@ -1,17 +1,23 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
-const vantageClassInput = "Vantage class"
+const (
+	enabledSourcesInput = "Enabled sources"
+	portTierInput       = "Port and transport tiers"
+	vantageClassInput   = "Vantage class"
+)
 
 func statementRow(t *testing.T, rows []apertureRowView, input string) apertureRowView {
 	t.Helper()
@@ -26,14 +32,14 @@ func statementRow(t *testing.T, rows []apertureRowView, input string) apertureRo
 
 func vantageClassRowOf(t *testing.T, classes ...custody.VantageClass) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(nil, classes, true), vantageClassInput)
+	return statementRow(t, apertureStatement(nil, true, nil, classes, true), vantageClassInput)
 }
 
 func portTierFigures(t *testing.T, seeds []db.ListSeedsRow) []apertureFigureView {
 	t.Helper()
-	rows := apertureStatement(seeds, nil, true)
+	rows := apertureStatement(nil, true, seeds, nil, true)
 	for _, r := range rows {
-		if r.Input == "Port and transport tiers" {
+		if r.Input == portTierInput {
 			if len(r.Figures) != 3 {
 				t.Fatalf("port-tier figures: want 3, got %d", len(r.Figures))
 			}
@@ -172,12 +178,12 @@ func TestEveryRuleSendsConfigurationAbsenceOutsideTheDomain(t *testing.T) {
 }
 
 func TestApertureStatementRemedySwitchesOnTheDeclaredLever(t *testing.T) {
-	nameOnly := apertureStatement(nameOnlySeeds(), nil, true)[0]
+	nameOnly := statementRow(t, apertureStatement(nil, true, nameOnlySeeds(), nil, true), portTierInput)
 	if nameOnly.Remedy != "Declare an address scope" || nameOnly.RemedyHref != "/scope" {
 		t.Errorf("name-only remedy: got %q -> %q", nameOnly.Remedy, nameOnly.RemedyHref)
 	}
 
-	healthy := apertureStatement(addressScopeSeeds(t), nil, true)[0]
+	healthy := statementRow(t, apertureStatement(nil, true, addressScopeSeeds(t), nil, true), portTierInput)
 	if healthy.Remedy != apertureNone || healthy.RemedyHref != "" {
 		t.Errorf("address-scope remedy: got %q -> %q, want %q and no link", healthy.Remedy, healthy.RemedyHref, apertureNone)
 	}
@@ -285,7 +291,7 @@ func TestVantageClassCadenceIsNoneAndNeverEveryBatch(t *testing.T) {
 }
 
 func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
-	row := statementRow(t, apertureStatement(nil, nil, false), vantageClassInput)
+	row := statementRow(t, apertureStatement(nil, true, nil, nil, false), vantageClassInput)
 	if row.State == apertureNone {
 		t.Error("a failed read renders as `none`, which claims no vantage is declared")
 	}
@@ -302,16 +308,203 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 	}
 }
 
-// The ledger's order is SPEC §2.5's, and the class row is row 6 to the port tier's row 2.
+// The ledger's order is SPEC §2.5's: sources are row 1, the port tier row 2, the class row 6.
 
-func TestVantageClassRowFollowsThePortTierRow(t *testing.T) {
-	rows := apertureStatement(nameOnlySeeds(), nil, true)
+func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
+	rows := apertureStatement(nil, true, nameOnlySeeds(), nil, true)
 	order := make([]string, 0, len(rows))
 	for _, r := range rows {
 		order = append(order, r.Input)
 	}
-	want := []string{"Port and transport tiers", vantageClassInput}
+	want := []string{enabledSourcesInput, portTierInput, vantageClassInput}
 	if strings.Join(order, "|") != strings.Join(want, "|") {
 		t.Errorf("ledger order = %v, want %v", order, want)
+	}
+}
+
+func enabledSourcesRowOf(t *testing.T, states ...db.SourceState) apertureRowView {
+	t.Helper()
+	return statementRow(t, apertureStatement(states, true, nil, nil, true), enabledSourcesInput)
+}
+
+func sourceOn(slug string) db.SourceState  { return db.SourceState{Slug: slug, Enabled: true} }
+func sourceOff(slug string) db.SourceState { return db.SourceState{Slug: slug, Enabled: false} }
+
+func assertNoBlankCell(t *testing.T, name string, row apertureRowView) {
+	t.Helper()
+	for _, cell := range []string{row.Input, row.Cadence, row.CadenceWhy, row.State, row.StateDetail, row.Remedy, row.RemedyWhy} {
+		if strings.TrimSpace(cell) == "" {
+			t.Errorf("%s: a cell renders blank, and SPEC §2.3 bars that", name)
+		}
+	}
+}
+
+// SPEC docs/spec/aperture-statement.md §2.4 — the state reads configuration, never a batch.
+
+func TestEnabledSourcesStateReadsOverridesOverTheShippedDefaults(t *testing.T) {
+	total := len(apertureToggleableSources())
+	const crtsh, tail, spotter = "crt.sh", "CT drift tail (logs-direct)", "Cert Spotter (operator key)"
+
+	for _, tc := range []struct {
+		name   string
+		states []db.SourceState
+		state  string
+		kind   string
+		figure string
+		remedy string
+		href   string
+	}{
+		{
+			"no override at all", nil,
+			crtsh, "on", fmt.Sprintf("1 of %d sources enabled", total),
+			"Enable a source", apertureSourcesHref,
+		},
+		{
+			"the shipped source switched off", []db.SourceState{sourceOff(scan.CrtshSource)},
+			apertureNone, "off", fmt.Sprintf("0 of %d sources enabled", total),
+			"Enable a source", apertureSourcesHref,
+		},
+		{
+			"the tail switched on beside it", []db.SourceState{sourceOn(scan.CTTailSource)},
+			crtsh + " · " + tail, "on", fmt.Sprintf("2 of %d sources enabled", total),
+			"Enable a source", apertureSourcesHref,
+		},
+		{
+			"every toggleable source on", []db.SourceState{sourceOn(scan.CTTailSource), sourceOn(scan.CertSpotterSource)},
+			crtsh + " · " + tail + " · " + spotter, "on", fmt.Sprintf("%d of %d sources enabled", total, total),
+			apertureNone, "",
+		},
+	} {
+		row := enabledSourcesRowOf(t, tc.states...)
+		if row.State != tc.state || row.StateKind != tc.kind {
+			t.Errorf("%s: state = %q (%s), want %q (%s)", tc.name, row.State, row.StateKind, tc.state, tc.kind)
+		}
+		if len(row.Figures) != 1 || row.Figures[0].Text != tc.figure {
+			t.Errorf("%s: figures = %+v, want the single %q", tc.name, row.Figures, tc.figure)
+		}
+		if row.Remedy != tc.remedy || row.RemedyHref != tc.href {
+			t.Errorf("%s: remedy = %q -> %q, want %q -> %q", tc.name, row.Remedy, row.RemedyHref, tc.remedy, tc.href)
+		}
+		assertNoBlankCell(t, tc.name, row)
+	}
+}
+
+// The denominator is our own catalogue, so it moves the day the catalogue does (SPEC §6.1, §8.8).
+
+func TestEnabledSourcesDenominatorIsDerivedFromTheCatalogue(t *testing.T) {
+	fold := apertureToggleableSources()
+	if len(fold) == 0 {
+		t.Fatal("the catalogue folds to no toggleable source, so this row can state nothing")
+	}
+	for _, c := range fold {
+		if c.IsProposer || c.Barred || c.NoRunner {
+			t.Errorf("%s reaches the fold, but it carries no source toggle", c.Slug)
+		}
+	}
+	if got := figureDenominator(t, enabledSourcesRowOf(t).Figures[0].Text); got != len(fold) {
+		t.Errorf("denominator = %d, want %d: a typed figure fails the day the catalogue moves", got, len(fold))
+	}
+}
+
+// A bar is authored, so it outranks a stale override on both screens (ADR-0223 §2).
+
+func TestEnabledSourcesCountsNoBarredOrRunnerlessSource(t *testing.T) {
+	base := enabledSourcesRowOf(t)
+	forced := enabledSourcesRowOf(t, sourceOn("hackertarget"), sourceOn("ripestat"), sourceOn("arin"))
+
+	if forced.State != base.State {
+		t.Errorf("state = %q, want %q: an override enabled a source no toggle reaches", forced.State, base.State)
+	}
+	if forced.Figures[0].Text != base.Figures[0].Text {
+		t.Errorf("figure = %q, want %q", forced.Figures[0].Text, base.Figures[0].Text)
+	}
+}
+
+// The dispatcher defaults a SELECTED source to on, so a declared `off` is no claim that CT is dark.
+
+func TestEnabledSourcesStatesWhatIsDeclaredAndNeverWhatRan(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		states []db.SourceState
+	}{
+		{"the shipped default", nil},
+		{"crt.sh alone switched off", []db.SourceState{sourceOff(scan.CrtshSource)}},
+		{"both CT sources declared on", []db.SourceState{sourceOn(scan.CertSpotterSource)}},
+	} {
+		detail := enabledSourcesRowOf(t, tc.states...).StateDetail
+		if !strings.Contains(detail, "never what ran") {
+			t.Errorf("%s: the detail claims a state it cannot read; got %q", tc.name, detail)
+		}
+		// The worker key can falsify it, so no cell asserts the Scan admitted nothing.
+		for _, banned := range []string{"admits no Name", "certificate transparency admits"} {
+			if strings.Contains(detail, banned) {
+				t.Errorf("%s: the detail asserts %q, which the worker key can falsify; got %q", tc.name, banned, detail)
+			}
+		}
+	}
+}
+
+// A toggle that cannot move the state it names is #1854's silence in a new costume (SPEC §3.4).
+
+func TestEnabledSourcesRemedyNamesTheKeyCertSpotterAlsoNeeds(t *testing.T) {
+	const clause = "Cert Spotter also needs its key on the worker."
+
+	if why := enabledSourcesRowOf(t).RemedyWhy; !strings.Contains(why, clause) {
+		t.Errorf("the remedy offers a toggle that alone never selects Cert Spotter; got %q", why)
+	}
+	why := enabledSourcesRowOf(t, sourceOn(scan.CertSpotterSource)).RemedyWhy
+	if strings.Contains(why, clause) {
+		t.Errorf("Cert Spotter is declared on, so the key clause names no remaining act; got %q", why)
+	}
+}
+
+// A proposer is toggleable and admits no Name, so no cell may call the remainder untoggleable.
+
+func TestEnabledSourcesRemedyMakesNoFalseClaimAboutTheRestOfTheCatalogue(t *testing.T) {
+	all := []db.SourceState{sourceOn(scan.CTTailSource), sourceOn(scan.CertSpotterSource)}
+	row := enabledSourcesRowOf(t, all...)
+	if row.Remedy != apertureNone {
+		t.Fatalf("remedy = %q, want %q with every counted source on", row.Remedy, apertureNone)
+	}
+	for _, banned := range []string{"no toggle reaches", "ships no runner"} {
+		if strings.Contains(row.RemedyWhy, banned) {
+			t.Errorf("the reason claims %q, but a proposer carries a live toggle; got %q", banned, row.RemedyWhy)
+		}
+	}
+	// `arin` is a proposer: not barred, no runner bar, and a live switch on the Sources tab.
+	proposer, ok := catalogBySlug("arin")
+	if !ok || proposer.Barred || proposer.NoRunner || !proposer.IsProposer {
+		t.Fatalf("the fixture this test rests on moved: %+v", proposer)
+	}
+}
+
+func TestEnabledSourcesRowWithholdsWhatItCouldNotRead(t *testing.T) {
+	row := statementRow(t, apertureStatement(nil, false, nil, nil, true), enabledSourcesInput)
+	if row.State == apertureNone {
+		t.Error("a failed read renders as `none`, which claims every source is switched off")
+	}
+	if row.StateKind != "withheld" {
+		t.Errorf("state_kind = %q: a client reading the kind alone cannot tell a state from a failed read", row.StateKind)
+	}
+	if row.Remedy != apertureNone || row.RemedyHref != "" {
+		t.Errorf("remedy = %q -> %q: a failed read names no source still off, so it names no act", row.Remedy, row.RemedyHref)
+	}
+	if len(row.Figures) != 0 {
+		t.Errorf("figures = %+v: a failed read counts nothing", row.Figures)
+	}
+	assertNoBlankCell(t, "a withheld row", row)
+}
+
+// Cadence setters ship for `dns` and `zone` alone, so this row is release-coupled (#1883).
+
+func TestEnabledSourcesCadenceNamesBothScansAndDeniesADial(t *testing.T) {
+	row := enabledSourcesRowOf(t)
+	if row.Cadence != "daily · every 5 minutes" {
+		t.Errorf("cadence = %q, want the ct and ct-tail cadences", row.Cadence)
+	}
+	for _, want := range []string{"Release-coupled", "dns and zone"} {
+		if !strings.Contains(row.CadenceWhy, want) {
+			t.Errorf("the cadence reason omits %q, so it never says whether a dial exists; got %q", want, row.CadenceWhy)
+		}
 	}
 }
