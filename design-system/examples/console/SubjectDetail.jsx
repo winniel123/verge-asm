@@ -6,6 +6,7 @@ import { Tag } from "../../components/display/Tag.jsx";
 import { Badge } from "../../components/display/Badge.jsx";
 import { SeverityBadge } from "../../components/display/SeverityBadge.jsx";
 import { ExposureBadge } from "../../components/display/ExposureBadge.jsx";
+import { ReachLegBadge } from "../../components/display/ReachLegBadge.jsx";
 import { KeyValueList } from "../../components/display/KeyValueList.jsx";
 import { CopyValue } from "../../components/display/CopyValue.jsx";
 import { WithdrawnMark } from "../../components/display/WithdrawnMark.jsx";
@@ -116,7 +117,10 @@ export function SubjectDetail({ kind = "service", withdrawn = false, onBack, onO
               <KeyValueList items={[
                 { k: "Address", v: "203.0.113.7" },
                 { k: "Port", v: "5900/tcp" },
-                { k: "Verdict", v: withdrawn ? "\u2014" : "reached" },
+                ...(withdrawn ? [] : [
+                  { k: "Internal leg", v: <ReachLegBadge state="reached" legClass="internal" /> },
+                  { k: "Internet leg", v: <ReachLegBadge state="reached" legClass="internet" /> },
+                ]),
                 { k: "Since", v: "2026-08-22T14:00Z" },
               ]} />
             ) : (

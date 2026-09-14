@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -87,15 +88,14 @@ type servicePageData struct {
 	Port               string
 	Transport          string
 	Withdrawn          bool
-	Reach              string
-	ReachGap           bool
-	ReachGapReason     string
 	Citation           []citationHop
 	CitationTerminated bool
 	Timelines          []timelineView
 	Seen               string
 	InScopeSince       string
+	InternalLeg        *legChip
 	InternetLeg        *legChip
+	GapNote            *reachGapNote
 	Since              string
 	Provenance         []assetKV
 	Rules              []subjectRule
@@ -341,19 +341,12 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 
 	addr, port, transport := splitServiceKey(subject.SubjectKey)
-	rv := decodeReachability(subject.Value)
 	data := servicePageData{
 		Key:       subject.SubjectKey,
 		CopyKey:   serviceCopyKey(addr, port, transport),
 		Address:   addr,
 		Port:      port,
 		Transport: transport,
-		Reach:     rv.Outcome,
-	}
-	if rv.Outcome == reachOutcomeGap {
-		// A Gap is absence of reach, so the cause is stated in the operator's words (ADR-0104).
-		data.ReachGap = true
-		data.ReachGapReason = rv.Reason
 	}
 	var seedScope string
 	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
@@ -362,12 +355,18 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
 	if !data.Withdrawn {
-		leg, err := s.serviceInternetLeg(r.Context(), subject.SubjectKey)
+		legs, err := s.serviceReachLegs(r.Context(), subject.SubjectKey)
 		if err != nil {
 			s.serverError(w, "service reach legs", err)
 			return
 		}
-		data.InternetLeg = leg
+		if legs != nil {
+			data.InternalLeg, data.InternetLeg, data.GapNote = legs.Internal, legs.Internet, legs.Gap
+		}
+		if data.GapNote == nil {
+			// A Gap no leg carries names no class, and it still owes its cause (#1985).
+			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
+		}
 	}
 	data.Since = currentReachSince(data.Timelines)
 	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
@@ -502,12 +501,18 @@ func firstSeenFromTimelines(tls []timelineView) string {
 }
 
 func currentReachSince(tls []timelineView) string {
+	// One timeline per vantage means an arbitrary pick moves with the row order (#2005).
+	best := ""
 	for _, tl := range tls {
-		if tl.Facet == "reachability" && tl.Current != nil {
-			return tl.Current.OpenedAt
+		if tl.Facet != "reachability" || tl.Current == nil {
+			continue
+		}
+		// Every OpenedAt is fixed-width UTC, so the lexicographic minimum is the earliest instant.
+		if best == "" || tl.Current.OpenedAt < best {
+			best = tl.Current.OpenedAt
 		}
 	}
-	return ""
+	return best
 }
 
 func (s *server) subjectRules(r *http.Request, key string) []subjectRule {
@@ -1135,7 +1140,18 @@ func assetPortService(transport, server string) string {
 	return transport + " · " + server
 }
 
-func (s *server) serviceInternetLeg(ctx context.Context, key string) (*legChip, error) {
+type serviceReachCard struct {
+	Internal *legChip
+	Internet *legChip
+	Gap      *reachGapNote
+}
+
+type reachGapNote struct {
+	Classes string
+	Reason  string
+}
+
+func (s *server) serviceReachLegs(ctx context.Context, key string) (*serviceReachCard, error) {
 	// One service page needs one key, and the estate-wide read costs the whole corpus (#1625).
 	rows, err := s.subjectsStore.ListServiceReachabilitySpansByClassForServices(ctx, []string{key})
 	if err != nil {
@@ -1149,9 +1165,45 @@ func (s *server) serviceInternetLeg(ctx context.Context, key string) (*legChip, 
 	if err != nil {
 		return nil, err
 	}
-	legs := collapseReachLegs(reachRowsForServices(rows), covered)
-	chip := reachLegChip(custody.ClassInternet, legFrom(legs[key][string(custody.ClassInternet)]))
-	return &chip, nil
+	byClass := collapseReachLegs(reachRowsForServices(rows), covered)[key]
+	internal := byClass[string(custody.ClassInternal)]
+	internet := byClass[string(custody.ClassInternet)]
+	internalChip := reachLegChip(custody.ClassInternal, legFrom(internal))
+	internetChip := reachLegChip(custody.ClassInternet, legFrom(internet))
+	return &serviceReachCard{
+		Internal: &internalChip,
+		Internet: &internetChip,
+		Gap:      reachGapNoteFor(internal, internet),
+	}, nil
+}
+
+func subjectGapNote(rv reachabilityValue) *reachGapNote {
+	if rv.Outcome != reachOutcomeGap {
+		return nil
+	}
+	return &reachGapNote{Reason: rv.Reason}
+}
+
+func reachGapNoteFor(internal, internet legInfo) *reachGapNote {
+	var classes, reasons []string
+	for _, leg := range []struct {
+		class custody.VantageClass
+		info  legInfo
+	}{{custody.ClassInternal, internal}, {custody.ClassInternet, internet}} {
+		if !leg.info.isGap {
+			continue
+		}
+		classes = append(classes, string(leg.class))
+		// A Gap is absence of reach, so the cause is stated in the operator's words (ADR-0104).
+		if leg.info.reason != "" && !slices.Contains(reasons, leg.info.reason) {
+			reasons = append(reasons, leg.info.reason)
+		}
+	}
+	if len(classes) == 0 {
+		return nil
+	}
+	// The advice is one action, so two gapped legs state it once under both class names.
+	return &reachGapNote{Classes: strings.Join(classes, " or "), Reason: strings.Join(reasons, ". ")}
 }
 
 // A pre-parse span stored only chain and not_after, so issuer and algorithm read empty.

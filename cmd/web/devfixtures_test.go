@@ -1434,6 +1434,7 @@ type fixtureSubjectService struct {
 	Key          string `json:"key"`
 	CopyKey      string `json:"copy_key"`
 	Withdrawn    bool   `json:"withdrawn"`
+	InternalLeg  string `json:"internal_leg"`
 	InternetLeg  string `json:"internet_leg"`
 	Seen         string `json:"seen"`
 	InScopeSince string `json:"in_scope_since"`
@@ -1446,7 +1447,6 @@ type fixtureSubjectService struct {
 	Address            string                   `json:"address"`
 	Port               string                   `json:"port"`
 	Transport          string                   `json:"transport"`
-	Reach              string                   `json:"reach"`
 	Since              string                   `json:"since"`
 	Timelines          []fixtureSubjectTimeline `json:"timelines"`
 	Rules              []struct {
@@ -1512,18 +1512,18 @@ type fixtureSubjectPackage struct {
 	} `json:"subjectdetail"`
 }
 
-func assertServiceInternetLeg(t *testing.T, name, fixture string, pinned *legChip) {
+func assertServiceLegChip(t *testing.T, name string, class custody.VantageClass, fixture string, pinned *legChip) {
 	t.Helper()
 	// An empty word is the withdrawn fixture, which carries no leg chip at all.
 	if fixture == "" {
 		if pinned != nil {
-			t.Errorf("%s: internet-leg chip drift: fixtures.json carries none, pinned = %+v", name, pinned)
+			t.Errorf("%s: %s-leg chip drift: fixtures.json carries none, pinned = %+v", name, class, pinned)
 		}
 		return
 	}
-	want := reachLegChip(custody.ClassInternet, legFrom(devLegInfo(fixture)))
+	want := reachLegChip(class, legFrom(devLegInfo(fixture)))
 	if pinned == nil || *pinned != want {
-		t.Errorf("%s: internet-leg chip drift: fixtures.json = %q, pinned = %+v", name, fixture, pinned)
+		t.Errorf("%s: %s-leg chip drift: fixtures.json = %q, pinned = %+v", name, class, fixture, pinned)
 	}
 }
 
@@ -1531,10 +1531,11 @@ func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d 
 	t.Helper()
 	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Withdrawn != d.Withdrawn ||
 		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
-		a.Address != d.Address || a.Port != d.Port || a.Transport != d.Transport || a.Reach != d.Reach || a.Since != d.Since {
+		a.Address != d.Address || a.Port != d.Port || a.Transport != d.Transport || a.Since != d.Since {
 		t.Errorf("%s: service header drift:\n fixtures.json = %+v\n pinned        = %+v", name, a, d)
 	}
-	assertServiceInternetLeg(t, name, a.InternetLeg, d.InternetLeg)
+	assertServiceLegChip(t, name, custody.ClassInternal, a.InternalLeg, d.InternalLeg)
+	assertServiceLegChip(t, name, custody.ClassInternet, a.InternetLeg, d.InternetLeg)
 	if len(a.Citation) != len(d.Citation) {
 		t.Fatalf("%s: citation length drift: %d vs %d", name, len(a.Citation), len(d.Citation))
 	}

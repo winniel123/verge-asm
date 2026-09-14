@@ -141,7 +141,8 @@ func collapseReachLegs(rows []reachLegRow, covered func(netip.Addr) bool) map[st
 	for subj, byClass := range best {
 		cm := make(map[string]legInfo, len(byClass))
 		for class, row := range byClass {
-			cm[class] = legInfo{outcome: decodeReachability(row.value).Outcome, isGap: row.isGap, present: true}
+			rv := decodeReachability(row.value)
+			cm[class] = legInfo{outcome: rv.Outcome, reason: rv.Reason, isGap: row.isGap, present: true}
 		}
 		out[subj] = cm
 	}
