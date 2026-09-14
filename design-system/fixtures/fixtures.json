@@ -1519,6 +1519,7 @@
       "key": "203.0.113.7:5900/tcp",
       "copy_key": "203.0.113.7:5900 tcp",
       "withdrawn": false,
+      "internal_leg": "reached",
       "internet_leg": "reached",
       "seen": "4m",
       "in_scope_since": "2026-08-22",
@@ -1547,7 +1548,6 @@
       "address": "203.0.113.7",
       "port": "5900",
       "transport": "tcp",
-      "reach": "reached",
       "since": "2026-08-22T14:00Z",
       "timelines": [
         {
@@ -1659,7 +1659,6 @@
       "address": "203.0.113.29",
       "port": "8080",
       "transport": "tcp",
-      "reach": "",
       "since": "",
       "timelines": [
         {

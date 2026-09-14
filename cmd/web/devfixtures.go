@@ -425,9 +425,9 @@ func devLegInfo(state string) legInfo {
 	}
 }
 
-func devInternetLegChip(state string) *legChip {
+func devLegChip(class custody.VantageClass, state string) *legChip {
 	// The fixture header renders through the live formatter, so it cannot drift off it.
-	chip := reachLegChip(custody.ClassInternet, legFrom(devLegInfo(state)))
+	chip := reachLegChip(class, legFrom(devLegInfo(state)))
 	return &chip
 }
 
@@ -1692,7 +1692,8 @@ func devServiceData() servicePageData {
 		Key:          devServiceKey,
 		CopyKey:      "203.0.113.7:5900 tcp",
 		Withdrawn:    false,
-		InternetLeg:  devInternetLegChip("reached"),
+		InternalLeg:  devLegChip(custody.ClassInternal, "reached"),
+		InternetLeg:  devLegChip(custody.ClassInternet, "reached"),
 		Seen:         "4m",
 		InScopeSince: "2026-08-22",
 		Citation: []citationHop{
@@ -1705,7 +1706,6 @@ func devServiceData() servicePageData {
 		Address:            "203.0.113.7",
 		Port:               "5900",
 		Transport:          "tcp",
-		Reach:              "reached",
 		Since:              "2026-08-22T14:00Z",
 		Timelines: []timelineView{{
 			Label:   "reachability",
@@ -1734,6 +1734,7 @@ func devServiceWithdrawnData() servicePageData {
 		Key:          devServiceWithdrawnKey,
 		CopyKey:      "203.0.113.29:8080 tcp",
 		Withdrawn:    true,
+		InternalLeg:  nil,
 		InternetLeg:  nil,
 		Seen:         "12d",
 		InScopeSince: "2026-07-18",
@@ -1747,7 +1748,6 @@ func devServiceWithdrawnData() servicePageData {
 		Address:            "203.0.113.29",
 		Port:               "8080",
 		Transport:          "tcp",
-		Reach:              "",
 		Since:              "",
 		Timelines: []timelineView{{
 			Label:   "reachability",

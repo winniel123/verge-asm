@@ -233,13 +233,14 @@
 <div class="sd-kv">
 <div class="cell"><span class="sd-micro">Address</span><span class="v">{{.Address}}</span></div>
 <div class="cell"><span class="sd-micro">Port</span><span class="v">{{.Port}}/{{.Transport}}</span></div>
-<div class="cell"><span class="sd-micro">Verdict</span><span class="v">{{if .ReachGap}}Gap{{else if .Withdrawn}}—{{else if .Reach}}{{.Reach}}{{else}}—{{end}}</span></div>
+{{with .InternalLeg}}<div class="cell"><span class="sd-micro">Internal leg</span><span class="v">{{template "legchip" .}}</span></div>{{end}}
+{{with .InternetLeg}}<div class="cell"><span class="sd-micro">Internet leg</span><span class="v">{{template "legchip" .}}</span></div>{{end}}
 <div class="cell"><span class="sd-micro">Since</span><span class="v">{{if .Since}}{{.Since}}{{else}}—{{end}}</span></div>
 </div>
-{{if .ReachGap}}
+{{with .GapNote}}
 <div class="sd-banner" style="margin-top:12px">
 <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
-<span class="bd"><span>{{.ReachGapReason}}. From this vantage we cannot tell a real origin service behind the edge from the edge answering for it, so the reach is undiscriminated — a Gap, not <span class="mono">reached</span>. Declare your origin IPs as an address scope to measure the real surface.</span></span>
+<span class="bd"><span>{{if .Reason}}{{.Reason}}. {{end}}{{if .Classes}}No vantage of the {{.Classes}} class can{{else}}No vantage can{{end}} tell a real origin service behind the edge from the edge answering for it, so the reach is undiscriminated — a Gap, not <span class="mono">reached</span>. Declare your origin IPs as an address scope to measure the real surface.</span></span>
 </div>
 {{end}}
 </div>

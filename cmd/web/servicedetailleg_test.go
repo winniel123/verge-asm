@@ -27,6 +27,25 @@ func serviceDetailBody(t *testing.T, f *fakeStore, status int) string {
 	return getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A5900%2Ftcp", status)
 }
 
+func headerLegChips(t *testing.T, page string) []legChip {
+	t.Helper()
+	// The card renders its own leg cells, so a whole-page scrape no longer reads the header alone.
+	_, main, ok := strings.Cut(page, `<main class="sd-main"`)
+	if !ok {
+		t.Fatalf("the page carries no subject main; body: %s", page)
+	}
+	// The chrome opens its own header first, so the cut starts inside the subject main.
+	_, rest, ok := strings.Cut(main, "<header")
+	if !ok {
+		t.Fatalf("the page carries no header; body: %s", page)
+	}
+	head, _, ok := strings.Cut(rest, "</header>")
+	if !ok {
+		t.Fatalf("the page header does not close; body: %s", page)
+	}
+	return legChips(t, head)
+}
+
 func TestServiceDetailHeaderRanksAnInternetReached(t *testing.T) {
 	f := legProbeStore(t)
 	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"reached","result":"open"}`)
@@ -34,7 +53,7 @@ func TestServiceDetailHeaderRanksAnInternetReached(t *testing.T) {
 	page := serviceDetailBody(t, f, http.StatusOK)
 
 	want := []legChip{{Tone: "danger", Label: "reached"}}
-	if got := legChips(t, page); !slices.Equal(got, want) {
+	if got := headerLegChips(t, page); !slices.Equal(got, want) {
 		t.Errorf("header leg chips = %+v, want %+v; body: %s", got, want, page)
 	}
 }
@@ -51,7 +70,7 @@ func TestServiceDetailInternalOnlyReachedNeverReadsExposed(t *testing.T) {
 		}
 	}
 	want := []legChip{{Tone: "absent", Label: "never looked"}}
-	if got := legChips(t, page); !slices.Equal(got, want) {
+	if got := headerLegChips(t, page); !slices.Equal(got, want) {
 		t.Errorf("header leg chips = %+v, want %+v; body: %s", got, want, page)
 	}
 }
@@ -64,7 +83,7 @@ func TestServiceDetailHeaderIgnoresALaterInternalLeg(t *testing.T) {
 	page := serviceDetailBody(t, f, http.StatusOK)
 
 	want := []legChip{{Tone: "neutral", Label: "not reached"}}
-	if got := legChips(t, page); !slices.Equal(got, want) {
+	if got := headerLegChips(t, page); !slices.Equal(got, want) {
 		t.Errorf("header leg chips = %+v, want %+v; body: %s", got, want, page)
 	}
 }
@@ -74,14 +93,14 @@ func TestServiceDetailAbsentInternetLegsKeepTheirTwoWords(t *testing.T) {
 	gap := legProbeStore(t)
 	gap.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap","reason":"an edge answers for the origin"}`)
 	want := []legChip{{Tone: "warn", Label: "stopped looking"}}
-	if got := legChips(t, serviceDetailBody(t, gap, http.StatusOK)); !slices.Equal(got, want) {
+	if got := headerLegChips(t, serviceDetailBody(t, gap, http.StatusOK)); !slices.Equal(got, want) {
 		t.Errorf("a Gap on the internet leg = %+v, want %+v", got, want)
 	}
 
 	never := legProbeStore(t)
 	never.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"not-reached"}`)
 	want = []legChip{{Tone: "absent", Label: "never looked"}}
-	if got := legChips(t, serviceDetailBody(t, never, http.StatusOK)); !slices.Equal(got, want) {
+	if got := headerLegChips(t, serviceDetailBody(t, never, http.StatusOK)); !slices.Equal(got, want) {
 		t.Errorf("a never-configured internet leg = %+v, want %+v", got, want)
 	}
 }
