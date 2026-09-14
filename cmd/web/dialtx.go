@@ -20,8 +20,9 @@ type dialStore interface {
 
 type dialQueries interface {
 	LockRetentionSettings(ctx context.Context) (db.LockRetentionSettingsRow, error)
-	ListCoveringScanKinds(ctx context.Context) ([]string, error)
-	ListEnabledScans(ctx context.Context) ([]db.Scan, error)
+	UpdateCoverageRetentionSettings(
+		ctx context.Context, arg db.UpdateCoverageRetentionSettingsParams,
+	) (db.UpdateCoverageRetentionSettingsRow, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
 
 	LockInstanceConfig(ctx context.Context) (db.LockInstanceConfigRow, error)
