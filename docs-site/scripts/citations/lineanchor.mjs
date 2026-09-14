@@ -41,7 +41,8 @@ export function scanLineAnchors(markdown) {
   return scanLineAnchorsFromTree(parse(markdown));
 }
 
-export function scanLineAnchorsFromTree(tree) {
+// The carve-out is off where the base tree is fixed and a ref token can pin nothing (SPEC §6).
+export function scanLineAnchorsFromTree(tree, { refPin = true } = {}) {
   // Arm A reads one on-ref implementation rather than a second copy (SPEC §5).
   const { refsByBlock } = refTokensOf(tree);
   const out = [];
@@ -62,7 +63,7 @@ export function scanLineAnchorsFromTree(tree) {
     const tokens = tokensIn(value);
     if (tokens.length === 0) return;
     // A line pinned to a named ref cannot drift, so it is the one carve-out (SPEC §5).
-    if (refsByBlock.has(nearestBlock(ancestors))) return;
+    if (refPin && refsByBlock.has(nearestBlock(ancestors))) return;
     for (const token of tokens) {
       out.push({ token, kind, line: node.position?.start?.line ?? 1 });
     }

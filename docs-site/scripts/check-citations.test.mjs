@@ -13,6 +13,9 @@ import { loadBurndown } from "./citations/burndown.mjs";
 import { parse } from "./doclint/engine.mjs";
 import { armA, environment, formatStale, run } from "./check-citations.mjs";
 
+// A runner exports a pull-request context for every step, so a spawn drops both keys (#1974).
+const { GITHUB_EVENT_PATH, GITHUB_REPOSITORY, ...LOCAL_ENV } = process.env;
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..", "..");
 const ENV = environment(REPO_ROOT);
@@ -282,7 +285,7 @@ test("the tree cites no dead path", () => {
 
 test("every citation the gate passes over is counted, and --verbose lists it", () => {
   const cli = join(SCRIPT_DIR, "check-citations.mjs");
-  const out = execFileSync("node", [cli], { encoding: "utf8" });
+  const out = execFileSync("node", [cli], { encoding: "utf8", env: LOCAL_ENV });
   for (const line of [
     /\d+ path citation\(s\) judged/,
     /\d+ {2}resolve in the tracked tree/,
@@ -299,7 +302,7 @@ test("every citation the gate passes over is counted, and --verbose lists it", (
     assert.match(out, line);
   }
 
-  const verbose = execFileSync("node", [cli, "--verbose"], { encoding: "utf8" });
+  const verbose = execFileSync("node", [cli, "--verbose"], { encoding: "utf8", env: LOCAL_ENV });
   for (const heading of [
     /Absent, and the site withdraws the claim there:/,
     /Absent, and exemptions\.json says why:/,
@@ -324,6 +327,7 @@ function cliOutput(args) {
     return execFileSync("node", [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
       encoding: "utf8",
       stdio: "pipe",
+      env: LOCAL_ENV,
     });
   } catch (err) {
     return err.stdout ?? "";
@@ -335,6 +339,7 @@ function cliStatus(args) {
     execFileSync("node", [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
       encoding: "utf8",
       stdio: "pipe",
+      env: LOCAL_ENV,
     });
     return 0;
   } catch (err) {

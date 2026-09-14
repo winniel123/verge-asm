@@ -25,6 +25,7 @@ import {
   formatSiteLineAnchor,
   fetchPullBody,
   pullContext,
+  apiBase,
 } from "./citations/site.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -125,7 +126,14 @@ export async function siteArm(env, repoRoot, verbose, deps = {}) {
     readEvent = (p) => readFileSync(p, "utf8"),
     fetchImpl = fetch,
   } = deps;
-  const context = pullContext(processEnv, readEvent);
+  let context;
+  try {
+    context = pullContext(processEnv, readEvent);
+  } catch (err) {
+    // A payload named and unreadable is not the same claim as no payload at all (SPEC §7.7).
+    console.error(`check:citations: cannot read the event payload (${err.message})`);
+    return { violations: 0, fatal: 1 };
+  }
   if (context === null) {
     console.log("");
     console.log("  this run has no pull-request context, so it judged no Site field");
@@ -133,7 +141,12 @@ export async function siteArm(env, repoRoot, verbose, deps = {}) {
   }
   let body;
   try {
-    body = await fetchPullBody({ ...context, token: processEnv.GITHUB_TOKEN, fetchImpl });
+    body = await fetchPullBody({
+      ...context,
+      token: processEnv.GITHUB_TOKEN,
+      api: apiBase(processEnv),
+      fetchImpl,
+    });
   } catch (err) {
     // An unreadable body is a claim this gate should judge and could not (SPEC §7.7).
     console.error(`check:citations: ${err.message}`);

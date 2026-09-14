@@ -19,6 +19,9 @@ import { markerInventory } from "./citations/rows/marker.mjs";
 import { readdirSync, readFileSync } from "node:fs";
 import { environment } from "./check-citations.mjs";
 
+// A runner exports a pull-request context for every step, so a spawn drops both keys (#1974).
+const { GITHUB_EVENT_PATH, GITHUB_REPOSITORY, ...LOCAL_ENV } = process.env;
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..", "..");
 const ENV = environment(REPO_ROOT);
@@ -50,7 +53,7 @@ function stubbed(markdown, row) {
   return armB(REPO_ROOT, results, [row]);
 }
 
-function cliStatus(args, env = process.env) {
+function cliStatus(args, env = LOCAL_ENV) {
   try {
     execFileSync(process.execPath, [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
       encoding: "utf8",
@@ -68,6 +71,7 @@ function cliOutput(args) {
     return execFileSync(process.execPath, [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
       encoding: "utf8",
       stdio: "pipe",
+      env: LOCAL_ENV,
     });
   } catch (err) {
     return err.stdout ?? "";
@@ -236,12 +240,12 @@ test("the CLI exits 1 on a broken Go anchor, and 0 on one that resolves", () => 
 test("the CLI exits 2 when no go binary is on PATH", () => {
   // The gate shells out to `git` too, so PATH keeps git alone. An absent git is another fault.
   const shim = mkdtempSync(join(tmpdir(), "nogo-"));
-  const git = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+  const git = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8", env: LOCAL_ENV }).trim();
   symlinkSync(git, join(shim, "git"));
   const fixture = join(SCRIPT_DIR, "citations", `nogo-${process.pid}.md`);
   try {
     writeFileSync(fixture, `The lexer is \`${GO_TARGET}#Go.Lex\`.\n`);
-    assert.equal(cliStatus([fixture], { ...process.env, PATH: shim }), 2);
+    assert.equal(cliStatus([fixture], { ...LOCAL_ENV, PATH: shim }), 2);
   } finally {
     rmSync(fixture, { force: true });
     rmSync(shim, { force: true, recursive: true });

@@ -13,6 +13,7 @@ import {
   formatSiteLineAnchor,
   fetchPullBody,
   pullContext,
+  apiBase,
 } from "./citations/site.mjs";
 import { parse } from "./doclint/engine.mjs";
 import { loadBurndown } from "./citations/burndown.mjs";
@@ -83,6 +84,31 @@ test("a Site carrying a line anchor is refused", () => {
 test("a Site carrying an #L line anchor is refused", () => {
   const r = judge(block(`\`${GO_TARGET}#L12-L20\``));
   assert.equal(r.refused.length, 1);
+});
+
+test("prose in the field does not withdraw its own claim", () => {
+  // The author writes the whole field, so a withdrawal word here is self-certification (§6).
+  for (const site of [
+    "`internal/queue/nope.go#Foo` (the deleted reader)",
+    "~~`internal/queue/nope.go`~~",
+    "`internal/queue/nope.go`, which is gone",
+  ]) {
+    assert.equal(judge(block(site)).dead.length, 1, site);
+  }
+});
+
+test("a named ref does not rescue a line anchor in a Site field", () => {
+  // A Site resolves against the merge ref alone, so a ref token pins nothing (SPEC §6 rule 2).
+  const pinned = `on branch \`feat/x-y\`, \`${GO_TARGET}:34\``;
+  assert.equal(judge(block(pinned)).refused.length, 1);
+  assert.equal(judge(block(`\`${GO_TARGET}:34\``)).refused.length, 1);
+});
+
+test("a nested Site field is judged once, not twice", () => {
+  const body = ["- **Site:** `internal/queue/nope.go#A`", "  - **Site:** `internal/queue/nope.go#B`"];
+  const r = judge(body.join("\n"));
+  assert.equal(r.fields, 1);
+  assert.equal(r.dead.length, 2);
 });
 
 test("no burn-down entry ever names a pull-request body", () => {
@@ -197,6 +223,51 @@ test("an HTTP failure is a claim the gate should judge and could not", async () 
   await assert.rejects(() => fetchPullBody({ repo: "o/r", number: 7, fetchImpl }), /HTTP 404/);
 });
 
+test("a transient status is retried once, and a client error is not", async () => {
+  let calls = 0;
+  const flaky = async () => {
+    calls += 1;
+    return calls === 1
+      ? { ok: false, status: 503 }
+      : { ok: true, json: async () => ({ body: "second try" }) };
+  };
+  assert.equal(await fetchPullBody({ repo: "o/r", number: 7, fetchImpl: flaky }), "second try");
+  assert.equal(calls, 2);
+
+  calls = 0;
+  const gone = async () => {
+    calls += 1;
+    return { ok: false, status: 404 };
+  };
+  await assert.rejects(() => fetchPullBody({ repo: "o/r", number: 7, fetchImpl: gone }));
+  assert.equal(calls, 1);
+});
+
+test("a run on GitHub Enterprise reads its own API host", () => {
+  assert.equal(apiBase({}), "https://api.github.com");
+  assert.equal(apiBase({ GITHUB_API_URL: "https://ghe.example/api/v3" }), "https://ghe.example/api/v3");
+  const seen = [];
+  const fetchImpl = async (url) => {
+    seen.push(url);
+    return { ok: true, json: async () => ({ body: "" }) };
+  };
+  return fetchPullBody({ repo: "o/r", number: 7, api: "https://ghe.example/api/v3", fetchImpl }).then(
+    () => assert.deepEqual(seen, ["https://ghe.example/api/v3/repos/o/r/pulls/7"]),
+  );
+});
+
+test("a named but unreadable payload is fatal, and no payload at all is not", async () => {
+  // A payload named and unreadable is not the same claim as no payload (SPEC §7.7).
+  const processEnv = { GITHUB_EVENT_PATH: "/e", GITHUB_REPOSITORY: "o/r" };
+  const broke = await siteArm(ENV, REPO_ROOT, false, {
+    processEnv,
+    readEvent: () => "{ not json",
+    fetchImpl: async () => assert.fail("no body is fetched when the payload cannot be read"),
+  });
+  assert.deepEqual(broke, { violations: 0, fatal: 1 });
+  assert.deepEqual(await arm("irrelevant", {}), { violations: 0, fatal: 0 });
+});
+
 test("a null body reads as an empty body, not as a crash", async () => {
   const fetchImpl = async () => ({ ok: true, json: async () => ({ body: null }) });
   assert.equal(await fetchPullBody({ repo: "o/r", number: 7, fetchImpl }), "");
@@ -216,11 +287,15 @@ test("a run with no pull-request context has none to judge", () => {
 test("a push event carries no pull request, so the gate judges no body", () => {
   const env = { GITHUB_EVENT_PATH: "/e", GITHUB_REPOSITORY: "o/r" };
   assert.equal(pullContext(env, () => JSON.stringify({ after: "abc" })), null);
-  assert.equal(
+});
+
+test("an unreadable payload throws rather than reading as no pull request", () => {
+  const env = { GITHUB_EVENT_PATH: "/e", GITHUB_REPOSITORY: "o/r" };
+  assert.throws(() => pullContext(env, () => "{ not json"));
+  assert.throws(() =>
     pullContext(env, () => {
       throw new Error("ENOENT");
     }),
-    null,
   );
 });
 
