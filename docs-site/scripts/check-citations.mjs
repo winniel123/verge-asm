@@ -144,7 +144,7 @@ function main() {
   }
 
   const { refused, stale } = armA(lineAnchors, burndown);
-  const { anchored, verified, broken, noRow, unresolved, fatal } = armB(REPO_ROOT, results);
+  const { anchored, verified, broken, unresolved, fatal } = armB(REPO_ROOT, results);
   const staleCount = wholeTree ? stale.length : 0;
   const of = (status) => results.filter((r) => r.status === status);
   const ok = of("ok");
@@ -183,11 +183,6 @@ function main() {
       unresolved,
       (r) => `#${r.anchor} on a ${r.status} path`,
     ],
-    [
-      "Anchored, and the table gives this target kind no vocabulary:",
-      noRow,
-      (r) => `#${r.anchor} on a target kind with no row`,
-    ],
   ];
   if (verbose) {
     for (const [heading, rows, note] of passedOver) {
@@ -218,11 +213,10 @@ function main() {
   console.log(`  ${anchored.length} anchor(s) written by a citation`);
   console.log(`  ${n(verified)}  resolve against their row`);
   console.log(`  ${n(unresolved)}  sit on a path this gate does not resolve`);
-  console.log(`  ${n(noRow)}  sit on a target kind the table gives no vocabulary`);
   console.log(`  ${n(broken)}  broken: the target declares no such name, or refuses the spelling`);
   if (fatal.length > 0) console.log(`  ${n(fatal)}  this gate should have judged and could not`);
 
-  const passedOverAnchors = unresolved.length + noRow.length;
+  const passedOverAnchors = unresolved.length;
   if (!verbose && judged - ok.length - dead.length + passedOverAnchors > 0) {
     console.log("Re-run with --verbose to list every citation this gate passed over.");
   }

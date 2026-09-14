@@ -1,7 +1,7 @@
 import { markerInventory } from "./marker.mjs";
 
 // sqlc reads an indented marker too, and a missed marker reds a correct citation (SPEC §7.3).
-const QUERY_NAME = /^[ \t]*-- name: (\S+)/gm;
+const QUERY_NAME = /^[ \t]*-- name: (\S+)/;
 
 export const SQLC_ROW = {
   name: "sqlc",

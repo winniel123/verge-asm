@@ -1,7 +1,7 @@
 import { markerInventory } from "./marker.mjs";
 
 // Indentation is legal template source, and a missed marker reds a correct citation (SPEC §7.3).
-const DEFINE_NAME = /^[ \t]*\{\{-?[ \t]*define[ \t]+"([^"]*)"/gm;
+const DEFINE_NAME = /^[ \t]*\{\{-?[ \t]*define[ \t]+"([^"]*)"/;
 
 export const TEMPLATE_ROW = {
   name: "template",
