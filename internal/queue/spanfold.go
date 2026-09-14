@@ -46,7 +46,7 @@ func foldObservationsIntoSpans(ctx context.Context, qtx spanFoldStore, batchID i
 }
 
 func foldOne(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation, in membershipInputs, changes *[]spanChange) error {
-	source := sourceFor(o.Facet)
+	source := SourceFor(o.Facet)
 	key := drift.TimelineKey{
 		SubjectKind:   subjectKindFor(o.Facet),
 		SubjectKey:    o.Subject,

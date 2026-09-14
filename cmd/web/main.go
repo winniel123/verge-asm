@@ -67,10 +67,11 @@ func main() {
 	defer pool.Close()
 
 	if *seedFixtures != "" {
-		if err := seedInventoryFixtures(ctx, pool, *seedFixtures); err != nil {
+		// The fixture address scope is a seed row, and seed.created_by needs an account (#1985).
+		if err := seedDevOperator(ctx, pool); err != nil {
 			log.Fatalf("web: seed-fixtures: %v", err)
 		}
-		if err := seedDevOperator(ctx, pool); err != nil {
+		if err := seedInventoryFixtures(ctx, pool, *seedFixtures); err != nil {
 			log.Fatalf("web: seed-fixtures: %v", err)
 		}
 		if err := seedDevFixtureAccounts(ctx, pool); err != nil {

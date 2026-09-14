@@ -58,7 +58,7 @@ func fixtureSpanRows(t *testing.T) []db.ListAllOpenSpansRow {
 			SubjectKey:    fs.key,
 			Facet:         fs.facet,
 			Discriminator: fs.discriminator,
-			Source:        "resolver",
+			Source:        fs.source(),
 			Value:         []byte(fs.value),
 			IsGap:         fs.isGap,
 			OpenedAt:      pgtype.Timestamptz{Time: openedAt, Valid: true},
