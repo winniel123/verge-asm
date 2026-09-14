@@ -48,7 +48,7 @@ function judgeRow(repoRoot, env, row, anchors) {
     if (entry === undefined) return { ...a, verdict: "unreadable", detail: "the inventory names no such target" };
     if (entry.error) return { ...a, verdict: "unreadable", detail: entry.error };
     if (!entry.spans) return { ...a, verdict: "unreadable", detail: "the target declares no anchor vocabulary" };
-    const judged = rivalName(a.lineText, a.raw, entry.spans.keys(), a.anchor, env.extensions);
+    const judged = rivalName(a.lineText, a.raw, entry.spans.keys(), a.anchor, env);
     return { ...a, row: row.name, ...judged };
   });
 }

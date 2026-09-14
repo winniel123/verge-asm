@@ -24,31 +24,44 @@ function dottedTail(value) {
   return dot > 0 ? base.slice(dot).toLowerCase() : null;
 }
 
-// A sibling citation spells a path, and a retired one hides it behind a line (SPEC §5.2 rule 3).
-function citesPath(body, extensions) {
-  const value = body.replace(LINE_SUFFIX, "");
-  if (!spellsPath(value)) return false;
-  const tail = dottedTail(value.split("#")[0]);
-  // An unused extension is a Go package-qualified name, and rule 1 must reach it (#2013).
-  return tail === null || extensions.has(tail);
+// A qualified name spells `<package path>.<Name>`, and the tree holds that package path as a
+// directory. `web-state/session.key` and `_gen/ARM64.rules` spell no directory, so both stay paths.
+function namesPackage(value, env) {
+  const cut = value.lastIndexOf("/");
+  const base = value.slice(cut + 1);
+  const dot = base.indexOf(".");
+  if (cut < 0 || dot <= 0) return false;
+  return env.tracked.dirs.has(`${value.slice(0, cut)}/${base.slice(0, dot)}`);
 }
 
-function reads(body, token, extensions) {
+// A sibling citation spells a path, and a retired one hides it behind a line (SPEC §5.2 rule 3).
+function citesPath(body, env) {
+  const value = body.replace(LINE_SUFFIX, "");
+  if (!spellsPath(value)) return false;
+  const target = value.split("#")[0];
+  const tail = dottedTail(target);
+  // An extension the tree uses names a file, whatever else the span reads like.
+  if (tail === null || env.extensions.has(tail)) return true;
+  // Both signals must agree before rule 1 may reach inside a path-shaped span (#2013).
+  return !namesPackage(target, env);
+}
+
+function reads(body, token, env) {
   // The citation's own span spells the path, and a path must corroborate nothing.
   if (body.includes(token)) return false;
-  if (citesPath(body, extensions)) return false;
+  if (citesPath(body, env)) return false;
   return !routeSpan(body);
 }
 
 // A name spelled before the citation is the dominant true-positive shape (SPEC §5.1).
-function identifiersOn(lineText, token, extensions) {
+function identifiersOn(lineText, token, env) {
   const spans = [...lineText.matchAll(SPAN)];
   const own = spans.find((m) => m[1].includes(token));
   // A bare-prose copy of the token sits before the citation's own span, and orders nothing.
   const citeAt = own === undefined ? lineText.indexOf(token) : own.index;
   const out = [];
   for (const m of spans) {
-    if (!reads(m[1], token, extensions)) continue;
+    if (!reads(m[1], token, env)) continue;
     // A line that does not spell the citation orders nothing, so every name keeps the old bias.
     const before = citeAt < 0 || m.index < citeAt;
     for (const [ident] of m[1].matchAll(IDENTIFIER)) out.push({ ident, before });
@@ -64,13 +77,13 @@ const CORROBORATED = { verdict: "corroborated", rival: null, position: null };
  * anchor's own region, `suspect` where it spells another declaration the target really has, and
  * `unproven` where it spells neither. A suspect verdict carries the rival and its position.
  *
- * `extensions` is the set of file extensions the tree uses, and it tells a sibling path from a
+ * `env` is the citations environment, and its tracked tree tells a sibling path from a
  * package-qualified name.
  */
-export function rivalName(lineText, token, names, region, extensions) {
+export function rivalName(lineText, token, names, region, env) {
   if (typeof lineText !== "string" || lineText === "") return UNPROVEN;
   // The reach is one line, because a block collects a name about another target.
-  const idents = identifiersOn(lineText, token, extensions);
+  const idents = identifiersOn(lineText, token, env);
   for (const { ident } of idents) {
     // The line spells the region, so the number and the prose agree and nothing is amiss.
     if (sameName(ident, region)) return CORROBORATED;
