@@ -201,8 +201,13 @@ export function classify(env, docFile, citations) {
   for (const citation of citations) {
     const { value, anchor } = splitTarget(citation.raw);
     if (value === "" || value === "." || value === "./") continue;
-    // No arm verifies an anchor yet, so a later ticket reads it off the same result (#1970).
-    const base = anchor === "" ? { ...citation, value } : { ...citation, value, anchor };
+    // The pairing keys on the `#`, because a bare path beside a code span is unrelated (SPEC §3.4).
+    const { snippet, ...rest } = citation;
+    const base = { ...rest, value };
+    if (anchor !== "") {
+      base.anchor = anchor;
+      if (snippet !== null) base.snippet = snippet;
+    }
 
     const skip = ignoreReason(citation, value, tracked, extensions);
     if (skip) {

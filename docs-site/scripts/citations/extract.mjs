@@ -105,6 +105,20 @@ export function extractCitations(markdown) {
   return extractCitationsFromTree(parse(markdown));
 }
 
+// A snippet is the code span immediately after an anchor span (SPEC §3.4).
+export function snippetAfter(node, ancestors) {
+  const siblings = ancestors[ancestors.length - 1]?.children ?? [];
+  const at = siblings.indexOf(node);
+  if (at < 0) return null;
+  for (const next of siblings.slice(at + 1)) {
+    if (next.type === "text" && next.value.trim() === "") continue;
+    if (next.type !== "inlineCode") return null;
+    // Two citations in one sentence are a common shape, and neither disambiguates the other.
+    return fromCode(next.value) === null ? next.value : null;
+  }
+  return null;
+}
+
 export function extractCitationsFromTree(tree) {
   const { refsByBlock, proseByBlock } = refTokensOf(tree);
   const out = [];
@@ -119,6 +133,7 @@ export function extractCitationsFromTree(tree) {
       withdrawn: withdrawn(node, ancestors),
       prose: proseByBlock.get(block) ?? "",
       refs: refsByBlock.get(block) ?? [],
+      snippet: snippetAfter(node, ancestors),
     });
   };
 

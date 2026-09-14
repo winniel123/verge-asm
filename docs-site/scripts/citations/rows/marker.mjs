@@ -1,27 +1,24 @@
-import { readFileSync } from "node:fs";
-import { resolve, sep } from "node:path";
+import { readSource, splitLines, spansFromMarkers } from "./source.mjs";
 
 // A column-0 marker is the real declaration syntax, so neither row parses (SPEC §7.3, #1971).
 export function markerInventory(repoRoot, paths, pattern) {
-  const root = resolve(repoRoot);
+  // A sticky or global pattern carries lastIndex between lines, and drops every other marker.
+  const perLine = new RegExp(pattern.source, pattern.flags.replace(/[gy]/g, ""));
   const inventory = new Map();
   for (const path of paths) {
-    const abs = resolve(root, path);
-    if (abs !== root && !abs.startsWith(root + sep)) {
-      inventory.set(path, { error: "the path leaves the repository root" });
+    const { source, error } = readSource(repoRoot, path);
+    if (error) {
+      inventory.set(path, { error });
       continue;
     }
-    let source;
-    try {
-      source = readFileSync(abs, "utf8");
-    } catch (err) {
-      // An unreadable target is a claim this gate should judge and could not (SPEC §7.7).
-      inventory.set(path, { error: err.code ?? err.message });
-      continue;
+    const lines = splitLines(source);
+    const marks = [];
+    for (const [i, line] of lines.entries()) {
+      const m = perLine.exec(line);
+      if (m) marks.push({ name: m[1], line: i + 1 });
     }
-    const names = new Set();
-    for (const match of source.matchAll(pattern)) names.add(match[1]);
-    inventory.set(path, { names });
+    const names = new Set(marks.map((m) => m.name));
+    inventory.set(path, { names, spans: spansFromMarkers(marks, lines.length), lines });
   }
   return inventory;
 }
