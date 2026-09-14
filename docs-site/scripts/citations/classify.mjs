@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { posix } from "node:path";
+import { ANCHOR } from "./extract.mjs";
 
 // A template stands for a path a reader supplies, so no tree can hold it (#1450).
 const PLACEHOLDER = /[<>{}*?]|N{3,}|n{4,}|X\.Y\.Z|\.\.\./;
@@ -80,7 +81,12 @@ function trimTarget(part) {
 function splitTarget(raw) {
   const hash = raw.indexOf("#");
   if (hash < 0) return { value: trimTarget(raw), anchor: "" };
-  return { value: trimTarget(raw.slice(0, hash)), anchor: trimTarget(raw.slice(hash + 1)) };
+  const value = trimTarget(raw.slice(0, hash));
+  const fragment = raw.slice(hash + 1);
+  // A link fragment reaches here through no character class, and a directory declares nothing.
+  // The fragment is never trimmed, so no anchor differs from the one the document wrote.
+  if (!ANCHOR.test(fragment) || value.endsWith("/")) return { value, anchor: "" };
+  return { value, anchor: fragment };
 }
 
 // A ./ or ../ prefix fixes the reading; anything else is read both ways, because the tree

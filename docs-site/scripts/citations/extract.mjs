@@ -83,9 +83,15 @@ function fromLink(url) {
   return raw;
 }
 
+const ANCHOR_CHARS = "[A-Za-z0-9_.@+/-]";
+
+// One class, so the code span and the link fragment can never spell an anchor apart (#1968).
+export const ANCHOR = new RegExp(`^${ANCHOR_CHARS}+$`);
+
 // Bare prose spells a path far less exactly, and #1450 measured that population 60% wrong.
-const CODE_PATH =
-  /^[A-Za-z0-9_.@][A-Za-z0-9_.@+-]*(?:\/[A-Za-z0-9_.@+-]+)+\/?(?:#[A-Za-z0-9_.@+/-]+)?$/;
+const CODE_PATH = new RegExp(
+  `^[A-Za-z0-9_.@][A-Za-z0-9_.@+-]*(?:/[A-Za-z0-9_.@+-]+)+(?:/|#${ANCHOR_CHARS}+)?$`,
+);
 
 function fromCode(value) {
   const raw = value.trim();
