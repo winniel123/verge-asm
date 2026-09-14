@@ -35,7 +35,9 @@ Reversal puts the window back and returns the floor to one home.
 [ADR-1914](./1914-a-dial-move-is-serialised-by-a-row-lock-inside-one-transaction.md) §4 moved
 `ListEnabledScans` and `ListCoveringScanKinds` inside the dial transaction, and named what that did
 not close. Its own words: a cadence committed after these two reads still leaves the clamp reading a
-floor that has moved. It left the ruling to [#1944](https://github.com/winniel123/verge-asm/issues/1944).
+floor that has moved. It then handed the close to a lock on the scan rows, and called that ADR-0081's
+question rather than its own. [#1944](https://github.com/winniel123/verge-asm/issues/1944) was raised
+off that paragraph. This ADR answers it, and answers it against the lock.
 
 The floor is derived, never stored.
 [ADR-0081](./0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md) and
