@@ -37,6 +37,7 @@ type subjectsStore interface {
 	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
 	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]db.ListServiceReachabilitySpansByClassForServicesRow, error)
 	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
 }
 
@@ -94,7 +95,7 @@ type servicePageData struct {
 	Timelines          []timelineView
 	Seen               string
 	InScopeSince       string
-	Exposure           string
+	InternetLeg        *legChip
 	Since              string
 	Provenance         []assetKV
 	Rules              []subjectRule
@@ -361,7 +362,12 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
 	if !data.Withdrawn {
-		data.Exposure = assetExposure(rv.Outcome, data.ReachGap)
+		leg, err := s.serviceInternetLeg(r.Context(), subject.SubjectKey)
+		if err != nil {
+			s.serverError(w, "service reach legs", err)
+			return
+		}
+		data.InternetLeg = leg
 	}
 	data.Since = currentReachSince(data.Timelines)
 	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
@@ -1129,20 +1135,22 @@ func assetPortService(transport, server string) string {
 	return transport + " · " + server
 }
 
-func assetExposure(outcome string, isGap bool) string {
-	// Undiscriminated reach is a Gap, never an exposure verdict (ADR-0104).
-	if isGap {
-		return "unverified"
+func (s *server) serviceInternetLeg(ctx context.Context, key string) (*legChip, error) {
+	// One service page needs one key, and the estate-wide read costs the whole corpus (#1625).
+	rows, err := s.subjectsStore.ListServiceReachabilitySpansByClassForServices(ctx, []string{key})
+	if err != nil {
+		return nil, err
 	}
-	// A firewall is indistinguishable from silence, so the honest negative is not-reached.
-	switch outcome {
-	case "reached":
-		return "exposed"
-	case "not-reached":
-		return "not-reached"
-	default:
-		return "unverified"
+	if len(rows) == 0 {
+		return nil, nil
 	}
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		return nil, err
+	}
+	legs := collapseReachLegs(reachRowsForServices(rows), covered)
+	chip := reachLegChip(custody.ClassInternet, legFrom(legs[key][string(custody.ClassInternet)]))
+	return &chip, nil
 }
 
 // A pre-parse span stored only chain and not_after, so issuer and algorithm read empty.
