@@ -34,7 +34,7 @@ export function writtenAnchors(repoRoot, env, files) {
   return out.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 }
 
-// A containment anchor names no declaration, so no rival can contradict one (SPEC §9).
+// A containment anchor names no declaration, so no rival can contradict one (SPEC §3.2 rule 2).
 function judgeRow(repoRoot, row, anchors) {
   let inventory;
   try {
@@ -105,9 +105,13 @@ export function reportAudit(judged, log = console.log) {
     log("Review queue — a rival spelled only afterwards, so a human reads the pair (SPEC §5.2 rule 2):");
     for (const a of review) log(`  ${formatSuspect(a)}`);
   }
+  // A row that could not run and a target with no vocabulary are not one outcome.
   if (unreadable.length > 0) {
+    const why = new Map();
+    for (const a of unreadable) why.set(a.detail, (why.get(a.detail) ?? 0) + 1);
     log("");
-    log(`Unjudged — ${unreadable.length} anchor(s) sit on a target with no anchor vocabulary.`);
+    log(`Unjudged — ${unreadable.length} anchor(s) the audit could not read:`);
+    for (const [detail, count] of [...why].sort()) log(`  ${String(count).padStart(4)}  ${detail}`);
   }
 
   log("");

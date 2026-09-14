@@ -601,3 +601,44 @@ test("auditRecord carries the pair a human reads, and proposes no anchor", () =>
   assert.equal(suspect.target, `${FIXTURE}/go/decls.go#Alpha`);
   assert.equal(record.find((a) => a.line === 9).rival, undefined);
 });
+
+// A signature span carries a space and no slash, and rule 3 must not read it as a route.
+test("a span that spells a signature still corroborates the region", () => {
+  const token = goToken("return 1");
+  const citing = `\`func Alpha() int\` and \`Delta.Epsilon\` hold \`${token}\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+  assert.equal(r.review, undefined);
+});
+
+// A retired token hides its path from the path class, so the class reads it without the line.
+test("a sibling line-anchor token names a target, not a declaration", () => {
+  const token = goToken("return 1");
+  const citing = `\`${FIXTURE}/go/other.go:12\` then \`${token}\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("a bare-prose copy of the token does not reorder the rival", () => {
+  const token = goToken("return 1");
+  const citing = `see ${token} and \`Delta.Epsilon\` then \`${token}\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /names `Delta\.Epsilon` before the citation/);
+});
+
+test("the audit counts a row that could not run apart from a missing vocabulary", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE, "docs/spec/page.md": AUDIT_DOC });
+  const abs = join(REPO_ROOT, FIXTURE, "docs/spec/page.md");
+  const broken = AT_FIXTURE.map((row) =>
+    row.name === "go"
+      ? { ...row, inventory: () => { throw new Error("godecls did not finish"); } }
+      : row,
+  );
+  const judged = auditAnchors(REPO_ROOT, envFor(paths), [abs], broken);
+  assert.equal(judged.length, 7);
+  assert.ok(judged.every((a) => a.verdict === "unreadable"));
+  assert.match(judged[0].detail, /the go row could not run: godecls did not finish/);
+});

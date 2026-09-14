@@ -1,6 +1,10 @@
 import { spellsPath } from "../citations/extract.mjs";
 
 const IDENTIFIER = /[A-Za-z_][A-Za-z0-9_.]*/g;
+const SPAN = /`([^`\n]*)`/g;
+
+// A retired token spells its line two ways, and both hide the path from the path class (#1968).
+const LINE_SUFFIX = /(?::\d+(?:-\d+)?|#L\d+(?:-[Ll]?\d+)?)$/;
 
 // `retention.Retirer.Run` and `Retirer.Run` name one declaration, because a citing document
 // qualifies a Go name by package and the row's inventory does not.
@@ -8,24 +12,31 @@ function sameName(a, b) {
   return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
 }
 
-// A span holding a space or a leading `/` spells a route, not a declaration (SPEC §5.2 rule 3).
+// A route, a header and a command carry a slash, and `func Alpha()` carries none (SPEC §5.2).
 function routeSpan(body) {
-  return /\s/.test(body) || body.startsWith("/");
+  return body.startsWith("/") || (/\s/.test(body) && body.includes("/"));
+}
+
+// A sibling citation spells a path, and a retired one hides it behind a line (SPEC §5.2 rule 3).
+function citesPath(body) {
+  return spellsPath(body.replace(LINE_SUFFIX, ""));
 }
 
 function reads(body, token) {
   // The citation's own span spells the path, and a path must corroborate nothing.
   if (body.includes(token)) return false;
-  // A second citation on the line is a path too, and it names a target rather than a declaration.
-  if (spellsPath(body)) return false;
+  if (citesPath(body)) return false;
   return !routeSpan(body);
 }
 
 // A name spelled before the citation is the dominant true-positive shape (SPEC §5.1).
 function identifiersOn(lineText, token) {
-  const citeAt = lineText.indexOf(token);
+  const spans = [...lineText.matchAll(SPAN)];
+  const own = spans.find((m) => m[1].includes(token));
+  // A bare-prose copy of the token sits before the citation's own span, and orders nothing.
+  const citeAt = own === undefined ? lineText.indexOf(token) : own.index;
   const out = [];
-  for (const m of lineText.matchAll(/`([^`\n]*)`/g)) {
+  for (const m of spans) {
     if (!reads(m[1], token)) continue;
     // A line that does not spell the citation orders nothing, so every name keeps the old bias.
     const before = citeAt < 0 || m.index < citeAt;

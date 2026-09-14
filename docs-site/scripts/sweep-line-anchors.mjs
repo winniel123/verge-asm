@@ -51,8 +51,8 @@ function audit(prefixes, reportFile) {
   }
   console.log("");
   console.log(
-    `  the audit writes nothing. ${suspects.length} suspect anchor(s) degrade by hand ` +
-      `(SPEC §6.3), and ${review.length} enter(s) the review queue.`,
+    `  the audit writes nothing. Of ${suspects.length + review.length} suspect anchor(s), ` +
+      `${suspects.length} degrade by hand (SPEC §6.3) and ${review.length} enter the review queue.`,
   );
 }
 
@@ -255,7 +255,8 @@ function main() {
     console.error("sweep: --report names the file it writes the plan to");
     process.exit(2);
   }
-  const args = argv.filter((a, i) => !a.startsWith("--") && i !== at + 1);
+  // An absent --report puts `at` at -1, and the old guard then dropped the first path (#2007).
+  const args = argv.filter((a, i) => !a.startsWith("--") && (at < 0 || i !== at + 1));
   const prefixes = args.map((p) => p.replace(/\/+$/, ""));
   if (argv.includes("--audit")) {
     if (write) {
