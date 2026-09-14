@@ -11,6 +11,8 @@ import { classify } from "./citations/classify.mjs";
 import { armB, formatBroken, formatFatal } from "./citations/armb.mjs";
 import { goInventory } from "./citations/rows/go.mjs";
 import { rowFor } from "./citations/rows.mjs";
+import { SQLC_ROW } from "./citations/rows/sqlc.mjs";
+import { TEMPLATE_ROW } from "./citations/rows/template.mjs";
 import { environment } from "./check-citations.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -239,5 +241,134 @@ test("the CLI exits 2 when no go binary is on PATH", () => {
   } finally {
     rmSync(fixture, { force: true });
     rmSync(shim, { force: true, recursive: true });
+  }
+});
+
+const SQL_TARGET = "db/queries/vantages.sql";
+const TMPL_TARGET = "design-system/templates/coverage.tmpl";
+const MIGRATION = "db/migrations/00001_heartbeat.sql";
+
+test("a sqlc anchor naming a `-- name:` query passes, and an absent one is broken", () => {
+  assert.deepEqual(verifiedAnchors(`The read is \`${SQL_TARGET}#ListVantages\`.`), [
+    `${SQL_TARGET}#ListVantages`,
+  ]);
+  const token = `${SQL_TARGET}#ListVantage`;
+  const { broken } = anchorsOf(`The read is \`${token}\`.`);
+  assert.deepEqual(broken.map(key), [token]);
+  assert.match(formatBroken(broken[0]), /declares no `-- name:` query named ListVantage/);
+});
+
+test("a template anchor naming a {{define}} passes, and an absent one is broken", () => {
+  assert.deepEqual(verifiedAnchors(`The card is \`${TMPL_TARGET}#cv-dial\`.`), [
+    `${TMPL_TARGET}#cv-dial`,
+  ]);
+  const token = `${TMPL_TARGET}#cv-dialog`;
+  const { broken } = anchorsOf(`The card is \`${token}\`.`);
+  assert.deepEqual(broken.map(key), [token]);
+  assert.match(formatBroken(broken[0]), /declares no `\{\{define\}\}` named cv-dialog/);
+});
+
+test("a goose migration is not judged by the sqlc row, because the key is a path predicate", () => {
+  // A migration declares no names, and containment covers it instead (SPEC §3.2 rule 2).
+  assert.equal(rowFor(MIGRATION), null);
+  const { broken, noRow } = anchorsOf(`The table is \`${MIGRATION}#heartbeat\`.`);
+  assert.deepEqual(broken, []);
+  assert.deepEqual(noRow.map(key), [`${MIGRATION}#heartbeat`]);
+});
+
+test("every tracked .sql outside db/queries/ falls outside the sqlc row", () => {
+  const tracked = execFileSync("git", ["ls-files", "--", "*.sql"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  })
+    .split("\n")
+    .filter(Boolean);
+  const outside = tracked.filter((p) => !p.startsWith("db/queries/"));
+  assert.ok(outside.length > 0);
+  assert.deepEqual(
+    outside.filter((p) => rowFor(p)?.name === "sqlc"),
+    [],
+  );
+  assert.ok(tracked.some((p) => rowFor(p)?.name === "sqlc"));
+});
+
+test("a sqlc or template citation carrying no anchor passes", () => {
+  // The checker asserts correctness, never presence (SPEC §7.2).
+  for (const target of [SQL_TARGET, TMPL_TARGET]) {
+    const { anchored, broken } = anchorsOf(`The file is \`${target}\`.`);
+    assert.deepEqual(anchored, [], target);
+    assert.deepEqual(broken, [], target);
+  }
+});
+
+test("a link fragment carries the sqlc and template vocabularies too", () => {
+  // The rule binds both spellings, for every row (SPEC §3.5).
+  assert.deepEqual(verifiedAnchors(`See [the read](../../${SQL_TARGET}#GetVantage).`), [
+    `../../${SQL_TARGET}#GetVantage`,
+  ]);
+  assert.deepEqual(brokenAnchors(`See [the card](../../${TMPL_TARGET}#gone).`), [
+    `../../${TMPL_TARGET}#gone`,
+  ]);
+});
+
+test("neither row shells out to a parser, so an empty PATH resolves both", () => {
+  // A column-0 marker is the real declaration syntax for both rows (SPEC §7.3).
+  const shim = mkdtempSync(join(tmpdir(), "norun-"));
+  const restore = process.env.PATH;
+  try {
+    process.env.PATH = shim;
+    const queries = SQLC_ROW.inventory(REPO_ROOT, [SQL_TARGET]).get(SQL_TARGET);
+    const defines = TEMPLATE_ROW.inventory(REPO_ROOT, [TMPL_TARGET]).get(TMPL_TARGET);
+    assert.ok(queries.names.has("GetVantage"));
+    assert.ok(defines.names.has("coverage"));
+  } finally {
+    process.env.PATH = restore;
+    rmSync(shim, { force: true, recursive: true });
+  }
+});
+
+test("an indented marker is a declaration, and each row reads it", () => {
+  // A missed marker reds a correct citation, which is the fault SPEC §7.3 rejects.
+  const cases = [
+    [
+      SQLC_ROW,
+      `db/queries/indented-${process.pid}.sql`,
+      "  -- name: IndentedQuery :one\n",
+      "IndentedQuery",
+    ],
+    [
+      TEMPLATE_ROW,
+      `design-system/templates/indented-${process.pid}.tmpl`,
+      '  {{- define "indented"}}\n',
+      "indented",
+    ],
+  ];
+  for (const [row, rel, source, name] of cases) {
+    const fixture = join(REPO_ROOT, rel);
+    try {
+      writeFileSync(fixture, source);
+      assert.ok(row.inventory(REPO_ROOT, [rel]).get(rel).names.has(name), rel);
+    } finally {
+      rmSync(fixture, { force: true });
+    }
+  }
+});
+
+test("a marker inventory reports an unreadable target rather than throwing", () => {
+  // An unreadable target is operator error, and it takes exit 2 (SPEC §7.7).
+  for (const escape of ["../outside.sql", "/etc/hostname", "db/queries/no-such-file.sql"]) {
+    assert.ok(SQLC_ROW.inventory(REPO_ROOT, [escape]).get(escape).error, escape);
+  }
+});
+
+test("the CLI exits 1 on a broken template anchor, and 0 on one that resolves", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `tmplanchor-${process.pid}.md`);
+  try {
+    writeFileSync(fixture, `The card is \`${TMPL_TARGET}#noSuchDefine\`.\n`);
+    assert.equal(cliStatus([fixture]), 1);
+    writeFileSync(fixture, `The card is \`${TMPL_TARGET}#coverage\`.\n`);
+    assert.equal(cliStatus([fixture]), 0);
+  } finally {
+    rmSync(fixture, { force: true });
   }
 });
