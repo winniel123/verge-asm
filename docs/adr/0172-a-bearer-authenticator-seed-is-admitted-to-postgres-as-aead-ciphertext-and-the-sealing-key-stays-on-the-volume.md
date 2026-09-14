@@ -25,14 +25,14 @@ code for that account, so it is a credential in the strongest sense this product
 second factor without a password and without touching the account.
 
 **It is in Postgres.** The column is `TEXT` on the founding accounts table
-(`db/migrations/00002_accounts.sql:12`), and that migration's header already asserted the split this
+(`db/migrations/00002_accounts.sql`), and that migration's header already asserted the split this
 ADR rules — *"the key lives in the web-only volume, never here, but the per-account TOTP secret is
 account state and belongs with the account"* (`:4-6`).
 
 **Since [#337](https://github.com/winniel123/verge-asm/issues/337) the column holds ciphertext.**
-`beginTOTPEnroll` seals the seed before it writes (`cmd/web/auth.go:909-919`), `loginTOTP` opens it
+`beginTOTPEnroll` seals the seed before it writes (`cmd/web/auth.go`), `loginTOTP` opens it
 to verify (`:307-312`), and `totpConfirm` opens it once more to confirm the enrolment (`:945-950`).
-Those are the only three sites. `cmd/web/sso.go:249-253` routes an enrolled account to the same
+Those are the only three sites. `cmd/web/sso.go#server.ssoCallback` routes an enrolled account to the same
 pending-cookie challenge, so single sign-on adds a route to `loginTOTP` and no fourth reader.
 
 **The false sentence.** `docs/adr/0053-…:66`, after its ADR-0126 narrowing, still reads:
@@ -53,7 +53,7 @@ a corpus.
 `CLOSED`, title *"Secrets: totp_secret stored cleartext in Postgres (vs ADR-0053)"*. That issue
 moved the column from cleartext to ciphertext and wrote the reasoning into four comments in
 `cmd/web/auth.go`. The #1337 sweep compressed them to one line — *"The sealing key never enters
-Postgres, so a table leak discloses ciphertext (ADR-0053)"* (`cmd/web/auth.go:908`) — which cites
+Postgres, so a table leak discloses ciphertext (ADR-0053)"* (`cmd/web/auth.go#firstRunChecklist`) — which cites
 ADR-0053 for the half ADR-0053 does state and leaves the admission unruled. Nothing under
 `docs/spec/`, `docs/guides/` or `CONTEXT.md` states it either.
 
@@ -77,7 +77,7 @@ posture. It does not rule the admission.** This ADR does, and does not restate t
 
 ### 1. The construction, named exactly
 
-`DeriveTOTPKey` (`internal/auth/totpsecret.go:16-24`) runs HKDF-SHA256 over the 32-byte session
+`DeriveTOTPKey` (`internal/auth/totpsecret.go#DeriveTOTPKey`) runs HKDF-SHA256 over the 32-byte session
 signing key with a nil salt and the info string `totp-secret-aead` (`:14`, `:19`), reading out
 `chacha20poly1305.KeySize` — 32 bytes (`:18`). The nil salt is deterministic on purpose, so a
 restart re-derives the same sub-key and decrypts rows written before it (`:17`). The label exists so
@@ -87,9 +87,9 @@ no key serves two purposes.
 nonce from `crypto/rand` per value (`:35-37`), prepends it to the sealed output (`:39`) and base64s
 the result into the `TEXT` column (`:40`). There is no additional authenticated data.
 
-The sub-key is derived once at construction (`cmd/web/handlers.go:271-277`) from the key
+The sub-key is derived once at construction (`cmd/web/handlers.go#newServer`) from the key
 `auth.LoadOrCreateKey` reads or creates under `VERGE_STATE_DIR`, default `/app/state`
-(`cmd/web/main.go:89-90`, `internal/auth/key.go:10-16`), which compose mounts from the `web-state`
+(`cmd/web/main.go#main`, `internal/auth/key.go`), which compose mounts from the `web-state`
 volume (`docker-compose.yml:36`, `:94`). **A sub-key of a volume key is a volume key**, and the
 database sees neither.
 
@@ -120,44 +120,44 @@ Two refusals are permanent and are not weighed against convenience:
 The two second-factor secrets are held differently, and the difference is not an inconsistency.
 
 A recovery code is verified by comparison. `newRecoveryCodes` bcrypts each code
-(`cmd/web/auth.go:1170-1187` via `auth.HashPassword`, `internal/auth/password.go:8-14`), the column
-is `code_hash TEXT NOT NULL` (`db/migrations/21500_recovery_code.sql:19`), and `redeemRecoveryCode`
-compares the presented code against the stored hashes (`cmd/web/auth.go:347-369`). Nothing needs the
+(`cmd/web/auth.go` via `auth.HashPassword`, `internal/auth/password.go#HashPassword`), the column
+is `code_hash TEXT NOT NULL` (`db/migrations/21500_recovery_code.sql`), and `redeemRecoveryCode`
+compares the presented code against the stored hashes (`cmd/web/auth.go`). Nothing needs the
 code back.
 
 A TOTP seed cannot be hashed, because RFC 6238 verification **recomputes** HMAC over the seed and
-the current step (`auth.VerifyTOTPStep`, called at `cmd/web/auth.go:312`). So the rule is: **hash
+the current step (`auth.VerifyTOTPStep`, called at `cmd/web/auth.go#server.loginProviders`). So the rule is: **hash
 where verification is a comparison, seal where the act needs the value back, and admit nothing that
 needs neither.** Sealing is the weaker protection and is spent only where hashing cannot do the job.
 
 ### 4. The cleartext's reach is one handler and one response, and it is enumerated
 
 The cleartext exists in `beginTOTPEnroll` between `auth.NewTOTPSecret` and the write
-(`cmd/web/auth.go:892-919`), in the response that handler renders, and transiently in `loginTOTP`
+(`cmd/web/auth.go`), in the response that handler renders, and transiently in `loginTOTP`
 and `totpConfirm` while the verifier consumes it.
 
 It reaches a **template** by design: `totpEnrollData` puts it in `Secret` and in the `otpauth://`
-URI (`cmd/web/auth.go:923-936`), and `design-system/templates/signin.tmpl:216-220` renders the QR
+URI (`cmd/web/auth.go`), and `design-system/templates/signin.tmpl#totp-enroll-confirm` renders the QR
 and the manual-entry string. That is the enrolment act itself, and the QR is encoded in-process, so
 the seed reaches no third party.
 
 It reaches **no log**: no `log.Printf` in `cmd/web/auth.go` carries the seed or the ciphertext. It
 reaches **no error string**: every failure path calls `s.serverError` with a fixed label
-(`cmd/web/auth.go:894`, `:911`, `:947`, `:309`), which logs the error and returns the constant body
+(`cmd/web/auth.go#statTone`, `:911`, `:947`, `:309`), which logs the error and returns the constant body
 `internal error` (`:1887-1890`), and no error in `internal/auth/totpsecret.go` interpolates a secret
 or a key.
 
-The dev build pins the seed to a fixture (`cmd/web/auth.go:902`) and **still seals it** before the
+The dev build pins the seed to a fixture (`cmd/web/auth.go#firstRunChecklist`) and **still seals it** before the
 write (`:909`). There is no dev exemption from the admission rule.
 
 ### 5. A decrypt failure is a fault, never a wrong code
 
 `DecryptTOTPSecret` fails on a bad base64, a short input or a failed `Open`
-(`internal/auth/totpsecret.go:48-63`), and every caller returns HTTP 500 rather than treating the
-error as a verification miss (`cmd/web/auth.go:307-311`, `:945-949`). No caller falls back to
+(`internal/auth/totpsecret.go#DecryptTOTPSecret`), and every caller returns HTTP 500 rather than treating the
+error as a verification miss (`cmd/web/auth.go#server.loginProviders`, `:945-949`). No caller falls back to
 reading the column as cleartext, so a legacy pre-#337 row is a hard fault and the account re-enrols;
 it is never quietly accepted as a seed. `TestTOTPSecretEncryptedAtRest`
-(`cmd/web/hardening_test.go:188-219`) pins both halves: the stored value neither equals nor contains
+(`cmd/web/hardening_test.go#TestTOTPSecretEncryptedAtRest`) pins both halves: the stored value neither equals nor contains
 the seed (`:210-212`), and it decrypts back to it (`:213-219`).
 
 ## Consequences
@@ -170,17 +170,17 @@ the seed (`:210-212`), and it decrypts back to it (`:213-219`).
 - **A write-capable attacker is not stopped by this, and was not going to be.** The seal carries no
   additional authenticated data, so it is not bound to the account id: one row's ciphertext pasted
   into another row opens under the same sub-key. Anyone who can write that row can also clear
-  `totp_enabled` or replace `password_hash` (`internal/db/accounts.sql.go:167`, `:194`), so the
+  `totp_enabled` or replace `password_hash` (`internal/db/accounts.sql.go#resetAccountTOTP`, `:194`), so the
   missing binding prices at little. Adding the account id as AAD is a one-line change should a
   cheaper write path appear.
 - **A lost `web-state` volume is a lost second factor for every account, and #1419 is that failure
   today.** The sub-key derives from the session signing key, so whatever rotates that key rotates it.
-  A restore does exactly that (`cmd/web/restore.go:226`, `:395-398`), and the restored ciphertext was
+  A restore does exactly that (`cmd/web/restore.go#server.restorePreflight`, `:395-398`), and the restored ciphertext was
   sealed under the old key, so every enrolled account fails `loginTOTP` with a 500 and redeems no
   recovery code at that step. **That lockout is a live consequence of deriving from the session key
   rather than holding an independent `totp.key`**; it is filed as
   [#1419](https://github.com/winniel123/verge-asm/issues/1419) and this ADR does not fix it. The
-  contrast is on disk: `internal/transcript/key.go:13-32` keeps its own key file, which no restore
+  contrast is on disk: `internal/transcript/key.go` keeps its own key file, which no restore
   rotates.
 - **`docs/adr/0053-…:66` is withdrawn at its own site** under ADR-0058, and the two restatements —
   `docs/adr/0126-…:21` and `CONTEXT.md:1872` — take the same correction. A session reading *"No
@@ -200,5 +200,5 @@ the seed (`:210-212`), and it decrypts back to it (`:213-219`).
 | **Hash the seed, as the recovery codes are hashed** | RFC 6238 verification recomputes HMAC over the seed, so a one-way hash makes the factor unverifiable. This is not a stricter version of the ruling; it removes the feature |
 | **Keep the seed out of Postgres entirely — a per-account file on `web-state`** | A second store keyed by account id, with no foreign key, no cascade, and no transaction with the row it belongs to. Every account delete and restore gains an orphan case, and the enrolment write stops being atomic with `totp_enabled`. Against the dump threat it buys nothing the seal does not already buy |
 | **Give the seed its own key file, as `Transcript` has** | This is the better shape and the reason is #1419: an independent `totp.key` would survive the restore that rotates the session key, and the lockout would not exist. It is refused **here** because it is a production change to the second-factor path with its own migration question — what happens to rows sealed under the derived sub-key — and #1419 owns it. This ADR rules the admission, which holds under either key source |
-| **Envelope encryption: a per-account data key sealed under a KEK** | ADR-0053 refused this shape for the SSH key and the refusal still holds: the KEK needs a home, and its home is the volume the sub-key already lives on. Per-record crypto-shredding buys nothing for a value that is deleted with its row (`internal/db/accounts.sql.go:167`) |
+| **Envelope encryption: a per-account data key sealed under a KEK** | ADR-0053 refused this shape for the SSH key and the refusal still holds: the KEK needs a home, and its home is the volume the sub-key already lives on. Per-record crypto-shredding buys nothing for a value that is deleted with its row (`internal/db/accounts.sql.go#resetAccountTOTP`) |
 | **Amend ADR-0053 in place and file no ADR** | Under ADR-0058's split an amendment carries a claim about the world that changed. This is a rule with a stated condition for a third admission, two permanent refusals, a rejected alternative still open as #1419, and a test a future column is measured against. ADR-0053's own rule is untouched and is confirmed by the sealing key's custody |

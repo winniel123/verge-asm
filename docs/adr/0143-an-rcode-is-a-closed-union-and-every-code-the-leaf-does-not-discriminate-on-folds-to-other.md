@@ -20,14 +20,14 @@ relations:
 
 ## Context
 
-`internal/measure/resolutionwalk/leaf.go:23-30` declares `Rcode` as a `string` type with five
+`internal/measure/resolutionwalk/leaf.go` declares `Rcode` as a `string` type with five
 named constants — `NOERROR`, `NXDOMAIN`, `FORMERR`, `REFUSED` and `SERVFAIL`.
 
-`internal/measure/resolutionwalk/netpeer.go:327-342` fills it. `rcodeName` maps those five wire
+`internal/measure/resolutionwalk/netpeer.go` fills it. `rcodeName` maps those five wire
 codes onto those five constants, and its default branch returns `Rcode(rc.String())`.
 
 **That default returns two shapes, and both are off-model.** `golang.org/x/net@v0.58.0`'s
-`dns/dnsmessage/message.go:155-170` holds a name table for the six codes the library defines, and
+`dns/dnsmessage/message.go` holds a name table for the six codes the library defines, and
 `RCode.String` falls back to a decimal numeral for everything else. So wire code 4 becomes the Go
 identifier `RCodeNotImplemented` and wire code 9 becomes `"9"`. One `Rcode` value space carries
 constants, a foreign library's Go identifier, and numerals.

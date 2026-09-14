@@ -20,18 +20,18 @@ relations:
 The dashboard stat band draws a tile labelled **Assets watched**. It draws one label over **two
 different reads**, and they can disagree.
 
-**The value is a subject listing.** `cmd/web/auth.go:688` computes `assetsWatched := names + services`.
-`names` is `len(rows)` from `ListCurrentNameSubjects` (`cmd/web/auth.go:556`) and `services` is
-`len(rows)` from `ListCurrentServiceSubjects` (`cmd/web/auth.go:566`). Both queries live in
+**The value is a subject listing.** `cmd/web/auth.go#server.dashboardData` computes `assetsWatched := names + services`.
+`names` is `len(rows)` from `ListCurrentNameSubjects` (`cmd/web/auth.go#server.home`) and `services` is
+`len(rows)` from `ListCurrentServiceSubjects` (`cmd/web/auth.go`). Both queries live in
 `db/queries/subjects.sql`. Both read the **observation** table through a freshness gate —
 `as_of - observed_at <= floor_cadences * tightest_cadence` — and the name query additionally drops any
 subject whose latest resolution outcome is `NameError` or `Shadowed`.
 
-**The delta is an open-span fold.** `cmd/web/deltas.go:93` computes
+**The delta is an open-span fold.** `cmd/web/deltas.go#server.dashboardDeltas` computes
 `drift.CountDelta(assets, prevAt, drift.DistinctSubjects)` over the rows of `ListSpansOpenSince`,
 pre-filtered to `subject_kind` `name` or `service`. `CountDelta` folds twice over one row set —
 `DistinctSubjects(CurrentlyOpen(all))` and `DistinctSubjects(OpenAt(all, prevAt))` — and the tile
-renders the difference (`cmd/web/auth.go:697`).
+renders the difference (`cmd/web/auth.go#server.dashboardData`).
 
 So the tile's **number** comes from the observation tier and the tile's **arrow** comes from the span
 corpus. Three mechanisms drive them apart, and none is exotic:
@@ -51,9 +51,9 @@ An operator can therefore read `1,284 · +12` where the twelve were counted agai
 questions is not a cosmetic defect.
 
 **Two corrections to #1288's record.** The Reports page carries **no** assets-watched tile —
-`cmd/web/reports_test.go:109` asserts it must not, and the card there is "New assets discovered", a
+`cmd/web/reports_test.go#TestReportsRendersNewAssetsDiscovered` asserts it must not, and the card there is "New assets discovered", a
 `drift.DiscoveryCount` over first appearances. And the heatmap ramp has **one** consuming surface, not
-two: `cmd/web/reports_export.go:53` calls `bucketScanActivity` alone and never reaches
+two: `cmd/web/reports_export.go#server.reportsExport` calls `bucketScanActivity` alone and never reaches
 `drift.HeatLevels`.
 
 ## Decision
@@ -117,11 +117,11 @@ breakdown derived from it.
 ## Consequences
 
 - **This ADR changes no production Go code.** It records the definition. Aligning
-  `cmd/web/auth.go:688` onto the fold at `cmd/web/deltas.go:93` is a follow-up ticket.
+  `cmd/web/auth.go#server.dashboardData` onto the fold at `cmd/web/deltas.go#server.dashboardDeltas` is a follow-up ticket.
 - **The tile's number will change on the estates where the two reads disagree.** A stale-cadence or
   `NameError` subject the listing dropped will be counted. That is the point: it is watched, and the
   delta already counted it.
-- **`emptyEstate` keeps the listing read.** `cmd/web/auth.go:648` gates the first-run checklist on
+- **`emptyEstate` keeps the listing read.** `cmd/web/auth.go` gates the first-run checklist on
   `names == 0 && services == 0`. That question is *has any measurement landed yet*, which the
   observation tier answers and the span corpus does not. It is a different question and it keeps its own
   read.

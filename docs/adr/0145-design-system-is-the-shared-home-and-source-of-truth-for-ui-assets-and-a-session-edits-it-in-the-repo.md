@@ -44,12 +44,12 @@ The mechanism the old workflow prescribed is gone from disk. `design-system/COMP
 
 Both consumers are load-bearing and both read the same tree:
 
-- **The web app embeds it.** `design-system/designfs.go:11` is `//go:embed templates/*.tmpl tokens/*.css fixtures/*.json`,
-  and `designfs.FS` is the only file system `cmd/web` parses templates from. `cmd/web/templates_inventory.go:17`
+- **The web app embeds it.** `design-system/designfs.go#files` is `//go:embed templates/*.tmpl tokens/*.css fixtures/*.json`,
+  and `designfs.FS` is the only file system `cmd/web` parses templates from. `cmd/web/templates_inventory.go#loadDesignTokens`
   globs `tokens/*.css` and concatenates every match into the served stylesheet, so a token file that is
   added, renamed or deleted changes what ships.
-- **The docs-site reads it.** `docs-site/astro.config.mjs:31` aliases `@ds` to the `design-system`
-  root and `docs-site/tsconfig.json:8` maps `@ds/*` to `../design-system/*`.
+- **The docs-site reads it.** `docs-site/astro.config.mjs` aliases `@ds` to the `design-system`
+  root and `docs-site/tsconfig.json` maps `@ds/*` to `../design-system/*`.
   `docs-site/src/styles/global.css` imports six files from `@ds/tokens/`, and
   `docs-site/src/components/TopNav.jsx` imports components from `@ds/components/`.
 

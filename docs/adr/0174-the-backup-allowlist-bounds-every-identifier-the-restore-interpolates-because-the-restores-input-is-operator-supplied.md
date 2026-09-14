@@ -20,13 +20,13 @@ relations:
 
 ## Context
 
-`backupTables` (`cmd/web/backup.go:19-53`) is a hand-written list of 32 business tables. On the
+`backupTables` (`cmd/web/backup.go`) is a hand-written list of 32 business tables. On the
 **export** side it is a read filter: `streamBackup` ranges it (`:155`) and `dumpBackupTable`
 interpolates each name into `SELECT to_jsonb(t) FROM "…" t` (`:168`). That string is a package-level
 Go literal; no request reaches it.
 
 **The restore inverts the direction of trust, and nothing on disk says so.** Its input is a file the
-operator uploads (`cmd/web/restore.go:147-158`), staged in memory (`:184-190`) and replayed later.
+operator uploads (`cmd/web/restore.go`), staged in memory (`:184-190`) and replayed later.
 Every table name in it — the manifest's `Tables` array and every row line's `table` field — is
 attacker-authorable in the sense that matters: a `.ndjson` file is trivially hand-edited, and
 restoring an archive obtained from elsewhere is the workflow the Restore card offers.
@@ -36,15 +36,15 @@ parameter.** `$1` names a value, and PostgreSQL resolves a relation before any p
 restore has no protocol-level defence available, so the bound must be a list.
 
 The reason was written once, in a block comment on `applyRestore`, and the §8 sweep deleted it
-(#1365), leaving two lines that state the mechanism without the rule (`cmd/web/restore.go:303`,
-`cmd/web/backup.go:167`) and no citation, because there was nothing to cite. Nothing under
+(#1365), leaving two lines that state the mechanism without the rule (`cmd/web/restore.go#openArchive`,
+`cmd/web/backup.go#server.backupDownload`) and no citation, because there was nothing to cite. Nothing under
 `docs/adr/`, `docs/spec/`, `docs/guides/`, `docs/research/` or `CONTEXT.md` rules SQL identifier
-interpolation. `docs/guides/backup-and-restore.md:74-76` states the allowlist as an **export**
+interpolation. `docs/guides/backup-and-restore.md#what-the-backup-is--the-estate-and-config-below-pgdatas-leak-posture` states the allowlist as an **export**
 invariant with leakage as its reason. ADR-0161 rules the list's membership and order. Neither says
 the list is load-bearing for the restore's SQL, which is the claim that makes it unrelaxable.
 
 `gosec` does not hold the property either: the job runs `-severity high -confidence high`
-(`.github/workflows/ci.yml:494`) and the tree is green with both concatenations in place and no
+(`.github/workflows/ci.yml`) and the tree is green with both concatenations in place and no
 `#nosec` on either.
 
 ## Decision
@@ -59,7 +59,7 @@ the list is load-bearing for the restore's SQL, which is the claim that makes it
 ### 1. Three interpolations, three gates
 
 `preflightArchive` **interpolates nothing.** It parses, validates and counts
-(`cmd/web/restore.go:59-117`); its `backupAllowed` loop at `:74-78` refuses a bad archive before the
+(`cmd/web/restore.go`); its `backupAllowed` loop at `:74-78` refuses a bad archive before the
 operator is offered a confirm dialog. It guards no statement.
 
 `applyRestore` interpolates at three places, and each is preceded by a check:
@@ -76,7 +76,7 @@ the estate rather than reading one. It gets no shorter argument than the insert 
 
 ### 2. The gate is membership, and a pattern would not do
 
-`backupAllowed` (`cmd/web/restore.go:119-126`) is a linear scan for `t == table` over
+`backupAllowed` (`cmd/web/restore.go`) is a linear scan for `t == table` over
 `backupTables`. Exact equality: no case folding, no trimming, no unquoting, no prefix.
 
 A pattern — `^[a-z_][a-z0-9_]*$`, say — admits `pg_shadow`, `goose_db_version`, `session` and
@@ -88,7 +88,7 @@ so a predicate admitting a superset of it gives up the bound and buys nothing.
 ### 3. The apply pass re-validates and never inherits preflight's verdict
 
 Preflight and apply are separate requests. Between them the archive sits in `restoreStage`
-(`cmd/web/restore.go:184-190`, read at `:203`), and `applyRestore` re-parses the manifest from those
+(`cmd/web/restore.go`, read at `:203`), and `applyRestore` re-parses the manifest from those
 bytes (`:236-252`) rather than trusting `restorePreflight.Tables`. It also gates **every row line**
 at `:289`, which preflight never inspects — preflight reads row lines only to count open `span`
 subjects and `continue`s past every other table (`:94-96`).
@@ -99,11 +99,11 @@ That duplication is the ruling, not redundancy to tidy away. `applyRestore` comp
 ### 4. `jsonb_populate_record` forces the interpolation, and quoting is not the bound
 
 The issue describes this correctly. `INSERT INTO "t" [OVERRIDING SYSTEM VALUE] SELECT * FROM
-jsonb_populate_record(NULL::"t", $1::jsonb)` (`cmd/web/restore.go:304-305`) passes the whole row as
+jsonb_populate_record(NULL::"t", $1::jsonb)` (`cmd/web/restore.go#openArchive`) passes the whole row as
 one `jsonb` **value** in `$1`, and `NULL::"t"` names the live rowtype that decodes it. The restore
 therefore writes no per-column decoder: timestamps, arrays, `bytea` and nested `jsonb` round-trip
 through the type Postgres already holds, and `redactBackupRow`'s key reordering
-(`cmd/web/backup.go:96-97`) is immaterial. The price is that the rowtype is named by identifier, and
+(`cmd/web/backup.go#backupRedactedColumns`) is immaterial. The price is that the rowtype is named by identifier, and
 an identifier cannot be a parameter. **What removes 32 hand-written decoders is what forces the
 interpolation.**
 
@@ -115,8 +115,8 @@ value already proved to be one of 32 literals, never the bound.
 
 `docs/adr/0124…:38` requires the archive framing to be settled *"against the requirement that it be
 **forward-restorable across a migration bump**"*, repeated at `:66`. Code and guide do the opposite:
-`restorePreflight` refuses on `pf.SchemaVersion != running` (`cmd/web/restore.go:172-176`), and
-`docs/guides/backup-and-restore.md:149-151` states the refusal as the operator contract — *"a
+`restorePreflight` refuses on `pf.SchemaVersion != running` (`cmd/web/restore.go#server.restorePreflight`), and
+`docs/guides/backup-and-restore.md#restoring--preflight-then-a-typed-confirm` states the refusal as the operator contract — *"a
 restore **across a migration bump** is caught at preflight."*
 
 **PR #1420 did not bound this clause.** The note it added to ADR-0124 sits at `:28-35` and bounds
@@ -127,7 +127,7 @@ requirement is withdrawn at the site that specifies it, so `:38` and `:66` each 
 
 ### 6. What is not yet held by a test
 
-`TestPreflightArchiveRejectsUnknownTable` (`cmd/web/restore_test.go:64-70`) covers the preflight gate
+`TestPreflightArchiveRejectsUnknownTable` (`cmd/web/restore_test.go`) covers the preflight gate
 with a forged manifest naming `pg_catalog_pg_proc`. **`applyRestore` has no test at all** — no test
 in `cmd/web` assigns `s.pool` — so both gates that guard real SQL are unexercised.
 
@@ -151,7 +151,7 @@ line with `"table":"session"`, asserting `errRestoreUnknownTbl`. Not applied her
 - **The two surviving mechanism comments gain citations**, and the reason moves here.
 - **Adding a table costs nothing extra.** Append to the literal, in FK-parent order (ADR-0161 §4).
 - **A forged manifest is refused, not partially applied.** The replay runs in one transaction
-  (`cmd/web/restore.go:259-263`, committed `:330`), so a foreign row line rolls back everything.
+  (`cmd/web/restore.go#server.restoreApply`, committed `:330`), so a foreign row line rolls back everything.
 - **The restore stays deliberately schema-specific.** Letting the archive describe its own
   destination re-opens this surface.
 
@@ -162,5 +162,5 @@ line with `"table":"session"`, asserting `errRestoreUnknownTbl`. Not applied her
 | **A regexp identifier check** — accept any `^[a-z_][a-z0-9_]*$` and quote it | It admits every well-formed name in the database, including `goose_db_version`, `session`, `transcript` and every `pg_catalog` relation. Under `TRUNCATE … CASCADE` that is destruction of state outside the estate; under `INSERT` it is a write into a table the archive has no business describing. The legal set is 32 known strings, so a predicate matching millions is strictly weaker for no gain, and it drifts silently — a rename in `backupTables` still matches |
 | **A `pg_catalog` lookup at run time** — accept any relation in `public` | It answers *"does this exist?"* when the question is *"is this ours to overwrite?"* It is self-defeating on the partition ADR-0161 rules: `session`, `queue_job` and `transcript` all sit in `public` and are all deliberately excluded, so the catalogue readmits exactly what `backupExcluded` exists to keep out. It also adds a query and a failure mode inside the restore transaction, and makes the bound depend on live database state rather than a reviewed literal |
 | **Quote with `pgx.Identifier{table}.Sanitize()` and drop the allowlist** | Sanitising answers a different question. It makes the identifier *syntactically* safe — the statement parses and names one relation — and says nothing about *which*. `pgx.Identifier{"pg_shadow"}.Sanitize()` is a perfectly sanitised identifier for a table the restore must never touch. Escaping bounds the parse; only membership bounds the target |
-| **Validate once in `preflightArchive` and trust the staged archive at apply** | They are separate requests over a slice in `s.restoreStage`, and preflight never inspects a non-`span` row line (`cmd/web/restore.go:94-96`), so the row gate has nothing to inherit. A check anywhere but beside the interpolation makes its correctness depend on a call graph rather than on adjacency |
+| **Validate once in `preflightArchive` and trust the staged archive at apply** | They are separate requests over a slice in `s.restoreStage`, and preflight never inspects a non-`span` row line (`cmd/web/restore.go#preflightArchive`), so the row gate has nothing to inherit. A check anywhere but beside the interpolation makes its correctness depend on a call graph rather than on adjacency |
 | **Skip the gate on the `TRUNCATE`, since it names no columns** | `CASCADE` reaches referencing tables the archive never named, so an unbounded identifier there is worse than an unbounded `INSERT`. "It only truncates" is the argument that deletes the check that matters most |

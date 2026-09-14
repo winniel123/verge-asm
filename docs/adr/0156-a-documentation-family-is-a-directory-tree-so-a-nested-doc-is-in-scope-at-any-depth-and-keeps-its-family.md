@@ -48,9 +48,9 @@ hole"*. Nothing durable records that decision.
 | --- | --- |
 | `scope.mjs:20` | `markdownFilesUnder` recurses into a subdirectory |
 | `scope.mjs:46` | `isInScope` accepts a path where `rel === dir` or `rel` starts with `dir/` |
-| `.github/workflows/doclint.yml:26` | the `pull_request` paths filter is `docs/adr/**` and four siblings |
+| `.github/workflows/doclint.yml` | the `pull_request` paths filter is `docs/adr/**` and four siblings |
 
-`inScopeFiles` and `isInScope` are both exported. `docs-site/scripts/doclint.mjs:17` and `:19`
+`inScopeFiles` and `isInScope` are both exported. `docs-site/scripts/doclint.mjs` and `:19`
 consume them, and `docs-site/scripts/doclint/candidates/measure.mjs` consumes `inScopeFiles`.
 
 The two tool functions serve two different modes. `inScopeFiles` builds the whole-tree set for the
@@ -70,7 +70,7 @@ No family directory under `docs/` has a subdirectory. `find docs/adr docs/spec d
 docs/guides docs/research -mindepth 1 -type d` returns nothing on 2026-09-05. So the rule binds a
 case nobody has created, and nothing written records which way it goes.
 
-The only thing that pins it is a test, `docs-site/scripts/doclint.test.mjs:329`, *"isInScope accepts
+The only thing that pins it is a test, `docs-site/scripts/doclint.test.mjs`, *"isInScope accepts
 a doc nested in a family subdirectory"*. A test is not a durable source, and that file belongs to
 sibling ticket #1234.
 
@@ -136,7 +136,7 @@ in the one state that produces a green job and no lint.
   which `CLAUDE.md` keeps empty. It now sits beside the recursive call it explains.
 - **No lint result changes.** No family directory has a subdirectory today, so `inScopeFiles`
   returns the same list before and after.
-- **`docs-site/scripts/doclint.test.mjs:329` now has a durable source.** The assertion is unchanged
+- **`docs-site/scripts/doclint.test.mjs` now has a durable source.** The assertion is unchanged
   and this ADR does not touch that file. It belongs to sibling ticket #1234.
 - **[`CONTEXT.md`](../../CONTEXT.md) gains nothing.** Family and in-scope are documentation-process
   terms. The glossary carries product domain terms.

@@ -19,9 +19,9 @@ relations:
 ## Context
 
 ADR-0130 §3 made every mutating console handler take its redirect destination from the request.
-The carrier is a hidden field named `return` ([`cmd/web/backurl.go:12`](../../cmd/web/backurl.go)),
+The carrier is a hidden field named `return` ([`cmd/web/backurl.go#backField`](../../cmd/web/backurl.go)),
 stamped by the `backfield` define at
-[`design-system/templates/shell.tmpl:116`](../../design-system/templates/shell.tmpl) and invoked 55
+[`design-system/templates/shell.tmpl#backfield`](../../design-system/templates/shell.tmpl) and invoked 55
 times across five screen templates — `settings.tmpl` (37), `scope.tmpl` (11), `reports.tmpl` (3),
 `inbox.tmpl` (2), `signals.tmpl` (2). Forty production call sites in nine files consume the resolved
 value through `redirectBack`, `toastRedirectBack` or `resolveBack`: `reports_schedule.go` (11),
@@ -49,16 +49,16 @@ table is the authority. ADR-0157 borrows the rule; this ADR states it.
 
 | Fact | Site |
 | --- | --- |
-| `server.routes` is a `*http.ServeMux` field | [`cmd/web/handlers.go:268`](../../cmd/web/handlers.go) |
+| `server.routes` is a `*http.ServeMux` field | [`cmd/web/handlers.go#newServer`](../../cmd/web/handlers.go) |
 | `handler()` assigns it after the last registration, including `mountAPIv1` | `handlers.go:323`, `:493`, `:495-496` |
 | `handler()` returns `s.recoverPanics(mux)`, so the served handler and the stored table are one object | `handlers.go:498` |
-| 134 registrations in `handler()` and 6 in `api_v1.go`; **every one carries an explicit method token**, none is method-less | `handlers.go:325-493`, [`cmd/web/api_v1.go:17-24`](../../cmd/web/api_v1.go) |
-| `routeServesGET` builds a synthetic `GET` request and asks `(*http.ServeMux).Handler` for the matched pattern | [`cmd/web/backurl.go:115-134`](../../cmd/web/backurl.go), the call at `:124` |
+| 134 registrations in `handler()` and 6 in `api_v1.go`; **every one carries an explicit method token**, none is method-less | `handlers.go:325-493`, [`cmd/web/api_v1.go#apiV1Store`](../../cmd/web/api_v1.go) |
+| `routeServesGET` builds a synthetic `GET` request and asks `(*http.ServeMux).Handler` for the matched pattern | [`cmd/web/backurl.go#server.routeServesGET`](../../cmd/web/backurl.go), the call at `:124` |
 | It fails closed on a nil receiver or a nil table | `backurl.go:116-118` |
 | It narrows the `GET /` catch-all by hand, because `home` answers 404 for every path but the root | `routeServesGET` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)), `home` ([`cmd/web/auth.go`](../../cmd/web/auth.go)) |
 | `resolveBack` refuses a backslash, a missing leading `/`, a `//` prefix, an unparseable value, any scheme, host, userinfo, opaque body or fragment, and any path `path.Clean` would change | `backurl.go:85-100` |
 | The route-table question is asked last, at `:101-103`, and the fallback is the caller's own literal | `backurl.go:76`, `:101-103` |
-| Tests: `backurl_test.go` holds 15 functions over 416 lines, 8 of which drive `resolveBack` or `routeServesGET` directly; `TestResolveBackRejectsAndFallsBack` alone pins 16 refused inputs; `scope_prg_test.go` adds a ninth | [`cmd/web/backurl_test.go:92-123`](../../cmd/web/backurl_test.go), [`cmd/web/scope_prg_test.go:281-294`](../../cmd/web/scope_prg_test.go) |
+| Tests: `backurl_test.go` holds 15 functions over 416 lines, 8 of which drive `resolveBack` or `routeServesGET` directly; `TestResolveBackRejectsAndFallsBack` alone pins 16 refused inputs; `scope_prg_test.go` adds a ninth | [`cmd/web/backurl_test.go#TestResolveBackRejectsAndFallsBack`](../../cmd/web/backurl_test.go), [`cmd/web/scope_prg_test.go`](../../cmd/web/scope_prg_test.go) |
 
 **The three hostile shapes the ruling names are all refused today**, each pinned by a test: an
 absolute URL dies at `backurl.go:88` for want of a leading `/` (`backurl_test.go:99-100`); a
@@ -138,7 +138,7 @@ written beside the `GET /` one in the same change that registers the pattern~~.*
   change that recorded this ADR, and [PR #1503](https://github.com/winniel123/verge-asm/pull/1503)
   rewrote it again. With `GET /` registered nothing is unmatched: `/nope` returns `"GET /"`, and the
   subtree narrowing inside `routeServesGET` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)) is
-  what refuses it. Go 1.26.8's `findHandler` (`net/http/server.go:2659-2699`) likewise returns the
+  what refuses it. Go 1.26.8's `findHandler` (`net/http/server.go`) likewise returns the
   matched node's pattern on a trailing-slash redirect, not an empty string.
 - **The rule does not come back as a comment.** It now has a document, so the deleted block stays
   deleted and the declaration position stays empty.

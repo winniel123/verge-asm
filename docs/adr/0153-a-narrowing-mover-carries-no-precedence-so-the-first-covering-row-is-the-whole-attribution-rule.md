@@ -27,10 +27,10 @@ order and returns on the first hit. None of the four compares two covering rows.
 
 | Function | Site | Corpus |
 | --- | --- | --- |
-| `coveringAddressExclusion` | [`internal/queue/membership.go:255`](../../internal/queue/membership.go) | live `exclusion` rows |
-| `coveringExclusionKey` | [`internal/queue/membership.go:69`](../../internal/queue/membership.go) | live `exclusion` rows |
-| `coveringSeedWithdrawal` | [`internal/queue/seedwithdrawal.go:177`](../../internal/queue/seedwithdrawal.go) | pending `seed_withdrawal` rows, kind `address` |
-| `coveringNameSeedWithdrawal` | [`internal/queue/nameseedwithdrawal.go:160`](../../internal/queue/nameseedwithdrawal.go) | pending `seed_withdrawal` rows, kind `name` |
+| `coveringAddressExclusion` | [`internal/queue/membership.go`](../../internal/queue/membership.go) | live `exclusion` rows |
+| `coveringExclusionKey` | [`internal/queue/membership.go`](../../internal/queue/membership.go) | live `exclusion` rows |
+| `coveringSeedWithdrawal` | [`internal/queue/seedwithdrawal.go#coveringSeedWithdrawal`](../../internal/queue/seedwithdrawal.go) | pending `seed_withdrawal` rows, kind `address` |
+| `coveringNameSeedWithdrawal` | [`internal/queue/nameseedwithdrawal.go`](../../internal/queue/nameseedwithdrawal.go) | pending `seed_withdrawal` rows, kind `name` |
 
 #1325 deleted the only statement of the rule from `nameseedwithdrawal.go` and compressed the one in
 `seedwithdrawal.go`. The deleted text read:
@@ -49,13 +49,13 @@ thing, so the citation does not stand for the rule.
 **The declaration side does compare, and that is the contrast the rule lives against.** Three reads
 take the **most specific** covering `Seed`.
 
-- `FindCoveringAddressSeed` (`db/queries/subjects.sql:311`) orders by `masklen(s.address_cidr) DESC`.
-- `FindCoveringNameSeed` (`db/queries/subjects.sql:320`) orders by `length(s.name_domain) DESC`.
-- `narrowingScope` (`internal/queue/withdrawal.go:104`) keeps the largest `Bits()`, and its own
+- `FindCoveringAddressSeed` (`db/queries/subjects.sql#FindCoveringAddressSeed`) orders by `masklen(s.address_cidr) DESC`.
+- `FindCoveringNameSeed` (`db/queries/subjects.sql#FindCoveringNameSeed`) orders by `length(s.name_domain) DESC`.
+- `narrowingScope` (`internal/queue/withdrawal.go#narrowingScope`) keeps the largest `Bits()`, and its own
   comment says it must mirror `FindCoveringAddressSeed`.
 
 **#1326 named a fourth site for that contrast and it is wrong.** The ticket cites `coveringSeedKey`
-(`internal/queue/produce.go:370`) as a longest match over the live `Seed` corpus. It is not. It
+(`internal/queue/produce.go#membershipMessages`) as a longest match over the live `Seed` corpus. It is not. It
 returns the first covering `Seed` in `ListSeeds` order, which is `created_at DESC, id DESC`, so it
 answers with the newest covering `Seed` rather than the most specific one. The contrast this ADR
 rests on is the three reads above. `coveringSeedKey` is an unruled disagreement on the declaration
@@ -128,7 +128,7 @@ ruling.
   and `FindCoveringAddressSeed` takes the most specific one. Both answer *which declared scope holds
   this subject*, and they can answer differently. This ADR rules the narrowing side alone.
   [ADR-0192](./0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md)
-  §3 adds a **fifth** site — `scan.coveringSeed` (`internal/scan/cttail.go:459`), the `ct-tail`
+  §3 adds a **fifth** site — `scan.coveringSeed` (`internal/scan/cttail.go`), the `ct-tail`
   admission's per-name Seed lookup, which takes the **most specific** covering `Seed`. It rules the
   tail's own choice and states in terms that it does **not** close this disagreement.
 - **An overlapping pair of withdrawals states one receipt.** Withdraw `10.0.0.0/8`, then withdraw

@@ -19,7 +19,7 @@ relations:
   A period is not a view scope over rows the server already rendered. It moves the row cap, the fold
   width and the query bounds, so it must reach the server, and it does
 - **Sibling of, and not ruled by:** the `/drift` feed's `?period` selector
-  (`cmd/web/drift.go:68-97`), which shares this token vocabulary and gives it **literal** windows.
+  (`cmd/web/drift.go`), which shares this token vocabulary and gives it **literal** windows.
   §6 rules the divergence for `/reports` alone and does not move `/drift`
 
 ## Context
@@ -31,7 +31,7 @@ a design-collision id, not an issue — §4.7's third dangling family. The sweep
 the rule now has no statement anywhere: `docs/spec/`, `docs/adr/`, `docs/guides/`,
 `docs/research/` and `CONTEXT.md` state no part of it.
 
-**The code today.** `reportsPeriods` (`cmd/web/reports.go:46-53`) returns four presets. The spans
+**The code today.** `reportsPeriods` (`cmd/web/reports.go`) returns four presets. The spans
 are:
 
 | Token | Label | Weeks | Days folded |
@@ -41,30 +41,30 @@ are:
 | `30d` | `Last 30d` | 26 | 182 |
 | `90d` | `Last 90d` | 52 | 364 |
 
-Every row is at `cmd/web/reports.go:49-52`. The mapping the issue gives is correct, and
-`TestResolveReportsWindow` (`cmd/web/reports_test.go:730-738`) pins all four.
+Every row is at `cmd/web/reports.go`. The mapping the issue gives is correct, and
+`TestResolveReportsWindow` (`cmd/web/reports_test.go`) pins all four.
 
 **The issue's vocabulary is incomplete.** It calls the vocabulary "24h/7d/30d/90d". There is a
 fifth form. `resolveReportsWindow` (`:92-113`) accepts an ISO-8601 pair — either as `?start=` and
 `?end=` (`:93`), or folded into one `?period=custom_<start>_<end>` token (`:94-98`,
 `parseReportsCustomToken` at `:73-82`) — and converts it to whole weeks by rounding **up**:
 `days := int(ed.Sub(sd).Hours()/24) + 1`, then `weeks := (days + 6) / 7` (`:104-108`). The template
-carries the form that submits it (`design-system/templates/reports.tmpl:114-121`). So the resolver
+carries the form that submits it (`design-system/templates/reports.tmpl#reports`). So the resolver
 has two entry forms and one output shape, and the output is always a whole number of weeks.
 
-**The default's span is the design's, not the code's.** `design-system/fixtures/fixtures.json:2466-2467`
+**The default's span is the design's, not the code's.** `design-system/fixtures/fixtures.json`
 declares `"range_label": "Last 7d"` beside `"range_weeks": 12`, and its `periods` array
 (`:2448-2465`) carries token and label with **no span at all**. The design labels its own
 twelve-week activity view "Last 7d" and leaves the span to the server. `reportsHeatWeeks = 12`
-(`cmd/web/reports.go:36`) is that number.
+(`cmd/web/reports.go`) is that number.
 
 **One surface already shows the mismatch on screen.** The heatmap's accessible name is
 "Scans per day, {{.RangeLabel}}" (`reports.tmpl:217`) and the axis label immediately under it reads
 "{{.RangeWeeks}} weeks ago" (`:221`). Under the default that renders as *Scans per day, Last 7d*
 over a grid captioned *12 weeks ago*.
 
-**One KPI card is not windowed at all.** `reportsSignalCensus` (`cmd/web/reports.go:275-289`) takes
-`*http.Request` only for `r.Context()` — `buildSignalCorpus` (`cmd/web/signals.go:878-892`) reads no
+**One KPI card is not windowed at all.** `reportsSignalCensus` (`cmd/web/reports.go`) takes
+`*http.Request` only for `r.Context()` — `buildSignalCorpus` (`cmd/web/signals.go`) reads no
 query parameter — so the open-signals count is a standing census as of now, and its delta compares
 against `previousBatchInstant`, not against the previous period (`:339-347`). The template still
 labels that card `{{.RangeLabel}}` and captions it "vs previous period"
@@ -102,8 +102,8 @@ default.
 
 ### 4. The window resolves once, in one function, and every consumer takes it as a parameter
 
-`resolveReportsWindow` has exactly two callers in the tree: `reportsPage` at `cmd/web/reports.go:557`
-and `reportsExport` at `cmd/web/reports_export.go:34`. There is no second copy and no second parse of
+`resolveReportsWindow` has exactly two callers in the tree: `reportsPage` at `cmd/web/reports.go#server.reportsPage`
+and `reportsExport` at `cmd/web/reports_export.go#server.reportsExport`. There is no second copy and no second parse of
 `?period`. Nine consumers read the resolved value and none re-derives it: the Dispatch row cap
 (`reports.go:567`, `reports_export.go:50`), the heatmap fold (`reports.go:570`), the new-assets bars
 (`:588`), the new-assets KPI and its delta (`:584-585`), the MTTW KPI, delta and sparkline
@@ -129,7 +129,7 @@ true.
 `period`, `start` and `end` and nothing else, so a `?weeks=` value is silently ignored rather than
 rejected.
 
-`docs/guides/reports.md:79-80` still shows it:
+`docs/guides/reports.md#the-reports-screen` still shows it:
 
 ```
 GET /reports/export?format=csv&weeks=12
@@ -157,7 +157,7 @@ the design pairs with that choice, and for the default the design states the pai
 are: the label and the week count are rendered side by side at `reports.tmpl:217` and `:221`.
 
 `/drift` gives the same four tokens literal windows — `7d` is `7 * 24 * time.Hour`
-(`cmd/web/drift.go:78`). That divergence is real and it stays: a transition feed lists events inside
+(`cmd/web/drift.go#periodPreset`). That divergence is real and it stays: a transition feed lists events inside
 a window, while an activity heatmap needs enough columns to read a trend off. One token vocabulary,
 two screens, two span rules, and each screen resolves its own.
 

@@ -19,13 +19,13 @@ relations:
 # ADR-0152: a golden corpus locks the hermetic fold and never the live adapter, so an adapter change is an uncovered move
 
 - **Also stated, uncited, at two other leaves:**
-  [`tlsacceptance/enumerate.go:100`](../../internal/measure/tlsacceptance/enumerate.go) and
-  [`resolutionwalk/netpeer.go:40`](../../internal/measure/resolutionwalk/netpeer.go). One rule, three
+  [`tlsacceptance/enumerate.go`](../../internal/measure/tlsacceptance/enumerate.go) and
+  [`resolutionwalk/netpeer.go`](../../internal/measure/resolutionwalk/netpeer.go). One rule, three
   wordings, no record
 
 ## Context
 
-[`internal/measure/connectoutcome/tls.go:248`](../../internal/measure/connectoutcome/tls.go) carries
+[`internal/measure/connectoutcome/tls.go#ParseChainCert`](../../internal/measure/connectoutcome/tls.go) carries
 this, above `classifyDialError`:
 
 ```go
@@ -53,10 +53,10 @@ scripted seam, and `CorpusDigest` hashes what the leaf wrote. The adapter is not
 
 **Three of the five sites say so, uncited, in three wordings.**
 
-- `connectoutcome/tls.go:248` — *best-effort and unversioned by the corpus*.
-- `tlsacceptance/enumerate.go:100` — *the hermetic golden corpus pins the accept-fold, not this
+- `connectoutcome/tls.go` — *best-effort and unversioned by the corpus*.
+- `tlsacceptance/enumerate.go` — *the hermetic golden corpus pins the accept-fold, not this
   path, so its errors are best-effort*.
-- `resolutionwalk/netpeer.go:40` — *the golden corpus scripts an in-process Peer, so nothing here is
+- `resolutionwalk/netpeer.go` — *the golden corpus scripts an in-process Peer, so nothing here is
   exercised by it*.
 
 **ADR-0021 rules the near half and never the far half.** Its Decision table fixes the corpus medium
