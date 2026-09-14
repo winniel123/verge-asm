@@ -86,11 +86,26 @@ func TestServiceDetailAbsentInternetLegsKeepTheirTwoWords(t *testing.T) {
 	}
 }
 
+func TestServiceDetailWithdrawsTheChipWhenNoSpanNamesAVantage(t *testing.T) {
+	f := legProbeStore(t)
+	// A vantage-less span leaves the join, and never looked would be a false word (#1985).
+	f.addReachability(t, legProbeService, obsClock, `{"outcome":"reached","result":"open"}`)
+
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	if strings.Contains(page, `class="vg-leg`) {
+		t.Errorf("a service no class-aware span reaches rendered a leg chip; body: %s", page)
+	}
+	if !strings.Contains(page, `<span class="sd-tag">service</span>`) {
+		t.Errorf("the page withheld more than the chip; body: %s", page)
+	}
+}
+
 func TestServiceDetailFailsLoudlyWhenItsLegReadFails(t *testing.T) {
 	f := legProbeStore(t)
 	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"reached","result":"open"}`)
 	f.reachSpansErr = errors.New("class-aware reach read failed")
 
-	// A swallowed leg read renders the header with no chip, which reads as never looked (#1948).
+	// A swallowed leg read renders a header that states no reach at all, hiding it (#1948).
 	serviceDetailBody(t, f, http.StatusInternalServerError)
 }

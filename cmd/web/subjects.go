@@ -1142,6 +1142,7 @@ func (s *server) serviceInternetLeg(ctx context.Context, key string) (*legChip, 
 		return nil, err
 	}
 	if len(rows) == 0 {
+		// A vantage-less span leaves the join, and never looked would be a false word (#1985).
 		return nil, nil
 	}
 	covered, err := s.addressScopeCovered(ctx)
