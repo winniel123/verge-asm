@@ -104,6 +104,12 @@ jobs:
   # that list no scan finds. The list holds the anchors the sweep has not reached, and an
   # empty list is what proves the sweep complete.
   #
+  # THE `Site` ARM (SPEC §6, #1974). This gate also asserts over ONE pull-request-body field:
+  # the `Site` of a Decision proposal block, per SPEC docs/spec/adr-governance.md §2. It
+  # reaches no other part of a body. The anchor resolves against the merge ref, which is the
+  # tree the checkout above already hands this job. A missing block passes, and a bare path
+  # passes forever. The burn-down list never gains a `Site` entry: the rule is new-blocks-only.
+  #
   # ARM B, the anchor resolution (SPEC §7.1, §7.3, #1970). Every anchor a citation writes
   # must resolve against its row in the SPEC §3.2 table. A broken anchor exits 1. An
   # unparseable target, or an absent Go toolchain, exits 2: it is a claim the gate should
@@ -125,6 +131,11 @@ jobs:
   # otherwise hang a required check rather than take the exit 2 SPEC §7.7 prescribes.
   citations:
     runs-on: ubuntu-latest
+    # `pull-requests: read` is the grant that reads a PR body for the Site arm below. A
+    # job-level block replaces the workflow default, so `contents: read` is restated.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -144,17 +155,23 @@ jobs:
         working-directory: docs-site
         run: npm ci
 
-      # `test:citations` runs its two suites in sequence, not as one `node --test` call.
-      # `node --test` runs FILES in parallel, and both suites mutate the same tree: one
-      # corrupts line-anchors.json on purpose, and the other writes a broken-anchor fixture
+      # `test:citations` runs its three suites in sequence, not as one `node --test` call.
+      # `node --test` runs FILES in parallel, and the suites mutate the same tree: one
+      # corrupts line-anchors.json on purpose, and another writes a broken-anchor fixture
       # under docs-site/, which the first suite's whole-tree run then walks. Parallel is a
       # flaky red on a required check. Keep the `&&`.
       - name: Cited-path gate tests
         working-directory: docs-site
         run: npm run test:citations
 
+      # GITHUB_TOKEN is for the Site arm (SPEC docs/spec/citation-anchors.md §6, #1974). The
+      # step reads the PR body from the REST API, never from GITHUB_EVENT_PATH: `gh run
+      # rerun` replays a stale payload, so a body edit could otherwise never clear the gate.
+      # A run with no pull-request context judges no body and says so.
       - name: Cited-path gate
         working-directory: docs-site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run check:citations
 
   # `ADR-nnnn §n` gate (#1437, repaired and wired by #1465). A `§n` citation resolves
