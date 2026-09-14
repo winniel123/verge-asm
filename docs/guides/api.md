@@ -123,7 +123,7 @@ pages.
 | `GET /api/v1/subjects` | the current Name / Service / Endpoint census | [Subjects](reading-the-estate.md) |
 | `GET /api/v1/drift` | the batch-grouped transition feed (default 7-day window) | [Drift](reading-the-estate.md) |
 | `GET /api/v1/signals` | the fired-signal census — open, annotated, withdrawn | [Signals](signals.md) |
-| `GET /api/v1/coverage` | the aperture census meters, per declared scope | [Coverage](reading-the-estate.md) |
+| `GET /api/v1/coverage` | the aperture statement, and the census meters per declared scope | [Coverage](reading-the-estate.md) |
 
 Timestamps are RFC-3339 UTC strings. A value the system currently cannot state is
 returned honestly (an empty string, a `gap` flag, or a `null` total) rather than a
@@ -229,13 +229,33 @@ The fired-signal census, one array per tab.
 
 ### `GET /api/v1/coverage`
 
-The aperture census — one meter per declared scope.
+Two reads ride in one response. The `meters` key is the aperture census, one meter
+per declared scope. The `statement` key is the aperture statement. It holds one row
+per aperture input, as the Coverage screen renders it.
 
 ```json
 {
   "meters": [
     { "label": "…", "counted": "128", "total": null,   "unit": "names",     "pct": 0,  "detail": "…" },
     { "label": "…", "counted": "40",  "total": "1024",  "unit": "addresses", "pct": 4,  "detail": "…" }
+  ],
+  "statement": [
+    {
+      "input": "Port and transport tiers",
+      "cadence": "daily · monthly",
+      "cadence_why": "…",
+      "state": "hot on · cold off · udp no flag",
+      "state_kind": "off",
+      "figures": [
+        { "text": "38 of 38 sensitive pairs unread", "zero": false },
+        { "text": "0 of 38 sensitive pairs the instrument cannot report as reached", "zero": true },
+        { "text": "0 of 17 rules unevaluable", "zero": true }
+      ],
+      "state_detail": "…",
+      "remedy": "Declare an address scope",
+      "remedy_href": "/scope",
+      "remedy_why": "…"
+    }
   ]
 }
 ```
@@ -243,6 +263,11 @@ The aperture census — one meter per declared scope.
 `total` is `null` for a name scope — a census bar that enumerates nothing on its own.
 It is a pre-formatted string for an address scope, exactly as the Coverage screen
 shows. Neither claims a proportion of the estate.
+
+On a statement row, `remedy_href` is empty where no act exists. The `remedy` value
+then carries the literal word `none`. No cell is ever blank. `remedy_why` states the
+reason either way. The figures count our own lists and our own rules. They never
+state a count or a proportion of your estate.
 
 ---
 

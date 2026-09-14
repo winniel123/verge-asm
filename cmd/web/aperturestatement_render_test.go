@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -80,6 +81,27 @@ func TestCoverageRendersThePortTierLedgerRow(t *testing.T) {
 	}
 }
 
+// One computation feeds two renderers, so a cell a later row fills must reach both (SPEC §5).
+
+func TestAPIApertureRowCarriesEveryCellOfTheComputation(t *testing.T) {
+	view := reflect.TypeOf(apertureRowView{})
+	api := reflect.TypeOf(apiApertureRow{})
+
+	carried := make(map[string]struct{}, api.NumField())
+	for i := 0; i < api.NumField(); i++ {
+		carried[api.Field(i).Name] = struct{}{}
+	}
+	for i := 0; i < view.NumField(); i++ {
+		name := view.Field(i).Name
+		if name == "Figures" {
+			continue
+		}
+		if _, ok := carried[name]; !ok {
+			t.Errorf("apiApertureRow drops %s, so the JSON renderer cannot reproduce the row", name)
+		}
+	}
+}
+
 func TestAPIv1CoverageCarriesTheStatementBesideTheMeters(t *testing.T) {
 	f := newFakeStore()
 	seedAPIToken(t, f, roleViewer)
@@ -105,6 +127,9 @@ func TestAPIv1CoverageCarriesTheStatementBesideTheMeters(t *testing.T) {
 
 	row := got.Statement[0]
 	want := apertureStatement(nil)[0]
+	if row.StateKind != want.StateKind {
+		t.Errorf("state_kind: got %q, want %q", row.StateKind, want.StateKind)
+	}
 	if row.Input != want.Input || row.State != want.State || row.Remedy != want.Remedy {
 		t.Errorf("the API row diverges from the computation: got %+v, want %+v", row, want)
 	}

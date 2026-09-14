@@ -261,6 +261,7 @@ type apiApertureRow struct {
 	Cadence     string              `json:"cadence"`
 	CadenceWhy  string              `json:"cadence_why"`
 	State       string              `json:"state"`
+	StateKind   string              `json:"state_kind"`
 	Figures     []apiApertureFigure `json:"figures"`
 	StateDetail string              `json:"state_detail"`
 	Remedy      string              `json:"remedy"`
@@ -319,7 +320,8 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 			figs = append(figs, apiApertureFigure{Text: f.Text, Zero: f.Zero})
 		}
 		out.Statement = append(out.Statement, apiApertureRow{
-			Input: row.Input, Cadence: row.Cadence, CadenceWhy: row.CadenceWhy, State: row.State,
+			Input: row.Input, Cadence: row.Cadence, CadenceWhy: row.CadenceWhy,
+			State: row.State, StateKind: row.StateKind,
 			Figures: figs, StateDetail: row.StateDetail,
 			Remedy: row.Remedy, RemedyHref: row.RemedyHref, RemedyWhy: row.RemedyWhy,
 		})

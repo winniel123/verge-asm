@@ -518,14 +518,19 @@ var devCoverageStaleZones = []devCoverageStaleZone{
 	{zone: "internal.acmecorp.io", age: "2 re-supply intervals"},
 }
 
-// The fixture's first meter counts this scope, so the statement must agree with it (#1918).
+// Derived rather than transcribed, so no drift test of its own is owed (ADR-0167 §2).
 
 func devCoverageSeeds() []db.ListSeedsRow {
-	p := netip.MustParsePrefix("203.0.113.0/24")
-	return []db.ListSeedsRow{
-		{Kind: "address", AddressCidr: &p},
-		{Kind: "name", NameDomain: pgtype.Text{String: "acmecorp.io", Valid: true}},
+	out := make([]db.ListSeedsRow, 0, len(devCoverageMeters))
+	for _, m := range devCoverageMeters {
+		p, err := netip.ParsePrefix(m.label)
+		if err != nil {
+			out = append(out, db.ListSeedsRow{Kind: "name", NameDomain: pgtype.Text{String: m.label, Valid: true}})
+			continue
+		}
+		out = append(out, db.ListSeedsRow{Kind: "address", AddressCidr: &p})
 	}
+	return out
 }
 
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
