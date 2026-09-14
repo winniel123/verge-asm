@@ -570,6 +570,10 @@ func devCoverageClasses() []custody.VantageClass {
 	return out
 }
 
+// The retention panel on this same screen draws the dns Scan at a day, so the two agree.
+
+const devCoverageDNSCadence = 86400
+
 // The fixture enables the tail beside crt.sh, so the card draws a two-source set.
 
 func devCoverageSourceStates() []db.SourceState {
@@ -584,7 +588,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	s.coverageEmptyOnce = false
 	s.coverageMu.Unlock()
 	if empty {
-		data["Statement"] = apertureStatement(nil, true, nil, nil, true)
+		data["Statement"] = apertureStatement(nil, true, nil, devCoverageDNSCadence, true, nil, true)
 		data["Meters"] = []coverageMeterView(nil)
 		data["Messages"] = []coverageMessageView(nil)
 		data["Gaps"] = []coverageGapView(nil)
@@ -623,7 +627,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
 	}
 
-	data["Statement"] = apertureStatement(devCoverageSourceStates(), true, devCoverageSeeds(), devCoverageClasses(), true)
+	data["Statement"] = apertureStatement(devCoverageSourceStates(), true, devCoverageSeeds(), devCoverageDNSCadence, true, devCoverageClasses(), true)
 	data["Meters"] = meters
 	data["Messages"] = messages
 	data["Gaps"] = gaps

@@ -231,7 +231,8 @@ The fired-signal census, one array per tab.
 
 Two reads ride in one response. The `meters` key is the aperture census, one meter
 per declared scope. The `statement` key is the aperture statement. It holds one row
-per aperture input, as the Coverage screen renders it.
+per aperture input, as the Coverage screen renders it. The sample below abridges
+that list, so read the row count off your own response.
 
 ```json
 {
@@ -271,6 +272,18 @@ per aperture input, as the Coverage screen renders it.
       "remedy_why": "…"
     },
     {
+      "input": "The queried qtype set",
+      "cadence": "daily",
+      "cadence_why": "…",
+      "state": "A · AAAA · CNAME · NS · SOA · MX · TXT",
+      "state_kind": "fixed",
+      "figures": [],
+      "state_detail": "…",
+      "remedy": "none",
+      "remedy_href": "",
+      "remedy_why": "…"
+    },
+    {
       "input": "Vantage class",
       "cadence": "none",
       "cadence_why": "…",
@@ -301,6 +314,11 @@ which is our own list too, and the `Enabled sources` row counts our own catalogu
 A `state_kind` of `withheld` means the read behind the row did not land. Read it as
 absent, never as `off`: `state` then carries the literal `not read` rather than a
 value, and `figures` is empty.
+
+A `state_kind` of `fixed` means no setting moves the input. The `state` value is then
+a set rather than a switch, and `remedy` carries `none`. The queried qtype set is such
+a row: it states the qtypes the prober asks, and `cadence` follows the `dns` scan
+interval you set. An input read this way is not off — it has no on and no off.
 
 ---
 
