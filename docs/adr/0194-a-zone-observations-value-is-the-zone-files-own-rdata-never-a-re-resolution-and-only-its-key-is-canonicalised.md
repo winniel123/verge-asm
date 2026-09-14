@@ -17,7 +17,7 @@ relations:
 
 ## Context
 
-`internal/scan/zone.go:240` carried this, until #1307 shortened it:
+`internal/scan/zone.go#zoneParser.parse` carried this, until #1307 shortened it:
 
 ```go
 // zoneValue is the value a zone `dns-record` observation carries: the RRset's
@@ -25,7 +25,7 @@ relations:
 // re-resolution, so the timeline reflects what the operator declared.
 ```
 
-One line survives, at `internal/scan/zone.go:171`:
+One line survives, at `internal/scan/zone.go`:
 
 ```go
 // The rdata is the file's own words, never a re-resolution, so the timeline is what was declared.
@@ -37,13 +37,13 @@ One line survives, at `internal/scan/zone.go:171`:
 **No `net`, no `net/http`, no resolver package, no DNS library.** `RestateZone` takes bytes and a
 supply instant and returns records. There is no seam through which a resolution could enter.
 
-The Scan around it is the same shape. `internal/queue/zone.go:35` `completeZone` decodes the scope,
+The Scan around it is the same shape. `internal/queue/zone.go` `completeZone` decodes the scope,
 calls `RestateZone`, and writes. The scope, `zoneScope`, carries `domain`, `supplied_at` and
 `content`. The Scan is worker-read and carries no `Vantage`.
 
 ### What the parser does and does not touch
 
-`zoneParser.parse` (`internal/scan/zone.go:202`) walks a logical line and produces three fields.
+`zoneParser.parse` (`internal/scan/zone.go`) walks a logical line and produces three fields.
 
 | Field | Treatment |
 | --- | --- |
@@ -56,16 +56,16 @@ not reach the rdata. Comments are stripped at `;` and a parenthesised continuati
 one line. **After that the rdata is the operator's characters, in the operator's order, with the
 operator's spacing collapsed to single spaces.**
 
-`zoneValue` (`internal/scan/zone.go:173`) is `{ RRs []string }`, one string per record in the RRset,
+`zoneValue` (`internal/scan/zone.go`) is `{ RRs []string }`, one string per record in the RRset,
 in file order.
 
 ### Two sources really do write this facet
 
-`internal/queue/zone.go:23` writes `Facet: "dns-record"`, `SubjectKind: "name"`,
+`internal/queue/zone.go#toZoneObservationParams` writes `Facet: "dns-record"`, `SubjectKind: "name"`,
 `Discriminator: r.Qtype`, `Source: scan.ZoneSource`, `VantageID: pgtype.Int8{}`, and
 `ObservedAt: r.ObservedAt` — the operator's supply instant, not the worker's read.
 
-`internal/measure/resolutionwalk/emit.go:47` writes the same facet, same subject kind, same
+`internal/measure/resolutionwalk/emit.go#Emit` writes the same facet, same subject kind, same
 discriminator, from `resolution-walk`.
 
 ADR-0011 calls this the only two-source facet in v1, and ADR-0020 confirms it: *"exactly one — the
@@ -80,10 +80,10 @@ This is the measurement this ADR has to carry, because it decides what §4 rules
 | `zone` | `{"rrs":["1.2.3.4","5.6.7.8"]}` — a list of **strings** |
 | `resolution-walk` | `{"rrs":[{"name":…,"type":…,"data":…}],"delegation":…}` — a list of **objects** |
 
-`cmd/web/signals.go:32` declares one `dnsRecordValue` for both, with `RRs []struct{ Name, Type, Data
+`cmd/web/signals.go` declares one `dnsRecordValue` for both, with `RRs []struct{ Name, Type, Data
 string }`. Decoding the zone shape into it **fails**, and both call sites discard the error —
-`decodeDNSRecord` (`cmd/web/subjects.go:51`) with `_ = json.Unmarshal`, and the signal fold
-(`cmd/web/signals.go:749`) with the same. The measured result of decoding
+`decodeDNSRecord` (`cmd/web/subjects.go`) with `_ = json.Unmarshal`, and the signal fold
+(`cmd/web/signals.go#server.buildNameFacts`) with the same. The measured result of decoding
 `{"rrs":["1.2.3.4","5.6.7.8"]}` into it is:
 
 ```
@@ -95,7 +95,7 @@ RRs = [{Name: Type: Data:} {Name: Type: Data:}]
 Two records, every field blank.
 
 **And the two sources compete for the same row.** `ListNameDNSRecords`
-(`internal/db/signals.sql.go:109`) keys its cadence CTEs per source and then collapses:
+(`internal/db/signals.sql.go#Queries.ListEndpointCertificates`) keys its cadence CTEs per source and then collapses:
 
 ```sql
 SELECT DISTINCT ON (o.subject_key, o.discriminator) …
@@ -104,7 +104,7 @@ ORDER BY o.subject_key, o.discriminator, o.observed_at DESC, o.id DESC
 
 **`source` is not in the `DISTINCT ON` key.** A zone file supplied more recently than the last
 resolver walk therefore wins the slot for that `(name, qtype)`, in both consumers of that query:
-`cmd/web/subjects.go:1016` renders blank rows on the asset page, and `cmd/web/signals.go:728` fails
+`cmd/web/subjects.go#server.assetProvenance` renders blank rows on the asset page, and `cmd/web/signals.go#annotationViews` fails
 to read a `CNAME` target or an `NS` lame flag it would otherwise have read from the resolver.
 
 ## Decision
@@ -123,7 +123,7 @@ re-emitted in RFC 5952 form. What the operator wrote for `MX`, `TXT`, `CAA` or `
 observation carries.
 
 The zone file is the operator's **declaration**, and a declaration's whole evidential value is that
-it says what the operator believes. `internal/scan/zone.go:1` already states the sibling rule for
+it says what the operator believes. `internal/scan/zone.go` already states the sibling rule for
 time — the observation is stamped at the **supply instant**, because *"re-parsing unchanged bytes on
 a cadence would manufacture a current observation of a stale fact."* Passing the value through the
 resolver would manufacture the same falsehood in the other dimension: a `zone` row asserting what
@@ -135,7 +135,7 @@ The owner name is lower-cased and made absolute against `$ORIGIN`. The qtype is 
 are **necessary**, and neither touches the value.
 
 `subject_key` and `discriminator` are join columns. The resolver writes `resolution-walk`'s
-observations under `resolutionwalk.CanonicalName`, and `internal/scan/crtsh.go:157` records what
+observations under `resolutionwalk.CanonicalName`, and `internal/scan/crtsh.go#normaliseName` records what
 happens when two producers of one key disagree: *"a parallel Unicode fold here breaks the admission
 hop's join on subject_key (ADR-0107, #256)."* A zone row keyed `WWW.Example.COM.` would sit on a
 different timeline from the resolver's `www.example.com` and the two would never be compared.
@@ -183,14 +183,14 @@ the owner it already canonicalised. Nothing about §1 requires the flat list.
 
 - **What a signal rule may do with these values.** ADR-0020 rules that: *"a rule may read which names
   a zone contains. It may not read what records it holds for them."* The signal fold honours it today
-  — `cmd/web/signals.go:768` reads `ListZoneDeclarations` for the **name set** and never reads a zone
+  — `cmd/web/signals.go#server.buildNameFacts` reads `ListZoneDeclarations` for the **name set** and never reads a zone
   `dns-record` value. That boundary is untouched.
 - **Which lines the parser accepts.** An unknown qtype, a rdata-only line with no prior owner, and a
   line with fewer than two fields are all skipped and reported through `RestateZone`'s second return
   (#869). That is a coverage rule, not a value rule.
 - **TTL.** ADR-0011 excludes TTL from the `dns-record` value for every source, deliberately, and
   names the zone file as one reason. The parser steps over it and this ADR does not reopen it.
-- **The supply instant.** `internal/scan/zone.go:1` and v1 spec §3.4 rule the timestamp.
+- **The supply instant.** `internal/scan/zone.go` and v1 spec §3.4 rule the timestamp.
 - **Provider pseudo-records.** ADR-0020 measured `ALIAS`/`ANAME`, apex CNAME flattening and
   provider-side signing and refused to decode them. The parser skips what it does not know, which is
   that refusal holding.
@@ -198,7 +198,7 @@ the owner it already canonicalised. Nothing about §1 requires the flat list.
 ## Consequences
 
 - **This ADR changes no Go code.** `RestateZone` and `zoneParser` are correct on content.
-- **`internal/scan/zone.go:171` gains this ADR's citation** on the surviving line that states the
+- **`internal/scan/zone.go` gains this ADR's citation** on the surviving line that states the
   rule. Recorded in this issue's manifest.
 - **The `zone` decoder emits a value outside the `dns-record` value space. That is a defect against
   [ADR-0011](./0011-a-facet-is-six-parts.md)'s decoder rule, and it ships as its own ticket.**
@@ -214,13 +214,13 @@ the owner it already canonicalised. Nothing about §1 requires the flat list.
   do with two comparable values is ADR-0007's *report, never resolve*, and that is only answerable
   once the values are comparable.
 - **Today the collision renders as blank rows and lost facts.** With the shapes as they are, a zone
-  row that wins the slot gives `cmd/web/subjects.go:1029` records whose `Type` and `Value` are empty
-  strings, and gives `cmd/web/signals.go:755` no `CNAME` target and no `NS` lame flag. The two tickets
+  row that wins the slot gives `cmd/web/subjects.go#server.assetDNS` records whose `Type` and `Value` are empty
+  strings, and gives `cmd/web/signals.go#server.buildNameFacts` no `CNAME` target and no `NS` lame flag. The two tickets
   above are the fix; this bullet is what a reader seeing blank DNS rows on an asset page should read
   first.
 - **`CONTEXT.md` gains nothing.** `Source`, `Facet` and `dns-record` are already defined there, and
   `Source`'s existing text already carries the zone file's re-supply cadence
-  (`internal/scan/zone.go:17` cites it). This ADR adds no term and invalidates no clause.
+  (`internal/scan/zone.go` cites it). This ADR adds no term and invalidates no clause.
 - **The rule is what makes the one v1 conflict pair worth having.** ADR-0020 counted exactly one
   enumerable pair. If the zone value were normalised through the resolver, that count would be one in
   name and zero in substance.
@@ -229,11 +229,11 @@ the owner it already canonicalised. Nothing about §1 requires the flat list.
 
 | Alternative | Why not |
 | --- | --- |
-| **Re-resolve each declared record and store the answer** | It writes the resolver's answer under `source = zone`, so the one conflict pair ADR-0020 counted would compare the resolver against itself and report nothing, forever. It also dates a live measurement to the operator's supply instant, which is the falsehood `internal/scan/zone.go:1` refuses in the time dimension |
+| **Re-resolve each declared record and store the answer** | It writes the resolver's answer under `source = zone`, so the one conflict pair ADR-0020 counted would compare the resolver against itself and report nothing, forever. It also dates a live measurement to the operator's supply instant, which is the falsehood `internal/scan/zone.go` refuses in the time dimension |
 | **Normalise the rdata into the resolver's presentation — RFC 5952 addresses, canonical target names** | It is a decode of provider convention by another name, and ADR-0020 measured that cost: *"a stripper per provider convention, forever"*, which ADR-0004 calls the out-of-band tell. It also makes the two sources agree by construction on exactly the records where a real disagreement would matter |
 | **Refuse to store a zone `dns-record` value at all, and keep only the name set** | ADR-0020 bounds what a **rule** may read. It does not say the observation must not exist, and the observation is what gives `dns-record` its second timeline. Dropping it would delete ADR-0007's only v1 conflict pair rather than merely leaving it unused by rules |
 | **Store the raw line, owner, class, TTL and all** | The key must be a canonical `(subject_key, discriminator)` pair or the two timelines never meet, per §2 and the ADR-0107 / #256 join. Keeping the class and the TTL inside the value also reintroduces the TTL churn ADR-0011 excluded deliberately for every source |
 | **Keep the flat `[]string` shape and give the console a per-source decoder instead** | It moves ADR-0011's decoder from the producer to every consumer, so each new reader of `dns-record` must know which sources exist and how each spells a record. ADR-0011 put the decoder at `(facet, source)` precisely so a reader sees one value space |
-| **Canonicalise the owner name only in the console, and store what the file wrote** | The key would then differ between the two sources at rest, so the two timelines would sit on different `subject_key`s and never be compared. `internal/scan/crtsh.go:157` already records this failure once, on the admission hop's join |
+| **Canonicalise the owner name only in the console, and store what the file wrote** | The key would then differ between the two sources at rest, so the two timelines would sit on different `subject_key`s and never be compared. `internal/scan/crtsh.go#normaliseName` already records this failure once, on the admission hop's join |
 | **State it in [`v1-spec.md`](../spec/v1-spec.md) §3.4 or §4.1** | Both are about the `zone` Scan's cadence, supply instant and skip behaviour, and both are settled and correct. What the value carries is a facet question, and this ADR's ground is ADR-0007 and ADR-0011 rather than the Scan's shape |
 | **Amend [ADR-0011](./0011-a-facet-is-six-parts.md) with a zone clause** | ADR-0011 rules that a facet is six parts and that the decoder is per `(facet, source)`. That rule is correct and unchanged; the zone decoder is what fails it. Filing this there would put a defect report inside a model ruling and blur which of the two is wrong |

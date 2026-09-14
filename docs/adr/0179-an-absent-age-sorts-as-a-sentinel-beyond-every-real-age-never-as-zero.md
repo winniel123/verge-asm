@@ -22,23 +22,23 @@ relations:
 The console has two age-ordered lists, and their sort keys are built the same way and read in two
 different languages.
 
-**Reports.** `reportScheduleRow.LastMins` (`cmd/web/messages.go:356`) is whole minutes since a
+**Reports.** `reportScheduleRow.LastMins` (`cmd/web/messages.go`) is whole minutes since a
 schedule's last delivery. `reportScheduleRows` fills it. A schedule with no delivery row gets
-`reportScheduleNeverRunMins`, declared `1 << 30` at `cmd/web/messages.go:389` and assigned at
+`reportScheduleNeverRunMins`, declared `1 << 30` at `cmd/web/messages.go` and assigned at
 `:392` beside the em dash the Last-sent cell renders (`:391`). A real delivery overwrites it at
 `:399`. The template renders it into a hidden attribute — `data-last="{{.LastMins}}"`
-(`design-system/templates/reports.tmpl:256`) — and the header button at `:251` drives a comparator
+(`design-system/templates/reports.tmpl#reports`) — and the header button at `:251` drives a comparator
 at `:346` that subtracts one `data-last` from another.
 
-**Signals.** `signalRow.seenAge` (`cmd/web/signals.go:72`) is whole minutes since a signal was last
+**Signals.** `signalRow.seenAge` (`cmd/web/signals.go#signalRow`) is whole minutes since a signal was last
 seen. `seenAgeMinutes` (`:685-698`) returns `1 << 62` for an empty timestamp (`:687`) and for an
 unparseable one (`:691`). `sortSignalRows` compares it at `:621-628`, server-side, because Signals
-submits forms and therefore carries its sort in the query string (`cmd/web/signals.go:198`, under
+submits forms and therefore carries its sort in the query string (`cmd/web/signals.go#server.renderSignals`, under
 ADR-0158 §1).
 
 So the same decision is made twice, in two files, in two languages, on two sides of the
 client/server line ADR-0158 draws — and it was written down nowhere. #1365 swept the two
-declaration comments that carried it into one uncited line at `cmd/web/messages.go:390`:
+declaration comments that carried it into one uncited line at `cmd/web/messages.go#reportScheduleRow`:
 
 ```go
 // A never-run schedule sorts last under the client-side sort, so the sentinel exceeds any age.
@@ -117,7 +117,7 @@ and the disagreement is invisible until the operator sorts.
 
 Any age the producer cannot express as a real age is clamped to zero, not folded into the sentinel.
 `seenAgeMinutes` does this at `signals.go:694-696`, and so does `relTime` at
-`cmd/web/messages.go:250-252`. `reportScheduleRows` does not: its `m >= 0` guard at `:398` leaves a
+`cmd/web/messages.go`. `reportScheduleRows` does not: its `m >= 0` guard at `:398` leaves a
 future-dated delivery on the sentinel. **The contradiction is two lines apart in one function.**
 `:397` renders the cell through `relTime`, which clamps the same negative duration and returns
 `"now"` (`:250-255`); `:398` refuses it and leaves `lastMins` at `reportScheduleNeverRunMins`. The
@@ -125,14 +125,14 @@ row then reads *now* and sorts *never*. That is a defect against this limb.
 
 ## Consequences
 
-- **`cmd/web/messages.go:390` gains a citation** and keeps its clause. The rule now has a document,
+- **`cmd/web/messages.go#reportScheduleRow` gains a citation** and keeps its clause. The rule now has a document,
   so the comment is repairable under `comment-policy.md` §4.7 rather than uncited.
-- **`cmd/web/signals.go:687` and `:691` become a defect** against the naming half: one value, two
+- **`cmd/web/signals.go#sevLabel` and `:691` become a defect** against the naming half: one value, two
   bare literals, no name. The fix is a hoisted constant; the ordering is already right.
 - **`reportScheduleNeverRunMins` is declared inside the `for` body** (`messages.go:389`), so it is
   scoped to one iteration and no test and no other function can name it. A named constant nothing
   can reference does half the job this ADR asks of it. It moves to package scope.
-- **`cmd/web/messages.go:398-400` becomes a defect** against §5. Its negative-age fall-through
+- **`cmd/web/messages.go#lastReportDelivery` becomes a defect** against §5. Its negative-age fall-through
   disagrees with the `relTime` call one line above it, and with `seenAgeMinutes`.
 - **A new age-ordered column states its sentinel and its headroom.** The arithmetic in §4 is the
   work a reviewer checks, and it is cheap once.
@@ -140,7 +140,7 @@ row then reads *now* and sorts *never*. That is a defect against this limb.
   ADR rules. Only the representation defects above move.
 - **`CONTEXT.md` gains nothing.** *Sort key* and *sentinel* are console-shell terms, not
   product-domain terms.
-- **`parseSigNum` (`cmd/web/signals.go:677-682`) is out of scope.** It returns `0` for an
+- **`parseSigNum` (`cmd/web/signals.go`) is out of scope.** It returns `0` for an
   unparseable id, but an id is an identity, not an age, and there is no ordering claim that a
   missing id is older or newer than a present one.
 

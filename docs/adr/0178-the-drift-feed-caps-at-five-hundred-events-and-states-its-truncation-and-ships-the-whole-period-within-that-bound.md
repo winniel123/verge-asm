@@ -26,19 +26,19 @@ relations:
 
 | Fact | Site |
 | --- | --- |
-| `const driftFeedLimit int32 = 500` | `cmd/web/drift.go:150` |
-| The widest **preset** is 90d | `cmd/web/drift.go:79` |
-| A **custom** range parses any two `YYYY-MM-DD` dates and has no floor, so the widest reachable window is unbounded outright | `cmd/web/drift.go:114-135`, parse at `:123-124` |
-| The read passes the cap to the query as `MaxEvents` | `cmd/web/drift.go:170-172` |
-| The query cuts newest-first — `ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at` then `LIMIT @max_events` | `db/queries/span.sql:133-134` |
-| The truncation flag | `cmd/web/drift.go:178` |
-| The page states it: *"Showing the most recent {{.FeedLimit}} transitions for this period. Narrow the period to see older change."* | `design-system/templates/drift.tmpl:127-128` |
-| The CSV export states it in a trailing row, and the handler logs it | `cmd/web/driftfeed.go:177-178`, `cmd/web/drift.go:283-284` |
-| `driftPage`'s only post-read pass counts events and sets `Collapsed` after the second group. It filters no group and no event by kind | `cmd/web/drift.go:182-189` |
+| `const driftFeedLimit int32 = 500` | `cmd/web/drift.go` |
+| The widest **preset** is 90d | `cmd/web/drift.go#periodPreset` |
+| A **custom** range parses any two `YYYY-MM-DD` dates and has no floor, so the widest reachable window is unbounded outright | `cmd/web/drift.go`, parse at `:123-124` |
+| The read passes the cap to the query as `MaxEvents` | `cmd/web/drift.go` |
+| The query cuts newest-first — `ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at` then `LIMIT @max_events` | `db/queries/span.sql#ListRecentDriftEvents` |
+| The truncation flag | `cmd/web/drift.go` |
+| The page states it: *"Showing the most recent {{.FeedLimit}} transitions for this period. Narrow the period to see older change."* | `design-system/templates/drift.tmpl#drift` |
+| The CSV export states it in a trailing row, and the handler logs it | `cmd/web/driftfeed.go#server.writeDriftExportCSV`, `cmd/web/drift.go#server.driftExport` |
+| `driftPage`'s only post-read pass counts events and sets `Collapsed` after the second group. It filters no group and no event by kind | `cmd/web/drift.go#server.driftPage` |
 | The template's own `<script>` collapses a group, and filters by kind over `data-kind` on each rendered event | `drift.tmpl:208-215`, `:216-240`; attribute at `:142`, chips at `:125` |
-| Both Drift routes are `GET`, and the template's only `<form>` is a `GET` navigation to `/drift?start=&end=` | `cmd/web/handlers.go:387-388`, `drift.tmpl:106` |
+| Both Drift routes are `GET`, and the template's only `<form>` is a `GET` navigation to `/drift?start=&end=` | `cmd/web/handlers.go#server.handler`, `drift.tmpl:106` |
 
-**ADR-0136 §6 does not suppress this record.** It is `Accepted`, and `docs/adr/0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md:132-134` reads:
+**ADR-0136 §6 does not suppress this record.** It is `Accepted`, and `docs/adr/0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md#decision` reads:
 
 > Stating a truncation and naming its remedy is already the house habit: the Drift feed caps at
 > 500 events and "states plainly when the cap truncated the view rather than dropping rows
@@ -48,7 +48,7 @@ That is [`comment-policy.md`](../spec/comment-policy.md) §8.3's third measured 
 
 **The `ADR-0105` citation the deleted comment carried was wrong, and it is already gone from the template.** The same wrong citation stood at `drift.tmpl:12` in the design-owned header (*"view JS in tmpl, ADR-0105 precedent"*). PR **#1396** (`e1c8809`, the D3 asset sweep) deleted that whole header — not #1420. Nothing in the template cites ADR-0105 today, so no repair is owed there.
 
-**One thing the code does not do.** For a **custom** range the query takes no upper bound (`db/queries/span.sql:109`, `:129`), so the 500 most recent events **since the start date** are read and `filterDriftRowsUntil` trims to the end date at `cmd/web/drift.go:176` — **before** `truncated` is computed at `:178`. A historical custom range therefore reads 500 rows that all post-date it, drops them all, and renders an empty screen with `Truncated` false. It tells the operator there is no change where there is change it never fetched.
+**One thing the code does not do.** For a **custom** range the query takes no upper bound (`db/queries/span.sql#ListSpansForSubject`, `:129`), so the 500 most recent events **since the start date** are read and `filterDriftRowsUntil` trims to the end date at `cmd/web/drift.go` — **before** `truncated` is computed at `:178`. A historical custom range therefore reads 500 rows that all post-date it, drops them all, and renders an empty screen with `Truncated` false. It tells the operator there is no change where there is change it never fetched.
 
 ## Decision
 
@@ -64,7 +64,7 @@ The cap is applied **at the query**, never by discarding rows in Go. One bound, 
 
 ### 2. Recency is the only ordering the cut may use
 
-`db/queries/span.sql:133` sorts `batch_at DESC, batch_id DESC` before `LIMIT`, so the events that survive are the newest. The oldest tail is what is lost, which is the right tail to lose on a screen whose question is *what moved since last time*. Two properties follow, and are ruled rather than merely observed:
+`db/queries/span.sql#ListRecentDriftEvents` sorts `batch_at DESC, batch_id DESC` before `LIMIT`, so the events that survive are the newest. The oldest tail is what is lost, which is the right tail to lose on a screen whose question is *what moved since last time*. Two properties follow, and are ruled rather than merely observed:
 
 - **The cut is not batch-aligned.** The 500th row can fall inside a batch, so the oldest visible group may be a partial batch whose count pill states what was rendered, not what the batch holds. Rounding the cut to a batch boundary would make the bound depend on batch size.
 - **The cut may never be re-ordered by severity, subject, or change kind.** That would make the omitted tail a product judgement about which change matters, which is the Signals screen's job.
@@ -73,7 +73,7 @@ The cap is applied **at the query**, never by discarding rows in Go. One bound, 
 
 Silence would let an operator read a capped feed as a complete period and conclude that nothing else moved. This ADR rules the **requirement**; the copy is [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)'s. The console states it in the `.dr-callout` and the CSV export states it in a trailing row. A new carrier inherits the obligation.
 
-The statement must be **true**, and today it is not. It is suppressed on a historical custom range (Context, last paragraph), and it overstates on every window: the callout names `FeedLimit` while the classifier drops rows it cannot narrate (`cmd/web/driftfeed.go:27-30`, `:78-79`), so fewer than 500 transitions render. The honest number is `TransitionCount`, which the handler already computes at `cmd/web/drift.go:182-188`.
+The statement must be **true**, and today it is not. It is suppressed on a historical custom range (Context, last paragraph), and it overstates on every window: the callout names `FeedLimit` while the classifier drops rows it cannot narrate (`cmd/web/driftfeed.go#buildDriftFeed`, `:78-79`), so fewer than 500 transitions render. The honest number is `TransitionCount`, which the handler already computes at `cmd/web/drift.go#server.driftPage`.
 
 ### 4. Within the bound, the server ships the whole period feed
 
@@ -81,7 +81,7 @@ The statement must be **true**, and today it is not. It is suppressed on a histo
 
 > **A server-side view predicate may not be added to `driftPage` without moving this contract.** No filter by change kind, family, subject, or facet may narrow `Groups` on the server while the client holds the same filter.
 
-The ground is that the client cannot re-fetch what the server withheld. Every chip is a DOM toggle with no request behind it, so a server that shipped only `withdrawn` events would leave the other five chips inert with no route back to the hidden rows. The Movement tally, computed over the same rows at `cmd/web/driftfeed.go:31` and rendered under a *"This period"* heading, would silently become the filter's total rather than the period's.
+The ground is that the client cannot re-fetch what the server withheld. Every chip is a DOM toggle with no request behind it, so a server that shipped only `withdrawn` events would leave the other five chips inert with no route back to the hidden rows. The Movement tally, computed over the same rows at `cmd/web/driftfeed.go#buildDriftFeed` and rendered under a *"This period"* heading, would silently become the filter's total rather than the period's.
 
 A screen that genuinely needs a server-side predicate falls under ADR-0158 limb 1's second half: the predicate moves into the query string, the chips are withdrawn, and this contract is superseded at this site. It is not added alongside.
 
@@ -95,7 +95,7 @@ A screen that genuinely needs a server-side predicate falls under ADR-0158 limb 
 
 - **An operator with more than 500 events in a window loses the oldest tail of it, and is told so.** On a 90d window during an estate expansion that can be most of the period. Narrowing the period recovers the tail, because a narrower window re-reads under the same cap and reaches proportionally further back. `TransitionCount` and the Movement tally are computed over the capped rows, so they state **the window as shown**, never the period.
 - **The truncation statement is wrong in two ways today.** Both are defects against §3, and neither is fixed here.
-- **`driftFeedLimit` is shared by four other reads, and only one renders this page**: the previous-window compare (`cmd/web/drift.go:238`), the CSV export (`:274`), the read-only API (`cmd/web/api_v1.go:176`), and the run-outcome join (`cmd/web/scans.go:820-822`, which passes the zero instant and so reads the 500 most recent events estate-wide). This ADR rules the **console feed**. The run-outcome join is the site whose correctness, not its legibility, rests on the cap, and it is a separate defect on a separate ticket.
+- **`driftFeedLimit` is shared by four other reads, and only one renders this page**: the previous-window compare (`cmd/web/drift.go`), the CSV export (`:274`), the read-only API (`cmd/web/api_v1.go#apiDriftBatch`), and the run-outcome join (`cmd/web/scans.go#runVantages`, which passes the zero instant and so reads the 500 most recent events estate-wide). This ADR rules the **console feed**. The run-outcome join is the site whose correctness, not its legibility, rests on the cap, and it is a separate defect on a separate ticket.
 - **`cmd/web/drift.go`'s two residual comments gain citations**, and [ADR-0136](./0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md) §6 gains a pointer here at its borrowed sentence, per ADR-0058.
 - **No production behaviour changes by this ADR.** §1, §2 and §4 state shapes the code already has.
 

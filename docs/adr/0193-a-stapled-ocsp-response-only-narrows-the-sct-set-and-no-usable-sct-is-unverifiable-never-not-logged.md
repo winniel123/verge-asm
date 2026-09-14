@@ -19,7 +19,7 @@ relations:
 
 ## Context
 
-`internal/scan/ctverify.go:155` carried this, until #1307 shortened it:
+`internal/scan/ctverify.go#parseSCTList` carried this, until #1307 shortened it:
 
 ```go
 // It is best-effort: an OCSP response that does not parse, or carries no
@@ -27,7 +27,7 @@ relations:
 // — it just narrows the SCTs available.
 ```
 
-The clause survives beside the one statement it is about, at `internal/scan/ctverify.go:121`:
+The clause survives beside the one statement it is about, at `internal/scan/ctverify.go#OCSPSCTs`:
 
 ```go
 resp, err := ocsp.ParseResponse(ocspResponse, nil)
@@ -38,7 +38,7 @@ if err != nil {
 
 ### Three SCT sources feed one slice, and none of them can fail the verification
 
-`internal/queue/ctverify.go:99` to `:111`:
+`internal/queue/ctverify.go#Worker.verifyMaterial` to `:111`:
 
 ```go
 if embedded, err := scan.EmbeddedSCTs(leafDER); err == nil { … }
@@ -56,13 +56,13 @@ that will not parse all return `(nil, nil)`. A response with no SCT extension fa
 to the same value. **The `error` in its signature is never non-nil.**
 
 `EmbeddedSCTs` is the counter-case and reaches the same behaviour by a different mechanism. It
-**does** return errors — `scan: embedded sct octet string` at `internal/scan/ctverify.go:108`. The
+**does** return errors — `scan: embedded sct octet string` at `internal/scan/ctverify.go#EmbeddedSCTs`. The
 call site's `err == nil` guard drops the whole set when it fires. So an unparseable embedded SCT list
 also narrows rather than fails, and the property is the caller's rather than the extractor's.
 
 ### The outcome union is three-valued, and the SPEC names two
 
-`internal/queue/ctverify.go:29`:
+`internal/queue/ctverify.go`:
 
 ```go
 const (
@@ -121,7 +121,7 @@ failure, from any of the three sources, ever fails a verification.** It removes 
 
 ### 2. No usable SCT is `unverifiable`, never `not-logged`
 
-`internal/queue/ctverify.go:113` and `:165` are the two arms this limb names, and they are two
+`internal/queue/ctverify.go#Worker.verifyMaterial` and `:165` are the two arms this limb names, and they are two
 different emptinesses that reach the same verdict:
 
 - **`no SCTs presented`** — all three extractors yielded nothing. We hold no claim to check.
@@ -141,7 +141,7 @@ missing certificate.
 
 ### 3. `not-logged` has exactly one warrant
 
-`internal/queue/ctverify.go:163` is reachable only through `notFound`, which is set only by
+`internal/queue/ctverify.go#Worker.verifyMaterial` is reachable only through `notFound`, which is set only by
 `checkOneLog` returning `checkNotFound`. That requires all of:
 
 1. An SCT parsed.
@@ -152,7 +152,7 @@ missing certificate.
 
 **`errored` outranks `notFound` in the final switch.** If any log in the same verification was
 unreachable, the result is `CT log unreachable` and `unverifiable`, even where another log answered
-`not found`. `internal/queue/ctverify.go:160` states why beside the arm: *"An unreachable log may
+`not found`. `internal/queue/ctverify.go#Worker.verifyMaterial` states why beside the arm: *"An unreachable log may
 hold the leaf, so this is never a not-logged verdict."*
 
 **That ordering is the rule, not an implementation detail.** It says a single unanswered question is
@@ -160,7 +160,7 @@ enough to withhold the accusation.
 
 ### 4. `unverifiable` is silent at the operator surface, and that is the conservative discharge
 
-`emitVerifyEvent` (`internal/queue/ctverify.go:261`) emits a plain line for `logged`, a `warn` line
+`emitVerifyEvent` (`internal/queue/ctverify.go`) emits a plain line for `logged`, a `warn` line
 for `not-logged`, and **returns without emitting** for everything else.
 
 So the operator sees nothing for an unverifiable result. **That is correct under this rule and it is
@@ -195,7 +195,7 @@ as a ticket rather than deciding it here.
   amendment** at its own sentence, under ADR-0058, widening the two-valued vocabulary to three. The
   *"NOT logged is the notable signal"* reading survives untouched — this ADR is what protects it.
   Recorded in this issue's manifest.
-- **`internal/scan/ctverify.go:121` gains this ADR's citation** on the surviving line that states the
+- **`internal/scan/ctverify.go#OCSPSCTs` gains this ADR's citation** on the surviving line that states the
   rule. Recorded in this issue's manifest.
 - **`OCSPSCTs`'s `error` return is vestigial and misleads a caller.** Every return carries a nil
   error, so `if ocsp, err := scan.OCSPSCTs(…); err == nil` is a branch that never takes its other
@@ -204,7 +204,7 @@ as a ticket rather than deciding it here.
   `EmbeddedSCTs` and say so at the declaration. This ADR does not decide which, because the symmetry
   argument is real.
 - **§5.4's on-demand re-check is unbuilt, and this ruling exposes it.** `VerifyByFingerprint`
-  (`internal/queue/ctverify.go:49`) has **no caller anywhere in the tree** outside its own file. §5.4
+  (`internal/queue/ctverify.go`) has **no caller anywhere in the tree** outside its own file. §5.4
   specifies *"an **on-demand** re-check"* beside the auto-verify. Only auto-verify is wired, so
   `emitVerifyEvent`'s silence is the operator's entire verification surface. **It ships as its own
   ticket.**
@@ -226,7 +226,7 @@ as a ticket rather than deciding it here.
 | **Fail the verification on a malformed staple** | The staple is attached by the server's software and refreshed by a responder. Neither is under the certificate subject's control, and a parse failure in it says nothing about whether the certificate is in CT. It would also make a verification's outcome depend on an input the other two SCT sources do not need |
 | **Report `not-logged` where no usable SCT was found** | It converts *we could not check* into an accusation §5.4 calls the notable signal — an internal CA, or evasion. Under ADR-0020 only an enumerable source's silence can contradict, and a handshake's SCT set enumerates nothing |
 | **Collapse `unverifiable` into `logged`, so only a positive not-logged is reported** | It would say a certificate is logged when no inclusion query ever ran, which is a false positive claim rather than a cautious one. The three-valued union exists because both errors are available and both are wrong |
-| **Report `not-logged` where one log answered *not found* and another was unreachable** | The unreachable log may hold the leaf. `internal/queue/ctverify.go:160` already refuses this and §3 makes the ordering a rule: one unanswered question withholds the accusation |
+| **Report `not-logged` where one log answered *not found* and another was unreachable** | The unreachable log may hold the leaf. `internal/queue/ctverify.go#Worker.verifyMaterial` already refuses this and §3 makes the ordering a rule: one unanswered question withholds the accusation |
 | **Have `OCSPSCTs` return an error and let the caller ignore it** | It moves the decision to every future caller. `EmbeddedSCTs` already shows the cost: its behaviour on this path is correct only because one call site remembered the `err == nil` guard. Keeping the narrowing inside the OCSP extractor makes the property structural for that source |
 | **Emit an operator event on `unverifiable`** | A verification fires per new `certificate` observation, and an endpoint whose server staples nothing yields `no SCTs presented` every run. Shipping that as an event today would bury the `not-logged` warn line the operator is meant to act on. It is a ticket with a design, not a clause here |
 | **State it in [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.4 alone** | §5.4 is the site that is short by one value, and correcting it records the vocabulary without the reason. ADR-0058's Rationale puts the reasoning at the superseding site. Both edits happen; only one is a decision |

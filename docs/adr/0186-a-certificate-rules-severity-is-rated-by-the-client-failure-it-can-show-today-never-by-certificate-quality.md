@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-`internal/signal/endpoint.go:205` carried this, on the `var` block that declares the five
+`internal/signal/endpoint.go` carried this, on the `var` block that declares the five
 certificate-detail rules, until #1302 compressed it to one line:
 
 ```go
@@ -44,18 +44,18 @@ written in one comment, which #1302 deleted.
 
 ### The grades, and the leaf boolean each rule reads
 
-The domain of all five is one condition — `presentedCert`, at `internal/signal/endpoint.go:107`:
+The domain of all five is one condition — `presentedCert`, at `internal/signal/endpoint.go`:
 the `certificate` facet was measured and its outcome is `Presented`. `NoTLS` is outside all of them,
 per ADR-0024's table. The `not-evaluable` case is the same for all five: the parsed leaf is absent,
 or its one boolean is unset.
 
 | Rule | The boolean, and where it is folded | Grade |
 | --- | --- | --- |
-| `certificate-expired` | `notAfter` is at or before now — `cmd/web/signals.go:1053` | `critical` |
-| `certificate-not-yet-valid` | `notBefore` is after now — `cmd/web/signals.go:1062` | `high` |
-| `certificate-weak-key-or-signature` | RSA under 2048 bits, ECDSA under 224, DSA under 2048/224, or an MD5 or SHA-1 signature on any chain link that is not self-signed — `weakKeyOrSignature`, `cmd/web/signals.go:1151` | `high` |
-| `certificate-self-signed` | the leaf's subject equals its issuer **and** its self-signature verifies — `selfSignedOf`, `cmd/web/signals.go:1083` | `medium` |
-| `certificate-expiring` | `notAfter` is in the future and within the expiry window — `cmd/web/signals.go:1054` | `medium` |
+| `certificate-expired` | `notAfter` is at or before now — `cmd/web/signals.go#estateNameSet` | `critical` |
+| `certificate-not-yet-valid` | `notBefore` is after now — `cmd/web/signals.go#signalInstanceView` | `high` |
+| `certificate-weak-key-or-signature` | RSA under 2048 bits, ECDSA under 224, DSA under 2048/224, or an MD5 or SHA-1 signature on any chain link that is not self-signed — `weakKeyOrSignature`, `cmd/web/signals.go#formatSigID` | `high` |
+| `certificate-self-signed` | the leaf's subject equals its issuer **and** its self-signature verifies — `selfSignedOf`, `cmd/web/signals.go` | `medium` |
+| `certificate-expiring` | `notAfter` is in the future and within the expiry window — `cmd/web/signals.go#estateNameSet` | `medium` |
 
 ### The ranking is not the one a quality reading produces, and the gap is two bands wide
 
@@ -135,7 +135,7 @@ because the failure has not started.
 ### 3. The sixth certificate rule takes the same principle
 
 `certificate-hostname-san-mismatch` is a certificate rule and is not one of the five: it is its own
-type at `internal/signal/endpoint.go:149`, because ADR-0024 gives it a second domain condition — the
+type at `internal/signal/endpoint.go`, because ADR-0024 gives it a second domain condition — the
 `Endpoint` must have a `Name`.
 
 It ships at `high`, and the principle places it there. A client that reaches the endpoint by the
@@ -194,7 +194,7 @@ this ADR refused.
   failure, so it is not covered by this principle and needs its own. That is a gap, not a defect,
   and it is not opened here.
 - **`certificate-expiring`'s window is a defect this ADR rates around, and does not repair.** The
-  shipped predicate reads a flat 30 days, `certExpiryWindow` at `cmd/web/deltas.go:18`.
+  shipped predicate reads a flat 30 days, `certExpiryWindow` at `cmd/web/deltas.go#deltasStore`.
   [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md) ruled the
   horizon to be `N = ⅓ × (not_after − not_before)`, and `½ ×` below a 10-day validity, and gave the
   three clock-reading certificate rules an evaluability guard on the observation's age against that
