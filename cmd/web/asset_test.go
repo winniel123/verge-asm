@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -223,4 +224,19 @@ func TestAssetDetailRequiresLogin(t *testing.T) {
 		t.Fatalf("unauthenticated /asset: status=%d location=%q, want redirect to /login",
 			resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+func TestAssetDetailFailsLoudlyWhenItsPortsReadFails(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	// An address is what carries assetPorts past its early return and into the read (#1948).
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.openSpansErr = errors.New("open spans read failed")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A 200 is the defect: the page renders, and its empty port list reads as no exposure (#1948).
+	getBody(t, ac, base+"/asset/api.example.com", http.StatusInternalServerError)
 }
