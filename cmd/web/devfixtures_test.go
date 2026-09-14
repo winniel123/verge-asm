@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -445,6 +446,18 @@ func TestExposureFixtureMatchesPackage(t *testing.T) {
 		p := devExposureRows[i]
 		if r.Asset != p.asset || r.Svc != p.svc || r.Internal != p.internal || r.Internet != p.internet || r.Since != p.since {
 			t.Errorf("row %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, r, p)
+		}
+	}
+}
+
+func TestExposureFixtureRowsCarryKnownLegStates(t *testing.T) {
+	// An unrecognised state reaches the board as `never looked`, which is a false claim.
+	known := []string{"reached", "not-reached", "gap", "never-looked"}
+	for i, r := range devExposureRows {
+		for class, state := range map[string]string{"internal": r.internal, "internet": r.internet} {
+			if !slices.Contains(known, state) {
+				t.Errorf("row %d %s leg = %q, want one of %q", i, class, state, known)
+			}
 		}
 	}
 }
