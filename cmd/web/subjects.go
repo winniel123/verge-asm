@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
@@ -35,6 +36,7 @@ type subjectsStore interface {
 	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
 	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
 	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
 	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
 }
 
@@ -833,7 +835,7 @@ type assetPageData struct {
 	InScopeSince string
 	Severity     string
 	SevLabel     string
-	Exposure     string
+	InternetLeg  *legChip
 	Ports        []assetPort
 	DNS          []assetDNSRow
 	Cert         *assetCert
@@ -845,7 +847,8 @@ type assetPageData struct {
 type assetPort struct {
 	Port     string
 	Service  string
-	Exposure string
+	Internal legChip
+	Internet legChip
 	Since    string
 }
 
@@ -931,7 +934,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Signals = s.assetSignals(r, key)
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
-	data.Exposure = assetHeaderExposure(data.Ports)
+	data.InternetLeg = assetHeaderInternetLeg(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
 	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
@@ -968,7 +971,7 @@ func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, ac
 	data.Signals = s.assetSignals(r, key)
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
-	data.Exposure = assetHeaderExposure(nil)
+	data.InternetLeg = assetHeaderInternetLeg(nil)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
 	s.render(w, r, "asset", pageData(acct, key, "inventory", map[string]any{
@@ -1044,10 +1047,19 @@ func (s *server) assetPorts(r *http.Request, addresses []string) ([]assetPort, e
 	for _, a := range addresses {
 		addrSet[a] = true
 	}
-	rows, err := s.subjectsStore.ListAllOpenSpans(r.Context())
+	ctx := r.Context()
+	spans, err := s.subjectsStore.ListAllOpenSpans(ctx)
 	if err != nil {
 		return nil, err
 	}
+	legs, err := s.assetReachLegs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return buildAssetPorts(spans, legs, addrSet), nil
+}
+
+func buildAssetPorts(rows []db.ListAllOpenSpansRow, legs map[string]map[string]legInfo, addrSet map[string]bool) []assetPort {
 	servers := map[string]string{}
 	for _, row := range rows {
 		if row.SubjectKind != "endpoint" || row.Facet != "http-identity" {
@@ -1062,23 +1074,51 @@ func (s *server) assetPorts(r *http.Request, addresses []string) ([]assetPort, e
 			servers[addr+":"+port] = srv
 		}
 	}
-	var ports []assetPort
+	var order []string
+	since := map[string]string{}
 	for _, row := range rows {
 		if row.SubjectKind != "service" || row.Facet != "reachability" {
 			continue
 		}
-		addr, port, transport := splitServiceKey(row.SubjectKey)
+		addr, _, _ := splitServiceKey(row.SubjectKey)
 		if !addrSet[addr] {
 			continue
 		}
+		// A reachability span is per vantage, so one port opens one span per prober (#1962).
+		d := row.OpenedAt.Time.UTC().Format(spanTimeFmt)
+		cur, seen := since[row.SubjectKey]
+		if !seen {
+			order = append(order, row.SubjectKey)
+		}
+		if !seen || d < cur {
+			since[row.SubjectKey] = d
+		}
+	}
+	var ports []assetPort
+	for _, key := range order {
+		addr, port, transport := splitServiceKey(key)
 		ports = append(ports, assetPort{
 			Port:     ":" + port,
 			Service:  assetPortService(transport, servers[addr+":"+port]),
-			Exposure: assetExposure(decodeReachability(row.Value).Outcome, row.IsGap),
-			Since:    row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+			Internal: reachLegChip(custody.ClassInternal, legFrom(legs[key]["internal"])),
+			Internet: reachLegChip(custody.ClassInternet, legFrom(legs[key]["internet"])),
+			Since:    since[key],
 		})
 	}
-	return ports, nil
+	return ports
+}
+
+func (s *server) assetReachLegs(ctx context.Context) (map[string]map[string]legInfo, error) {
+	// ListAllOpenSpans carries no dialled address or egress, so a class needs this join (#1962).
+	byClass, err := s.subjectsStore.ListServiceReachabilitySpansByClass(ctx)
+	if err != nil {
+		return nil, err
+	}
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return collapseReachLegs(reachRowsFromCurrent(byClass), covered), nil
 }
 
 func assetPortService(transport, server string) string {
@@ -1192,17 +1232,21 @@ func assetHeaderSeverity(signals []assetSignal) string {
 	return best
 }
 
-func assetHeaderExposure(ports []assetPort) string {
-	rank := map[string]int{"exposed": 0, "firewalled": 1, "not-reached": 2, "unverified": 3}
-	best := ""
+func assetHeaderInternetLeg(ports []assetPort) *legChip {
+	// The header ranks the internet leg alone, because that leg carries the move a signal fires on.
+	rank := map[string]int{"reached": 0, "stopped looking": 1, "not reached": 2, "never looked": 3}
+	best := -1
 	bestRank := len(rank)
-	for _, p := range ports {
-		r, ok := rank[p.Exposure]
-		if ok && r < bestRank {
-			bestRank, best = r, p.Exposure
+	for i, p := range ports {
+		if r, ok := rank[p.Internet.Label]; ok && r < bestRank {
+			bestRank, best = r, i
 		}
 	}
-	return best
+	if best < 0 {
+		return nil
+	}
+	chip := ports[best].Internet
+	return &chip
 }
 
 func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
