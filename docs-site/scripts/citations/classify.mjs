@@ -70,13 +70,17 @@ export function trackedExtensions(tracked) {
   return exts;
 }
 
-function stripTarget(raw) {
-  let value = raw;
-  const hash = value.indexOf("#");
-  if (hash >= 0) value = value.slice(0, hash);
-  const query = value.indexOf("?");
-  if (query >= 0) value = value.slice(0, query);
+function trimTarget(part) {
+  const query = part.indexOf("?");
+  const value = query >= 0 ? part.slice(0, query) : part;
   return value.replace(/[.,;:)\]]+$/, "");
+}
+
+// A code span and a link fragment spell one anchor, so one split reads both (#1968).
+function splitTarget(raw) {
+  const hash = raw.indexOf("#");
+  if (hash < 0) return { value: trimTarget(raw), anchor: "" };
+  return { value: trimTarget(raw.slice(0, hash)), anchor: trimTarget(raw.slice(hash + 1)) };
 }
 
 // A ./ or ../ prefix fixes the reading; anything else is read both ways, because the tree
@@ -189,42 +193,44 @@ export function classify(env, docFile, citations) {
   const { repoRoot, tracked, extensions, roots, exempt } = env;
   const results = [];
   for (const citation of citations) {
-    const value = stripTarget(citation.raw);
+    const { value, anchor } = splitTarget(citation.raw);
     if (value === "" || value === "." || value === "./") continue;
+    // No arm verifies an anchor yet, so a later ticket reads it off the same result (#1970).
+    const base = anchor === "" ? { ...citation, value } : { ...citation, value, anchor };
 
     const skip = ignoreReason(citation, value, tracked, extensions);
     if (skip) {
-      results.push({ ...citation, value, status: "ignored", reason: skip });
+      results.push({ ...base, status: "ignored", reason: skip });
       continue;
     }
 
     const { candidates, rooted, escapes } = normalize(docFile, value);
     if (escapes) {
-      results.push({ ...citation, value, status: "dead", detail: "climbs past the repo root" });
+      results.push({ ...base, status: "dead", detail: "climbs past the repo root" });
       continue;
     }
     if (candidates.length === 0) continue;
     const hit = candidates.find((c) => present(tracked, c));
     if (hit) {
-      results.push({ ...citation, value, path: hit, status: "ok" });
+      results.push({ ...base, path: hit, status: "ok" });
       continue;
     }
 
     // A path rooted at no top-level entry of this repo addresses another project's tree (#1450).
     if (rooted === null || !roots.has(rooted.split("/")[0])) {
-      results.push({ ...citation, value, status: "foreign" });
+      results.push({ ...base, status: "foreign" });
       continue;
     }
 
     const path = rooted;
     if (gitIgnored(repoRoot, path)) {
-      results.push({ ...citation, value, path, status: "untracked" });
+      results.push({ ...base, path, status: "untracked" });
       continue;
     }
 
     const exemption = exempt(docFile, path, value);
     if (exemption) {
-      results.push({ ...citation, value, path, status: "exempt", reason: exemption });
+      results.push({ ...base, path, status: "exempt", reason: exemption });
       continue;
     }
 
@@ -243,19 +249,19 @@ export function classify(env, docFile, citations) {
       if (!refKnown(repoRoot, ref) && unknownRef === null) unknownRef = ref;
     }
     if (resolved) {
-      results.push({ ...citation, value, path, status: "on-ref", ref: resolved.shape });
+      results.push({ ...base, path, status: "on-ref", ref: resolved.shape });
       continue;
     }
     if (unknownRef) {
-      results.push({ ...citation, value, path, status: "ref-unknown", ref: unknownRef });
+      results.push({ ...base, path, status: "ref-unknown", ref: unknownRef });
       continue;
     }
     if (citation.withdrawn || WITHDRAWN_IN_PROSE.test(citation.prose)) {
-      results.push({ ...citation, value, path, status: "withdrawn" });
+      results.push({ ...base, path, status: "withdrawn" });
       continue;
     }
 
-    results.push({ ...citation, value, path, status: "dead" });
+    results.push({ ...base, path, status: "dead" });
   }
   return results;
 }

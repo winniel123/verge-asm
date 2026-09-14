@@ -84,11 +84,13 @@ function fromLink(url) {
 }
 
 // Bare prose spells a path far less exactly, and #1450 measured that population 60% wrong.
-const CODE_PATH = /^[A-Za-z0-9_.@][A-Za-z0-9_.@+-]*(?:\/[A-Za-z0-9_.@+-]+)+\/?$/;
+const CODE_PATH =
+  /^[A-Za-z0-9_.@][A-Za-z0-9_.@+-]*(?:\/[A-Za-z0-9_.@+-]+)+\/?(?:#[A-Za-z0-9_.@+/-]+)?$/;
 
 function fromCode(value) {
   const raw = value.trim();
   if (raw === "" || /\s/.test(raw)) return null;
+  // The anchor spends this gate's one safe character on `#`, and a colon stays out (#1968, #1969).
   if (!CODE_PATH.test(raw)) return null;
   return raw;
 }

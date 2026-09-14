@@ -87,6 +87,51 @@ test("a Go package.Symbol token is not a path", () => {
   assert.deepEqual(dead(markdown), []);
 });
 
+test("a code span carrying an anchor is a candidate, and the result carries the anchor", () => {
+  const hit = results("The list read is `internal/queue/hot.go#hotCore`.").find(
+    (r) => r.value === "internal/queue/hot.go",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal(hit.path, "internal/queue/hot.go");
+  assert.equal(hit.anchor, "hotCore");
+});
+
+test("a link fragment carries the same anchor as the code span", () => {
+  const hit = results("See [hotCore](internal/queue/hot.go#hotCore).").find(
+    (r) => r.value === "internal/queue/hot.go",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal(hit.path, "internal/queue/hot.go");
+  assert.equal(hit.anchor, "hotCore");
+});
+
+test("a citation with no hash carries no anchor", () => {
+  const hit = results("The list read is `internal/queue/hot.go`.").find(
+    (r) => r.value === "internal/queue/hot.go",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal("anchor" in hit, false);
+});
+
+test("an anchor on a path the tree does not hold is dead, and the path is the fault", () => {
+  const markdown = "The list read is `internal/queue/no-such-file.go#hotCore`.";
+  assert.deepEqual(dead(markdown), ["internal/queue/no-such-file.go"]);
+});
+
+test("the anchor character class admits a slash", () => {
+  const hit = results("See `docs/spec/citation-anchors.md#3-the-form/3-1-the-rule`.").find(
+    (r) => r.value === "docs/spec/citation-anchors.md",
+  );
+  assert.equal(hit.status, "ok");
+  assert.equal(hit.anchor, "3-the-form/3-1-the-rule");
+});
+
+test("a space or a quote inside an anchor makes the token no candidate", () => {
+  for (const raw of ["internal/queue/hot.go#hot Core", 'internal/queue/hot.go#"hotCore"']) {
+    assert.deepEqual(results(`The list read is \`${raw}\`.`), []);
+  }
+});
+
 test("a URL route and a markdown template are not paths", () => {
   const markdown = "Open `/settings?tab=api` and file [#NNN](url).";
   assert.deepEqual(dead(markdown), []);
