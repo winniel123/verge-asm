@@ -13,6 +13,8 @@ import { goInventory } from "./citations/rows/go.mjs";
 import { rowFor } from "./citations/rows.mjs";
 import { SQLC_ROW } from "./citations/rows/sqlc.mjs";
 import { TEMPLATE_ROW } from "./citations/rows/template.mjs";
+import { MARKDOWN_ROW } from "./citations/rows/markdown.mjs";
+import { readdirSync, readFileSync } from "node:fs";
 import { environment } from "./check-citations.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -163,9 +165,9 @@ test("an anchor on a withdrawn path is passed over, and --verbose names the buck
 test("a target kind with no row is passed over, and neither passes nor fails", () => {
   // The table is open, and a missing row never blocks a citation (SPEC §3.2 rule 1).
   assert.equal(rowFor("db/migrations/00100_init.sql"), null);
-  const { noRow, broken } = anchorsOf("The SPEC is `docs/spec/v1-spec.md#no-such-heading`.");
+  const { noRow, broken } = anchorsOf("The scripts are `docs-site/package.json#scripts`.");
   assert.deepEqual(broken, []);
-  assert.deepEqual(noRow.map(key), ["docs/spec/v1-spec.md#no-such-heading"]);
+  assert.deepEqual(noRow.map(key), ["docs-site/package.json#scripts"]);
 });
 
 test("a row whose inventory reports an unparseable target is fatal, never a violation", () => {
@@ -367,6 +369,137 @@ test("the CLI exits 1 on a broken template anchor, and 0 on one that resolves", 
     writeFileSync(fixture, `The card is \`${TMPL_TARGET}#noSuchDefine\`.\n`);
     assert.equal(cliStatus([fixture]), 1);
     writeFileSync(fixture, `The card is \`${TMPL_TARGET}#coverage\`.\n`);
+    assert.equal(cliStatus([fixture]), 0);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+const MD_TARGET = "docs/spec/citation-anchors.md";
+
+// The row reads a file, so a fixture proves a heading shape the tree does not happen to hold.
+function inventoryOf(markdown) {
+  const rel = `docs-site/scripts/citations/heading-${process.pid}.md`;
+  const fixture = join(REPO_ROOT, rel);
+  try {
+    writeFileSync(fixture, markdown);
+    return MARKDOWN_ROW.inventory(REPO_ROOT, [rel]).get(rel);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+}
+
+test("a Markdown anchor naming a real heading slug passes, and an absent one is broken", () => {
+  assert.deepEqual(verifiedAnchors(`The form is \`${MD_TARGET}#3-the-form\`.`), [
+    `${MD_TARGET}#3-the-form`,
+  ]);
+  const token = `${MD_TARGET}#3-the-shape`;
+  const { broken } = anchorsOf(`The form is \`${token}\`.`);
+  assert.deepEqual(broken.map(key), [token]);
+  assert.match(formatBroken(broken[0]), /declares no `github-slugger` heading slug named/);
+});
+
+test("every heading level is citable, H1 to H6", () => {
+  // A numbered heading earns no privilege (SPEC §4 rule 1).
+  const levels = [1, 2, 3, 4, 5, 6].map((n) => `${"#".repeat(n)} Level ${n}\n`).join("\n");
+  const { ids } = { ids: inventoryOf(levels).names };
+  for (const n of [1, 2, 3, 4, 5, 6]) assert.ok(ids.has(`level-${n}`), `H${n}`);
+});
+
+test("the slug is derived from the inline-markup-stripped label", () => {
+  // Stripping matches what both renderers slug (SPEC §4 rule 6).
+  const entry = inventoryOf(
+    [
+      "## The `citations` gate",
+      "",
+      "## A **bold** claim",
+      "",
+      "## An *italic* claim",
+      "",
+      "## See [the SPEC](docs/spec/citation-anchors.md)",
+      "",
+    ].join("\n"),
+  );
+  for (const slug of ["the-citations-gate", "a-bold-claim", "an-italic-claim", "see-the-spec"]) {
+    assert.ok(entry.names.has(slug), slug);
+  }
+  // The same rule holds on a tracked file, so the row and the fixture agree.
+  assert.deepEqual(
+    verifiedAnchors(`The field is \`${MD_TARGET}#6-the-adr-decision-proposal-blocks-site-field\`.`),
+    [`${MD_TARGET}#6-the-adr-decision-proposal-blocks-site-field`],
+  );
+});
+
+test("a de-duplicated slug is refused, and the reason names the drift", () => {
+  // The suffix is positional, so a copy inserted above re-points it in silence (SPEC §4 rule 4).
+  const entry = inventoryOf("## Consequences\n\n## Consequences\n");
+  assert.deepEqual([...entry.names].sort(), ["consequences", "consequences-1"]);
+  assert.match(entry.refused.get("consequences-1"), /a de-duplicated slug/);
+  assert.match(entry.refused.get("consequences-1"), /re-points the anchor in silence/);
+  // SPEC §4 rule 4 refuses the suffix. The unsuffixed first copy is outside the rule as written.
+  assert.equal(entry.refused.has("consequences"), false);
+});
+
+test("a refused spelling reaches the broken bucket carrying the row's own reason", () => {
+  // A row may hold a name and still refuse it, so the reason replaces the absence message.
+  const { broken, verified } = stubbed(`It is \`${MD_TARGET}#consequences-1\`.`, {
+    name: "stub",
+    vocabulary: "heading slug",
+    matches: (path) => path.endsWith(".md"),
+    inventory: (_root, paths) =>
+      new Map(
+        paths.map((p) => [
+          p,
+          {
+            names: new Set(["consequences-1"]),
+            refused: new Map([["consequences-1", "a de-duplicated slug: it drifts in silence"]]),
+          },
+        ]),
+      ),
+  });
+  assert.deepEqual(verified, []);
+  assert.equal(broken.length, 1);
+  assert.match(formatBroken(broken[0]), /a de-duplicated slug: it drifts in silence/);
+});
+
+test("a heading inside a fence is not a heading, so it slugs no anchor", () => {
+  const entry = inventoryOf(["```sh", "# not a heading", "```", "", "## A real heading", ""].join("\n"));
+  assert.deepEqual([...entry.names], ["a-real-heading"]);
+});
+
+test("a target carrying no heading takes a bare path, and a citation with no anchor passes", () => {
+  // A citation never re-heads its target (SPEC §4 rule 3).
+  assert.equal(inventoryOf("Body text only, and no heading at all.\n").names.size, 0);
+  const { anchored, broken } = anchorsOf(`The SPEC is \`${MD_TARGET}\`.`);
+  assert.deepEqual(anchored, []);
+  assert.deepEqual(broken, []);
+});
+
+test("a link fragment carries the Markdown vocabulary too", () => {
+  // The rule binds both spellings, for every row (SPEC §3.5).
+  assert.deepEqual(verifiedAnchors(`See [the form](../../${MD_TARGET}#3-the-form).`), [
+    `../../${MD_TARGET}#3-the-form`,
+  ]);
+  assert.deepEqual(brokenAnchors(`See [the form](../../${MD_TARGET}#gone).`), [
+    `../../${MD_TARGET}#gone`,
+  ]);
+});
+
+test("one heading inventory feeds both checks, so no script builds a second", () => {
+  // Do not add a fourth copy: two renderers already slug this way (SPEC §4 rule 6).
+  const builders = readdirSync(SCRIPT_DIR, { recursive: true })
+    .map(String)
+    .filter((f) => f.endsWith(".mjs") && !f.endsWith(".test.mjs"))
+    .filter((f) => readFileSync(join(SCRIPT_DIR, f), "utf8").includes("new GithubSlugger"));
+  assert.deepEqual(builders, ["headings.mjs"]);
+});
+
+test("the CLI exits 1 on a broken Markdown anchor, and 0 on one that resolves", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `mdanchor-${process.pid}.md`);
+  try {
+    writeFileSync(fixture, `The form is \`${MD_TARGET}#no-such-heading\`.\n`);
+    assert.equal(cliStatus([fixture]), 1);
+    writeFileSync(fixture, `The form is \`${MD_TARGET}#3-the-form\`.\n`);
     assert.equal(cliStatus([fixture]), 0);
   } finally {
     rmSync(fixture, { force: true });
