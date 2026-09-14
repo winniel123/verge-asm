@@ -14,6 +14,11 @@
 .sd-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
 .sd-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
 .sd-body { padding: 20px; }
+.as-leg { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.as-leg.exposed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.as-leg.firewalled { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.as-leg.notreached { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.as-leg.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
 .sd-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
 .sd-wmark { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: transparent; border: 1px dashed var(--drift-loss-border); color: var(--drift-loss-fg); font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; }
 .sd-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
