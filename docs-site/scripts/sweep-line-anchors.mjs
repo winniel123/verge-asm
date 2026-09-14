@@ -20,10 +20,23 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
 const USAGE = `usage:
   sweep-line-anchors [<path>...]            # a dry run, and it writes nothing
   sweep-line-anchors --write <path>...      # convert those documents and delete their entries
+  sweep-line-anchors --report <file> ...    # also write the plan as JSON
 
 A <path> is a document or a directory prefix, spelled from the repository root.
 A dry run with no path reads the whole burn-down list.
 `;
+
+// A --write run leaves no trace of a degradation, and SPEC §8.4 feeds a later repair effort.
+export function reportRecord(results) {
+  return results.map((r) => ({
+    file: r.file,
+    line: r.line,
+    token: r.token,
+    outcome: r.outcome,
+    row: r.row?.name,
+    ...(r.outcome === "anchor" ? { anchor: `${r.value}#${r.anchor}` } : { reason: r.reason }),
+  }));
+}
 
 // A prefix reads as a directory, so `docs/spec` takes every document under it.
 export function selectEntries(entries, prefixes) {
@@ -34,7 +47,13 @@ export function selectEntries(entries, prefixes) {
 export function scanDocuments(repoRoot, files) {
   const found = new Map();
   for (const file of files) {
-    const markdown = readFileSync(join(repoRoot, file), "utf8");
+    let markdown;
+    try {
+      markdown = readFileSync(join(repoRoot, file), "utf8");
+    } catch {
+      // A listed document a later edit deleted must not kill the dry run (#1436 reads it so).
+      continue;
+    }
     const hits = scanLineAnchorsFromTree(parse(markdown)).map((h) => ({
       ...h,
       file,
@@ -94,7 +113,8 @@ function report(results, missing) {
     for (const r of holds) console.log(`  ${r.file}:${r.line}  ${r.token}  (${r.reason})`);
   }
 
-  const glued = results.filter((r) => r.glue);
+  // A held token is never rewritten, so no suffix of its is ever dropped.
+  const glued = results.filter((r) => r.glue && r.outcome !== "held");
   if (glued.length > 0) {
     console.log("");
     console.log("Consumed — a suffix the anchor class would swallow, and a region subsumes:");
@@ -138,26 +158,31 @@ function writeBurndown(entries, results) {
   return entries.length - kept.length;
 }
 
-function writeDocuments(repoRoot, results, found) {
+// A half-written tree beside an untouched list is the split SPEC §8.2 forbids.
+function planWrites(results, found) {
   const byFile = new Map();
   for (const r of results) {
     if (!byFile.has(r.file)) byFile.set(r.file, []);
     byFile.get(r.file).push(r);
   }
+  const writes = [];
   for (const [file, conversions] of byFile) {
     const { markdown, hits } = found.get(file);
     const next = rewriteDocument(markdown, conversions);
-    writeFileSync(join(repoRoot, file), next);
-    // A conversion the scan still finds would leave a stale entry behind (SPEC §8.2 rule 4).
-    const before = hits.length;
-    const after = scanLineAnchorsFromTree(parse(next)).length;
-    if (before - after !== conversions.length) {
+    const converted = hits.length - scanLineAnchorsFromTree(parse(next)).length;
+    if (converted !== conversions.length) {
       throw new Error(
-        `sweep: ${file} converted ${before - after} token(s), and ${conversions.length} were planned`,
+        `sweep: ${file} converted ${converted} token(s), and ${conversions.length} were planned`,
       );
     }
+    writes.push({ file, next });
   }
-  return byFile.size;
+  return writes;
+}
+
+function writeDocuments(repoRoot, writes) {
+  for (const { file, next } of writes) writeFileSync(join(repoRoot, file), next);
+  return writes.length;
 }
 
 function main() {
@@ -167,7 +192,14 @@ function main() {
     return;
   }
   const write = argv.includes("--write");
-  const prefixes = argv.filter((a) => !a.startsWith("--")).map((p) => p.replace(/\/+$/, ""));
+  const at = argv.indexOf("--report");
+  const reportFile = at >= 0 ? argv[at + 1] : null;
+  if (at >= 0 && (reportFile === undefined || reportFile.startsWith("--"))) {
+    console.error("sweep: --report names the file it writes the plan to");
+    process.exit(2);
+  }
+  const args = argv.filter((a, i) => !a.startsWith("--") && i !== at + 1);
+  const prefixes = args.map((p) => p.replace(/\/+$/, ""));
   if (write && prefixes.length === 0) {
     console.error("sweep: --write names the documents it rewrites, so it takes a path");
     process.exit(2);
@@ -184,13 +216,21 @@ function main() {
   const { results, missing } = planFor(REPO_ROOT, env, entries, found);
   const { anchors, degradations, holds } = report(results, missing);
 
+  if (reportFile) {
+    writeFileSync(reportFile, `${JSON.stringify(reportRecord(results), null, 2)}\n`);
+    console.log("");
+    console.log(`  wrote the plan to ${reportFile}`);
+  }
+
   if (!write) {
     console.log("");
     console.log("  a dry run wrote nothing. Re-run with --write <path>... to convert.");
     return;
   }
   const converted = results.filter((r) => r.outcome !== "held");
-  const documents = writeDocuments(REPO_ROOT, converted, found);
+  // Build and check every rewrite before one byte lands, so no throw can split the act.
+  const writes = planWrites(converted, found);
+  const documents = writeDocuments(REPO_ROOT, writes);
   const deleted = writeBurndown(loadBurndown(), results);
   console.log("");
   console.log(

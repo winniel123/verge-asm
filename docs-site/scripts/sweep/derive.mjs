@@ -101,11 +101,17 @@ export function derive(repoRoot, env, found, rows = ROWS) {
 
   for (const hit of found) {
     const parts = splitToken(hit.token);
+    // No bare path is recoverable here, so the token is never rewritten.
     if (parts === null) {
-      done.push(degraded({ ...hit }, "the token spells no line"));
+      done.push(held({ ...hit }, "the token spells no line"));
       continue;
     }
     const base = { ...hit, value: parts.value, fromLine: parts.fromLine, toLine: parts.toLine };
+    // A reversed range satisfies the containment test against a region holding neither line.
+    if (parts.fromLine > parts.toLine) {
+      done.push(degraded(base, `the range ${parts.fromLine}-${parts.toLine} runs backwards`));
+      continue;
+    }
     const { status, path } = resolvePath(env, hit.file, parts.value);
     if (status === "dead") {
       const why = `${parts.value} is no longer in the tree, so the bare path would red the gate`;

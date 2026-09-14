@@ -8,7 +8,7 @@ import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
 import { ROWS } from "./citations/rows.mjs";
 import { derive, splitToken } from "./sweep/derive.mjs";
 import { rewriteDocument, replacementFor, trailingGlue } from "./sweep/rewrite.mjs";
-import { selectEntries, planFor } from "./sweep-line-anchors.mjs";
+import { selectEntries, planFor, scanDocuments, reportRecord } from "./sweep-line-anchors.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -307,6 +307,54 @@ test("one token converts at one site and holds at another", () => {
     { ...hits[1], outcome: "degraded", value: "a/b.go" },
   ]);
   assert.equal(out, "`a/b.go#Alpha` once, and `a/b.go` twice.\n");
+});
+
+test("a link label holding a code span converts both, and the outer node wins", () => {
+  const md = "See [the queue `a/b.go:4`](a/b.go:4).\n";
+  const hits = scanLineAnchorsFromTree(parse(md));
+  assert.equal(hits.length, 2);
+  const out = rewriteDocument(
+    md,
+    hits.map((h) => ({ ...h, outcome: "anchor", value: "a/b.go", anchor: "Alpha" })),
+  );
+  assert.equal(out, "See [the queue `a/b.go#Alpha`](a/b.go#Alpha).\n");
+  assert.equal(scanLineAnchorsFromTree(parse(out)).length, 0);
+});
+
+test("a nested span the run spells two ways rewrites nothing", () => {
+  const md = "See [the queue `a/b.go:4`](a/b.go:4).\n";
+  const hits = scanLineAnchorsFromTree(parse(md));
+  assert.throws(
+    () =>
+      rewriteDocument(md, [
+        { ...hits[0], outcome: "anchor", value: "a/b.go", anchor: "Alpha" },
+        { ...hits[1], outcome: "degraded", value: "a/b.go" },
+      ]),
+    /two ways/,
+  );
+});
+
+test("a reversed range degrades, and mints no anchor from a region holding neither line", () => {
+  const token = `${FIXTURE}/go/decls.go:${goLine("var Zeta")}-${goLine("return 1")}`;
+  const [r] = run({ "go/decls.go": GO_SOURCE }, [token]);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /runs backwards/);
+});
+
+test("a burn-down entry naming a deleted document leaves the dry run alive", () => {
+  const found = scanDocuments(REPO_ROOT, [`docs/gone-${process.pid}.md`]);
+  assert.equal(found.size, 0);
+});
+
+test("reportRecord carries the anchor or the reason, so the record outlives the run", () => {
+  const record = reportRecord([
+    { file: "d.md", line: 3, token: "a/b.go:4", outcome: "anchor", value: "a/b.go", anchor: "Alpha", row: { name: "go" } },
+    { file: "d.md", line: 9, token: "a/c.go:7", outcome: "degraded", reason: "line 7 of a/c.go is blank" },
+  ]);
+  assert.equal(record[0].anchor, "a/b.go#Alpha");
+  assert.equal(record[0].row, "go");
+  assert.equal(record[1].reason, "line 7 of a/c.go is blank");
+  assert.equal(record[1].anchor, undefined);
 });
 
 test("selectEntries reads a path as a document or a directory prefix", () => {

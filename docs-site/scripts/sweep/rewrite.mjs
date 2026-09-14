@@ -25,6 +25,37 @@ function replaceIn(text, replacements) {
   return text.replace(gluedPattern(), (m, token) => replacements.get(token) ?? m);
 }
 
+// A link label may hold a code span, and the scan reads both. The inner splice would move the
+// outer node's end, so an enclosed range merges into its enclosing one and the outermost wins.
+function groupEdits(conversions) {
+  const sorted = [...conversions].sort((a, b) => a.start - b.start || b.end - a.end);
+  const groups = [];
+  for (const r of sorted) {
+    if (r.start === undefined || r.end === undefined) {
+      throw new Error(`sweep: the scan gave no position for ${r.token}`);
+    }
+    const open = groups[groups.length - 1];
+    if (open && r.start < open.end) {
+      // A partial overlap is not a shape mdast produces, and a blind merge would widen the window.
+      if (r.end > open.end) throw new Error(`sweep: ${r.token} overlaps without nesting`);
+      open.members.push(r);
+      continue;
+    }
+    groups.push({ start: r.start, end: r.end, members: [r] });
+  }
+  return groups.map((g) => {
+    const replacements = new Map();
+    for (const r of g.members) {
+      const to = replacementFor(r);
+      const seen = replacements.get(r.token);
+      // One slice cannot spell one token two ways, so a split verdict rewrites nothing here.
+      if (seen !== undefined && seen !== to) return { ...g, conflict: r.token };
+      replacements.set(r.token, to);
+    }
+    return { ...g, replacements };
+  });
+}
+
 /**
  * Rewrite one document in place, inside the nodes the scan read.
  *
@@ -33,17 +64,13 @@ function replaceIn(text, replacements) {
  * snippet at one site and not at the other.
  */
 export function rewriteDocument(markdown, conversions) {
-  const edits = new Map();
-  for (const r of conversions) {
-    if (r.start === undefined || r.end === undefined) {
-      throw new Error(`sweep: the scan gave no position for ${r.token}`);
-    }
-    const key = `${r.start}:${r.end}`;
-    if (!edits.has(key)) edits.set(key, { start: r.start, end: r.end, replacements: new Map() });
-    edits.get(key).replacements.set(r.token, replacementFor(r));
+  const groups = groupEdits(conversions);
+  const conflicts = groups.filter((g) => g.conflict);
+  if (conflicts.length > 0) {
+    throw new Error(`sweep: one span spells ${conflicts.map((g) => g.conflict).join(", ")} two ways`);
   }
   // Last edit first, so an earlier splice never moves a later offset.
-  const ordered = [...edits.values()].sort((a, b) => b.start - a.start);
+  const ordered = groups.sort((a, b) => b.start - a.start);
   let out = markdown;
   for (const { start, end, replacements } of ordered) {
     out = out.slice(0, start) + replaceIn(out.slice(start, end), replacements) + out.slice(end);
