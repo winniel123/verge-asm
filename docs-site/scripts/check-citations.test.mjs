@@ -1,20 +1,31 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { writeFileSync, rmSync, existsSync } from "node:fs";
+import { writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { extractCitations } from "./citations/extract.mjs";
+import { extractCitations, refTokensOf } from "./citations/extract.mjs";
 import { classify } from "./citations/classify.mjs";
 import { loadExemptions } from "./citations/exempt.mjs";
 import { isInScope, inScopeFiles } from "./citations/scope.mjs";
-import { environment, run } from "./check-citations.mjs";
+import { scanLineAnchors } from "./citations/lineanchor.mjs";
+import { loadBurndown } from "./citations/burndown.mjs";
+import { parse } from "./doclint/engine.mjs";
+import { armA, environment, formatStale, run } from "./check-citations.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..", "..");
 const ENV = environment(REPO_ROOT);
 
 const DOC = "docs/adr/0001-stack-and-runtime.md";
+
+let treeRun = null;
+
+// One whole-tree run, because each costs about 27 seconds and `citations` is a required check.
+function wholeTree() {
+  if (treeRun === null) treeRun = run(REPO_ROOT, inScopeFiles(REPO_ROOT));
+  return treeRun;
+}
 
 function results(markdown, docFile = DOC) {
   return classify(ENV, docFile, extractCitations(markdown));
@@ -219,7 +230,7 @@ test("every exemption names a document that still exists", () => {
 
 test("every exemption still suppresses something", () => {
   const byFile = new Map();
-  for (const r of run(REPO_ROOT, inScopeFiles(REPO_ROOT)).results) {
+  for (const r of wholeTree().results) {
     if (r.status !== "exempt") continue;
     byFile.set(`${r.file}\u0000${r.path}`, true);
     byFile.set(`${r.file}\u0000${r.value}`, true);
@@ -264,7 +275,7 @@ test("a target that climbs past the repo root is dead, and is never probed", () 
 });
 
 test("the tree cites no dead path", () => {
-  const rot = run(REPO_ROOT, inScopeFiles(REPO_ROOT)).results.filter((r) => r.status === "dead");
+  const rot = wholeTree().results.filter((r) => r.status === "dead");
   const detail = rot.map((r) => `  ${r.file}:${r.line} -> ${r.value}`).join("\n");
   assert.equal(rot.length, 0, `\n${detail}`);
 });
@@ -301,12 +312,23 @@ test("every citation the gate passes over is counted, and --verbose lists it", (
 });
 
 test("the judged total is the sum of its buckets, so no citation hides in a rounding", () => {
-  const { results: all } = run(REPO_ROOT, inScopeFiles(REPO_ROOT));
+  const { results: all } = wholeTree();
   const count = (status) => all.filter((r) => r.status === status).length;
   const judged = all.length - count("ignored");
   const buckets = ["ok", "withdrawn", "exempt", "foreign", "untracked", "on-ref", "ref-unknown", "dead"];
   assert.equal(buckets.reduce((sum, s) => sum + count(s), 0), judged);
 });
+
+function cliOutput(args) {
+  try {
+    return execFileSync("node", [join(SCRIPT_DIR, "check-citations.mjs"), ...args], {
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  } catch (err) {
+    return err.stdout ?? "";
+  }
+}
 
 function cliStatus(args) {
   try {
@@ -331,6 +353,138 @@ test("the CLI exits non-zero on a dead path", () => {
 });
 
 test("the CLI exits 2 on an argument it cannot read", () => {
-  assert.equal(cliStatus([join(REPO_ROOT, "docs", `gone-${process.pid}.md`)]), 2);
   assert.equal(cliStatus([join(REPO_ROOT, "docs", "adr")]), 2);
+  assert.equal(cliStatus([join(REPO_ROOT, "docs", `gone-${process.pid}.md`)]), 2);
+});
+
+// Arm A: a citation names no line (SPEC docs/spec/citation-anchors.md §5, §7.5, §8.2).
+
+const tokens = (markdown) => scanLineAnchors(markdown).map((a) => a.token);
+
+test("a line anchor is found in a code span, in a link target, and as a line fragment", () => {
+  assert.deepEqual(tokens("The rule sits at `docs/spec/v1-spec.md:247` today."), [
+    "docs/spec/v1-spec.md:247",
+  ]);
+  assert.deepEqual(scanLineAnchors("See [the rule](docs/spec/v1-spec.md:247)."), [
+    { token: "docs/spec/v1-spec.md:247", kind: "link", line: 1 },
+  ]);
+  assert.deepEqual(scanLineAnchors("A range sits at `internal/queue/hot.go:165-172`."), [
+    { token: "internal/queue/hot.go:165-172", kind: "code", line: 1 },
+  ]);
+  assert.deepEqual(tokens("GitHub writes `internal/queue/hot.go#L247`."), [
+    "internal/queue/hot.go#L247",
+  ]);
+  assert.deepEqual(tokens("GitHub writes `internal/queue/hot.go#L247-L260`."), [
+    "internal/queue/hot.go#L247-L260",
+  ]);
+});
+
+test("a line anchor beside a named ref cannot drift, so it passes", () => {
+  const markdown =
+    "Prototype source: branch `research/843-rawoutput-prototype`, `design-system/templates/rundetail-rawoutput.prototype.html:42`.";
+  assert.deepEqual(tokens(markdown), []);
+  // The carve-out reads the extractor's own helper, never a second copy (SPEC §5).
+  assert.equal(typeof refTokensOf, "function");
+  assert.equal(refTokensOf(parse(markdown)).refsByBlock.size, 1);
+});
+
+test("a fenced block is sample text for Arm A too", () => {
+  assert.deepEqual(tokens("```sh\nsed -n 247p docs/spec/v1-spec.md:247\n```\n"), []);
+});
+
+test("an anchored citation and a bare path are no line anchor", () => {
+  assert.deepEqual(tokens("The list read is `internal/queue/hot.go#hotCore`."), []);
+  assert.deepEqual(tokens("The list read is `internal/queue/hot.go`."), []);
+  assert.deepEqual(tokens("The tunnel opens `http://127.0.0.1:8090/` on this host."), []);
+  assert.deepEqual(tokens("The base image is `ghcr.io/owner/app:1.26`."), []);
+});
+
+test("a line anchor in docs/research is outside the boundary", () => {
+  const outside = join(REPO_ROOT, "docs/research/nmap-services-licence.md");
+  // The document holds line anchors, so the pass comes from the boundary, not an empty file.
+  assert.ok(scanLineAnchors(readFileSync(outside, "utf8")).length > 0);
+  assert.equal(isInScope(REPO_ROOT, outside), false);
+
+  const anchors = wholeTree().lineAnchors;
+  assert.ok(anchors.length > 0);
+  assert.deepEqual(anchors.filter((a) => a.file.startsWith("docs/research/")), []);
+});
+
+test("the seeded list holds every in-scope line anchor, and nothing it cannot find", () => {
+  const { lineAnchors } = wholeTree();
+  const { refused, stale } = armA(lineAnchors, loadBurndown());
+  assert.deepEqual(refused.map((a) => `${a.file}:${a.line} -> ${a.token}`), []);
+  assert.deepEqual(stale.map((e) => `${e.file} -> ${e.token}`), []);
+});
+
+test("an entry the scanner no longer finds is stale, and the message says so", () => {
+  const found = [{ file: DOC, token: "internal/queue/hot.go:165", line: 31, kind: "code" }];
+  const { refused, stale } = armA(found, [
+    { file: DOC, token: "internal/queue/hot.go:165" },
+    { file: DOC, token: "internal/queue/gone.go:12" },
+  ]);
+  assert.deepEqual(refused, []);
+  assert.deepEqual(stale, [{ file: DOC, token: "internal/queue/gone.go:12" }]);
+  assert.match(formatStale(stale[0]), /stale entry/);
+});
+
+test("a burn-down entry carrying a reason fails the loader", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `burndown-${process.pid}.json`);
+  const entry = { file: DOC, token: "internal/queue/hot.go:165" };
+  try {
+    writeFileSync(fixture, JSON.stringify({ entries: [entry] }));
+    assert.deepEqual(loadBurndown(fixture), [entry]);
+
+    writeFileSync(fixture, JSON.stringify({ entries: [{ ...entry, reason: "it is old" }] }));
+    assert.throws(() => loadBurndown(fixture), /carries no reason/);
+
+    writeFileSync(fixture, JSON.stringify({ entries: [entry, entry] }));
+    assert.throws(() => loadBurndown(fixture), /duplicate burn-down entry/);
+
+    writeFileSync(fixture, JSON.stringify({ entries: [{ file: DOC }] }));
+    assert.throws(() => loadBurndown(fixture), /needs file and token/);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+test("the CLI exits 1 on a new line anchor, and names the document, the line and the token", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `lineanchor-${process.pid}.md`);
+  const rel = `docs-site/scripts/citations/lineanchor-${process.pid}.md`;
+  for (const token of [
+    "`docs/spec/v1-spec.md:247`",
+    "[the rule](docs/spec/v1-spec.md:247)",
+    "`docs/spec/v1-spec.md#L247`",
+    "`docs/spec/v1-spec.md#L247-L260`",
+  ]) {
+    writeFileSync(fixture, `The rule sits at ${token} today.\n`);
+    try {
+      assert.equal(cliStatus([fixture]), 1, token);
+      assert.match(cliOutput([fixture]), new RegExp(`${rel}:1 {2}-> {2}docs/spec/v1-spec\\.md[:#]L?247`));
+      assert.match(cliOutput([fixture]), /a citation names no line/);
+    } finally {
+      rmSync(fixture, { force: true });
+    }
+  }
+});
+
+test("a line anchor a named ref pins passes the CLI, and a bare path passes", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `onref-${process.pid}.md`);
+  writeFileSync(
+    fixture,
+    "Read at commit `6142247`: `docs/spec/v1-spec.md:247`.\n\nThe rule sits in `docs/spec/v1-spec.md`.\n",
+  );
+  try {
+    assert.equal(cliStatus([fixture]), 0);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+test("the summary prints the list's length, so a reader sizes the sweep", () => {
+  const out = cliOutput([]);
+  assert.match(out, /\d+ {2}line anchor\(s\) the sweep has not reached/);
+  assert.match(out, /\d+ {2}refused: a citation names no line/);
+  assert.match(out, /\d+ {2}stale: an entry no scan finds/);
+  assert.match(out, new RegExp(`${loadBurndown().length} {2}line anchor\\(s\\) the sweep has not reached`));
 });

@@ -30,14 +30,14 @@ function lineOf(node) {
   return node.position?.start?.line ?? 1;
 }
 
-function nearestBlock(ancestors) {
+export function nearestBlock(ancestors) {
   for (let i = ancestors.length - 1; i >= 0; i--) {
     if (BLOCK.has(ancestors[i].type)) return ancestors[i];
   }
   return ancestors[0] ?? null;
 }
 
-function inOpaque(ancestors) {
+export function inOpaque(ancestors) {
   return ancestors.some((a) => OPAQUE.has(a.type));
 }
 

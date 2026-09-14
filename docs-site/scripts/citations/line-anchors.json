@@ -1,0 +1,4073 @@
+{
+  "comment": "The line anchors the sweep has not reached, one entry per document and token. A citation names no line, and the check refuses every line anchor this list does not hold (SPEC docs/spec/citation-anchors.md §5, §8.2). It also refuses an entry no scan finds, so a conversion pull request edits the document and this list together. An entry carries no reason: a reason makes the list permanent, and an empty list is what proves the sweep complete. Regenerate with `npm run check:citations -- --write-list` (#1969).",
+  "entries": [
+    {
+      "file": "docs/adr/0009-verge-core-is-a-union.md",
+      "token": "internal/queue/hot.go:165"
+    },
+    {
+      "file": "docs/adr/0009-verge-core-is-a-union.md",
+      "token": "internal/vergecore/vergecore.go:47"
+    },
+    {
+      "file": "docs/adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md",
+      "token": "internal/release/fetcher.go:18"
+    },
+    {
+      "file": "docs/adr/0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md",
+      "token": "cmd/worker/main.go:59"
+    },
+    {
+      "file": "docs/adr/0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md",
+      "token": "internal/remoteexec/binary.go:36-52"
+    },
+    {
+      "file": "docs/adr/0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md",
+      "token": "internal/remoteexec/probe.go:126"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "cmd/worker/main.go:134"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "cmd/worker/main.go:166"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "cmd/worker/main.go:94-95"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "connectoutcome/certificate.go:142"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "connectoutcome/run.go:68"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "edgefanout/run.go:39"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "httpexchange/run.go:41"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "internal/delivery/delivery_test.go:219"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "internal/delivery/runner.go:26"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "internal/proposer/proposer.go:33"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "internal/queue/crtsh_test.go:36"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "internal/release/fetcher.go:18"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "internal/release/fetcher.go:27"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "internal/release/fetcher.go:30"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "resolutionwalk/run.go:40"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "tlsacceptance/run.go:59"
+    },
+    {
+      "file": "docs/adr/0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md",
+      "token": "wildcarddiscrim/run.go:70"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/delivery/runner.go:105"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/queue/queue.go:64"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/queue/reaper.go:45"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/queue/reaper.go:53"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/release/release.go:76"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/report/dispatcher.go:32"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/report/notify.go:75"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/retention/observation.go:134"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/retention/retention.go:70"
+    },
+    {
+      "file": "docs/adr/0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md",
+      "token": "internal/retention/transcript.go:67"
+    },
+    {
+      "file": "docs/adr/0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md",
+      "token": "corpus/rows.go:8"
+    },
+    {
+      "file": "docs/adr/0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md",
+      "token": "corpus/script.go:90"
+    },
+    {
+      "file": "docs/adr/0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md",
+      "token": "internal/measure/blanketdiscrim/ports.go:20-35"
+    },
+    {
+      "file": "docs/adr/0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md",
+      "token": "internal/measure/wildcarddiscrim/labels.go:32-50"
+    },
+    {
+      "file": "docs/adr/0143-an-rcode-is-a-closed-union-and-every-code-the-leaf-does-not-discriminate-on-folds-to-other.md",
+      "token": "dns/dnsmessage/message.go:155-170"
+    },
+    {
+      "file": "docs/adr/0143-an-rcode-is-a-closed-union-and-every-code-the-leaf-does-not-discriminate-on-folds-to-other.md",
+      "token": "internal/measure/resolutionwalk/leaf.go:23-30"
+    },
+    {
+      "file": "docs/adr/0143-an-rcode-is-a-closed-union-and-every-code-the-leaf-does-not-discriminate-on-folds-to-other.md",
+      "token": "internal/measure/resolutionwalk/netpeer.go:327-342"
+    },
+    {
+      "file": "docs/adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md",
+      "token": "cmd/web/settings.go:787-789"
+    },
+    {
+      "file": "docs/adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md",
+      "token": "internal/queue/hot.go:165"
+    },
+    {
+      "file": "docs/adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md",
+      "token": "internal/vergecore/vergecore.go:47"
+    },
+    {
+      "file": "docs/adr/0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md",
+      "token": "cmd/web/templates_inventory.go:17"
+    },
+    {
+      "file": "docs/adr/0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md",
+      "token": "design-system/designfs.go:11"
+    },
+    {
+      "file": "docs/adr/0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md",
+      "token": "docs-site/astro.config.mjs:31"
+    },
+    {
+      "file": "docs/adr/0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md",
+      "token": "docs-site/tsconfig.json:8"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/auth.go:556"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/auth.go:566"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/auth.go:648"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/auth.go:688"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/auth.go:697"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/deltas.go:93"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/reports_export.go:53"
+    },
+    {
+      "file": "docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md",
+      "token": "cmd/web/reports_test.go:109"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "cmd/web/api_auth.go:16"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "cmd/web/api_auth.go:24"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "cmd/web/api_auth.go:31"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "cmd/web/custodycensus.go:32"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "cmd/web/handlers.go:22"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "cmd/worker/remoterouter.go:23"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "internal/queue/addressexclusion.go:8"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "internal/queue/edgefanout.go:148"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "internal/queue/hot.go:45"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "internal/queue/hotlag.go:17"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "internal/release/release.go:18"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "internal/release/release.go:39"
+    },
+    {
+      "file": "docs/adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md",
+      "token": "internal/retention/retention.go:35"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "cmd/web/driftfeed.go:240"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/measure/connectoutcome/certificate.go:170"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/measure/connectoutcome/run.go:43"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/measure/edgefanout/run.go:16"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/measure/wildcarddiscrim/run.go:24"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/queue/scopegate.go:28"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/scan/cold.go:89"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/scan/hot.go:21"
+    },
+    {
+      "file": "docs/adr/0150-a-batch-scope-names-its-dimension-in-the-plural-and-a-one-address-fan-out-ships-a-one-element-list-never-a-scalar.md",
+      "token": "internal/scan/hot.go:63"
+    },
+    {
+      "file": "docs/adr/0151-a-field-no-emitter-renders-is-cross-leaf-plumbing-and-plumbing-moves-no-leaf-version.md",
+      "token": "edgefanout/leaf.go:62"
+    },
+    {
+      "file": "docs/adr/0151-a-field-no-emitter-renders-is-cross-leaf-plumbing-and-plumbing-moves-no-leaf-version.md",
+      "token": "edgefanout/leaf.go:78"
+    },
+    {
+      "file": "docs/adr/0151-a-field-no-emitter-renders-is-cross-leaf-plumbing-and-plumbing-moves-no-leaf-version.md",
+      "token": "edgefanout/run.go:59"
+    },
+    {
+      "file": "docs/adr/0151-a-field-no-emitter-renders-is-cross-leaf-plumbing-and-plumbing-moves-no-leaf-version.md",
+      "token": "internal/measure/connectoutcome/tls.go:85"
+    },
+    {
+      "file": "docs/adr/0151-a-field-no-emitter-renders-is-cross-leaf-plumbing-and-plumbing-moves-no-leaf-version.md",
+      "token": "resolutionwalk/leaf.go:98"
+    },
+    {
+      "file": "docs/adr/0151-a-field-no-emitter-renders-is-cross-leaf-plumbing-and-plumbing-moves-no-leaf-version.md",
+      "token": "resolutionwalk/netpeer.go:48"
+    },
+    {
+      "file": "docs/adr/0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md",
+      "token": "connectoutcome/tls.go:248"
+    },
+    {
+      "file": "docs/adr/0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md",
+      "token": "internal/measure/connectoutcome/tls.go:248"
+    },
+    {
+      "file": "docs/adr/0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md",
+      "token": "resolutionwalk/netpeer.go:40"
+    },
+    {
+      "file": "docs/adr/0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md",
+      "token": "tlsacceptance/enumerate.go:100"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "db/queries/subjects.sql:311"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "db/queries/subjects.sql:320"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "internal/queue/membership.go:255"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "internal/queue/membership.go:69"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "internal/queue/nameseedwithdrawal.go:160"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "internal/queue/produce.go:370"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "internal/queue/seedwithdrawal.go:177"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "internal/queue/withdrawal.go:104"
+    },
+    {
+      "file": "docs/adr/0153-a-narrowing-mover-carries-no-precedence-so-the-first-covering-row-is-the-whole-attribution-rule.md",
+      "token": "internal/scan/cttail.go:459"
+    },
+    {
+      "file": "docs/adr/0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md",
+      "token": "internal/queue/membership.go:119"
+    },
+    {
+      "file": "docs/adr/0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md",
+      "token": "internal/queue/nameseedwithdrawal.go:65"
+    },
+    {
+      "file": "docs/adr/0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md",
+      "token": "internal/queue/seedwithdrawal.go:67"
+    },
+    {
+      "file": "docs/adr/0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md",
+      "token": "internal/queue/withdrawal.go:44"
+    },
+    {
+      "file": "docs/adr/0156-a-documentation-family-is-a-directory-tree-so-a-nested-doc-is-in-scope-at-any-depth-and-keeps-its-family.md",
+      "token": ".github/workflows/doclint.yml:26"
+    },
+    {
+      "file": "docs/adr/0156-a-documentation-family-is-a-directory-tree-so-a-nested-doc-is-in-scope-at-any-depth-and-keeps-its-family.md",
+      "token": "docs-site/scripts/doclint.mjs:17"
+    },
+    {
+      "file": "docs/adr/0156-a-documentation-family-is-a-directory-tree-so-a-nested-doc-is-in-scope-at-any-depth-and-keeps-its-family.md",
+      "token": "docs-site/scripts/doclint.test.mjs:329"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/auth.go:1868"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/chrome.go:126"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/scans.go:163"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/scans.go:630"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/scantrigger.go:88"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/settings.go:1200"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/settings.go:262"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/settings.go:604"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "cmd/web/shell.go:93"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "design-system/templates/shell.tmpl:5"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "docs/research/comment-gate-test.md:811"
+    },
+    {
+      "file": "docs/adr/0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md",
+      "token": "docs/research/sql-stripper-cross-check.md:78"
+    },
+    {
+      "file": "docs/adr/0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md",
+      "token": "cmd/web/handlers.go:384-385"
+    },
+    {
+      "file": "docs/adr/0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md",
+      "token": "cmd/web/inventory_test.go:286"
+    },
+    {
+      "file": "docs/adr/0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md",
+      "token": "cmd/web/inventory.go:43"
+    },
+    {
+      "file": "docs/adr/0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md",
+      "token": "cmd/web/inventory.go:62"
+    },
+    {
+      "file": "docs/adr/0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md",
+      "token": "cmd/web/signals.go:198"
+    },
+    {
+      "file": "docs/adr/0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md",
+      "token": "cmd/web/signals.go:198-205"
+    },
+    {
+      "file": "docs/adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md",
+      "token": "cmd/web/clientip.go:67"
+    },
+    {
+      "file": "docs/adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md",
+      "token": "cmd/web/clientip.go:83"
+    },
+    {
+      "file": "docs/adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md",
+      "token": "cmd/web/main.go:125"
+    },
+    {
+      "file": "docs/adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md",
+      "token": "cmd/web/main.go:127"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "cmd/web/backup.go:77"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "cmd/web/restore.go:226"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "cmd/web/restore.go:271"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "cmd/web/restore.go:293"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "cmd/web/restore.go:395"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "internal/auth/password.go:9"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "internal/auth/totpsecret.go:16"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "internal/auth/totpsecret.go:26"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "internal/db/models.go:17"
+    },
+    {
+      "file": "docs/adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md",
+      "token": "internal/db/models.go:173"
+    },
+    {
+      "file": "docs/adr/0161-the-backup-allowlist-and-the-exclusion-list-partition-the-business-schema-so-a-new-table-is-classified-by-a-human-or-the-test-fails.md",
+      "token": "cmd/web/backup_test.go:13"
+    },
+    {
+      "file": "docs/adr/0161-the-backup-allowlist-and-the-exclusion-list-partition-the-business-schema-so-a-new-table-is-classified-by-a-human-or-the-test-fails.md",
+      "token": "cmd/web/backup_test.go:24"
+    },
+    {
+      "file": "docs/adr/0161-the-backup-allowlist-and-the-exclusion-list-partition-the-business-schema-so-a-new-table-is-classified-by-a-human-or-the-test-fails.md",
+      "token": "cmd/web/backup.go:19"
+    },
+    {
+      "file": "docs/adr/0161-the-backup-allowlist-and-the-exclusion-list-partition-the-business-schema-so-a-new-table-is-classified-by-a-human-or-the-test-fails.md",
+      "token": "cmd/web/backup.go:59"
+    },
+    {
+      "file": "docs/adr/0161-the-backup-allowlist-and-the-exclusion-list-partition-the-business-schema-so-a-new-table-is-classified-by-a-human-or-the-test-fails.md",
+      "token": "cmd/web/restore.go:276"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/adr0130_contract_test.go:128-138"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:1263"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:1657-1658"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:173-174"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:232"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:301"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:305"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:423"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:455"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:897-902"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/auth.go:944"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures_test.go:636-648"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:114"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:183"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:306-320"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:361-375"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:46-65"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:571"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:639"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:641"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/devfixtures.go:67-87"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/handlers.go:258"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/handlers.go:484-491"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/handlers.go:487"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/main.go:107"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/main.go:109-114"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/main.go:117"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/main.go:45"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/main.go:71-76"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/main.go:84"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/restore.go:226"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/restore.go:395"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/scans_stop_terminate_test.go:20"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/scans.go:350"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/scans.go:350-360"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/web/subjects.go:933"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "cmd/worker/main.go:88"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "design-system/examples/console/ErrorPage.jsx:11"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "design-system/fixtures/fixtures.json:253"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "internal/queue/produce.go:56"
+    },
+    {
+      "file": "docs/adr/0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md",
+      "token": "internal/queue/worker.go:142"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/devfixtures.go:25-27"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/devfixtures.go:643-650"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/inventory.go:481"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/main.go:107"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/main.go:45-46"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/reports.go:25"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/seeds.go:397"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/seeds.go:93"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/settings_fixtures.go:404"
+    },
+    {
+      "file": "docs/adr/0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md",
+      "token": "cmd/web/settings.go:868"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/api_v1.go:258"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/auth.go:1887"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/auth.go:517"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/cold.go:142"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/drift.go:171"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/exposure.go:97"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/seeds.go:251"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/seeds.go:264"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/seeds.go:276"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/seeds.go:448"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/seeds.go:449"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "cmd/web/subjects.go:221"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "design-system/templates/scope.tmpl:184"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "design-system/templates/scope.tmpl:235"
+    },
+    {
+      "file": "docs/adr/0168-a-console-page-degrades-a-failed-region-to-an-honest-absence-and-never-fails-the-page-or-refuses-the-act.md",
+      "token": "docs/guides/api.md:103"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "cmd/web/scans.go:707-708"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "cmd/web/scans.go:727-728"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/migrations/18804_measurement_queue.sql:24"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/dispatch.sql:12"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/measurement.sql:117"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/measurement.sql:132-134"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/measurement.sql:84"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/measurement.sql:85-90"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/measurement.sql:86"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/measurement.sql:87"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "db/queries/vantages.sql:74"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "docs/adr/0005-scan-execution-model.md:134-135"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/availability.go:37-46"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/availability.go:40"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/pure.go:36-38"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/reaper.go:17-22"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/reaper.go:24-26"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/reaper.go:45"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/reaper.go:50"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/reaper.go:68"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/worker.go:303"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/worker.go:396"
+    },
+    {
+      "file": "docs/adr/0169-a-reaped-job-is-infrastructure-failure-not-measurement-evidence-so-the-reap-writes-no-batch-and-moves-no-availability.md",
+      "token": "internal/queue/worker.go:479"
+    },
+    {
+      "file": "docs/adr/0170-a-victim-scoped-account-lock-is-released-at-a-ceiling-anchored-to-its-first-lock-while-the-attacker-scoped-key-keeps-its-full-lock.md",
+      "token": "cmd/web/auth.go:345"
+    },
+    {
+      "file": "docs/adr/0170-a-victim-scoped-account-lock-is-released-at-a-ceiling-anchored-to-its-first-lock-while-the-attacker-scoped-key-keeps-its-full-lock.md",
+      "token": "cmd/web/clientip_test.go:138-173"
+    },
+    {
+      "file": "docs/adr/0170-a-victim-scoped-account-lock-is-released-at-a-ceiling-anchored-to-its-first-lock-while-the-attacker-scoped-key-keeps-its-full-lock.md",
+      "token": "cmd/web/clientip.go:83-85"
+    },
+    {
+      "file": "docs/adr/0170-a-victim-scoped-account-lock-is-released-at-a-ceiling-anchored-to-its-first-lock-while-the-attacker-scoped-key-keeps-its-full-lock.md",
+      "token": "cmd/web/ratelimit.go:55"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "cmd/web/api_v1.go:17-24"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "cmd/web/backurl_test.go:92-123"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "cmd/web/backurl.go:115-134"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "cmd/web/backurl.go:12"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "cmd/web/handlers.go:268"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "cmd/web/scope_prg_test.go:281-294"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "design-system/templates/shell.tmpl:116"
+    },
+    {
+      "file": "docs/adr/0171-the-finished-route-table-is-the-authority-the-open-redirect-guard-asks-and-an-unbuilt-table-falls-back.md",
+      "token": "net/http/server.go:2659-2699"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:1170-1187"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:307-311"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:312"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:347-369"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:892-919"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:894"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:902"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:908"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:909-919"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/auth.go:923-936"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/handlers.go:271-277"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/hardening_test.go:188-219"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/main.go:89-90"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/restore.go:226"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "cmd/web/sso.go:249-253"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "db/migrations/00002_accounts.sql:12"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "db/migrations/21500_recovery_code.sql:19"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "design-system/templates/signin.tmpl:216-220"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "internal/auth/key.go:10-16"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "internal/auth/password.go:8-14"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "internal/auth/totpsecret.go:16-24"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "internal/auth/totpsecret.go:48-63"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "internal/db/accounts.sql.go:167"
+    },
+    {
+      "file": "docs/adr/0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md",
+      "token": "internal/transcript/key.go:13-32"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/auth.go:102-110"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/auth.go:104"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/auth.go:105"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/auth.go:105-107"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/auth.go:1352-1357"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/auth.go:1385"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/errors.go:66-77"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/handlers.go:362-363"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/handlers.go:412"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/handlers.go:435"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/handlers.go:435-436"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/handlers.go:450"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/handlers.go:467"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings_api_test.go:61-84"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings_fixtures.go:410"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings_sessions_test.go:154"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings_test.go:53-60"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings.go:1189-1205"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings.go:168-174"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings.go:279"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings.go:610"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings.go:618-647"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "cmd/web/settings.go:750-773"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "design-system/templates/profile.tmpl:206"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "design-system/templates/settings.tmpl:1223-1225"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "design-system/templates/settings.tmpl:231-256"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "docs/guides/accounts.md:52-54"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "docs/guides/api.md:36"
+    },
+    {
+      "file": "docs/adr/0173-the-api-access-tab-is-the-one-settings-surface-a-viewer-reads-and-it-carries-state-without-a-control.md",
+      "token": "docs/guides/backup-and-restore.md:305"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": ".github/workflows/ci.yml:494"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/backup.go:167"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/backup.go:19-53"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/backup.go:96-97"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore_test.go:64-70"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:119-126"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:147-158"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:172-176"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:184-190"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:259-263"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:303"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:304-305"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:59-117"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "cmd/web/restore.go:94-96"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "docs/guides/backup-and-restore.md:149-151"
+    },
+    {
+      "file": "docs/adr/0174-the-backup-allowlist-bounds-every-identifier-the-restore-interpolates-because-the-restores-input-is-operator-supplied.md",
+      "token": "docs/guides/backup-and-restore.md:74-76"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "certcorpus/rows.go:293-318"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "certcorpus/rows.go:368"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "cmd/web/signals_cert_test.go:30"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "cmd/web/signals_cert_test.go:47-67"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "cmd/web/signals.go:1022"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "cmd/web/signals.go:1029"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "cmd/web/signals.go:1083-1086"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "cmd/web/signals.go:1084"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "cmd/web/signals.go:995"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "internal/measure/connectoutcome/tls.go:203"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "internal/queue/edgefanout.go:299-310"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "internal/queue/edgefanout.go:310"
+    },
+    {
+      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
+      "token": "internal/signal/endpoint.go:156-158"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/drift.go:68-97"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/drift.go:78"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/reports_export.go:34"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/reports_test.go:730-738"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/reports.go:275-289"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/reports.go:36"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/reports.go:46-53"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/reports.go:49-52"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/reports.go:557"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "cmd/web/signals.go:878-892"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "design-system/fixtures/fixtures.json:2466-2467"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "design-system/templates/reports.tmpl:114-121"
+    },
+    {
+      "file": "docs/adr/0176-a-reports-period-token-resolves-to-one-whole-week-span-and-every-surface-on-the-page-reads-that-one-window.md",
+      "token": "docs/guides/reports.md:79-80"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/onboarding.go:38-42"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/onboarding.go:58"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports_export.go:131"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports_export.go:137"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports_export.go:53"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:116-126"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:282-289"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:290"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:303"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:570"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:678"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:680"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:703"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:709"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:710"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/reports.go:714"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/scope_bulk_test.go:15"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/seeds.go:109"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/seeds.go:110"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "cmd/web/seeds.go:119"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "design-system/components/display/HeatmapCalendar.jsx:7"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "design-system/designfs.go:11"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "design-system/templates/onboarding.tmpl:91"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "design-system/templates/reports.tmpl:137"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "design-system/templates/scope.tmpl:171"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "internal/drift/trend.go:67"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "internal/drift/trend.go:69"
+    },
+    {
+      "file": "docs/adr/0177-a-rule-two-surfaces-must-agree-on-lives-in-one-shared-function-and-a-second-surface-may-never-re-derive-it.md",
+      "token": "internal/drift/trend.go:81"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/api_v1.go:176"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:114-135"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:150"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:170-172"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:176"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:178"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:182-188"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:182-189"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:238"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:283-284"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/drift.go:79"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/driftfeed.go:177-178"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/driftfeed.go:27-30"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/driftfeed.go:31"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/handlers.go:387-388"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "cmd/web/scans.go:820-822"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "db/queries/span.sql:109"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "db/queries/span.sql:133"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "db/queries/span.sql:133-134"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "design-system/templates/drift.tmpl:127-128"
+    },
+    {
+      "file": "docs/adr/0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md",
+      "token": "docs/adr/0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md:132-134"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/messages.go:250-252"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/messages.go:356"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/messages.go:389"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/messages.go:390"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/messages.go:398-400"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/signals.go:198"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/signals.go:677-682"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/signals.go:687"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "cmd/web/signals.go:72"
+    },
+    {
+      "file": "docs/adr/0179-an-absent-age-sorts-as-a-sentinel-beyond-every-real-age-never-as-zero.md",
+      "token": "design-system/templates/reports.tmpl:256"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "cmd/web/devfixtures.go:2237"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "cmd/web/messages.go:302-316"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "cmd/web/messages.go:33-45"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "cmd/web/messages.go:333-344"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "cmd/web/messages.go:82-86"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "cmd/web/reports.go:766"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "db/migrations/20500_message.sql:15-51"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "design-system/fixtures/fixtures.json:3422"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "design-system/templates/inbox.tmpl:99-142"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "design-system/templates/scope.tmpl:182"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "design-system/templates/settings.tmpl:1430-1458"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "docs/guides/notification-channels.md:239"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "internal/delivery/delivery.go:41-49"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "internal/message/census.go:14-17"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "internal/message/census.go:19"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "internal/message/message.go:73-91"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "internal/message/narrowing.go:28"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "internal/message/render.go:90-94"
+    },
+    {
+      "file": "docs/adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md",
+      "token": "internal/report/dispatcher.go:106"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "cmd/web/auth.go:1831"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "cmd/web/auth.go:1875"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "cmd/web/chrome.go:20"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "cmd/web/chrome.go:203"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "cmd/web/main.go:131"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "cmd/worker/main.go:190"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "db/migrations/23000_instance_config.sql:12"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "design-system/templates/shell.tmpl:125"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "internal/proposer/arin.go:91"
+    },
+    {
+      "file": "docs/adr/0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md",
+      "token": "internal/proposer/caida.go:50"
+    },
+    {
+      "file": "docs/adr/0182-a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite.md",
+      "token": "cmd/web/progress_test.go:170-195"
+    },
+    {
+      "file": "docs/adr/0182-a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite.md",
+      "token": "cmd/web/scans.go:722-742"
+    },
+    {
+      "file": "docs/adr/0182-a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite.md",
+      "token": "db/queries/measurement.sql:114"
+    },
+    {
+      "file": "docs/adr/0182-a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite.md",
+      "token": "design-system/templates/rundetail.tmpl:213"
+    },
+    {
+      "file": "docs/adr/0182-a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite.md",
+      "token": "internal/queue/progress.go:44-46"
+    },
+    {
+      "file": "docs/adr/0182-a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite.md",
+      "token": "internal/queue/worker.go:454"
+    },
+    {
+      "file": "docs/adr/0182-a-progress-event-reaches-a-live-viewer-as-a-new-appended-line-and-the-stream-cursor-is-composite.md",
+      "token": "internal/scan/hot.go:50-55"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/auth.go:690"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/auth.go:703"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/auth.go:731"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/auth.go:777"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/graph.go:472"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/reports.go:303"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/reports.go:539"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/search.go:188"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/signals.go:368"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/signals.go:522"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/signals.go:604"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "cmd/web/subjects.go:549"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/components/display/display.card.html:35"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/components/display/SeverityBadge.jsx:10"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/components/forms/forms.card.html:34"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/dashboard.tmpl:141"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/graph.tmpl:327"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/graph.tmpl:93"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/reportartifact.tmpl:25"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/reportartifact.tmpl:28"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/reports.tmpl:176"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/reports.tmpl:196"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/signals.tmpl:155"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/signals.tmpl:180"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/signals.tmpl:182"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "design-system/templates/signals.tmpl:2"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/artifactdoc.go:147"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/artifactdoc.go:154"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/pdf.go:266"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/pdf.go:276"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/render.go:15"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/render.go:158"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/render.go:307"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/render.go:348"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/render.go:351"
+    },
+    {
+      "file": "docs/adr/0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md",
+      "token": "internal/message/render.go:443"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "cmd/web/graph.go:504"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "cmd/web/reports.go:146"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "cmd/web/reports.go:869"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "cmd/web/seeds.go:522"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "cmd/web/seeds.go:527"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "cmd/web/signals.go:671"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "cmd/web/subjects.go:1181"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "design-system/components/display/SeverityBadge.d.ts:3"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "design-system/components/display/SeverityBadge.jsx:5"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "design-system/templates/signals.tmpl:1"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "internal/message/render.go:275"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "internal/message/render.go:361"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "internal/signal/severity_test.go:43"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "internal/signal/severity.go:18"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "internal/signal/severity.go:3"
+    },
+    {
+      "file": "docs/adr/0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md",
+      "token": "internal/signal/severity.go:30"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/auth.go:599"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/cold.go:399"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/deltas.go:18"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/graph.go:464"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/reports.go:283"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/signals.go:1054"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/signals.go:385"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/subjects.go:550"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "cmd/web/subjects.go:553"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "db/migrations/22300_signal_instance.sql:11"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "internal/signal/endpoint.go:103"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "internal/signal/endpoint.go:113"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "internal/signal/severity.go:3"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "internal/signal/severity.go:30"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "internal/signal/signal.go:108"
+    },
+    {
+      "file": "docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md",
+      "token": "internal/signal/signal.go:79"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "cmd/web/deltas.go:18"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "cmd/web/signals.go:1053"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "cmd/web/signals.go:1054"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "cmd/web/signals.go:1062"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "cmd/web/signals.go:1083"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "cmd/web/signals.go:1151"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "internal/signal/endpoint.go:107"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "internal/signal/endpoint.go:149"
+    },
+    {
+      "file": "docs/adr/0186-a-certificate-rules-severity-is-rated-by-the-client-failure-it-can-show-today-never-by-certificate-quality.md",
+      "token": "internal/signal/endpoint.go:205"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "cmd/web/annotations.go:42"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "cmd/web/annotations.go:52"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "cmd/web/annotations.go:81"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "cmd/web/messages.go:341"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "cmd/web/signals.go:384"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "cmd/web/signals.go:709"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "db/migrations/20400_annotation.sql:22"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "design-system/templates/signals.tmpl:305"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "internal/signal/corpus.go:25"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "internal/signal/corpus.go:56"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "internal/signal/endpoint.go:62"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "internal/signal/rules.go:35"
+    },
+    {
+      "file": "docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md",
+      "token": "internal/signal/severity.go:30"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "cmd/web/addressscopecensus.go:43"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "cmd/web/custodycensus.go:99"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "db/queries/measurement.sql:135"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "db/queries/measurement.sql:28"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/candidates_test.go:48"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/candidates.go:36"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/corpus/harness.go:44"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/custody.go:54"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/scopecensus.go:14"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/veto_test.go:314"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/veto.go:197"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/custody/veto.go:46"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/queue/edgefanout.go:108"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/queue/edgefanout.go:296"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/queue/edgefanout.go:30"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/queue/edgefanoutread_test.go:288"
+    },
+    {
+      "file": "docs/adr/0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md",
+      "token": "internal/queue/hot.go:117"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "cmd/web/sources_test.go:328"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "cmd/web/sources.go:43"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "cmd/web/sources.go:448"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "cmd/web/sources.go:476"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "cmd/web/sources.go:49"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "cmd/web/sources.go:99"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "db/migrations/23600_ct_throttle_per_source.sql:17"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "db/migrations/23900_ct_log_cursor.sql:15"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "db/migrations/24100_certspotter_throttle.sql:11"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "db/queries/crtsh.sql:29"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/queue/crtsh.go:149"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/queue/crtsh.go:279"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/queue/crtsh.go:339"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/queue/crtsh.go:360"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/queue/cttail.go:215"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/queue/cttail.go:285"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/scan/certspotter.go:16"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/scan/crtsh.go:21"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/scan/crtsh.go:23"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/scan/crtsh.go:31"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/scan/cttail.go:21"
+    },
+    {
+      "file": "docs/adr/0189-a-ct-sources-go-constant-is-the-one-slug-literal-and-the-catalogue-names-the-constant-rather-than-repeating-it.md",
+      "token": "internal/scan/cttail.go:23"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/queue/cttail.go:130"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/queue/cttail.go:292"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/queue/queue.go:120"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/scan/cttail.go:25"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/scan/cttail.go:29"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/scan/cttail.go:34"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/scan/cttail.go:45"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/scan/cttail.go:78"
+    },
+    {
+      "file": "docs/adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md",
+      "token": "internal/scan/ctverify.go:405"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/queue/crtsh.go:253"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/queue/cttail.go:153"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/queue/cttail.go:168"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/queue/cttail.go:91"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/queue/cttail.go:94"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:201"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:203"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:228"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:230"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:269"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:334"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:336"
+    },
+    {
+      "file": "docs/adr/0191-an-unrecognised-ct-entry-type-costs-one-entry-on-the-framed-rfc-6962-path-and-fails-the-whole-unframed-tile.md",
+      "token": "internal/scan/cttail.go:378"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "db/migrations/23900_ct_log_cursor.sql:24"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/queue/crtsh.go:280"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/queue/cttail.go:102"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/queue/cttail.go:191"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/queue/cttail.go:25"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/queue/produce.go:370"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/queue/queue.go:150"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/crtsh.go:32"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/ctsource.go:18"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/cttail.go:124"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/cttail.go:423"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/cttail.go:430"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/cttail.go:450"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/cttail.go:459"
+    },
+    {
+      "file": "docs/adr/0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md",
+      "token": "internal/scan/cttail.go:575"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/queue/ctverify.go:113"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/queue/ctverify.go:160"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/queue/ctverify.go:163"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/queue/ctverify.go:261"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/queue/ctverify.go:29"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/queue/ctverify.go:49"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/queue/ctverify.go:99"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/scan/ctverify.go:108"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/scan/ctverify.go:121"
+    },
+    {
+      "file": "docs/adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md",
+      "token": "internal/scan/ctverify.go:155"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/signals.go:32"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/signals.go:728"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/signals.go:749"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/signals.go:755"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/signals.go:768"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/subjects.go:1016"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/subjects.go:1029"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "cmd/web/subjects.go:51"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/db/signals.sql.go:109"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/measure/resolutionwalk/emit.go:47"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/queue/zone.go:23"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/queue/zone.go:35"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/scan/crtsh.go:157"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/scan/zone.go:1"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/scan/zone.go:17"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/scan/zone.go:171"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/scan/zone.go:173"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/scan/zone.go:202"
+    },
+    {
+      "file": "docs/adr/0194-a-zone-observations-value-is-the-zone-files-own-rdata-never-a-re-resolution-and-only-its-key-is-canonicalised.md",
+      "token": "internal/scan/zone.go:240"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "cmd/web/addressscopecensus.go:17"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "cmd/web/addressscopecensus.go:41"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "cmd/web/cold.go:193"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "db/migrations/00003_seeds.sql:26"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "db/queries/measurement.sql:28"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "db/queries/seeds.sql:16"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "design-system/templates/coverage.tmpl:80"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "internal/custody/scopecensus_test.go:19"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "internal/custody/scopecensus.go:96"
+    },
+    {
+      "file": "docs/adr/0195-the-address-scope-census-renders-in-declaration-order-and-a-scope-declared-twice-renders-once.md",
+      "token": "internal/queue/hot.go:114"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "cmd/web/auth_test.go:44"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "cmd/web/handlers.go:284"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "cmd/web/handlers.go:285"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "cmd/web/main.go:226"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "cmd/web/main.go:233"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/delivery/delivery_test.go:219"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/delivery/runner.go:52"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/measure/httpexchange/exchange.go:157"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/measure/httpexchange/leaf_test.go:118"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/proposer/arin.go:98"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/proposer/caida.go:62"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/queue/crtsh_test.go:75"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/queue/crtsh.go:162"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/queue/crtsh.go:48"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/queue/crtsh.go:51"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/queue/crtsh.go:78"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/release/fetcher.go:30"
+    },
+    {
+      "file": "docs/adr/0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md",
+      "token": "internal/release/fetcher.go:52"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/web/devfixtures.go:2167"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/web/devfixtures.go:492"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/web/main.go:107"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/web/main.go:45"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/web/messages.go:145"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/worker/main.go:87"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/worker/main.go:88"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "cmd/worker/main.go:97"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/delivery/runner.go:88-101"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/produce.go:53"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/produce.go:55"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/produce.go:56"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/produce.go:60"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/worker.go:124"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/worker.go:133"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/worker.go:140"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/worker.go:142"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/worker.go:156"
+    },
+    {
+      "file": "docs/adr/0197-a-dev-mode-worker-produces-no-message-and-the-guard-runs-before-the-producer-reads-or-writes-anything.md",
+      "token": "internal/queue/worker.go:186"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/membership.go:103"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/membership.go:38"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/membership.go:39"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/membership.go:68"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/withdrawal.go:44"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/worker.go:419-443"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/worker.go:432"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/worker.go:435"
+    },
+    {
+      "file": "docs/adr/0198-a-membership-departure-is-re-decided-only-on-a-trigger-fresh-evidence-or-a-declared-mover-and-never-as-a-background-sweep.md",
+      "token": "internal/queue/worker.go:443"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "cmd/worker/main.go:88"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "cmd/worker/main.go:88-99"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "cmd/worker/main.go:91"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "cmd/worker/main.go:92"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "cmd/worker/main.go:97"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "db/migrations/20700_delivery.sql:24"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "db/migrations/20700_delivery.sql:42"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/delivery/runner.go:184"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/delivery/runner.go:23"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/delivery/runner.go:23-103"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/delivery/runner.go:86"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/delivery/runner.go:88"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/crtsh.go:126"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/crtsh.go:130"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/cttail.go:34"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/ctverify_test.go:277"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/ctverify_test.go:46"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/ctverify.go:50"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/probetimeout_test.go:28"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/probetimeout_test.go:54"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/produce.go:23"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/produce.go:23-75"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/produce.go:25"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/produce.go:65"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/produce.go:69-71"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/produce.go:72"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/transcript_test.go:414"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:106"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:121"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:121-197"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:125"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:156"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:157"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:167-173"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:188"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:193-195"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:318"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:333"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:368"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:382"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/queue/worker.go:517"
+    },
+    {
+      "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
+      "token": "internal/report/notify.go:146"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "cmd/worker/main.go:90"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "internal/measure/connectoutcome/tls.go:133"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "internal/measure/edgefanout/run.go:35"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "internal/queue/edgefanout.go:60"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "internal/queue/reaper_test.go:32"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "internal/queue/worker.go:208"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "internal/queue/worker.go:41"
+    },
+    {
+      "file": "docs/adr/0200-a-jobs-scope-is-sized-so-its-leaf-finishes-inside-one-probe-bracket.md",
+      "token": "internal/scan/edgefanout.go:18"
+    },
+    {
+      "file": "docs/adr/0201-a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering.md",
+      "token": "cmd/web/driftfeed.go:240"
+    },
+    {
+      "file": "docs/adr/0201-a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering.md",
+      "token": "internal/queue/scopegate.go:28"
+    },
+    {
+      "file": "docs/adr/0201-a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering.md",
+      "token": "internal/scan/edgefanout_test.go:113"
+    },
+    {
+      "file": "docs/adr/0201-a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering.md",
+      "token": "internal/scan/edgefanout.go:34"
+    },
+    {
+      "file": "docs/adr/0201-a-dispatched-scope-the-leaf-that-reads-it-and-the-recording-gate-agree-on-one-key-name-and-one-address-rendering.md",
+      "token": "internal/scan/edgefanout.go:67"
+    },
+    {
+      "file": "docs/adr/0202-a-vantages-resolver-comes-from-its-row-alone-and-the-code-side-fallback-is-removed.md",
+      "token": "internal/measure/resolutionwalk/netpeer.go:34"
+    },
+    {
+      "file": "docs/adr/0202-a-vantages-resolver-comes-from-its-row-alone-and-the-code-side-fallback-is-removed.md",
+      "token": "internal/scan/scan.go:108"
+    },
+    {
+      "file": "docs/adr/0203-a-batch-label-names-the-dimension-the-scan-partitioned-on-and-a-scan-with-no-dimension-names-its-chunk-ordinal.md",
+      "token": "internal/scan/edgefanout.go:24"
+    },
+    {
+      "file": "docs/adr/0204-a-scan-kind-and-a-leaf-kind-are-separate-namespaces-and-a-shared-string-is-a-coincidence.md",
+      "token": "internal/queue/availability.go:24"
+    },
+    {
+      "file": "docs/adr/0204-a-scan-kind-and-a-leaf-kind-are-separate-namespaces-and-a-shared-string-is-a-coincidence.md",
+      "token": "internal/scan/httpidentity.go:17"
+    },
+    {
+      "file": "docs/adr/0205-an-empty-name-never-keys-a-subject-and-the-endpoint-wire-key-encodes-the-absence-of-one.md",
+      "token": "internal/scan/httpidentity.go:63"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "cmd/web/drift.go:290"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "cmd/web/reports.go:567"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "cmd/web/restore.go:404"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "cmd/web/search.go:210"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "cmd/web/settings.go:1034"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "db/queries/measurement.sql:45"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "internal/queue/httpidentity.go:21"
+    },
+    {
+      "file": "docs/adr/0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md",
+      "token": "internal/queue/tlsacceptance.go:24"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/cold.go:47"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/crtsh.go:380"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/edgefanout.go:71"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/helpers.go:20"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/helpers.go:42"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/hot.go:144"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/hot.go:90"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/tlsacceptance.go:42"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/tlsacceptance.go:50"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/tlsacceptance.go:53"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/tlsacceptance.go:56"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/queue/zone.go:80"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/scan/httpidentity.go:52"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/scan/httpidentity.go:59"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/scan/tlsacceptance.go:56"
+    },
+    {
+      "file": "docs/adr/0207-an-enumeration-that-assembles-a-probing-target-set-drops-a-row-it-cannot-fully-name-and-never-fabricates-a-target.md",
+      "token": "internal/scan/tlsacceptance.go:64"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "db/queries/span.sql:165"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/measure/connectoutcome/certificate.go:19"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/measure/connectoutcome/emit.go:12"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/measure/httpexchange/exchange.go:25"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/measure/tlsacceptance/emit.go:17"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/membership.go:209"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/membership.go:293"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/pure.go:81"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/spanfold.go:36"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/spanfold.go:88"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/tlsacceptance.go:41"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/tlsacceptance.go:58"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/tlsacceptance.go:65"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/tlsacceptance.go:66"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/queue/tlsacceptance.go:83"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/scan/httpidentity.go:56"
+    },
+    {
+      "file": "docs/adr/0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md",
+      "token": "internal/scan/tlsacceptance.go:60"
+    },
+    {
+      "file": "docs/adr/0209-a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row.md",
+      "token": "internal/queue/transcript.go:123"
+    },
+    {
+      "file": "docs/adr/0209-a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row.md",
+      "token": "internal/queue/transcript.go:195"
+    },
+    {
+      "file": "docs/adr/0209-a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row.md",
+      "token": "internal/queue/transcript.go:22"
+    },
+    {
+      "file": "docs/adr/0209-a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row.md",
+      "token": "internal/queue/transcript.go:24"
+    },
+    {
+      "file": "docs/adr/0209-a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row.md",
+      "token": "internal/queue/transcript.go:75"
+    },
+    {
+      "file": "docs/adr/0209-a-closed-union-we-author-refuses-an-unknown-member-and-writes-no-row.md",
+      "token": "internal/wire/transcript.go:9"
+    },
+    {
+      "file": "docs/adr/0210-a-variants-own-scalar-rides-its-typed-outcome-object-and-earns-no-column-on-the-shared-table.md",
+      "token": "cmd/web/rawoutput.go:180"
+    },
+    {
+      "file": "docs/adr/0210-a-variants-own-scalar-rides-its-typed-outcome-object-and-earns-no-column-on-the-shared-table.md",
+      "token": "cmd/web/rawoutput.go:206"
+    },
+    {
+      "file": "docs/adr/0210-a-variants-own-scalar-rides-its-typed-outcome-object-and-earns-no-column-on-the-shared-table.md",
+      "token": "cmd/web/rawoutput.go:230"
+    },
+    {
+      "file": "docs/adr/0210-a-variants-own-scalar-rides-its-typed-outcome-object-and-earns-no-column-on-the-shared-table.md",
+      "token": "internal/queue/transcript.go:156"
+    },
+    {
+      "file": "docs/adr/0210-a-variants-own-scalar-rides-its-typed-outcome-object-and-earns-no-column-on-the-shared-table.md",
+      "token": "internal/queue/transcript.go:93"
+    },
+    {
+      "file": "docs/adr/0211-the-value-fold-decides-no-withdrawal-so-the-membership-path-closes-the-timelines-and-names-the-ground.md",
+      "token": "internal/queue/spanfold.go:31"
+    },
+    {
+      "file": "docs/adr/0211-the-value-fold-decides-no-withdrawal-so-the-membership-path-closes-the-timelines-and-names-the-ground.md",
+      "token": "internal/queue/worker.go:429-445"
+    },
+    {
+      "file": "docs/adr/0212-an-opt-in-records-enrolment-only-so-it-queues-nothing-and-the-next-cadence-tick-is-the-first-run.md",
+      "token": "cmd/web/cold.go:57"
+    },
+    {
+      "file": "docs/adr/0212-an-opt-in-records-enrolment-only-so-it-queues-nothing-and-the-next-cadence-tick-is-the-first-run.md",
+      "token": "cmd/web/cold.go:59"
+    },
+    {
+      "file": "docs/adr/0212-an-opt-in-records-enrolment-only-so-it-queues-nothing-and-the-next-cadence-tick-is-the-first-run.md",
+      "token": "cmd/web/scantrigger.go:52"
+    },
+    {
+      "file": "docs/adr/0212-an-opt-in-records-enrolment-only-so-it-queues-nothing-and-the-next-cadence-tick-is-the-first-run.md",
+      "token": "internal/queue/cold.go:15"
+    },
+    {
+      "file": "docs/adr/0212-an-opt-in-records-enrolment-only-so-it-queues-nothing-and-the-next-cadence-tick-is-the-first-run.md",
+      "token": "internal/queue/cold.go:22"
+    },
+    {
+      "file": "docs/adr/0212-an-opt-in-records-enrolment-only-so-it-queues-nothing-and-the-next-cadence-tick-is-the-first-run.md",
+      "token": "internal/queue/queue.go:98"
+    },
+    {
+      "file": "docs/adr/0213-a-ct-tail-skips-one-entry-it-cannot-decode-and-the-poll-continues-and-advances-past-it.md",
+      "token": "internal/queue/cttail.go:134"
+    },
+    {
+      "file": "docs/adr/0213-a-ct-tail-skips-one-entry-it-cannot-decode-and-the-poll-continues-and-advances-past-it.md",
+      "token": "internal/scan/cttail.go:242"
+    },
+    {
+      "file": "docs/adr/0214-ct-verification-checks-presence-not-log-integrity-so-it-authenticates-no-log-and-its-tiled-arm-compares-one-slot.md",
+      "token": "internal/queue/cttail.go:179"
+    },
+    {
+      "file": "docs/adr/0214-ct-verification-checks-presence-not-log-integrity-so-it-authenticates-no-log-and-its-tiled-arm-compares-one-slot.md",
+      "token": "internal/queue/ctverify.go:31"
+    },
+    {
+      "file": "docs/adr/0214-ct-verification-checks-presence-not-log-integrity-so-it-authenticates-no-log-and-its-tiled-arm-compares-one-slot.md",
+      "token": "internal/scan/cttail.go:183"
+    },
+    {
+      "file": "docs/adr/0214-ct-verification-checks-presence-not-log-integrity-so-it-authenticates-no-log-and-its-tiled-arm-compares-one-slot.md",
+      "token": "internal/scan/cttail.go:308"
+    },
+    {
+      "file": "docs/adr/0214-ct-verification-checks-presence-not-log-integrity-so-it-authenticates-no-log-and-its-tiled-arm-compares-one-slot.md",
+      "token": "internal/scan/ctverify.go:395"
+    },
+    {
+      "file": "docs/adr/0215-an-out-of-band-third-party-fetch-never-rides-a-job-transaction-and-the-callee-holds-no-handle-to-one.md",
+      "token": "internal/queue/ctverify.go:103"
+    },
+    {
+      "file": "docs/adr/0215-an-out-of-band-third-party-fetch-never-rides-a-job-transaction-and-the-callee-holds-no-handle-to-one.md",
+      "token": "internal/queue/worker.go:459"
+    },
+    {
+      "file": "docs/adr/0216-the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice.md",
+      "token": "internal/custody/candidates_test.go:209"
+    },
+    {
+      "file": "docs/adr/0216-the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice.md",
+      "token": "internal/custody/candidates.go:36"
+    },
+    {
+      "file": "docs/adr/0216-the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice.md",
+      "token": "internal/custody/candidates.go:62"
+    },
+    {
+      "file": "docs/adr/0216-the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice.md",
+      "token": "internal/queue/hot.go:120"
+    },
+    {
+      "file": "docs/adr/0216-the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice.md",
+      "token": "internal/queue/hot.go:171"
+    },
+    {
+      "file": "docs/adr/0216-the-dedup-set-holds-the-resolved-addresses-alone-so-two-overlapping-declared-scopes-probe-their-overlap-twice.md",
+      "token": "internal/seed/seed.go:98"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/queue/scopegate.go:299"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/cold.go:115"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/crtsh.go:65"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/cttail.go:155"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/edgefanout.go:59"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/hot.go:91"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/httpidentity.go:113"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/scan.go:72"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/tlsacceptance.go:106"
+    },
+    {
+      "file": "docs/adr/0217-the-recording-side-scope-gate-gates-a-denoted-dimension-alone-and-only-the-edge-fanout-facet-less-arm-fails-closed.md",
+      "token": "internal/scan/zone.go:94"
+    },
+    {
+      "file": "docs/adr/0218-the-address-exclusion-withdrawal-is-idempotent-by-construction-and-its-receipt-twins-the-previews-site-and-counts.md",
+      "token": "cmd/web/exclusions.go:79"
+    },
+    {
+      "file": "docs/adr/0218-the-address-exclusion-withdrawal-is-idempotent-by-construction-and-its-receipt-twins-the-previews-site-and-counts.md",
+      "token": "cmd/web/handlers_test.go:2055"
+    },
+    {
+      "file": "docs/adr/0218-the-address-exclusion-withdrawal-is-idempotent-by-construction-and-its-receipt-twins-the-previews-site-and-counts.md",
+      "token": "internal/db/messages.sql.go:72"
+    },
+    {
+      "file": "docs/adr/0218-the-address-exclusion-withdrawal-is-idempotent-by-construction-and-its-receipt-twins-the-previews-site-and-counts.md",
+      "token": "internal/db/subjects.sql.go:15"
+    },
+    {
+      "file": "docs/adr/0218-the-address-exclusion-withdrawal-is-idempotent-by-construction-and-its-receipt-twins-the-previews-site-and-counts.md",
+      "token": "internal/queue/withdrawal.go:76"
+    },
+    {
+      "file": "docs/adr/0219-a-withdrawal-is-a-fact-about-the-estate-so-the-closure-is-unconditional-and-only-the-receipt-is-gated-on-the-collector.md",
+      "token": "cmd/worker/main.go:97"
+    },
+    {
+      "file": "docs/adr/0219-a-withdrawal-is-a-fact-about-the-estate-so-the-closure-is-unconditional-and-only-the-receipt-is-gated-on-the-collector.md",
+      "token": "internal/queue/withdrawal.go:82"
+    },
+    {
+      "file": "docs/adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md",
+      "token": "internal/custody/egressguard.go:10"
+    },
+    {
+      "file": "docs/adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md",
+      "token": "internal/custody/egressguard.go:22"
+    },
+    {
+      "file": "docs/adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md",
+      "token": "internal/exposure/exposure.go:94"
+    },
+    {
+      "file": "docs/adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md",
+      "token": "internal/measure/httpexchange/exchange.go:119"
+    },
+    {
+      "file": "docs/adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md",
+      "token": "internal/queue/hot.go:135-150"
+    },
+    {
+      "file": "docs/adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md",
+      "token": "internal/queue/hot.go:34"
+    },
+    {
+      "file": "docs/adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md",
+      "token": "internal/scan/hot.go:53"
+    },
+    {
+      "file": "docs/adr/1902-one-act-row-per-subject-never-one-per-request.md",
+      "token": "design-system/templates/settings.tmpl:914"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/api_v1.go:291"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/auth.go:627"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/auth.go:913"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/auth.go:924"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/cold.go:208"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/cold.go:246"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/cold.go:448"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/handlers.go:366"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/messages.go:345"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/probers.go:36-37"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/vantageclass.go:22"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "cmd/web/vantageclass.go:24"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "db/migrations/18800_measurement_vantage.sql:21"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "db/migrations/18801_measurement_scan.sql:19"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "db/queries/measurement.sql:17"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "db/queries/zone.sql:23"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "design-system/docs/DESIGN-NOTES.md:28"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "design-system/templates/coverage.tmpl:111"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "design-system/templates/coverage.tmpl:177"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "design-system/templates/scope.tmpl:233"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "design-system/templates/settings.tmpl:538"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "design-system/templates/settings.tmpl:550"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "docs/adr/0044-a-one-off-measurement-has-no-currency.md:222"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "docs/research/safe-active-probing.md:377"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "docs/spec/v1-spec.md:168-172"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "docs/spec/v1-spec.md:682-686"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/exposure/exposure.go:90-104"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/queue/vantageclass.go:76"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/scan/cold.go:134-139"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/scan/hot.go:110-115"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/scan/scan.go:20"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/signal/corpus.go:45"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/signal/endpoint_test.go:312"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/signal/rules.go:96"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/vergecore/golden_test.go:192"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/vergecore/vergecore.go:150"
+    },
+    {
+      "file": "docs/spec/aperture-statement.md",
+      "token": "internal/vergecore/vergecore.go:160"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/annotations.go:57"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/api_v1.go:27-36"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:1010"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:105"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:105-107"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:1088"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:1102-1104"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:1206-1210"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:1858"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:1876-1889"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:1948"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:216"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/auth.go:980-1009"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/backup.go:80"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/exclusions.go:76"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/handlers.go:388-389"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/integrations.go:33"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/onboarding.go:127"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/proposals.go:281-317"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/rawoutput.go:105-108"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/reports_schedule.go:383-428"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/restore.go:204-212"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/restore.go:222-229"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/restore.go:265"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/seeds.go:285"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:221"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:479-486"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:483"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:807"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:827-838"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:86"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:918"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/settings.go:978"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/sso.go:249"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/sso.go:295"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/subjects.go:296-311"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "cmd/web/subjects.go:303"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/00002_accounts.sql:9"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/18500_source_state.sql:18-19"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/20400_annotation.sql:10-11"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/20400_annotation.sql:16-18"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/21200_integration_state.sql:17"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/21400_password_reset.sql:8-10"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/23700_transcript.sql:36-42"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/23700_transcript.sql:4"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/migrations/24700_seed_withdrawal.sql:32-38"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/queries/annotations.sql:7"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/queries/exclusions.sql:15"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "db/queries/password_reset.sql:14-16"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/examples/console/Settings.jsx:456"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/examples/console/Sources.jsx:64"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/examples/DocsPage.jsx:113"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/README.md:47"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/templates/coverage.tmpl:183"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/templates/drift.tmpl:101-111"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/templates/settings.tmpl:743"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/templates/settings.tmpl:867"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "design-system/templates/settings.tmpl:869-876"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/accounts.md:10"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/accounts.md:152-154"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/api.md:37"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/first-run.md:24"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/integrations.md:54"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/running.md:61"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/sources.md:140-143"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/using.md:187"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/guides/using.md:193"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/research/safe-active-probing.md:1248"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/spec/comment-policy.md:1166"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/spec/packaging-and-configuration.md:260-262"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/spec/raw-job-output.md:385-387"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/spec/raw-job-output.md:522-523"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/spec/raw-job-output.md:55"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "docs/spec/v1-spec.md:429-432"
+    },
+    {
+      "file": "docs/spec/audit-act.md",
+      "token": "prototypes/signals-annotated/index.html:9-11"
+    },
+    {
+      "file": "docs/spec/citation-anchors.md",
+      "token": "path/to/file.md:247"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/prober/main.go:45"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/addresscap_test.go:39"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/addresscap_test.go:47"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/addresscap_test.go:64"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/addressscopecensus_test.go:87"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/addressscopecensus.go:45"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/adr0130_contract_test.go:498"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/asset_test.go:31"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/backup.go:174"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/backup.go:175"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/backup.go:178"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/devfixtures.go:281"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/exclusions.go:103"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/inbox_test.go:82"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/integrations.go:22"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/logutil.go:12"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/main.go:1"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/messages_test.go:122"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/messages.go:21"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/proposals_test.go:257"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/proposals.go:358"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/reportdelivery_test.go:20"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/reports.go:905"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/scans_test.go:272"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/seedfixtures.go:122"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/seeds.go:700"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "cmd/web/sso.go:482"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "db/queries/messages.sql:92-94"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "deploy/prober/Dockerfile:6"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "deploy/prober/entrypoint.sh:28"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "design-system/components/display/Sparkline.d.ts:7"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "design-system/examples/console/Settings.jsx:642"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "design-system/templates/settings.tmpl:12"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "docs/guides/integrations.md:139-143"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "docs/guides/notification-channels.md:243"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "docs/guides/reports.md:68-69"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "docs/spec/ct-source-replacement.md:180"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/auth/key.go:15"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/commentlint/screen/screen_test.go:50"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/commentlint/surface/golang.go:15"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/custody/census.go:5"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/custody/fanout.go:185"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/custody/scopecensus.go:29"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/delivery/delivery.go:113"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/delivery/runner.go:55"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/measure/connectoutcome/tls.go:85"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/measure/edgefanout/leaf.go:83"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/measure/tlsacceptance/library.go:10"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/message/render.go:395"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/queue/edgefanout.go:268"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/queue/withdrawal.go:99"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/queue/worker.go:331"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/queue/worker.go:41"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/scan/edgefanout.go:1"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/scan/edgefanout.go:3"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/seed/exclusion.go:15"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/seed/seed.go:17"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "token": "internal/seed/seed.go:24"
+    },
+    {
+      "file": "docs/spec/v1-spec.md",
+      "token": "cmd/web/settings.go:789"
+    },
+    {
+      "file": "docs/spec/v1-spec.md",
+      "token": "internal/queue/hot.go:165"
+    },
+    {
+      "file": "docs/spec/v1-spec.md",
+      "token": "internal/vergecore/vergecore.go:47"
+    }
+  ]
+}
