@@ -289,6 +289,9 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 	if row.State == apertureNone {
 		t.Error("a failed read renders as `none`, which claims no vantage is declared")
 	}
+	if row.StateKind != "withheld" {
+		t.Errorf("state_kind = %q: a client reading the kind alone cannot tell a state from a failed read", row.StateKind)
+	}
 	if row.Remedy != apertureNone || row.RemedyHref != "" {
 		t.Errorf("remedy = %q -> %q: a failed read names no missing leg, so it names no act", row.Remedy, row.RemedyHref)
 	}

@@ -55,6 +55,7 @@ func (s *server) apertureVantageClasses(ctx context.Context, store apertureVanta
 	covered, cerr := s.addressScopeCovered(ctx)
 	if cerr != nil {
 		log.Printf("web: %s: address scope coverage: %v", where, cerr)
+		// A tag failing closed to internet mislabels one vantage; here it would hide the remedy.
 		return nil, false
 	}
 	return listedVantageClasses(rows, covered), true
@@ -104,6 +105,8 @@ func vantageClassRow(classes []custody.VantageClass, classesRead bool) apertureR
 		StateKind:  "off",
 	}
 	if !classesRead {
+		// A client reads the kind rather than the prose, so `off` would state a state we lack.
+		row.StateKind = "withheld"
 		row.State = "not read"
 		row.StateDetail = "The vantage list did not read, so this cell states no class."
 		row.Remedy = apertureNone
@@ -142,7 +145,7 @@ func vantageClassRow(classes []custody.VantageClass, classesRead bool) apertureR
 	return row
 }
 
-// The count is over our own list of declared vantages, which SPEC §8.8's estate bar does not reach.
+// The count is over our own list of provisioned probers, which SPEC §8.8's bar does not reach.
 
 func vantageClassSet(classes []custody.VantageClass) string {
 	counts := map[string]int{}
