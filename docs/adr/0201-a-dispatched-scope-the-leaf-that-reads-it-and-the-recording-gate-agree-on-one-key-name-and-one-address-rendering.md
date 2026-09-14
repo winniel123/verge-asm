@@ -20,8 +20,8 @@ relations:
 
 ## Context
 
-[`internal/scan/edgefanout.go:67`](../../internal/scan/edgefanout.go) and
-[`internal/scan/edgefanout.go:34`](../../internal/scan/edgefanout.go) carried these two blocks until
+[`internal/scan/edgefanout.go`](../../internal/scan/edgefanout.go) and
+[`internal/scan/edgefanout.go#BuildEdgeFanoutJobs`](../../internal/scan/edgefanout.go) carried these two blocks until
 #1318 deleted them:
 
 ```go
@@ -53,7 +53,7 @@ JSON name, nor that two normalisation sites must be the same function.
 
 ### One decoder reads every leaf's recorded scope
 
-[`internal/queue/scopegate.go:28`](../../internal/queue/scopegate.go) declares **one** `scopeShape`
+[`internal/queue/scopegate.go#scopeShape`](../../internal/queue/scopegate.go) declares **one** `scopeShape`
 and unmarshals it over the `recorded_scope` of every job kind:
 
 ```go
@@ -126,7 +126,7 @@ a spelling"* — which is the same rule read from the leaf.
 
 ### A fourth reader is outside the measurement path entirely
 
-[`cmd/web/driftfeed.go:240`](../../cmd/web/driftfeed.go) ranges `[]string{"names", "addresses",
+[`cmd/web/driftfeed.go#driftBatchMeta`](../../cmd/web/driftfeed.go) ranges `[]string{"names", "addresses",
 "services"}` against the recorded scope to build a batch label. It never sees the producer, it
 decodes by name alone, and a mismatch renders no label rather than failing.
 
@@ -184,7 +184,7 @@ producer that shipped a mapped form.
 ## Consequences
 
 - **This ADR changes no Go code.** All six builders comply today. Three tests pin parts of it —
-  [`internal/scan/edgefanout_test.go:113`](../../internal/scan/edgefanout_test.go) decodes the
+  [`internal/scan/edgefanout_test.go#TestEdgeFanoutAttemptedScopeRecordsTheAddresses`](../../internal/scan/edgefanout_test.go) decodes the
   dispatched scope through a local `addresses` struct, and
   [`internal/queue/scopegate_test.go`](../../internal/queue/scopegate_test.go) feeds the gate literal
   JSON. No test spans a producer and the gate together.
