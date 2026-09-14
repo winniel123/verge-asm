@@ -11790,7 +11790,7 @@
       "date": "2026-09-13",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "fix",
       "proof": {
@@ -11807,6 +11807,58 @@
           "clause": "6"
         }
       ],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 1944,
+          "clause": "4"
+        }
+      ],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1944,
+          "clause": "4"
+        }
+      ],
+      "decision": {
+        "words": 145,
+        "text": "**A dial's read, compare, write and record run in one transaction that opens with\n`SELECT … FOR UPDATE` on the row the dial lives on.** All eight `act.DialMove` sites take one\nwrapper.\n\nOutside the lock, two submits of one move both read the old value and both record, so the\nappend-only corpus takes a second `Dial moved` row it can never retract. A stale read loses a row\ninstead: it compares equal after another admin moved the dial.\n\nRejected: `UPDATE … WHERE col IS DISTINCT FROM $1` recording on rows affected. It reaches five of\nthe eight sites, splits the guard in two, and stops a no-op stamping the attribution columns, which\nreverses [ADR-1909](./1909-a-dial-submitted-at-its-current-value-writes-no-act-row.md) §5.1.\nRejected: an advisory lock, which buys a key convention for rows that already exist.\n\nReversal returns the race to eight sites.\n\n**So `cmd/web` holds a transaction outside the restore path.**"
+      }
+    },
+    {
+      "number": 1944,
+      "file": "docs/adr/1944-the-observation-floor-is-derived-in-the-statement-that-writes-the-dial.md",
+      "title": "The observation floor is derived in the statement that writes the dial",
+      "slug": "the-observation-floor-is-derived-in-the-statement-that-writes-the-dial",
+      "date": "2026-09-14",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "cmd/web/retentionpanel_test.go::TestAScanWriteUnderTheSectionCannotPersistABelowFloorDial"
+      },
+      "ticket": 1944,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1914,
+          "clause": "4"
+        }
+      ],
       "incoming": [],
       "sections": [
         "1",
@@ -11818,8 +11870,8 @@
       ],
       "markers": [],
       "decision": {
-        "words": 145,
-        "text": "**A dial's read, compare, write and record run in one transaction that opens with\n`SELECT … FOR UPDATE` on the row the dial lives on.** All eight `act.DialMove` sites take one\nwrapper.\n\nOutside the lock, two submits of one move both read the old value and both record, so the\nappend-only corpus takes a second `Dial moved` row it can never retract. A stale read loses a row\ninstead: it compares equal after another admin moved the dial.\n\nRejected: `UPDATE … WHERE col IS DISTINCT FROM $1` recording on rows affected. It reaches five of\nthe eight sites, splits the guard in two, and stops a no-op stamping the attribution columns, which\nreverses [ADR-1909](./1909-a-dial-submitted-at-its-current-value-writes-no-act-row.md) §5.1.\nRejected: an advisory lock, which buys a key convention for rows that already exist.\n\nReversal returns the race to eight sites.\n\n**So `cmd/web` holds a transaction outside the restore path.**"
+        "words": 134,
+        "text": "**The observation currency dial is written by an `UPDATE` that derives its floor in the same\nstatement, and the clamped value comes back through `RETURNING`.**\n\nThe dial lock is on `retention_settings` and holds no `scan` row. Under READ COMMITTED a write to\n`scan` that commits between a floor read and the `UPDATE` leaves a value below the floor then in\nforce.\n\nRejected: `FOR SHARE` over the enabled scans. It cannot lock a row that is still `FALSE`, and it\ntouches no `batch` or `observation` row, so the worker moves the floor straight through it.\nRejected: re-read and re-clamp before the write, which makes the window smaller and leaves it open.\n\nThe price is one derivation expressed twice, in Go and in SQL.\n\nReversal puts the window back and returns the floor to one home."
       }
     }
   ]
