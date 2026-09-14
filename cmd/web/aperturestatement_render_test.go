@@ -323,7 +323,7 @@ func TestAPIv1CoverageCarriesTheStatementBesideTheMeters(t *testing.T) {
 		t.Error("the statement must ride beside meters, never replace it")
 	}
 	// The fake declares no vantage, so the class row reads its own no-leg case.
-	wantRows := apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, true)
+	wantRows := apertureStatement(readInputs(), nil)
 	if len(got.Statement) != len(wantRows) {
 		t.Fatalf("statement rows = %d, want %d (body %q)", len(got.Statement), len(wantRows), rec.Body.String())
 	}

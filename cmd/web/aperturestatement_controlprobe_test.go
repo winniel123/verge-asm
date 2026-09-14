@@ -15,7 +15,7 @@ import (
 
 func controlProbeRowOf(t *testing.T, seeds []db.ListSeedsRow, cadence int64, read bool) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(nil, true, seeds, cadence, read, nil, true), controlProbeInput)
+	return statementRow(t, apertureStatement(readInputs().withCadence(cadence, read), seeds), controlProbeInput)
 }
 
 // A typed count stops agreeing with the prober the day ADR-0069's construction moves (SPEC §6.1).
@@ -56,7 +56,7 @@ func TestControlProbeRowFollowsTheDNSScanInterval(t *testing.T) {
 	}
 
 	// Two rows naming one Scan must not disagree about its interval on the same screen.
-	rows := apertureStatement(nil, true, nameOnlySeeds(), 6*3600, true, nil, true)
+	rows := apertureStatement(readInputs().withCadence(6*3600, true), nameOnlySeeds())
 	qtype, control := statementRow(t, rows, queriedQtypeInput), statementRow(t, rows, controlProbeInput)
 	if qtype.Cadence != control.Cadence {
 		t.Errorf("the dns Scan reads %q on the qtype row and %q here, so the ledger disagrees with itself", qtype.Cadence, control.Cadence)
@@ -128,11 +128,12 @@ func TestControlProbeRowStateCarriesNoToggle(t *testing.T) {
 // Every line reads declared configuration and no line reads a batch (SPEC §2.4, §8.8).
 
 func TestControlProbeRowReadsNoEstateBesideItsNameScopes(t *testing.T) {
-	bare := statementRow(t, apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true), controlProbeInput)
+	bare := statementRow(t, apertureStatement(readInputs(), nameOnlySeeds()), controlProbeInput)
 	peopled := statementRow(t, apertureStatement(
-		[]db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}, true,
-		addressScopeSeeds(t), testDNSCadenceSeconds, true,
-		[]custody.VantageClass{custody.ClassInternet, custody.ClassInternal}, true,
+		readInputs().
+			withStates([]db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}).
+			withClasses([]custody.VantageClass{custody.ClassInternet, custody.ClassInternal}),
+		addressScopeSeeds(t),
 	), controlProbeInput)
 
 	if !reflect.DeepEqual(bare, peopled) {

@@ -580,6 +580,14 @@ func devCoverageSourceStates() []db.SourceState {
 	return []db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}
 }
 
+func devCoverageApertureInputs(states []db.SourceState, classes []custody.VantageClass) apertureInputs {
+	return apertureInputs{
+		SourceStates:   apertureReadOf(states),
+		DNSCadence:     apertureReadOf(int64(devCoverageDNSCadence)),
+		VantageClasses: apertureReadOf(classes),
+	}
+}
+
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := pageData(acct, "Coverage", "coverage")
 
@@ -588,7 +596,7 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	s.coverageEmptyOnce = false
 	s.coverageMu.Unlock()
 	if empty {
-		data["Statement"] = apertureStatement(nil, true, nil, devCoverageDNSCadence, true, nil, true)
+		data["Statement"] = apertureStatement(devCoverageApertureInputs(nil, nil), nil)
 		data["Meters"] = []coverageMeterView(nil)
 		data["Messages"] = []coverageMessageView(nil)
 		data["Gaps"] = []coverageGapView(nil)
@@ -627,7 +635,10 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 		stale = append(stale, coverageStaleZoneView{Zone: z.zone, Age: z.age})
 	}
 
-	data["Statement"] = apertureStatement(devCoverageSourceStates(), true, devCoverageSeeds(), devCoverageDNSCadence, true, devCoverageClasses(), true)
+	data["Statement"] = apertureStatement(
+		devCoverageApertureInputs(devCoverageSourceStates(), devCoverageClasses()),
+		devCoverageSeeds(),
+	)
 	data["Meters"] = meters
 	data["Messages"] = messages
 	data["Gaps"] = gaps

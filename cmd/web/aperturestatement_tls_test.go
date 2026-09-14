@@ -15,7 +15,7 @@ import (
 
 func tlsCandidateRowOf(t *testing.T) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true), tlsCandidateInput)
+	return statementRow(t, apertureStatement(readInputs(), nameOnlySeeds()), tlsCandidateInput)
 }
 
 // A typed set stops agreeing with the wire the day the offer gains a version (SPEC §6.1).
@@ -103,11 +103,13 @@ func TestTLSRowStateCarriesNoToggle(t *testing.T) {
 // Every line reads declared configuration and no line reads a batch (SPEC §2.4, §8.8).
 
 func TestTLSRowIsConstantAcrossEstates(t *testing.T) {
-	bare := statementRow(t, apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, true), tlsCandidateInput)
+	bare := statementRow(t, apertureStatement(readInputs(), nil), tlsCandidateInput)
 	peopled := statementRow(t, apertureStatement(
-		[]db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}, true,
-		addressScopeSeeds(t), 7*86400, true,
-		[]custody.VantageClass{custody.ClassInternet, custody.ClassInternal}, true,
+		readInputs().
+			withStates([]db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}).
+			withCadence(7*86400, true).
+			withClasses([]custody.VantageClass{custody.ClassInternet, custody.ClassInternal}),
+		addressScopeSeeds(t),
 	), tlsCandidateInput)
 
 	if !reflect.DeepEqual(bare, peopled) {

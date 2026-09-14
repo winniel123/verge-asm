@@ -14,7 +14,7 @@ import (
 
 func qtypeRowOf(t *testing.T, seconds int64, read bool) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(nil, true, nameOnlySeeds(), seconds, read, nil, true), queriedQtypeInput)
+	return statementRow(t, apertureStatement(readInputs().withCadence(seconds, read), nameOnlySeeds()), queriedQtypeInput)
 }
 
 // A typed set stops agreeing with the wire the day the leaf offers an eighth qtype (SPEC §6.1).
@@ -117,11 +117,12 @@ func TestQtypeRowStateCarriesNoToggle(t *testing.T) {
 // Every line reads declared configuration and no line reads a batch (SPEC §2.4, §8.8).
 
 func TestQtypeRowIsConstantAcrossEstates(t *testing.T) {
-	bare := statementRow(t, apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, true), queriedQtypeInput)
+	bare := statementRow(t, apertureStatement(readInputs(), nil), queriedQtypeInput)
 	peopled := statementRow(t, apertureStatement(
-		[]db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}, true,
-		addressScopeSeeds(t), testDNSCadenceSeconds, true,
-		[]custody.VantageClass{custody.ClassInternet, custody.ClassInternal}, true,
+		readInputs().
+			withStates([]db.SourceState{{Slug: scan.CTTailSource, Enabled: true}}).
+			withClasses([]custody.VantageClass{custody.ClassInternet, custody.ClassInternal}),
+		addressScopeSeeds(t),
 	), queriedQtypeInput)
 
 	if !reflect.DeepEqual(bare, peopled) {

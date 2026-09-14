@@ -154,7 +154,7 @@ func numberWord(t *testing.T, n int) string {
 
 func nameOnlyStatement(t *testing.T) []apertureRowView {
 	t.Helper()
-	return apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true)
+	return apertureStatement(readInputs(), nameOnlySeeds())
 }
 
 // SPEC docs/spec/aperture-statement.md §8 criterion 1 — the ledger states what both specs state.
@@ -206,17 +206,33 @@ func apertureConfigurations(t *testing.T) []apertureConfig {
 	addressOnly := []db.ListSeedsRow{{Kind: "address", AddressCidr: &prefix}}
 
 	return []apertureConfig{
-		{"a fresh install", apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, true)},
+		{"a fresh install", apertureStatement(readInputs(), nil)},
 		{"a name-only estate", nameOnlyStatement(t)},
-		{"an estate with one address scope", apertureStatement(nil, true, addressScopeSeeds(t), testDNSCadenceSeconds, true, bothLegs, true)},
-		{"an address scope and no name scope", apertureStatement(nil, true, addressOnly, testDNSCadenceSeconds, true, bothLegs, true)},
-		{"an extended name scope", apertureStatement(nil, true, extended, testDNSCadenceSeconds, true, bothLegs, true)},
-		{"one name scope of two extended", apertureStatement(nil, true, partial, testDNSCadenceSeconds, true, bothLegs, true)},
-		{"every source enabled", apertureStatement(everySourceState(true), true, nameOnlySeeds(), testDNSCadenceSeconds, true, bothLegs, true)},
-		{"every source disabled", apertureStatement(everySourceState(false), true, nameOnlySeeds(), testDNSCadenceSeconds, true, bothLegs, true)},
-		{"an internet vantage alone", apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, internet, true)},
-		{"an internal vantage alone", apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, internal, true)},
-		{"every read withheld", apertureStatement(nil, false, nameOnlySeeds(), 0, false, nil, false)},
+		{"an estate with one address scope", apertureStatement(readInputs().withClasses(bothLegs), addressScopeSeeds(t))},
+		{"an address scope and no name scope", apertureStatement(readInputs().withClasses(bothLegs), addressOnly)},
+		{"an extended name scope", apertureStatement(readInputs().withClasses(bothLegs), extended)},
+		{"one name scope of two extended", apertureStatement(readInputs().withClasses(bothLegs), partial)},
+		{"every source enabled", apertureStatement(
+			readInputs().
+				withStates(everySourceState(true)).
+				withClasses(bothLegs),
+			nameOnlySeeds(),
+		)},
+		{"every source disabled", apertureStatement(
+			readInputs().
+				withStates(everySourceState(false)).
+				withClasses(bothLegs),
+			nameOnlySeeds(),
+		)},
+		{"an internet vantage alone", apertureStatement(readInputs().withClasses(internet), nameOnlySeeds())},
+		{"an internal vantage alone", apertureStatement(readInputs().withClasses(internal), nameOnlySeeds())},
+		{"every read withheld", apertureStatement(
+			readInputs().
+				withoutStates().
+				withCadence(0, false).
+				withoutClasses(),
+			nameOnlySeeds(),
+		)},
 	}
 }
 
@@ -238,7 +254,7 @@ func TestNoLedgerCellRendersBlankOnAnyConfiguration(t *testing.T) {
 // Two rows fold over an empty Seed list, which is a declared state and not a pending read (§2.3).
 
 func TestAFreshInstallStatesNoneRatherThanABlankCell(t *testing.T) {
-	rows := apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, true)
+	rows := apertureStatement(readInputs(), nil)
 	for _, input := range []string{vantageClassInput, controlProbeInput} {
 		row := statementRow(t, rows, input)
 		if row.State != apertureNone {
@@ -253,7 +269,13 @@ func TestAFreshInstallStatesNoneRatherThanABlankCell(t *testing.T) {
 // A withheld read lands in the cell it reaches, so the reader never meets a value we lack (#989).
 
 func TestAWithheldReadNamesItselfInTheCellItReaches(t *testing.T) {
-	rows := apertureStatement(nil, false, nameOnlySeeds(), 0, false, nil, false)
+	rows := apertureStatement(
+		readInputs().
+			withoutStates().
+			withCadence(0, false).
+			withoutClasses(),
+		nameOnlySeeds(),
+	)
 	const notRead = "not read"
 
 	for _, input := range []string{enabledSourcesInput, vantageClassInput} {
