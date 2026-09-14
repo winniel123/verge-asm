@@ -1519,7 +1519,7 @@
       "key": "203.0.113.7:5900/tcp",
       "copy_key": "203.0.113.7:5900 tcp",
       "withdrawn": false,
-      "exposure": "exposed",
+      "internet_leg": "reached",
       "seen": "4m",
       "in_scope_since": "2026-08-22",
       "citation": [

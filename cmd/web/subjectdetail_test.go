@@ -21,7 +21,7 @@ func TestServiceDetailRendersV32Composition(t *testing.T) {
 	for _, want := range []string{
 		`href="/inventory"`, `class="sh-pill on" href="/inventory"`,
 		`<span class="sd-tag">service</span>`,
-		`class="as-leg exposed">exposed`,
+		`<span class="sd-micro">Internet leg</span><span class="vg-leg danger">reached</span>`,
 		"198.51.100.1:5900/tcp",
 		"Citation chain", "Reachability", "Current and closed timelines",
 		"Rules over this subject", "How it got here", "Signals here",
@@ -85,8 +85,8 @@ func TestServiceDetailWithdrawn(t *testing.T) {
 	if strings.Contains(drill, "Signals here") {
 		t.Errorf("withdrawn service should withhold the signals-here rail; body: %s", drill)
 	}
-	if strings.Contains(drill, `class="as-leg exposed"`) {
-		t.Errorf("withdrawn service should show no ExposureBadge; body: %s", drill)
+	if strings.Contains(drill, `class="vg-leg`) {
+		t.Errorf("withdrawn service should show no leg chip; body: %s", drill)
 	}
 }
 

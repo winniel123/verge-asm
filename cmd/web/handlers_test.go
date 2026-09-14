@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -1146,6 +1147,24 @@ func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db
 		}
 		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
 	})
+	return rows, nil
+}
+
+func (f *fakeStore) ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]db.ListServiceReachabilitySpansByClassForServicesRow, error) {
+	all, err := f.ListServiceReachabilitySpansByClass(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows := []db.ListServiceReachabilitySpansByClassForServicesRow{}
+	for _, r := range all {
+		if !slices.Contains(serviceKeys, r.SubjectKey) {
+			continue
+		}
+		rows = append(rows, db.ListServiceReachabilitySpansByClassForServicesRow{
+			SubjectKey: r.SubjectKey, VantageID: r.VantageID, Value: r.Value, IsGap: r.IsGap,
+			OpenedAt: r.OpenedAt, ID: r.ID, Host: r.Host, Egress: r.Egress, DialledAddr: r.DialledAddr,
+		})
+	}
 	return rows, nil
 }
 

@@ -95,6 +95,17 @@ func reachRowsFromCurrent(rows []db.ListServiceReachabilitySpansByClassRow) []re
 	return out
 }
 
+func reachRowsForServices(rows []db.ListServiceReachabilitySpansByClassForServicesRow) []reachLegRow {
+	out := make([]reachLegRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, reachLegRow{
+			subject: r.SubjectKey, dialled: r.DialledAddr.String, egress: r.Egress.String,
+			value: r.Value, isGap: r.IsGap, openedAt: r.OpenedAt.Time, id: r.ID,
+		})
+	}
+	return out
+}
+
 func reachRowsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow) []reachLegRow {
 	out := make([]reachLegRow, 0, len(rows))
 	for _, r := range rows {
