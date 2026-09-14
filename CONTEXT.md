@@ -418,10 +418,10 @@ produces a current observation of a stale fact. It is that instant the bound run
 ([#48](https://github.com/winniel123/verge-asm/issues/48)'s fourth absence register, *you stopped
 telling us*). The sixth is **`ct`**, the certificate-transparency poll (`crt.sh`) — worker-read
 like `zone`, with no port list and no vantage, one `Batch` per name scope. Its source **admits
-without observing**, so alone among the `Scan`s it carries **no currency bound and no withdrawal
-power**: the currency rule quantifies over observations and it produces none, so it schedules and
-gives `Coverage` a row and bounds nothing. Its cadence is the operator's, shipped at **daily**. A
-non-200 fetch admits nothing and never an absence. A `Scan`
+without observing**. ADR-0096 §7 rules that of **any** such source, so it carries **no currency
+bound and no withdrawal power**. The currency rule quantifies over observations and it produces
+none, so it schedules and gives `Coverage` a row and bounds nothing. Its cadence is the operator's,
+shipped at **daily**. A non-200 fetch admits nothing and never an absence. A `Scan`
 whose scope list is empty is a legible state. An aperture with nothing configured behind it is
 not — and the `ct` `Scan` fires over an empty scope while the `crtsh` source is toggled off, the
 schedule and the source's `consent` being two controls. See
@@ -439,10 +439,10 @@ extension is declared. Its exchange is a **connect**, so it is none of the query
 worker-read `Scan`s, and it runs **before its target is a member**, so it is neither `hot` nor
 `tls-acceptance`, which cover members only. It ships at **daily**, matching the `dns` cadence's shipped default; `dns`
 carries an operator dial and `edge-fanout` does not, so the two may diverge. It has **no vantage dimension** — the default certificate is not a function of vantage, and
-vantage-varying fan-out is anycast, out of v1. Like `ct` it **holds no facet timeline**, so it carries **no
-currency bound and no withdrawal power**: its result — the hostname set the edge presents — is recorded on
-its `Batch` by content and composed into the `Custody` derivation as the **second Observed input** to the
-extension's reach. A candidate not yet measured is **held**, neither reached nor vetoed, until the probe
+vantage-varying fan-out is anycast, out of v1. Like `ct` it carries **no currency bound and no withdrawal power**, but by a different
+limb. `ct`'s source admits without observing. This `Scan` carries no `Source` and **holds no facet timeline**. Its result — the hostname
+set the edge presents — is recorded on its `Batch` by content and composed into the `Custody` derivation as the **second Observed input**
+to the extension's reach. A candidate not yet measured is **held**, neither reached nor vetoed, until the probe
 clears or declines it. **That hold does not reach the address-scope population**, which is a subject from
 the declaration and has no reach to withhold: there an unmeasured address is probed and carries no row, and
 the row appears once the probe has measured it. So the `Scan` serves two purposes — deciding membership on
