@@ -231,8 +231,8 @@ The fired-signal census, one array per tab.
 
 Two reads ride in one response. The `meters` key is the aperture census, one meter
 per declared scope. The `statement` key is the aperture statement. It holds one row
-per aperture input, as the Coverage screen renders it. The sample below abridges
-that list, so read the row count off your own response.
+per aperture input, as the Coverage screen renders it. The sample below carries
+the whole list, in the order the screen renders it.
 
 ```json
 {
@@ -268,6 +268,20 @@ that list, so read the row count off your own response.
       ],
       "state_detail": "…",
       "remedy": "Declare an address scope",
+      "remedy_href": "/scope",
+      "remedy_why": "…"
+    },
+    {
+      "input": "The custody gate",
+      "cadence": "every dispatch · daily",
+      "cadence_why": "…",
+      "state": "total · extension off",
+      "state_kind": "off",
+      "figures": [
+        { "text": "0 of 1 name scope extended", "zero": false }
+      ],
+      "state_detail": "…",
+      "remedy": "Extend custody to a name scope",
       "remedy_href": "/scope",
       "remedy_why": "…"
     },

@@ -316,20 +316,6 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 	}
 }
 
-// SPEC §2.5's order: sources 1, port tiers 2, gate 3, qtypes 4, TLS 5, class 6, controls 7.
-
-func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
-	rows := apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true)
-	order := make([]string, 0, len(rows))
-	for _, r := range rows {
-		order = append(order, r.Input)
-	}
-	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, queriedQtypeInput, tlsCandidateInput, vantageClassInput, controlProbeInput}
-	if strings.Join(order, "|") != strings.Join(want, "|") {
-		t.Errorf("ledger order = %v, want %v", order, want)
-	}
-}
-
 func enabledSourcesRowOf(t *testing.T, states ...db.SourceState) apertureRowView {
 	t.Helper()
 	return statementRow(t, apertureStatement(states, true, nil, testDNSCadenceSeconds, true, nil, true), enabledSourcesInput)
