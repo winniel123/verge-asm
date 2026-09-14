@@ -26,7 +26,7 @@ uncited. One sentence survives at [`progress.go:94`](../../cmd/web/progress.go),
 [`comment-policy.md`](../spec/comment-policy.md) §4.7 route 3 because no document states the rule.
 
 **The client is append-only, and that is a constraint, not a decision.**
-[`design-system/templates/rundetail.tmpl:213`](../../design-system/templates/rundetail.tmpl) sets
+[`design-system/templates/rundetail.tmpl#run`](../../design-system/templates/rundetail.tmpl) sets
 `cursor = body.querySelectorAll(".rd-line").length` — the count of lines the server already
 rendered inside `.rd-logbody` (`:144-148`). `:217-223` builds each incoming line and calls
 `body.appendChild(row)`. There is no code path that reaches an existing `.rd-line`, and no line
@@ -41,12 +41,12 @@ emitter, `cmd/web`'s stream endpoint and the template's client, and none of the 
 `_test.go` file.
 
 **A terminal write mutates the `queue_job` row in place.** `markDone`, `markDead` and `markRetried`
-are `UPDATE queue_job SET state = …` at [`db/queries/measurement.sql:114`](../../db/queries/measurement.sql),
-`:117` and `:120`, called from [`internal/queue/worker.go:454`](../../internal/queue/worker.go),
+are `UPDATE queue_job SET state = …` at [`db/queries/measurement.sql`](../../db/queries/measurement.sql),
+`:117` and `:120`, called from [`internal/queue/worker.go#Worker.complete`](../../internal/queue/worker.go),
 `:486` and `:513`. The state log is one line per row
-([`cmd/web/scans.go:722-742`](../../cmd/web/scans.go)), so a dead-letter changes the *text* of a
+([`cmd/web/scans.go`](../../cmd/web/scans.go)), so a dead-letter changes the *text* of a
 line the viewer already holds and can never be told about. The reason — `dead-lettered after 5
-attempts · crt.sh returned HTTP 502` (`internal/queue/progress.go:44-46`) — arrives as its own line
+attempts · crt.sh returned HTTP 502` (`internal/queue/progress.go#deadLetterLabel`) — arrives as its own line
 or not at all.
 
 **Where the rule used to be stated, and is not now.** #1374 recorded that `rundetail.tmpl:7` said
@@ -111,7 +111,7 @@ and the `strconv.Atoi` at `scans.go:563` are both safe.
 
 **The state ceiling is reachable and the clamp is not a fix.** One state line is one `queue_job`
 row, a `hot` `Scan` fans out one job per `(Vantage, Address)` pair (`CONTEXT.md:453-454`,
-`internal/scan/hot.go:50-55`), and
+`internal/scan/hot.go`), and
 [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md)
 rules the address-scope cap has **no upper bound**. At a million rows the clamp makes
 `len(state) > stateCur` (`scans.go:583`) permanently true and the endpoint re-serves the tail of the
@@ -128,7 +128,7 @@ and stops, rather than reporting a position it cannot reach.
   (`rundetail.tmpl:143`), so the script's `body` is null and it returns at `:212`. That follows from
   §3: with no rendered lines there is no cursor origin.
 - **The state log stays bare.** `runLog` may not be enriched from the hub; `TestPageLogStaysBareState`
-  (`cmd/web/progress_test.go:170-195`) pins that, and this ADR states why.
+  (`cmd/web/progress_test.go#TestPageLogStaysBareState`) pins that, and this ADR states why.
 - **Three survivors gain a citation** and the deleted block does not come back.
 - **A defect is open against §4.** `deriveRunStream` does not truncate the state log to
   `streamCursorBase - 1`, so the ceiling case livelocks instead of stopping. It is reported to the

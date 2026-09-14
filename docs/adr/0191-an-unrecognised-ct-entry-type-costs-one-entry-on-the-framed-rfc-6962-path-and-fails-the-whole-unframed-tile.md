@@ -21,7 +21,7 @@ relations:
 
 ## Context
 
-`internal/scan/cttail.go:334` and `:522` carried these, until #1307 shortened them:
+`internal/scan/cttail.go#CertSANs` and `:522` carried these, until #1307 shortened them:
 
 ```go
 // An entry
@@ -34,14 +34,14 @@ relations:
 // tile cannot be framed. Fail the tile rather than guess an offset.
 ```
 
-Both survive in short form, at `internal/scan/cttail.go:269`:
+Both survive in short form, at `internal/scan/cttail.go#ParseLogEntries`:
 
 ```go
 default:
 	return nil, nil // a future entry type is tolerated, never a failed poll
 ```
 
-and at `internal/scan/cttail.go:378`:
+and at `internal/scan/cttail.go#DataTilePath`:
 
 ```go
 default:
@@ -51,7 +51,7 @@ default:
 
 ### The two entry types, and the two transports
 
-`internal/scan/cttail.go:230` declares the closed set the tail knows:
+`internal/scan/cttail.go#CTSignedTreeHead` declares the closed set the tail knows:
 
 ```go
 ctEntryX509    = 0
@@ -61,13 +61,13 @@ ctEntryPrecert = 1
 Both transports carry the same two values in the same two-byte field. **They frame the field
 differently, and that is the whole of this ruling.**
 
-**RFC 6962 `get-entries` returns JSON.** `ParseLogEntries` (`internal/scan/cttail.go:203`) decodes
+**RFC 6962 `get-entries` returns JSON.** `ParseLogEntries` (`internal/scan/cttail.go`) decodes
 each element's `leaf_input` and `extra_data` from base64 into its own `[]byte`. **The transport
 already framed every entry, so an entry's length never depends on its content.** `LeafSANs` reads
 one entry's bytes and returns.
 
 **A static-ct-api data tile is one concatenated byte stream.** `ParseDataTile`
-(`internal/scan/cttail.go:336`) loops:
+(`internal/scan/cttail.go#CertSANs`) loops:
 
 ```go
 der, rest, err := parseTileLeaf(b)
@@ -92,10 +92,10 @@ entry after it**, and there is no way to recover one without guessing.
 
 ### The two callers, measured
 
-| | RFC 6962 (`internal/queue/cttail.go:91`) | static-ct-api (`internal/queue/cttail.go:153`) |
+| | RFC 6962 (`internal/queue/cttail.go#Worker.completeCTTailRFC`) | static-ct-api (`internal/queue/cttail.go#Worker.completeCTTailTiled`) |
 | --- | --- | --- |
 | Unknown entry type | `LeafSANs` returns `(nil, nil)`. No names, no error, **no log line** | `ParseDataTile` returns an error. `retryOrDeadLetterCT` retries, then dead-letters a Batch |
-| Unparseable certificate DER | `LeafSANs` returns an error. `internal/queue/cttail.go:94` logs and `continue`s | `CertSANs` returns an error. `internal/queue/cttail.go:168` logs and `continue`s |
+| Unparseable certificate DER | `LeafSANs` returns an error. `internal/queue/cttail.go#Worker.completeCTTailRFC` logs and `continue`s | `CertSANs` returns an error. `internal/queue/cttail.go` logs and `continue`s |
 | Cursor after the event | `reached += int64(len(entries))`. **The cursor advances past it** | `reached` is never assigned. **The cursor does not move** |
 | Cost of the event | One entry's names | Every entry from that leaf to the end of the tile, plus the poll |
 
@@ -105,7 +105,7 @@ refuses **one** thing, and that thing is framing.
 
 ### The retry is not the same act on the two paths
 
-`retryOrDeadLetterCT` (`internal/queue/crtsh.go:253`) retries until `MaxAttempts`, then dead-letters.
+`retryOrDeadLetterCT` (`internal/queue/crtsh.go`) retries until `MaxAttempts`, then dead-letters.
 Every other caller of it on the tail is a **fetch** failure — a non-200 on `get-sth`,
 `get-entries`, `checkpoint` or `tile/data`, or a malformed body. Those are transient and a retry is
 the right instrument.
@@ -186,18 +186,18 @@ that is a defect rather than a decision.
 ### 5. What this rule does not reach
 
 - **The two type values themselves.** `ctEntryX509` and `ctEntryPrecert` are RFC 6962 §3.4 wire
-  constants, and `internal/scan/cttail.go:228` already says they are not ours to choose.
+  constants, and `internal/scan/cttail.go` already says they are not ours to choose.
 - **A leaf whose certificate will not parse.** Both paths log and skip it, and that is one behaviour,
   not two. It is not this rule.
 - **Whether the tail should learn a new entry type.** That is a release decision, taken when one
   exists. This ADR rules what happens in the meantime.
-- **The `get-entries` short-read rule.** `internal/scan/cttail.go:201` already states that the cursor
+- **The `get-entries` short-read rule.** `internal/scan/cttail.go#CTTailJob.JobSpec` already states that the cursor
   advances by the count returned, and that is §4.4's rule rather than this one.
 
 ## Consequences
 
 - **This ADR changes no Go code.** Both arms are correct as they stand.
-- **`internal/scan/cttail.go:269` and `:378` each gain this ADR's citation**, on the surviving line
+- **`internal/scan/cttail.go#ParseLogEntries` and `:378` each gain this ADR's citation**, on the surviving line
   that states their half of the rule. Recorded in this issue's manifest.
 - **A stalled tiled log is invisible as a stall, and that is a defect this ruling exposes.** A
   dead-lettered `ct-tail` Batch carrying `data tile leaf N: unsupported entry type 7` looks exactly

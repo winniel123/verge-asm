@@ -21,7 +21,7 @@ relations:
 
 ## Context
 
-`internal/scan/cttail.go:45` and `:52` carried these two, until #1307 rewrote them:
+`internal/scan/cttail.go#logList` and `:52` carried these two, until #1307 rewrote them:
 
 ```go
 // embeddedLogList is the pinned snapshot of Google's CT log_list.json (v89.34,
@@ -40,7 +40,7 @@ relations:
 // generic-key heuristic. A signature-verifying successor re-embeds the keys.
 ```
 
-The sweep kept three lines at `internal/scan/cttail.go:25`:
+The sweep kept three lines at `internal/scan/cttail.go`:
 
 ```go
 // Embedded rather than fetched live, so the log set is deterministic and needs no network.
@@ -60,13 +60,13 @@ Sectigo, Let's Encrypt, TrustAsia, Geomys, IPng Networks. **48 log entries**: 26
 
 ### Two readers, and neither fetches
 
-`internal/scan/cttail.go:29` is `//go:embed log_list.json`. Line 30 is `var embeddedLogList []byte`.
+`internal/scan/cttail.go#embeddedLogList` is `//go:embed log_list.json`. Line 30 is `var embeddedLogList []byte`.
 Exactly two functions unmarshal it, and there is no third:
 
-- `SelectTailLogs(now)` (`internal/scan/cttail.go:78`) — the **tail's** reader. It applies
+- `SelectTailLogs(now)` (`internal/scan/cttail.go`) — the **tail's** reader. It applies
   `tailReadableState` (`usable` or `readonly`) and `tailCoversNow` (`temporal_interval` covering now,
   plus `nextShardHorizon` of 366 days ahead).
-- `AllLogs()` (`internal/scan/ctverify.go:405`) — the **verification** reader. It applies **no state
+- `AllLogs()` (`internal/scan/ctverify.go#AllLogs`) — the **verification** reader. It applies **no state
   filter and no temporal filter**, and returns every entry that has an id and a URL.
 
 **No path in the tree fetches a log list.** `ctTailFetcher` reaches `get-sth`, `get-entries`,
@@ -75,9 +75,9 @@ Neither reaches a log-list URL, and no code constructs one.
 
 ### The tail's reader runs inside the dispatch transaction
 
-`internal/queue/queue.go:120` opens the transaction, `:126` takes
+`internal/queue/queue.go#Dispatcher.settleDue` opens the transaction, `:126` takes
 `pg_advisory_xact_lock`, `:150` calls `fanOutCTTail`, and `:163` commits.
-`internal/queue/cttail.go:292` calls `scan.SelectTailLogs(d.now())` inside that call.
+`internal/queue/cttail.go#knownNameSet` calls `scan.SelectTailLogs(d.now())` inside that call.
 
 So the log set is chosen between `BEGIN` and `COMMIT`, under an advisory lock. A fetch there holds a
 Postgres transaction and a lock open across a third-party round trip.
@@ -214,7 +214,7 @@ rather than grudging.
 **Nothing in the tree verifies a CT log signature.** `SelectTailLogs` reads `description`, `log_id`,
 `url` or `monitoring_url`, `state` and `temporal_interval`. `AllLogs` reads `log_id`, `url` or
 `monitoring_url` and `description`. `ParseSTH` reads `tree_size` and keeps the raw body.
-`ParseCheckpoint` splits the note and reads the size. `internal/queue/cttail.go:130` says so at the
+`ParseCheckpoint` splits the note and reads the size. `internal/queue/cttail.go#Worker.completeCTTailRFC` says so at the
 one place a reader might assume otherwise:
 
 ```go
@@ -271,7 +271,7 @@ specified today, and a refresh under it would still be an explicit act rather th
 
 - **Which logs are selected.** §4.3's `state` and `temporal_interval` rules decide that and are
   untouched.
-- **The `nextShardHorizon` constant** (366 days, `internal/scan/cttail.go:34`). It is a selection
+- **The `nextShardHorizon` constant** (366 days, `internal/scan/cttail.go#nextShardHorizon`). It is a selection
   parameter, not a provenance rule.
 - **Whether the tail runs at all.** That is the `ct-tail` source toggle, ADR-0003 and ADR-0189.
 - **The `ct_log_cursor` rows.** They are durable per-log state, keyed by `log_id`, and they survive a
@@ -287,7 +287,7 @@ specified today, and a refresh under it would still be an explicit act rather th
 - **§8's *"Deferred to fog"* list gains nothing.** §7 refuses the live-refresh path rather than
   deferring it, so an entry there would record a status this ADR does not hold. The deleted comment's
   *"deferred to fog"* clause is withdrawn as unfounded: no document ever carried that deferral.
-- **`internal/scan/cttail.go:25` gains this ADR's citation** on the surviving three-line block.
+- **`internal/scan/cttail.go` gains this ADR's citation** on the surviving three-line block.
   Recorded in this issue's manifest.
 
 ### The cost of the pin, measured

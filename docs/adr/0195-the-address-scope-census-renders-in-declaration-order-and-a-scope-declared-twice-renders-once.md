@@ -21,7 +21,7 @@ relations:
 
 ## Context
 
-`internal/custody/scopecensus.go:96` carried this, until [#1309](https://github.com/winniel123/verge-asm/pull/1309) deleted it:
+`internal/custody/scopecensus.go` carried this, until [#1309](https://github.com/winniel123/verge-asm/pull/1309) deleted it:
 
 ```go
 // Entries are in declaration order, so one render matches the next.
@@ -48,12 +48,12 @@ measurement side alone, where it decides no order. So the emitted sequence is th
 order, and a repeat collapses onto its **first** occurrence.
 
 **The production feed supplies declaration order already.** `ListAddressScopeCidrs`
-(`db/queries/measurement.sql:28`) reads `FROM seed WHERE kind = 'address'` and closes
+(`db/queries/measurement.sql`) reads `FROM seed WHERE kind = 'address'` and closes
 `ORDER BY id`. `seed.id` ascends with the declaration, so the slice reaching the census is the
-operator's list in the order the operator wrote it. `cmd/web/addressscopecensus.go:41` and
-`internal/queue/hot.go:114` both build the `Estate` from that read.
+operator's list in the order the operator wrote it. `cmd/web/addressscopecensus.go#addressScopeSharedEdges` and
+`internal/queue/hot.go#CitedResolutions` both build the `Estate` from that read.
 
-**A duplicate cannot arrive from the database today.** `db/migrations/00003_seeds.sql:26` creates
+**A duplicate cannot arrive from the database today.** `db/migrations/00003_seeds.sql` creates
 `UNIQUE INDEX seed_address_cidr_key ON seed (address_cidr)`, and no later migration drops it. The
 Postgres `cidr` type also refuses a value with bits set to the right of the mask, so two rows cannot
 mask onto one prefix either. `AddressScopes` is nonetheless a plain exported slice field that any
@@ -66,17 +66,17 @@ count today:
 
 | Surface | What it does | Order it renders in |
 | --- | --- | --- |
-| `design-system/templates/coverage.tmpl:80` | Renders *this scope covers N addresses; M of them present a fan-out above the threshold* inside an aperture meter | Its enclosing `{{range .Meters}}` |
-| `cmd/web/cold.go:193` `apertureMeters` | Builds one meter per `db.ListSeedsRow`, address scopes and name scopes interleaved | `ListSeeds` order |
-| `db/queries/seeds.sql:16` `ListSeeds` | `ORDER BY s.created_at DESC, s.id DESC` | **Newest declaration first** |
-| `cmd/web/addressscopecensus.go:17` `addressScopeSharedEdges` | Reduces the census to a `map[netip.Prefix]int` and returns the map | No order survives |
+| `design-system/templates/coverage.tmpl#coverage` | Renders *this scope covers N addresses; M of them present a fan-out above the threshold* inside an aperture meter | Its enclosing `{{range .Meters}}` |
+| `cmd/web/cold.go` `apertureMeters` | Builds one meter per `db.ListSeedsRow`, address scopes and name scopes interleaved | `ListSeeds` order |
+| `db/queries/seeds.sql#ListSeeds` `ListSeeds` | `ORDER BY s.created_at DESC, s.id DESC` | **Newest declaration first** |
+| `cmd/web/addressscopecensus.go#addressScopeSharedEdges` `addressScopeSharedEdges` | Reduces the census to a `map[netip.Prefix]int` and returns the map | No order survives |
 
 So the shipped console reaches the count through a **map lookup per seed**, and it renders the
 scopes in the reverse of the operator's declaration order. The census's own sequence is discarded at
 `cmd/web/addressscopecensus.go` before the template ever sees it.
 
 **No test discriminates the two candidate orders.**
-`internal/custody/scopecensus_test.go:19` declares `93.184.216.0/24` then `93.184.217.0/24` and
+`internal/custody/scopecensus_test.go#TestAddressScopeCensusCountsSharedEdgesInScope` declares `93.184.216.0/24` then `93.184.217.0/24` and
 asserts row 0 and row 1 in that sequence. That sequence is declaration order **and** sorted order at
 once, so the assertion passes under either rule.
 `scopecensus_test.go:110` declares one prefix twice and asserts `len(got) != 1`. It asserts the
@@ -171,7 +171,7 @@ it ships as its own ticket. It is not fixed here.
 - **This ADR changes no Go code.** `internal/custody/scopecensus.go` already emits declaration order
   and already collapses a duplicate onto its first occurrence.
 - **The triage record for #1310 is wrong on one fact, and the ADR is written to the truth.** It
-  states that no renderer consumes the census. `design-system/templates/coverage.tmpl:80` renders the
+  states that no renderer consumes the census. `design-system/templates/coverage.tmpl#coverage` renders the
   shared-edge count today, through `cmd/web/cold.go`'s `apertureMeters`.
 - **The Coverage screen renders address scopes newest-first, which is the reverse of this rule's
   order.** It ships as its own ticket. The ticket decides one of two repairs: order the aperture

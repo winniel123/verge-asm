@@ -20,7 +20,7 @@ relations:
 
 ## Context
 
-`internal/queue/membership.go:68` carried this, until [#1314](https://github.com/winniel123/verge-asm/pull/1314) deleted it:
+`internal/queue/membership.go#foldEstateTransitions` carried this, until [#1314](https://github.com/winniel123/verge-asm/pull/1314) deleted it:
 
 ```go
 // It is scoped to the Names the batch actually observed (a `resolution` fold): a
@@ -28,16 +28,16 @@ relations:
 // arrived, never as a background sweep of the whole estate.
 ```
 
-The compressed survivor sits at `internal/queue/membership.go:39`, on the loop head it explains. It
+The compressed survivor sits at `internal/queue/membership.go#readMembershipInputs`, on the loop head it explains. It
 is uncited, because nothing states the rule.
 
 ### The code is exactly as the comment says
 
-`foldEstateTransitions` (`internal/queue/membership.go:38`) iterates
+`foldEstateTransitions` (`internal/queue/membership.go`) iterates
 `observedResolutionNames(obs)` — the deduplicated `Subject` of every observation in this batch whose
-`Facet` is `resolutionwalk.FacetResolution` (`internal/queue/membership.go:103`). For each such Name
+`Facet` is `resolutionwalk.FacetResolution` (`internal/queue/membership.go#uncitedClosureStore`). For each such Name
 it lists the open spans, calls `decideNameDeparture`, and closes the timelines only where that
-returns `left`. It has one production caller, `internal/queue/worker.go:432`, inside the batch
+returns `left`. It has one production caller, `internal/queue/worker.go#Worker.discardCanceled`, inside the batch
 transaction.
 
 There is no other route by which a Name's membership is re-decided. `estate.AddressClosure` has no
@@ -80,7 +80,7 @@ recomputed. A view can be recomputed on any schedule.
 
 ### The estate fold is one of five, and the other four are not observation-scoped
 
-The batch transaction runs five folds in order (`internal/queue/worker.go:419-443`):
+The batch transaction runs five folds in order (`internal/queue/worker.go`):
 
 | Order | Fold | What it iterates | Trigger |
 | --- | --- | --- | --- |
@@ -91,7 +91,7 @@ The batch transaction runs five folds in order (`internal/queue/worker.go:419-44
 | 5 | `foldAddressExclusionWithdrawals` | the live `exclusion` corpus | a declared mover |
 | 6 | `foldSeedWithdrawals` | pending address `seed_withdrawal` tombstones | a declared mover |
 
-`internal/queue/worker.go:435` carries the survivor that names the second trigger:
+`internal/queue/worker.go#Worker.discardCanceled` carries the survivor that names the second trigger:
 
 ```go
 // A withdrawn Seed stops its Names being enumerated, so a batch-scoped fold misses them (#1045).
@@ -101,7 +101,7 @@ The batch transaction runs five folds in order (`internal/queue/worker.go:419-44
 contradict three accepted ADRs. Folds 4, 5 and 6 re-decide membership for subjects this batch never
 observed. What they are not is a sweep: each iterates a bounded set of movers the operator wrote, and
 each closes only what it can attribute to one. `composeAddressWithdrawals`
-(`internal/queue/withdrawal.go:44`) refuses to close a span it cannot attribute to a declared act.
+(`internal/queue/withdrawal.go#composeAddressWithdrawals`) refuses to close a span it cannot attribute to a declared act.
 
 Both triggers share one property, and it is the property that matters: **something new arrived.**
 Either a measurement arrived about the subject, or a declaration arrived about the scope. Neither
@@ -143,7 +143,7 @@ place. That ADR is the proof that this limb is a real second trigger rather than
 first: the product added a table so the trigger would exist.
 
 The two triggers are disjoint in the shipped code but the rule does not require them to be. A subject
-can be re-decided by both in one batch. `internal/queue/worker.go:443`'s ordering handles that: the
+can be re-decided by both in one batch. `internal/queue/worker.go#Worker.complete`'s ordering handles that: the
 withdrawal folds run last, and an address a prior fold already closed is no longer open, so it is
 never counted or attributed twice.
 

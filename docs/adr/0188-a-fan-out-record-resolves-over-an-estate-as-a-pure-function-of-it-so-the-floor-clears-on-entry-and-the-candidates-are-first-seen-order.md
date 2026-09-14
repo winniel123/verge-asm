@@ -23,7 +23,7 @@ Two comments in `internal/custody` stated execution properties of the ADR-0129 d
 [#1306](https://github.com/winniel123/verge-asm/pull/1306) deleted both. Nothing on disk states
 either one. Those are [#1305](https://github.com/winniel123/verge-asm/issues/1305)'s gaps 2 and 4.
 
-`internal/custody/veto.go:197`, pre-sweep, on `EdgeFanout.overExtension`:
+`internal/custody/veto.go`, pre-sweep, on `EdgeFanout.overExtension`:
 
 ```go
 // It is TOTAL and IDEMPOTENT: it resolves the verdict from the inputs alone and clears an
@@ -31,7 +31,7 @@ either one. Those are [#1305](https://github.com/winniel123/verge-asm/issues/130
 // reading into it.
 ```
 
-`internal/custody/candidates.go:36`, pre-sweep, on `Estate.ExtensionCandidates`:
+`internal/custody/candidates.go#Estate.ExtensionCandidates`, pre-sweep, on `Estate.ExtensionCandidates`:
 
 ```go
 // Addresses are distinct and in first-seen order. The dedup is what makes the Scan one
@@ -40,7 +40,7 @@ either one. Those are [#1305](https://github.com/winniel123/verge-asm/issues/130
 // order is deterministic so one tick's fan-out matches the next.
 ```
 
-The two properties meet at one statement, `internal/custody/custody.go:54`:
+The two properties meet at one statement, `internal/custody/custody.go#Estate.WithEdgeFanout`:
 
 ```go
 e.edgeFanout = f.overExtension(e.ExtensionCandidates())
@@ -54,14 +54,14 @@ expression. That is why one ADR carries both.
 
 `EdgeFanout.ExtensionErrored` is the per-limb floor that
 [#1018](https://github.com/winniel123/verge-asm/issues/1018) added. It is **false** in every
-record the store reader returns. `internal/queue/edgefanout.go:296` builds the record and sets
+record the store reader returns. `internal/queue/edgefanout.go#toEdgeFanout` builds the record and sets
 three fields. The floor is not among them:
 
 ```go
 return custody.EdgeFanout{Enabled: true, BatchCompleted: completed, Shared: shared}
 ```
 
-`internal/queue/edgefanoutread_test.go:288` pins that:
+`internal/queue/edgefanoutread_test.go#TestToEdgeFanoutCarriesTheCompletionOutToTheAssembler` pins that:
 
 > `ExtensionErrored = true` — this package holds no candidate set and may not resolve the floor
 
@@ -73,15 +73,15 @@ assemble an `Estate`, and the same store rows resolve to two different floors ac
 
 | Site | Candidate set | Record read | Floor `overExtension` resolves |
 | --- | --- | --- | --- |
-| `internal/queue/hot.go:117` | The in-zone direct-A targets | `EdgeFanoutUnbounded()` | May be **true**: an in-force `Scan`, a completed `Batch`, and no measured candidate |
-| `cmd/web/custodycensus.go:99` | The same in-zone targets | `EdgeFanoutOver(estate.ExtensionCandidates())`, so `Partial` is true | The same verdict on the same rows |
-| `cmd/web/addressscopecensus.go:43` | **Empty.** The `Estate` carries `AddressScopes` alone, with no `Resolutions` and no `ExtendedZones` | `EdgeFanoutUnbounded()` | Always **false**, on `overExtension`'s `len(candidates) == 0` arm |
-| `internal/custody/corpus/harness.go:44` | The corpus row's own resolutions | A record built from the row | Whatever that row's candidates resolve |
+| `internal/queue/hot.go#CitedResolutions` | The in-zone direct-A targets | `EdgeFanoutUnbounded()` | May be **true**: an in-force `Scan`, a completed `Batch`, and no measured candidate |
+| `cmd/web/custodycensus.go#toCustodyCensusView` | The same in-zone targets | `EdgeFanoutOver(estate.ExtensionCandidates())`, so `Partial` is true | The same verdict on the same rows |
+| `cmd/web/addressscopecensus.go#addressScopeSharedEdges` | **Empty.** The `Estate` carries `AddressScopes` alone, with no `Resolutions` and no `ExtendedZones` | `EdgeFanoutUnbounded()` | Always **false**, on `overExtension`'s `len(candidates) == 0` arm |
+| `internal/custody/corpus/harness.go#Step.Estate` | The corpus row's own resolutions | A record built from the row | Whatever that row's candidates resolve |
 
 Row 3 is the measurement that makes the rule non-obvious. The address-scope census reads the same
 `edge_fanout` rows as the hot dispatcher, over an `Estate` that declares no extension. The
 extension floor over that `Estate` is false, and it must be, because that census reads
-`e.edgeFanout.Enabled` alone at `internal/custody/scopecensus.go:14`. A floor carried in from a
+`e.edgeFanout.Enabled` alone at `internal/custody/scopecensus.go#Estate.AddressScopeCensus`. A floor carried in from a
 prior resolution is a value the second `Estate` never earned.
 
 ### The clear reads as dead code, and that is the hazard
@@ -106,7 +106,7 @@ appends to a slice. The order is the order of the first `Resolution` that carrie
 The dedup drops the rest.
 
 `Estate.EdgeFanoutPopulation` yields those candidates first, in that order, and then the declared
-address scopes. `internal/queue/edgefanout.go:30` hands that sequence to
+address scopes. `internal/queue/edgefanout.go#Dispatcher.fanOutEdgeFanout` hands that sequence to
 `scan.BuildEdgeFanoutJobs`, which cuts it into chunks of `EdgeFanoutAddressesPerJob = 50`. The
 chunk index then names the `Batch`:
 
@@ -118,7 +118,7 @@ So the order decides which addresses share a job, which addresses share a `Batch
 job's `AttemptedScope` states. An unordered population re-cuts every chunk on every tick, and no
 two ticks compare.
 
-The dedup carries a second cost. `internal/queue/edgefanout.go:108` drops a repeated address
+The dedup carries a second cost. `internal/queue/edgefanout.go#toEdgeFanoutRows` drops a repeated address
 inside one batch and records it as an error:
 
 > `address %s measured twice in one batch`
@@ -128,8 +128,8 @@ chunks becomes a **second handshake** against an edge the first handshake alread
 deleted comment names the case that produces it: two in-zone names flattening to one CDN edge.
 
 The determinism reaches the store on both limbs, and no test in `internal/custody` sees that.
-`NameCitedAddresses` (`db/queries/measurement.sql:135`) ends `ORDER BY subject_key, address`, and
-`ListAddressScopeCidrs` (`db/queries/measurement.sql:28`) ends `ORDER BY id`. `hotEstate` is
+`NameCitedAddresses` (`db/queries/measurement.sql`) ends `ORDER BY subject_key, address`, and
+`ListAddressScopeCidrs` (`db/queries/measurement.sql`) ends `ORDER BY id`. `hotEstate` is
 called from **nine** sites, and each one re-reads and re-builds. The tick-to-tick claim holds only
 because both queries are ordered.
 
@@ -167,7 +167,7 @@ to two floors, and each floor comes from its own candidate set.
 `ExtensionErrored` is exported, so the type enforces nothing at the field. The clear is where the
 rule is enforced, and it costs one assignment.
 
-`TestWithEdgeFanoutClearsAnInboundErroredReading` (`internal/custody/veto_test.go:314`) pins it. It
+`TestWithEdgeFanoutClearsAnInboundErroredReading` (`internal/custody/veto_test.go#TestWithEdgeFanoutClearsAnInboundErroredReading`) pins it. It
 hands `WithEdgeFanout` a record carrying `ExtensionErrored: true` beside a **measured** candidate,
 and it asserts both halves. The resolved floor is false, and `Derive` returns `third-party` for
 that measured shared edge. The second assertion is the one that matters. A carried floor lifts
@@ -187,7 +187,7 @@ addresses, and the chunk index names the `Batch`. Nothing downstream re-sorts.
 edge is the modal shape this derivation exists for. A second handshake against that edge reports
 what the first reported, and it lands either as a dropped row or as a wasted connect.
 
-`TestExtensionCandidatesAreDistinctInFirstSeenOrder` (`internal/custody/candidates_test.go:48`)
+`TestExtensionCandidatesAreDistinctInFirstSeenOrder` (`internal/custody/candidates_test.go#TestExtensionCandidatesAreDistinctInFirstSeenOrder`)
 pins it. Three in-zone names resolve to two addresses, the first and the third to the same one,
 and the assertion is the exact two-element sequence `104.16.132.229`, `104.16.132.230`. A sorted
 order fails it, and a map-iteration order fails it.
@@ -213,7 +213,7 @@ order fails it, and a map-iteration order fails it.
 
 - **This ADR changes no Go code.** `overExtension` and `ExtensionCandidates` already behave as
   ruled, and two tests already pin them.
-- **`internal/custody/veto.go:46` is protected from a dead-code deletion.** Before this, the only
+- **`internal/custody/veto.go#EdgeFanout.overExtension` is protected from a dead-code deletion.** Before this, the only
   defence was a comment, and [#1306](https://github.com/winniel123/verge-asm/pull/1306) removed it.
 - **A defect this ruling exposes.** The tick-to-tick guarantee rests on two `ORDER BY` clauses that
   nothing pins. `NameCitedAddresses` ends `ORDER BY subject_key, address`.

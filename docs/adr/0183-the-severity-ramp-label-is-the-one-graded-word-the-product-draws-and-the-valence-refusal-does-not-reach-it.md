@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-`internal/message/render.go:443` carried this, until #1299 deleted it:
+`internal/message/render.go` carried this, until #1299 deleted it:
 
 ```go
 // Marked data-sev so the
@@ -81,7 +81,7 @@ requirement, and [`CONTEXT.md`](../../CONTEXT.md)'s `Signal` entry now carries i
 five-level grade — critical / high / medium / low / info — assigned per rule. ADR-0110 fixes the
 rendered form as `SeverityBadge`, with the words `Critical / High / Medium / Low / Info`.
 
-**The collision is measurable at the word list.** `internal/message/render.go:15` declares
+**The collision is measurable at the word list.** `internal/message/render.go#ValenceWords` declares
 `ValenceWords`, 31 members. Two of the 31 touch the ramp:
 
 | Ramp member | In `ValenceWords` | Named in ADR-0064 §3's prose |
@@ -121,37 +121,37 @@ grade.
 > **Three populations sit outside the 31, and this paragraph names them.** `cmd/web/devfixtures.go`
 > draws the ramp word at 27 further lines, on dev-only routes no operator reaches, so they stay
 > outside the count. The design-system gallery cards demonstrate a control rather than draw a grade —
-> `design-system/components/forms/forms.card.html:34` and
-> `design-system/components/display/display.card.html:35`. Three sites name the scale or a slice of it
-> in copy, rather than draw a signal's grade — `design-system/templates/signals.tmpl:155`,
-> `design-system/templates/reports.tmpl:176` and `cmd/web/reports.go:539`. Each population still
+> `design-system/components/forms/forms.card.html` and
+> `design-system/components/display/display.card.html`. Three sites name the scale or a slice of it
+> in copy, rather than draw a signal's grade — `design-system/templates/signals.tmpl#signals`,
+> `design-system/templates/reports.tmpl#reports` and `cmd/web/reports.go#buildReportsTimeSeries`. Each population still
 > owes §3 its vocabulary.
 
 | Surface | Site | The word it draws | Its colour |
 | --- | --- | --- | --- |
-| ~~Screen, ramp bars~~ | ~~`internal/message/render.go:307`~~ | ~~`sevTitle(l)`~~ | ~~`--secondary`, beside a bar filled `--sev-<l>-dot`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBars` |
-| ~~Screen, badge, critical~~ | ~~`internal/message/render.go:348`~~ | ~~`sevTitle(l)`~~ | ~~`--sev-critical-text` on `--sev-critical-fill`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge` |
-| ~~Screen, badge, high → info~~ | ~~`internal/message/render.go:351`~~ | ~~`sevTitle(l)`~~ | ~~`--sev-<l>-fg`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge` |
-| Email / doc form, ramp bars | `internal/message/artifactdoc.go:147` | the member name, lower case | the template's `--sev-<l>-dot` bar |
-| Email / doc form, signal rows | `internal/message/artifactdoc.go:154` | `sevTitle(level)` | the `sevbadge` template's ramp tokens |
-| Print, ramp bars | `internal/message/pdf.go:266` | `strings.ToUpper(sevTitle(it.level))` | `pdfSevColor(it.level)` |
-| Print, signal rows | `internal/message/pdf.go:276` | `strings.ToUpper(sevTitle(it.signal.Severity))` | `pdfSevColor(...)` |
-| Console, dashboard signal rows | `cmd/web/auth.go:703` | `sevLabel(in.Severity)` | the `sevbadge` template's ramp tokens |
-| Console, dashboard ramp bars | `cmd/web/auth.go:731` | the member name, lower case | `--text-secondary`, beside a `--sev-<l>-dot` bar |
-| Console, dashboard critical stat | `cmd/web/auth.go:777` | `Critical` | the stat tile's own tokens |
-| Console, signals severity filter | `cmd/web/signals.go:368` | `Critical`, `High`, `Medium`, `Low`, `Info` | the control's own tokens |
-| Console, signals rows and detail | `cmd/web/signals.go:522` and `:585` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
-| Console, search results | `cmd/web/search.go:188` and `:207` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
-| Console, graph node signals | `cmd/web/graph.go:472` | `sevLabel(sev.String())` | the `sevbadge` template's ramp tokens |
-| Console, subject and asset views | `cmd/web/subjects.go:549`, `:980` and `:1237` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
-| Console, reports ramp bars | `cmd/web/reports.go:303` | `strings.ToUpper(string(sev))` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
-| Console, every screen with a signal | `design-system/templates/signals.tmpl:2` and `:4` — **10** `sevbadge` calls and **1** `sevbadge-md` call, across **7** templates | `{{.SevLabel}}` | the `--sev-<l>-*` tokens |
-| Console, signals severity filter | `design-system/templates/signals.tmpl:180` and `:182` | `{{.Sev}}`, then each of `.SevOptions` | the control's own tokens |
-| Console, dashboard ramp bars | `design-system/templates/dashboard.tmpl:141` | `{{.Sev}}` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
-| Console, reports ramp bars | `design-system/templates/reports.tmpl:196` | `{{.Label}}` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
-| Report artifact, ramp bars | `design-system/templates/reportartifact.tmpl:28` | `{{.Label}}` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
-| Console, graph severity filter | `design-system/templates/graph.tmpl:93`–`97` | `Critical`, `High`, `Medium`, `Low`, `Info` | the control's own tokens |
-| Design system, the component itself | `design-system/components/display/SeverityBadge.jsx:10` and `:15` | `Critical`, then the title-cased member | the `--sev-<l>-*` tokens |
+| ~~Screen, ramp bars~~ | ~~`internal/message/render.go`~~ | ~~`sevTitle(l)`~~ | ~~`--secondary`, beside a bar filled `--sev-<l>-dot`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBars` |
+| ~~Screen, badge, critical~~ | ~~`internal/message/render.go`~~ | ~~`sevTitle(l)`~~ | ~~`--sev-critical-text` on `--sev-critical-fill`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge` |
+| ~~Screen, badge, high → info~~ | ~~`internal/message/render.go`~~ | ~~`sevTitle(l)`~~ | ~~`--sev-<l>-fg`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge` |
+| Email / doc form, ramp bars | `internal/message/artifactdoc.go#BuildArtifactDoc` | the member name, lower case | the template's `--sev-<l>-dot` bar |
+| Email / doc form, signal rows | `internal/message/artifactdoc.go#BuildArtifactDoc` | `sevTitle(level)` | the `sevbadge` template's ramp tokens |
+| Print, ramp bars | `internal/message/pdf.go#drawArtifactPDFItem` | `strings.ToUpper(sevTitle(it.level))` | `pdfSevColor(it.level)` |
+| Print, signal rows | `internal/message/pdf.go#drawArtifactPDFItem` | `strings.ToUpper(sevTitle(it.signal.Severity))` | `pdfSevColor(...)` |
+| Console, dashboard signal rows | `cmd/web/auth.go#server.dashboardData` | `sevLabel(in.Severity)` | the `sevbadge` template's ramp tokens |
+| Console, dashboard ramp bars | `cmd/web/auth.go#server.dashboardData` | the member name, lower case | `--text-secondary`, beside a `--sev-<l>-dot` bar |
+| Console, dashboard critical stat | `cmd/web/auth.go#server.dashboardData` | `Critical` | the stat tile's own tokens |
+| Console, signals severity filter | `cmd/web/signals.go#server.renderSignals` | `Critical`, `High`, `Medium`, `Low`, `Info` | the control's own tokens |
+| Console, signals rows and detail | `cmd/web/signals.go#server.buildSignalTabs` and `:585` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
+| Console, search results | `cmd/web/search.go#server.searchPage` and `:207` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
+| Console, graph node signals | `cmd/web/graph.go#joinSignals` | `sevLabel(sev.String())` | the `sevbadge` template's ramp tokens |
+| Console, subject and asset views | `cmd/web/subjects.go`, `:980` and `:1237` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
+| Console, reports ramp bars | `cmd/web/reports.go#server.reportsSignalCensus` | `strings.ToUpper(string(sev))` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
+| Console, every screen with a signal | `design-system/templates/signals.tmpl#sevbadge` and `:4` — **10** `sevbadge` calls and **1** `sevbadge-md` call, across **7** templates | `{{.SevLabel}}` | the `--sev-<l>-*` tokens |
+| Console, signals severity filter | `design-system/templates/signals.tmpl#signals` and `:182` | `{{.Sev}}`, then each of `.SevOptions` | the control's own tokens |
+| Console, dashboard ramp bars | `design-system/templates/dashboard.tmpl#dashboard` | `{{.Sev}}` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
+| Console, reports ramp bars | `design-system/templates/reports.tmpl#reports` | `{{.Label}}` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
+| Report artifact, ramp bars | `design-system/templates/reportartifact.tmpl#artifactdoc` | `{{.Label}}` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
+| Console, graph severity filter | `design-system/templates/graph.tmpl#graph`–`97` | `Critical`, `High`, `Medium`, `Low`, `Info` | the control's own tokens |
+| Design system, the component itself | `design-system/components/display/SeverityBadge.jsx` and `:15` | `Critical`, then the title-cased member | the `--sev-<l>-*` tokens |
 
 **The 31 lines sum from the live rows above.** Go carries 17 — four in `internal/message` and thirteen in
 `cmd/web`. `design-system/templates/` carries 12. `SeverityBadge.jsx` carries 2. The three struck rows
@@ -167,7 +167,7 @@ not on the colour, so the correction does not move the decision.
 > **The site moved and the correction stands.** PR
 > [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `render.go:307` with
 > `artifactSeverityBars`. The delivered form draws the same bar label in `--text-secondary`, at
-> `design-system/templates/reportartifact.tmpl:28`, which is the row for `artifactdoc.go:147` above.
+> `design-system/templates/reportartifact.tmpl#artifactdoc`, which is the row for `artifactdoc.go:147` above.
 > The exception outlives the deletion.
 
 ### The guard cannot see the tokens it would have to exempt
@@ -289,8 +289,8 @@ what is wrong, not the copy.
 > [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted both marked elements with
 > `artifactSeverityBars` and `artifactSignalsTable`, and no `data-sev="title"` and no
 > `data-sev="header"` survives anywhere in the tree. The delivered form draws the same two strings
-> unmarked, at `design-system/templates/reportartifact.tmpl:25` and `:39`. `artifactSeverityTitle`
-> (`internal/message/render.go:158`) and the `pdf_test.go:83` skip both stand, so §4's rule holds on
+> unmarked, at `design-system/templates/reportartifact.tmpl#artifactdoc` and `:39`. `artifactSeverityTitle`
+> (`internal/message/render.go#plural`) and the `pdf_test.go:83` skip both stand, so §4's rule holds on
 > its own terms.
 
 ### 5. ADR-0114's ramp sentence is withdrawn at its own site
@@ -333,20 +333,20 @@ one point on that axis makes no claim either.
 
 | Site | The word it draws | Its role |
 | --- | --- | --- |
-| `cmd/web/signals.go:368` | the five member names in `SevOptions` | the signals severity filter's option set |
-| `design-system/templates/signals.tmpl:180` | `{{.Sev}}`, the current selection | the signals severity filter's trigger |
-| `design-system/templates/signals.tmpl:182` | each of `.SevOptions` | the signals severity filter's option list |
-| `design-system/templates/graph.tmpl:93`–`97` | `Critical`, `High`, `Medium`, `Low`, `Info` | the graph severity filter's five options |
-| `cmd/web/auth.go:777` | `Critical` | the dashboard stat tile's heading |
+| `cmd/web/signals.go#server.renderSignals` | the five member names in `SevOptions` | the signals severity filter's option set |
+| `design-system/templates/signals.tmpl#signals` | `{{.Sev}}`, the current selection | the signals severity filter's trigger |
+| `design-system/templates/signals.tmpl#signals` | each of `.SevOptions` | the signals severity filter's option list |
+| `design-system/templates/graph.tmpl#graph`–`97` | `Critical`, `High`, `Medium`, `Low`, `Info` | the graph severity filter's five options |
+| `cmd/web/auth.go#server.dashboardData` | `Critical` | the dashboard stat tile's heading |
 
 **The code already reads all nine as the closed set's own domain.**
 
 - `filterSignalRows` lower-cases the drawn option, then compares it to a row's `Severity`
-  (`cmd/web/signals.go:604`).
+  (`cmd/web/signals.go#filterSignalRows`).
 - The graph filter reads the option button's `data-sev` attribute, which carries the same lower-case
-  member name (`design-system/templates/graph.tmpl:327`).
+  member name (`design-system/templates/graph.tmpl#graph`).
 - The dashboard stat counts a signal when its severity equals `signal.SevCritical`
-  (`cmd/web/auth.go:690`).
+  (`cmd/web/auth.go#server.dashboardData`).
 
 No site authors a word about a finding. Each site names a member of the set §3 names.
 
@@ -358,7 +358,7 @@ to `ValenceWords` on account of these sites.
 nine draw in the control's own colour, and that 16 sites draw in the severity colour. This ADR's rule
 turns on the word and never on the colour, so the split does not move this ruling.
 
-**One caption on `cmd/web/auth.go:777` names the scale rather than a member.** The caption reads
+**One caption on `cmd/web/auth.go#server.dashboardData` names the scale rather than a member.** The caption reads
 *"highest severity"*. It names the ramp's top rank and grades no finding, so §4 covers it. It draws
 no member name, so it changes no figure in §Context.
 

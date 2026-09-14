@@ -24,7 +24,7 @@ relations:
 
 ## Context
 
-`internal/signal/corpus.go:56` and `internal/signal/rules.go:35` each carried the rule, in
+`internal/signal/corpus.go#AllRuleNames` and `internal/signal/rules.go` each carried the rule, in
 declaration position, until #1302 compressed both. The `corpus.go` block:
 
 ```go
@@ -62,9 +62,9 @@ ever take effect was the unruled half.
 
 The rules are Go values compiled into the binary. `All()` returns five, `AllEndpointRules()` returns
 ten and `AllServiceRules()` returns two — seventeen, in `EvaluateCorpus` order, which
-`internal/signal/endpoint.go:62` records as ADR-0024's table order and forbids resorting.
+`internal/signal/endpoint.go#AllEndpointRules` records as ADR-0024's table order and forbids resorting.
 
-The store carries no catalogue to point at. `db/migrations/20400_annotation.sql:22` declares
+The store carries no catalogue to point at. `db/migrations/20400_annotation.sql` declares
 `signal_name TEXT NOT NULL` with one unique index on `(subject_key, signal_name)` and no foreign
 key, because there is no table to reference. So an unbounded name half is not merely permitted by
 the schema, it is the schema's default.
@@ -80,9 +80,9 @@ row appear on `Signals`, and is protected from nothing.
 
 | Reader | What an unknown name produces |
 | --- | --- |
-| `annotationViews`, `cmd/web/signals.go:709` | `Orphan: !population[a.SignalName][a.SubjectKey]` is `true`, because no census carries that rule. The row is marked as naming a **withdrawn subject** |
-| `signal.SubjectKindFor`, `internal/signal/corpus.go:25` | returns `""`, so `subjectHref` at `cmd/web/messages.go:341` falls to its default and the row's link is empty |
-| `signal.SeverityFor`, `internal/signal/severity.go:30` | returns `(SevInfo, false)`. The row is badged `info` |
+| `annotationViews`, `cmd/web/signals.go` | `Orphan: !population[a.SignalName][a.SubjectKey]` is `true`, because no census carries that rule. The row is marked as naming a **withdrawn subject** |
+| `signal.SubjectKindFor`, `internal/signal/corpus.go#SubjectKindFor` | returns `""`, so `subjectHref` at `cmd/web/messages.go` falls to its default and the row's link is empty |
+| `signal.SeverityFor`, `internal/signal/severity.go#SeverityFor` | returns `(SevInfo, false)`. The row is badged `info` |
 
 So the console would tell the operator their **subject** went away, when what was wrong was the
 name they typed. That is the failure the bound prevents, and it is a wrong story rather than an
@@ -94,14 +94,14 @@ The deleted `rules.go` block named *the form and the acceptance guard* as the tw
 exist. They are bound by the same set in two different ways, and only one of them calls
 `RuleNames`.
 
-**The acceptance guard is the direct reader.** `knownRule` at `cmd/web/annotations.go:81` walks
+**The acceptance guard is the direct reader.** `knownRule` at `cmd/web/annotations.go` walks
 `signal.RuleNames()` and returns false for anything else. `declareAnnotation` calls it at
-`cmd/web/annotations.go:42` and refuses the submission. `s.store.CreateAnnotation` has exactly one
-caller in the tree, at `cmd/web/annotations.go:52`, behind that check. **One write path, one guard.**
+`cmd/web/annotations.go#server.declareAnnotation` and refuses the submission. `s.store.CreateAnnotation` has exactly one
+caller in the tree, at `cmd/web/annotations.go#server.declareAnnotation`, behind that check. **One write path, one guard.**
 
 **The declare form is bound indirectly, through the census.** The form posts a hidden field —
 `<input type="hidden" name="signal" value="{{.RuleID}}">` at
-`design-system/templates/signals.tmpl:305` — and `RuleID` is set at `cmd/web/signals.go:384` from
+`design-system/templates/signals.tmpl#signals` — and `RuleID` is set at `cmd/web/signals.go#server.renderSignals` from
 the rule of the census row the operator opened. Every census comes from
 `signal.EvaluateCorpus`, which walks the same three registries `AllRuleNames` walks. So the form can
 only offer a rule that evaluated. It does not call `AllRuleNames`; the one call in `signals.go`, at
@@ -169,7 +169,7 @@ marker is a rendering rule that belongs with the `Signals` screen. **It ships as
 ### 5. Why the set is not partitioned by subject kind
 
 An `Annotation` carries a subject key and a name, and nothing else identifies the pair.
-`SubjectKindFor` at `internal/signal/corpus.go:25` recovers the kind from the **name**, by the same
+`SubjectKindFor` at `internal/signal/corpus.go#SubjectKindFor` recovers the kind from the **name**, by the same
 walk over the same three registries.
 
 So a per-kind name set would be a second structure saying what the name already says, kept in step

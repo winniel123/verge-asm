@@ -24,7 +24,7 @@ relations:
 `cmd/web/auth.go` stated this rule twice, and #1337 deleted both statements. One sat on
 `injectChrome`, the other beside the literal — *"single-org deployment; static chip (ADR-0073,
 switcher retired #33)"*. Neither statement survives; the constant does, at
-`cmd/web/auth.go:1875`.
+`cmd/web/auth.go#initials`.
 
 **The citation was wrong, not dead.** ADR-0073 is *An operator dial carries no author, however
 specific its target*, Status Accepted, and it rules attribution on an `Annotation` and a mute. It
@@ -37,12 +37,12 @@ test: #33 is *Does the claim/attestation/determinacy standard generalise to the 
 signals?*, #28 is the Coverage screen prototype and #27 the CAIDA bundling question — all live,
 none this rule's source, which §4.7 names a design-collision id.
 
-**What the tree holds.** One production site fills the chip: `cmd/web/auth.go:1875`,
+**What the tree holds.** One production site fills the chip: `cmd/web/auth.go#initials`,
 `Org: "self-hosted"`, a Go string literal with no read behind it. `chromeVM.Org`
-(`cmd/web/chrome.go:20`) is its only carrier, and `design-system/templates/shell.tmpl:125` renders
+(`cmd/web/chrome.go#chromeVM`) is its only carrier, and `design-system/templates/shell.tmpl#chrome` renders
 it as `<span class="sh-orgchip">{{.Org}}</span>` — a span, styled at `:29`, with no control, no
-form and no link. The second site is the `devMode` branch at `cmd/web/auth.go:1831`, which calls
-`chromeFromFixture` (`cmd/web/chrome.go:203`); that reads `design-system/fixtures/fixtures.json`
+form and no link. The second site is the `devMode` branch at `cmd/web/auth.go#validatePassword`, which calls
+`chromeFromFixture` (`cmd/web/chrome.go#chromeFromFixture`); that reads `design-system/fixtures/fixtures.json`
 line 4534, `"org": "acmecorp"`. **The two sites do not agree**, and under ADR-0167 §3 they are not
 required to: the fixture is the design corpus and the live path renders the honest projection.
 
@@ -58,7 +58,7 @@ are per-account auth state — sessions, personal tokens, recovery codes, passwo
 identities, invites, message reads. Not one corpus query file — `subjects.sql`, `span.sql`,
 `measurement.sql`, `custody.sql`, `seeds.sql`, `signals.sql`, `zone.sql`, `vantages.sql` — carries
 any scoping column. The deployment's own configuration is a singleton by construction:
-`db/migrations/23000_instance_config.sql:12` is `id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id)`.
+`db/migrations/23000_instance_config.sql` is `id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id)`.
 `CONTEXT.md` defines no `Organisation`.
 
 ## Decision
@@ -75,7 +75,7 @@ any read. The chip's value is not a projection of anything.
 
 The domain already spends the word. `CONTEXT.md:220` has the operator *"searching the org-name
 box"*, and that org is a **registry** organisation — the string handed to ARIN
-(`internal/proposer/arin.go:91`) and CAIDA (`internal/proposer/caida.go:50`) to produce a
+(`internal/proposer/arin.go#ARIN.Propose`) and CAIDA (`internal/proposer/caida.go#caidaSearchPage`) to produce a
 `Proposal`. It is a third party's name for a network, never a tenant of this instance. A reader
 who meets `chromeVM.Org` and reads it as that term is reading a fourth thing.
 
@@ -127,6 +127,6 @@ for the visual layer, *"Its IA and vocabulary are not"*, and where the kit and `
 | --- | --- |
 | **Model an `Organisation` now, against a future need** | It prices the whole of §3 today for a destination v1-spec §1 line 753 puts *"outside the map's destination outright"*. A scope column on every corpus table enters the comparability key, so every `Span` becomes keyed on a dimension with exactly one value — an ADR-0007 term that partitions nothing while every read, fold and golden carries it. And a scope guessed before its requirement is guessed wrong: an MSP boundary, a business-unit boundary and a customer boundary are three different partitions of the same estate |
 | **Remove the chip from the shell** | It deletes a fact the operator uses. `self-hosted` states the deployment posture on every screen, and v1-spec §1 makes that posture load-bearing — *"the instance is a high-value target"*. It also breaks the shell's layout contract against `TopNav.jsx:41` and the `screenshots/` ADR-0110 makes the visual ground truth, for a saving of one span |
-| **Render the deployment's own hostname in the chip instead of a constant** | The hostname is not known. `VERGE_EXTERNAL_URL` (`cmd/web/main.go:131`) and `VERGE_PUBLIC_URL` (`cmd/worker/main.go:190`) both default to the empty string, so the common deployment has none to render and the chip would be blank. The remaining source is the `Host` header, which a fronted deployment lets a proxy set — [ADR-0159](./0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md) refuses to trust an unnamed proxy for a weaker fact than this. A chip that varies by request path is a chip whose value means nothing |
+| **Render the deployment's own hostname in the chip instead of a constant** | The hostname is not known. `VERGE_EXTERNAL_URL` (`cmd/web/main.go#main`) and `VERGE_PUBLIC_URL` (`cmd/worker/main.go#main`) both default to the empty string, so the common deployment has none to render and the chip would be blank. The remaining source is the `Host` header, which a fronted deployment lets a proxy set — [ADR-0159](./0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md) refuses to trust an unnamed proxy for a weaker fact than this. A chip that varies by request path is a chip whose value means nothing |
 | **Ship the kit's `OrgSwitcher` bound to a one-element list** | A control that offers one option is an affordance that promises a second. It invites the reading §3 exists to kill — that the model is coming and only the UI is behind — and it puts a live control in front of reads that carry no scope |
 | **Keep the chip and re-cite ADR-0073, repairing nothing** | The citation resolves, so a reader follows it to a ruling on annotation authorship and concludes the rule was decided somewhere they cannot find. That is the §4.7 failure, not a repair of it |

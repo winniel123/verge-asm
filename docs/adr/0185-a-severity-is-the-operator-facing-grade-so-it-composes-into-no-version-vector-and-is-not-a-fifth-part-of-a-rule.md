@@ -31,7 +31,7 @@ relations:
 
 ## Context
 
-`internal/signal/severity.go:3` carried this, in declaration position on `type Severity string`,
+`internal/signal/severity.go` carried this, in declaration position on `type Severity string`,
 until #1302 compressed it to two lines:
 
 ```go
@@ -74,7 +74,7 @@ ADR-0024 states the vector's reach in one sentence:
 > the rule declares**, and everything a rule declares composes into its version vector.
 
 A severity is something a rule declares. `Severity()` sits on the `Rule` interface at
-`internal/signal/signal.go:79`, between `Version()` and `Eval()`, and every one of the seventeen
+`internal/signal/signal.go`, between `Version()` and `Eval()`, and every one of the seventeen
 rules answers it. Read literally, ADR-0024 puts the grade in the vector and makes a re-rating a
 `Break` on every timeline the rule feeds.
 
@@ -82,9 +82,9 @@ rules answers it. Read literally, ADR-0024 puts the grade in the vector and make
 
 | Where | What it shows |
 | --- | --- |
-| `internal/signal/endpoint.go:113` | `certDetailRule` holds `name`, `sev` and `pick` in one struct. `Version()` returns `certVersion()` and reads no field of the receiver. Four of the five certificate-detail rules differ in `sev` and share one vector |
-| `internal/signal/severity.go:30` | `SeverityFor` resolves a grade from a rule name alone. It never reads a `Version`, and no caller passes one |
-| `db/migrations/22300_signal_instance.sql:11` | *"the severity is the rule's (assigned per rule in `internal/signal`, not stored)"*. Nothing anywhere persists a severity. `signal_instance` holds an id, a name, a subject and a first-seen instant, and no column carries a grade |
+| `internal/signal/endpoint.go` | `certDetailRule` holds `name`, `sev` and `pick` in one struct. `Version()` returns `certVersion()` and reads no field of the receiver. Four of the five certificate-detail rules differ in `sev` and share one vector |
+| `internal/signal/severity.go#SeverityFor` | `SeverityFor` resolves a grade from a rule name alone. It never reads a `Version`, and no caller passes one |
+| `db/migrations/22300_signal_instance.sql` | *"the severity is the rule's (assigned per rule in `internal/signal`, not stored)"*. Nothing anywhere persists a severity. `signal_instance` holds an id, a name, a subject and a first-seen instant, and no column carries a grade |
 
 So the exclusion is already the behaviour. What was missing is the ruling, and with it the reason a
 future author may not fold the grade in for symmetry.
@@ -107,7 +107,7 @@ single band move on one rule makes every census that rule produced before the mo
 every census it produces after, under ADR-0008's `Break`, for one cadence.
 
 **The gain is nothing.** No member changes register. No subject enters or leaves the domain. No
-predicate answers differently. `Evaluate` at `internal/signal/signal.go:108` partitions on
+predicate answers differently. `Evaluate` at `internal/signal/signal.go` partitions on
 `Eval`'s `Outcome` and reads no grade, so the two censuses are the same three lists over the same
 population, byte for byte. A reader comparing them would be told they may not be compared, and would
 find nothing that differs when they looked.
@@ -130,7 +130,7 @@ population, and the rule's own identity beside them.
 
 A severity moves none of the three lists and moves no subject between them. It is read after the
 census exists, by the web layer, to rank and badge rows the engine already partitioned —
-`cmd/web/reports.go:283`, `cmd/web/graph.go:464`, `cmd/web/subjects.go:550`, `cmd/web/auth.go:599`
+`cmd/web/reports.go#server.reportsSignalCensus`, `cmd/web/graph.go#joinSignals`, `cmd/web/subjects.go#censusVerdict`, `cmd/web/auth.go#firstRunStep`
 and six more sites all call `SeverityFor(rule)` on a census that is already built.
 
 So the grade is downstream of the output the vector versions. Composing it would move a version for
@@ -232,10 +232,10 @@ and no evidence moved.
   its `Severity()` is varied.
 - **The ruling's own test exposes a live violation, and it is not this ADR's to fix.**
   `certificate-expiring`'s predicate reads a 30-day window, `certExpiryWindow` at
-  `cmd/web/deltas.go:18`, applied in the fold at `cmd/web/signals.go:1054`. That constant decides
+  `cmd/web/deltas.go#deltasStore`, applied in the fold at `cmd/web/signals.go#estateNameSet`. That constant decides
   **which subjects the rule matches**, so under §2's replacement wording it composes into the rule's
   vector. It does not: `certVersion()` composes `co.CertVersion` alone. The repo already knows the
-  shape and applies it one rule away — `weakKeyRule.Version()` at `internal/signal/endpoint.go:103`
+  shape and applies it one rule away — `weakKeyRule.Version()` at `internal/signal/endpoint.go`
   composes a read-side floor token, `weak-key-floor/v1`, precisely because moving the floor moves
   what fires. `certificate-expiring` is missing the same treatment. **This ships as its own
   ticket**, and it is entangled with the second defect below.
@@ -256,7 +256,7 @@ and no evidence moved.
 | --- | --- |
 | **Fold the grade in — ADR-0024's clause read literally** | Charges a `Break` on every timeline of a rule for a change that moves no member between the three lists, moves no subject into or out of the domain, and leaves the census identical byte for byte. The reader is told two censuses may not be compared and finds nothing that differs. It also prices the one part of a rule an operator argues with at the highest price in the model, so the ramp would be defended against correction by its cost rather than by its argument |
 | **Number the severity a fifth part of a rule, but keep it out of the vector** | Splits ADR-0024's guard from its own part list. The guard is stated over *everything a rule declares*, and the part list is the only place that ADR says what a rule declares. The split leaves two readings of *declares* inside one document, and the next author to meet the guard alone folds the grade in correctly by its wording. §3 resolves the two questions together for exactly this reason |
-| **Mint a second, severity-only version axis** | Creates a comparability question nobody has: two censuses would be comparable on evidence and not on grade, and the console would have to render which. It also re-imports the cost the exclusion exists to avoid, one axis over, and every consumer of `Version.String()` — the drawer at `cmd/web/signals.go:385`, the subject page at `cmd/web/subjects.go:553`, the cold page at `cmd/web/cold.go:399` — would have to choose one |
+| **Mint a second, severity-only version axis** | Creates a comparability question nobody has: two censuses would be comparable on evidence and not on grade, and the console would have to render which. It also re-imports the cost the exclusion exists to avoid, one axis over, and every consumer of `Version.String()` — the drawer at `cmd/web/signals.go#server.renderSignals`, the subject page at `cmd/web/subjects.go#isCensusMember`, the cold page at `cmd/web/cold.go#blanketGapsAndMessages` — would have to choose one |
 | **Store a severity on `signal_instance` so a re-rating is dated** | `db/migrations/22300_signal_instance.sql` refuses it in the table's own header: only identity and first-seen persist, and *"the severity is the rule's … not stored"*. Storing it would make a grade a fact about history, so a re-rating would need a backfill and a rule would carry two grades at once. It also puts an operator-facing ramp inside the record, which is the collapse ADR-0064 refused for the message store |
 | **Rule it on [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md)** | That ADR is `Superseded`, and what survives it is one bullet whose scope was fixed by [#1410](https://github.com/winniel123/verge-asm/issues/1410) at *a signal carries a five-level severity assigned per rule*. Adding a new rule to a superseded document puts a live decision behind a status word every reader is told to distrust |
 | **Rule it on [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)** | Its subject is the measurement binary, its five decision procedures and the authored hermetic corpus. A `Signal` rule is not a measurement leaf and has no corpus rows of that kind. The ruling would state a signal-layer rule inside a document scoped to the prober |
