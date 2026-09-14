@@ -317,7 +317,7 @@ missed.
 `POST /settings/sessions/revoke-account` · `GET /login/sso/{slug}/callback`
 
 Two riders. **The two admin session revokes are the hardest of the family** — cross-principal,
-admin-only, one of them typed-name-confirmed (`cmd/web/settings.go#server.fillTeamSection,997`). They stay exempt for
+admin-only, one of them typed-name-confirmed (`cmd/web/settings.go`). They stay exempt for
 consistency, because the target's grant is untouched. A SPEC that wants them in wants a session-event
 log and should say so rather than smuggling one in through limb 2. And **the SSO login callback
 creates no binding** — an unlinked identity is refused (`cmd/web/sso.go#server.ssoCallback`). It establishes a
@@ -1099,7 +1099,7 @@ are the ground §What-this-builds rests on.
 
 `docs/guides/accounts.md#accounts-invites--roles` *"Every act in verge-asm has an author."* · `accounts.md:28` ·
 `docs/guides/first-run.md#the-three-layers-declared-observed-derived` · `docs/guides/running.md#configuration` · `docs/guides/using.md#reading-what-it-found` *"a toggle is
-a dated, audit-trailed act"* · `docs/guides/api.md#enabling-the-api,:41` · `docs/spec/v1-spec.md#43-auth--access` ·
+a dated, audit-trailed act"* · `docs/guides/api.md` · `docs/spec/v1-spec.md#43-auth--access` ·
 `docs/spec/packaging-and-configuration.md#44-the-intent-and-where-it-is-declared`, `:297-298`, `:303-305`, `:313-314`, `:332-333`,
 `:646` · `docs/adr/0053…md:97-99`, `:220-221` · `docs/adr/0113…md:76-78` · `docs/adr/0132…md:27-29` ·
 `docs/research/safe-active-probing.md#82-design-consequences` · `docs/adr/0159…md:71,:95,:145,:193`
@@ -1302,7 +1302,7 @@ the object vanish from the result set.** Two consequences are behavioural, not c
   *"a port you can hide is a signal you can silence"* (`docs/spec/v1-spec.md` §3.5).
 - **`subjects`.** `FindCoveringAddressSeed` is `:one`. A dropped row returns `ErrNoRows`, so the subject
   **loses its `Declared · Seed` hop** and its citation chain reads unterminated
-  (`cmd/web/subjects.go#server.buildEndpointCitation,434-449`).
+  (`cmd/web/subjects.go`).
 
 **The FK widening and the `JOIN` sweep land in one change.** The sweep has three limbs.
 
@@ -1313,7 +1313,7 @@ the object vanish from the result set.** Two consequences are behavioural, not c
    explicitly, or a later session tidies it back.**
 2. **`LEFT JOIN` five live ones** — `subjects.sql:314,323,333`, `channels.sql:12`, `sso.sql:14`.
 3. **Three dial sites need no SQL.** They resolve the name by scanning `ListAccounts` in Go
-   (`cmd/web/settings.go#server.fillVantagesSection,1345,1394`) and already blank on no match.
+   (`cmd/web/settings.go`) and already blank on no match.
 
 **Two consequences for the implementation map.** `ListVergeCoreFrequencyEditsWithAuthor` is **misnamed
 afterwards**, and every `db/queries/` edit **forces a `sqlc` regeneration in the same PR** — the `sqlc`
@@ -1327,7 +1327,7 @@ none of them redundant.
 
 | | Column | Render site |
 | --- | --- | --- |
-| **Rendered · 6** | `seed.created_by` | `subjectdetail.tmpl:117` via `cmd/web/subjects.go#server.buildEndpointCitation,441` — *prose* |
+| **Rendered · 6** | `seed.created_by` | `subjectdetail.tmpl:117` via `cmd/web/subjects.go` — *prose* |
 | | `sso_provider.created_by` | `settings.tmpl:588` "Declared by" — *table cell* |
 | | `channel.created_by` | `settings.tmpl:1254` "Declared by" — *table cell* |
 | | `instance_config.api_updated_by` | `settings.tmpl:1223` "Enabled by" — *prose* |
