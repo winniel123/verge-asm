@@ -241,6 +241,20 @@ per aperture input, as the Coverage screen renders it.
   ],
   "statement": [
     {
+      "input": "Enabled sources",
+      "cadence": "daily · every 5 minutes",
+      "cadence_why": "…",
+      "state": "crt.sh",
+      "state_kind": "on",
+      "figures": [
+        { "text": "1 of 3 sources enabled", "zero": false }
+      ],
+      "state_detail": "…",
+      "remedy": "Enable a source",
+      "remedy_href": "/settings?tab=sources",
+      "remedy_why": "…"
+    },
+    {
       "input": "Port and transport tiers",
       "cadence": "daily · monthly",
       "cadence_why": "…",
@@ -282,7 +296,11 @@ reason either way. `cadence` carries the same word where the input is derived at
 point of use and has no cadence, and `figures` is empty where the row states no
 figure. The figures count our own lists and our own rules. They never state a count
 or a proportion of your estate. The `Vantage class` row counts declared vantages,
-which is our own list too.
+which is our own list too, and the `Enabled sources` row counts our own catalogue.
+
+A `state_kind` of `withheld` means the read behind the row did not land. Read it as
+absent, never as `off`: `state` then carries the literal `not read` rather than a
+value, and `figures` is empty.
 
 ---
 

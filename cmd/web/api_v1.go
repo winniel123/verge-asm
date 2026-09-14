@@ -20,6 +20,7 @@ type apiV1Store interface {
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
 	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 }
@@ -311,7 +312,8 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), nil)
 
 	classes, classesRead := s.apertureVantageClasses(ctx, s.apiV1Store, "api: coverage")
-	rows := apertureStatement(seeds, classes, classesRead)
+	states, statesRead := apertureSourceStates(ctx, s.apiV1Store, "api: coverage")
+	rows := apertureStatement(states, statesRead, seeds, classes, classesRead)
 	out := apiCoverageResponse{
 		Meters:    make([]apiCoverageMeter, 0, len(meters)),
 		Statement: make([]apiApertureRow, 0, len(rows)),

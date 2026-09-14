@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
@@ -181,7 +182,7 @@ func TestAPIv1CoverageCarriesTheStatementBesideTheMeters(t *testing.T) {
 		t.Error("the statement must ride beside meters, never replace it")
 	}
 	// The fake declares no vantage, so the class row reads its own no-leg case.
-	wantRows := apertureStatement(nil, nil, true)
+	wantRows := apertureStatement(nil, true, nil, nil, true)
 	if len(got.Statement) != len(wantRows) {
 		t.Fatalf("statement rows = %d, want %d (body %q)", len(got.Statement), len(wantRows), rec.Body.String())
 	}
@@ -211,5 +212,45 @@ func TestAPIv1CoverageCarriesTheStatementBesideTheMeters(t *testing.T) {
 				t.Errorf("%s: %s is blank, and SPEC §2.3 bars a blank cell on either renderer", want.Input, name)
 			}
 		}
+	}
+}
+
+// The fake holds no override, so the card draws the shipped default over a real catalogue read.
+
+func TestCoverageRendersTheEnabledSourcesRow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := coverageBody(t, ac, base)
+
+	// The row leads the ledger, so #1854's operator meets the source set first (SPEC §2.5).
+	sources, ports := strings.Index(page, "Enabled sources"), strings.Index(page, "Port and transport tiers")
+	if sources < 0 || ports < 0 || sources > ports {
+		t.Errorf("the sources row must lead the port-tier row; sources at %d, ports at %d", sources, ports)
+	}
+	for _, want := range []string{
+		"daily · every 5 minutes",
+		"The ct Scan asks daily and the ct-tail Scan every 5 minutes.",
+		">crt.sh<",
+		fmt.Sprintf("1 of %d sources enabled", len(apertureToggleableSources())),
+		"Enable a source",
+		`href="/settings?tab=sources"`,
+		"A toggle on the Sources tab reaches each source still off: CT drift tail (logs-direct) · Cert Spotter (operator key). Cert Spotter also needs its key on the worker.",
+		"so this row names what is declared, never what ran",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the sources row is missing %q; body: %s", want, page)
+		}
+	}
+
+	f.sourceStates[scan.CTTailSource] = db.SourceState{Slug: scan.CTTailSource, Enabled: true}
+	page = coverageBody(t, ac, base)
+
+	if !strings.Contains(page, "crt.sh · CT drift tail (logs-direct)") {
+		t.Errorf("a declared override must reach the state cell; body: %s", page)
+	}
+	if strings.Contains(page, "still off: CT drift tail") {
+		t.Errorf("an enabled source must drop out of the remedy; body: %s", page)
 	}
 }

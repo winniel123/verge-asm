@@ -31,6 +31,7 @@ type coldStore interface {
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
@@ -208,6 +209,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), sharedEdges)
 	classes, classesRead := s.apertureVantageClasses(ctx, s.coldStore, "coverage")
+	states, statesRead := apertureSourceStates(ctx, s.coldStore, "coverage")
 
 	var gaps []coverageGapView
 	var messages []coverageMessageView
@@ -232,7 +234,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	s.render(w, r, "coverage", pageData(acct, "Coverage", "coverage", map[string]any{
-		"Statement":   apertureStatement(seeds, classes, classesRead),
+		"Statement":   apertureStatement(states, statesRead, seeds, classes, classesRead),
 		"Meters":      meters,
 		"Messages":    messages,
 		"Gaps":        gaps,
