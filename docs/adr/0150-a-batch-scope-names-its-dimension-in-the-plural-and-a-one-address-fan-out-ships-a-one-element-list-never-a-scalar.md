@@ -17,7 +17,7 @@ relations:
 
 ## Context
 
-[`internal/scan/hot.go:21`](../../internal/scan/hot.go) carried this text until #1313 deleted it:
+[`internal/scan/hot.go`](../../internal/scan/hot.go) carried this text until #1313 deleted it:
 
 ```go
 // HotJob is one queue job the hot Scan produces: one Vantage, ONE Custody-
@@ -39,8 +39,8 @@ The sweep kept one compressed line at the same site, uncited under §4.7:
 unchanged under a chunked fan-out. Neither rules what the scope field looks like once the fan-out
 has left one address in a job.
 
-**Two producers build the same scope type.** `internal/scan/hot.go:63` and
-[`internal/scan/cold.go:89`](../../internal/scan/cold.go) both write
+**Two producers build the same scope type.** `internal/scan/hot.go#BuildHotJobs` and
+[`internal/scan/cold.go#BuildColdJobs`](../../internal/scan/cold.go) both write
 `Addresses: []string{a.Unmap().String()}`. Both then marshal
 [`connectoutcome.Scope`](../../internal/measure/connectoutcome/run.go), whose `Addresses` field
 carries the tag `json:"addresses"` with no `omitempty`.
@@ -49,17 +49,17 @@ carries the tag `json:"addresses"` with no `omitempty`.
 
 | Reader | Site | What it does with the list |
 | --- | --- | --- |
-| The `connect-outcome` leaf | [`internal/measure/connectoutcome/run.go:43`](../../internal/measure/connectoutcome/run.go) | Ranges the list and crosses it with the TCP port set |
-| The certificate step | [`internal/measure/connectoutcome/certificate.go:170`](../../internal/measure/connectoutcome/certificate.go) | Ranges the list to size and fill a per-address verdict map |
-| The ADR-0217 re-gate | [`internal/queue/scopegate.go:28`](../../internal/queue/scopegate.go) | Unmarshals one union shape across every leaf kind and admits only the addresses the scope names |
-| The drift feed | [`cmd/web/driftfeed.go:240`](../../cmd/web/driftfeed.go) | Unmarshals `addresses` as `[]json.RawMessage` and counts it for the batch label |
+| The `connect-outcome` leaf | [`internal/measure/connectoutcome/run.go#Scope.targets`](../../internal/measure/connectoutcome/run.go) | Ranges the list and crosses it with the TCP port set |
+| The certificate step | [`internal/measure/connectoutcome/certificate.go#discriminateBlanket`](../../internal/measure/connectoutcome/certificate.go) | Ranges the list to size and fill a per-address verdict map |
+| The ADR-0217 re-gate | [`internal/queue/scopegate.go#scopeShape`](../../internal/queue/scopegate.go) | Unmarshals one union shape across every leaf kind and admits only the addresses the scope names |
+| The drift feed | [`cmd/web/driftfeed.go#driftBatchMeta`](../../cmd/web/driftfeed.go) | Unmarshals `addresses` as `[]json.RawMessage` and counts it for the batch label |
 
 The re-gate and the drift feed never see the producer. They read the recorded scope out of the
 `recorded_scope` column. A scalar there is not a compile error at either site. The re-gate would
 admit nothing and drop every legitimate observation. The drift feed would silently render no label.
 
 **The union shape is what makes the field name load-bearing.** `scopegate.go` unmarshals one
-`scopeShape` for every leaf kind. `internal/measure/edgefanout/run.go:16` also names its dimension
+`scopeShape` for every leaf kind. `internal/measure/edgefanout/run.go#Scope` also names its dimension
 `addresses`, and it carries up to `EdgeFanoutAddressesPerJob = 50` members. One decoder serves both
 because the name has one shape everywhere it appears.
 
@@ -112,7 +112,7 @@ member would break when the fan-out changed, which is the coupling this ADR remo
 
 ## Consequences
 
-- **[`internal/scan/hot.go:21`](../../internal/scan/hot.go) gains this ADR's citation.** It is the
+- **[`internal/scan/hot.go`](../../internal/scan/hot.go) gains this ADR's citation.** It is the
   one site that states the ground, so it is the one site that carries the citation.
 - **[`internal/scan/cold.go`](../../internal/scan/cold.go) gains nothing.** Its comment at line 82
   states the one-address partition and cites ADR-0005, which is correct and is a different rule. A
@@ -130,7 +130,7 @@ member would break when the fan-out changed, which is the coupling this ADR remo
 - **[`CONTEXT.md`](../../CONTEXT.md) gains nothing.** `Batch` already has an entry there. This is a
   decision about a wire field, not a term.
 - **This ADR does not rule whether a shape change needs a leaf `Version` bump.**
-  `internal/measure/wildcarddiscrim/run.go:24` records that a scope change may justify a bump under
+  `internal/measure/wildcarddiscrim/run.go` records that a scope change may justify a bump under
   ADR-0021. Whether that reaches `connect-outcome` was not verified here and stays open.
 
 ## Alternatives rejected

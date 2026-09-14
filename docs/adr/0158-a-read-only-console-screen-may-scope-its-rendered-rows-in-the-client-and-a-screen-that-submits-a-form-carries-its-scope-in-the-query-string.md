@@ -30,19 +30,19 @@ relations:
 
 **The citation is dead.** `design-system/SPEC-CHANGE.md` is not in the tree. [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md) withdrew the SPEC-CHANGE collision protocol on 2026-08-28. The `#13` a reader follows resolves to an unrelated issue. This is [`comment-policy.md`](../spec/comment-policy.md) §8.3 shape 2.
 
-**A survivor one file over states the opposite rule.** [`cmd/web/signals.go:198`](../../cmd/web/signals.go) reads *"The shell ships no client-side table machinery, so filter and sort state rides the query string."* Read as a claim about the shell, that sentence is false. Inventory ships a full client-side table toolbar. Nothing on disk says which screen gets which treatment, so a later session reading the two sites cannot tell a deliberate deviation from a defect.
+**A survivor one file over states the opposite rule.** [`cmd/web/signals.go#server.renderSignals`](../../cmd/web/signals.go) reads *"The shell ships no client-side table machinery, so filter and sort state rides the query string."* Read as a claim about the shell, that sentence is false. Inventory ships a full client-side table toolbar. Nothing on disk says which screen gets which treatment, so a later session reading the two sites cannot tell a deliberate deviation from a defect.
 
 **What the tree holds, read on 2026-09-05.**
 
 | Fact | Site |
 | --- | --- |
-| `/inventory` and `/inventory/export` are the only Inventory routes, and both are `GET` | [`cmd/web/handlers.go:384-385`](../../cmd/web/handlers.go) |
+| `/inventory` and `/inventory/export` are the only Inventory routes, and both are `GET` | [`cmd/web/handlers.go#server.handler`](../../cmd/web/handlers.go) |
 | `inventory.tmpl` contains no `<form>` element | [`design-system/templates/inventory.tmpl`](../../design-system/templates/inventory.tmpl) |
 | The toolbar holds kind, `Gaps only`, `Hide proxy edge`, a text filter, density, and column toggles. Every one of them hides or shows already-rendered DOM | `inventory.tmpl:110-136`, `:177-266` |
 | `Gaps only` reads the rendered gap badge, not a datum. The script sets `data-gap="1"` from `tr.querySelector(".inv-gapbadge")` | `inventory.tmpl:184`, from the badge at `:150` |
-| `inventorySubject.HasGap` is called by no template and by no other Go file. One test calls it | [`cmd/web/inventory.go:43`](../../cmd/web/inventory.go), `cmd/web/inventory_test.go:286` |
-| The server windows each group to 25 subjects unless `?all=<kind>` expands one | `cmd/web/inventory.go:62`, `:461-475`, `:504` |
-| Signals puts its filter and sort state in the query string, and it submits three `POST` forms | `cmd/web/signals.go:198-205`, `signals.tmpl:169`, `:297`, `:302`, `:341` |
+| `inventorySubject.HasGap` is called by no template and by no other Go file. One test calls it | [`cmd/web/inventory.go`](../../cmd/web/inventory.go), `cmd/web/inventory_test.go#TestInventorySubjectHasGap` |
+| The server windows each group to 25 subjects unless `?all=<kind>` expands one | `cmd/web/inventory.go#inventoryGroup`, `:461-475`, `:504` |
+| Signals puts its filter and sort state in the query string, and it submits three `POST` forms | `cmd/web/signals.go#server.renderSignals`, `signals.tmpl:169`, `:297`, `:302`, `:341` |
 
 **Inventory is the only screen with a client-side table scope.** No other template in `design-system/templates/` filters `tbody` rows. `shell.tmpl:367` filters the command palette, which renders no table and holds no row.
 
@@ -89,7 +89,7 @@ This bound is a property of every client-side scope on this repo, not an Invento
 - **[ADR-0105](./0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md) gains a bounding sentence** at its *"Estate-wide grouping"* Consequences bullet. That bullet says `/inventory` has no pagination and that a search or scope filter is *"unbuilt, not designed against"*. Both halves have moved. #756 built the per-group window, and the scope filter is built in the client. ADR-0058 requires the correction at that clause's site.
 - **[`cmd/web/inventory.go`](../../cmd/web/inventory.go) gains one comment** beside the `windowInventoryGroups` call, stating limb 4's bound and citing this ADR. That call is the only place in Go where the bound is decided.
 - **`inventorySubject.HasGap` is dead production code.** No template and no other Go file calls it. One test pins it. This ADR rules it must not become the carrier, so nothing will call it. Its removal, and its test's, is a separate change and is not made here.
-- **[`cmd/web/signals.go:198`](../../cmd/web/signals.go) is narrowed to the screen and cites this ADR.** It stated limb 1's second half for Signals with a *"the shell ships no client-side table machinery"* ground that reads wider than this ADR rules and wider than the tree supports: Inventory's toolbar is exactly that machinery. [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) requires the correction at the clause's own site, so it lands here rather than as a later edit. The comment now gives the form as the ground.
+- **[`cmd/web/signals.go#server.renderSignals`](../../cmd/web/signals.go) is narrowed to the screen and cites this ADR.** It stated limb 1's second half for Signals with a *"the shell ships no client-side table machinery"* ground that reads wider than this ADR rules and wider than the tree supports: Inventory's toolbar is exactly that machinery. [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) requires the correction at the clause's own site, so it lands here rather than as a later edit. The comment now gives the form as the ground.
 - **No production behaviour changes.** Inventory and Signals already have the shapes this ADR states.
 - **[`CONTEXT.md`](../../CONTEXT.md) gains nothing.** *View scope* and *toolbar* are console-shell terms, not product-domain terms. The glossary carries terms and this is a rule.
 - **A new screen states which half of limb 1 it is under.** A screen that grows its first `POST` moves under the second half, and its client scope becomes a defect at that moment.

@@ -52,14 +52,20 @@ const AT_FIXTURE = ROWS.map((row) => ({
   matches: (p) => p.startsWith(`${FIXTURE}/`) && row.matches(p.slice(FIXTURE.length + 1)),
 }));
 
-function hit(token, { file = "docs/spec/fixture.md", line = 1 } = {}) {
-  return { token, file, line, kind: "code", start: 0, end: token.length + 2 };
+function hit(token, { file = "docs/spec/fixture.md", line = 1, lineText } = {}) {
+  return { token, file, line, kind: "code", start: 0, end: token.length + 2, lineText };
 }
 
 function run(files, tokens) {
   const paths = fixture(files);
   const env = envFor(paths);
   return derive(REPO_ROOT, env, tokens.map((t) => hit(t)), AT_FIXTURE);
+}
+
+// The citing line is an argument here, so one fixture serves every corroboration case.
+function runCiting(files, token, lineText) {
+  const paths = fixture(files);
+  return derive(REPO_ROOT, envFor(paths), [hit(token, { lineText })], AT_FIXTURE);
 }
 
 test.after(() => rmSync(join(REPO_ROOT, FIXTURE), { recursive: true, force: true }));
@@ -130,6 +136,61 @@ test("a method is spelled Receiver.Method, with no star", () => {
 
 test("a range enclosed by one declaration yields that declaration", () => {
   const [r] = run({ "go/decls.go": GO_SOURCE }, [goRange("func Alpha", "}")]);
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("the citing line names another real declaration, so the drifted line degrades", () => {
+  const citing = "| `Delta.Epsilon` | [`x.go:1`](../x.go) |";
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /the citing line names `Delta\.Epsilon`/);
+});
+
+test("a package-qualified name on the citing line still names the declaration", () => {
+  const citing = "| `decls.Delta.Epsilon` | `x.go:1` |";
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /Delta\.Epsilon/);
+});
+
+test("a name behind another name on the citing line is still read", () => {
+  // One pass over an exhausted iterator read only `Unknown`, and `Delta.Epsilon` went unseen.
+  const citing = "| `Unknown` | `Delta.Epsilon` | `x.go:1` |";
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /Delta\.Epsilon/);
+});
+
+test("the citing line names the derived region itself, so the conversion stands", () => {
+  const citing = "`Alpha` returns one (`x.go:1`)";
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("a name the target does not declare corroborates nothing, so the conversion stands", () => {
+  const citing = "`SomeOtherThing` calls it (`x.go:1`)";
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), citing);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("the citation's own span names the path, and a path corroborates nothing", () => {
+  const token = goToken("return 1");
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, `see \`${token}\``);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("a name outside a code span is prose, so it corroborates nothing", () => {
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, goToken("return 1"), "Delta.Epsilon is near");
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "Alpha");
+});
+
+test("a hit carrying no citing line derives exactly as it did before the guard", () => {
+  const [r] = run({ "go/decls.go": GO_SOURCE }, [goToken("return 1")]);
+  assert.equal(r.outcome, "anchor");
   assert.equal(r.anchor, "Alpha");
 });
 

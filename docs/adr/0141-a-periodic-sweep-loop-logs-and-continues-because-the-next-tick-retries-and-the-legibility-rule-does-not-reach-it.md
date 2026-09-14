@@ -23,15 +23,15 @@ failed pass logs a line and keeps ticking. None returns an error of its own beyo
 
 | Loop | Site |
 | --- | --- |
-| `retention.Retirer.Run` | [`internal/retention/retention.go:70`](../../internal/retention/retention.go) |
-| `retention.ObservationRetirer.Run` | [`internal/retention/observation.go:134`](../../internal/retention/observation.go) |
-| `retention.TranscriptRetirer.Run` | [`internal/retention/transcript.go:67`](../../internal/retention/transcript.go) |
-| `queue.Reaper.Run` | [`internal/queue/reaper.go:53`](../../internal/queue/reaper.go) |
-| `queue.Dispatcher.Run` | [`internal/queue/queue.go:64`](../../internal/queue/queue.go) |
-| `release.Checker.Run` | [`internal/release/release.go:76`](../../internal/release/release.go) |
-| `delivery.Runner.Run` | [`internal/delivery/runner.go:105`](../../internal/delivery/runner.go) |
-| `report.Dispatcher.Run` | [`internal/report/dispatcher.go:32`](../../internal/report/dispatcher.go) |
-| `report.NotifyRunner.Run` | [`internal/report/notify.go:75`](../../internal/report/notify.go) |
+| `retention.Retirer.Run` | [`internal/retention/retention.go`](../../internal/retention/retention.go) |
+| `retention.ObservationRetirer.Run` | [`internal/retention/observation.go#ObservationRetirer.Run`](../../internal/retention/observation.go) |
+| `retention.TranscriptRetirer.Run` | [`internal/retention/transcript.go#TranscriptRetirer.Run`](../../internal/retention/transcript.go) |
+| `queue.Reaper.Run` | [`internal/queue/reaper.go#Reaper.Run`](../../internal/queue/reaper.go) |
+| `queue.Dispatcher.Run` | [`internal/queue/queue.go`](../../internal/queue/queue.go) |
+| `release.Checker.Run` | [`internal/release/release.go#Checker.Run`](../../internal/release/release.go) |
+| `delivery.Runner.Run` | [`internal/delivery/runner.go#Runner.Run`](../../internal/delivery/runner.go) |
+| `report.Dispatcher.Run` | [`internal/report/dispatcher.go#Dispatcher.Run`](../../internal/report/dispatcher.go) |
+| `report.NotifyRunner.Run` | [`internal/report/notify.go`](../../internal/report/notify.go) |
 
 Three separate ADR-gap sweeps found the same rule in three different packages and each recorded it
 as uncited. #1291 found it in `internal/retention`, stated three times in three wordings. #1321 §5
@@ -45,7 +45,7 @@ packages before anyone wrote it down.
 - *The next tick retries.* `internal/queue/reaper.go` stated this.
 
 **The off-measurement-path ground is false at the reaper, and the reaper is one of the nine.**
-`internal/queue/reaper.go:45` records that nothing else exits `running`. A dead worker therefore
+`internal/queue/reaper.go#Reaper.Sweep` records that nothing else exits `running`. A dead worker therefore
 strands its job and blocks `Dispatch` forever
 ([#853](https://github.com/winniel123/verge-asm/issues/853)). A failed reap sits squarely **on** the
 measurement path: it is the reason a measurement does not run. A ground that is false at one of the
@@ -146,7 +146,7 @@ The loop's own error is a narrower question: whether the worker keeps ticking. T
 
 | Alternative | Why not |
 | --- | --- |
-| **Keep the off-measurement-path ground** *(`internal/retention`'s wording)* | **False at the reaper.** `internal/queue/reaper.go:45` states that nothing else exits `running`, so a dead worker strands its job and blocks `Dispatch` forever (#853). A failed reap is the reason a measurement does not run, which puts it on the measurement path. The ground also fails at the queue dispatcher, whose failed pass is a missed cadence. A ground that holds at some of the nine sites and not others is not the rule's ground |
+| **Keep the off-measurement-path ground** *(`internal/retention`'s wording)* | **False at the reaper.** `internal/queue/reaper.go#Reaper.Sweep` states that nothing else exits `running`, so a dead worker strands its job and blocks `Dispatch` forever (#853). A failed reap is the reason a measurement does not run, which puts it on the measurement path. The ground also fails at the queue dispatcher, whose failed pass is a missed cadence. A ground that holds at some of the nine sites and not others is not the rule's ground |
 | **Read ADR-0108 limb 6 literally and make every loop return its error** | Ends a worker on a transient database blip and trades a bounded one-interval delay for an unbounded outage. It also mistakes the hazard: limb 6 exists to stop a failure reading as a clean empty result, and a sweep that produced no result cannot read as one |
 | **Add a second carve-out to limb 6, beside scan dispatch** | Treats one class as a second exception. The scan-dispatch bullet and the nine loops share one ground, so the honest edit states the bound and lets dispatch fall under it |
 | **Surface a failed sweep on `Coverage`, or open a `Gap`** | A sweep failure is not a statement about the estate. `Coverage` would carry an operational fact keyed on nothing that moved, which ADR-0064's construction forbids. Where a sweep failure does delay a measurement, the missed cadence already ripens into a `Gap` under ADR-0084 |

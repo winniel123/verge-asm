@@ -34,7 +34,7 @@ substance holds and the pointer has since moved: line 74 is now the ADR-0109 bul
 [#1410](https://github.com/winniel123/verge-asm/issues/1410) struck through, and the rule reads at
 lines 40 and 103 — *"design-system empty-states where a new screen has no backing data yet, never
 fabricated data"*, in the Decision blockquote and again in Consequences. Two repairs already cite it
-in the tree, `cmd/web/reports.go:25` and `cmd/web/settings.go:868`. **The never-fabricate rule has a
+in the tree, `cmd/web/reports.go#reportsStore` and `cmd/web/settings.go#initialsFromUsername`. **The never-fabricate rule has a
 live home, and this ADR is not it.**
 
 What neither ticket separated out is the other half of the same sentence, and that half is genuinely
@@ -45,9 +45,9 @@ document that names `design-system/fixtures/fixtures.json` — names it only for
 (`:315`, `:1191`, `:1199`).
 
 **The mechanism as it stands today.** `devMode` is set once, from `VERGE_DEV`, at
-`cmd/web/main.go:107` and assigned at `:117`. Twenty-two `xxxFixtureData` builders exist —
+`cmd/web/main.go` and assigned at `:117`. Twenty-two `xxxFixtureData` builders exist —
 twenty-one in `cmd/web/devfixtures.go` (`:404` through `:2340`) and one at
-`cmd/web/settings_fixtures.go:404`. **Not seventeen**, which is #1333's count. Every one of them is
+`cmd/web/settings_fixtures.go#loadSettingsFixture`. **Not seventeen**, which is #1333's count. Every one of them is
 reached only from inside an `if s.devMode` branch — nineteen call sites, among them `cold.go:131`,
 `exposure.go:33`, `seeds.go:94`, `settings.go:274`, `auth.go:455` and `:1831`, and
 `subjects.go:933`. The dev-only routes are registered inside one `if s.devMode` block at
@@ -68,7 +68,7 @@ It said `seedsPage` *"serves the pinned fixtures.json → scope slice"*. It does
 `scopeFixtureData` (`devfixtures.go:927`) reads `devScopeSeeds`, `devScopeCustody`,
 `devScopeNameTree` and five more Go variables and never opens the JSON at runtime.
 `TestScopeFixtureMatchesPackage` is the only thing connecting them. The surviving uncited line is
-`cmd/web/seeds.go:93`.
+`cmd/web/seeds.go`.
 
 ## Decision
 
@@ -81,7 +81,7 @@ It said `seedsPage` *"serves the pinned fixtures.json → scope slice"*. It does
 
 A screen qualifies only where the design's figure has **no first-class datum behind it**. ADR-0120's
 Coverage meter is the worked case: the denominator is a first-class read and the numerator —
-subjects the batch walked within a declared range — is not one yet. `cmd/web/seeds.go:397` states
+subjects the batch walked within a declared range — is not one yet. `cmd/web/seeds.go#refusalView` states
 the same shape for the custody census: *"No measured resolution numerator exists yet."*
 
 An empty database is not a qualification. A screen whose reads all resolve and return nothing renders
@@ -109,7 +109,7 @@ census. **These are the honest answers, and their emptiness is information.** Th
 a dev screen that is richer than the live one is to make the missing datum first-class, never to
 widen the fixture's reach.
 
-The one hybrid site is `applyInventoryFixtureCounts` (`cmd/web/inventory.go:481`), which overwrites
+The one hybrid site is `applyInventoryFixtureCounts` (`cmd/web/inventory.go`), which overwrites
 group totals on rows the live query produced. It sits inside the `devMode` branch at `:506-508` and
 is pinned by `TestInventoryFixtureCountsMatchPackage`, so it is legal — and it is the shape to watch,
 because one missed guard there is the failure this ruling exists to prevent.
@@ -136,11 +136,11 @@ picture of the console**, and authority for nothing else: not evidence, not a de
 a real install. Nothing outside `cmd/web`'s dev branches may read it, no measurement may consult it,
 and no operator-facing document may quote a figure from it as a fact about an estate. The
 `-seed-fixtures` flag is the one legitimate crossing, and it refuses to run without `VERGE_DEV`
-(`cmd/web/main.go:45-46`).
+(`cmd/web/main.go`).
 
 ## Consequences
 
-- **`cmd/web/seeds.go:93` and `cmd/web/devfixtures.go:25-27` gain a citation.** They are the two
+- **`cmd/web/seeds.go` and `cmd/web/devfixtures.go` gain a citation.** They are the two
   surviving uncited statements of this rule, and this ADR is their home.
 - **ADR-0120 is repairable at two sites, and is not amended here.** Its lines `:64`-`:65` and `:79`
   attribute the never-fabricate sentence to `SPEC-CHANGE.md`. Under
@@ -149,7 +149,7 @@ and no operator-facing document may quote a figure from it as a fact about an es
   refusal and at this ADR for the pinned-fixture half. That edit belongs to the ticket that owns
   `0120`.
 - **One defect is exposed by §2 and is not fixed here.** `devRunningRunJobs`
-  (`cmd/web/devfixtures.go:643-650`) transcribes the six job rows of
+  (`cmd/web/devfixtures.go#devRetentionPanel`) transcribes the six job rows of
   `settings.scans.active[0].jobs` in `fixtures.json` (ids 912 to 917) and **no drift test compares
   them.** It is the only unpinned transcription in the tree.
 - **`docs/spec/comment-policy.md` §4.7 needs a second row for the `SPEC-CHANGE` family.** Today it

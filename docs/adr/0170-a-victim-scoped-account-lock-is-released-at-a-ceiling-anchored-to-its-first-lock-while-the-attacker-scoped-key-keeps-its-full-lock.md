@@ -76,8 +76,8 @@ clears the anchor with everything else; `cmd/web/auth.go` calls it on every succ
 non-empty, the key carries that prefix and the anchor is set, a key past its ceiling is skipped
 instead of reported locked.
 
-`cmd/web/auth.go:345` builds the account key — `func loginAccountKey(username string) string
-{ return "acct:" + strings.ToLower(username) }` — and `cmd/web/clientip.go:83-85` builds the IP key
+`cmd/web/auth.go#server.loginSubmit` builds the account key — `func loginAccountKey(username string) string
+{ return "acct:" + strings.ToLower(username) }` — and `cmd/web/clientip.go#server.loginIPKey` builds the IP key
 as `"ip:" + s.clientIP(r)`. Both handlers pass the pair together (`auth.go:245`, `:292`).
 
 ## Decision
@@ -145,10 +145,10 @@ victim the attacker chose. The failure is silent at compile time and invisible a
   Read alone, its *"locks the key for a few minutes"* describes both axes identically and tells an
   operator nothing about the bound on a lockout someone else triggered. Marked at the bullet per
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
-- **`cmd/web/ratelimit.go:55` and `:82` gain this ADR's citation.** Both survivors are uncited under
+- **`cmd/web/ratelimit.go#loginLimiter.locked` and `:82` gain this ADR's citation.** Both survivors are uncited under
   [`comment-policy.md`](../spec/comment-policy.md) §4.7 route 3 today, and route 3 rules the dead
   token, never the rule.
-- **The prefix agreement is pinned by behaviour, not by type.** `cmd/web/clientip_test.go:138-173`
+- **The prefix agreement is pinned by behaviour, not by type.** `cmd/web/clientip_test.go#TestAccountLockCeilingBoundsDenial`
   builds its key with `loginAccountKey` and asserts the release, so a drift in either literal fails
   it. The pin is real and incidental: it sits in the client-IP test file, its name is about the
   ceiling, and nothing declares that the agreement is what it protects. The fix is one shared

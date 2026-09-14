@@ -24,20 +24,20 @@ relations:
 `coveragePage` stated one rule five times, in five uncited blocks, and PR #1361 deleted all five: *a
 failed read empties its own region rather than 500ing the page*. **Every line number in #1360 has
 moved.** The pre-sweep sites `:233`, `:245`, `:273`, `:289` and `:297` are now the reads at
-`cmd/web/cold.go:142` (zone declarations), `:147` (current Service subjects), `:162` and `:165`
+`cmd/web/cold.go#coverageMeterView` (zone declarations), `:147` (current Service subjects), `:162` and `:165`
 (blanketed reach, unavailable vantages), `:171` (the signal corpus) and `:176`–`:177` (zone cadence
 and zone-file status). Nothing states the rule at any of them. **#1360's three "unswept residue"
 sites are gone too** — `exposure.go`, `drift.go` and `custodycensus.go` carry no statement of it
 today, and `custodycensus.go` is 130 lines with no line 237.
 
-**#1339's two are compressed rather than gone**, and both survive uncited: `cmd/web/seeds.go:251` —
+**#1339's two are compressed rather than gone**, and both survive uncited: `cmd/web/seeds.go#nameRefusal` —
 *"A failed count degrades the block; refusing the act would leave no route to the withdrawal"* — and
-`cmd/web/seeds.go:448` — *"An additive card's failed read degrades that card, never the whole Scope
+`cmd/web/seeds.go#refusalOverCap` — *"An additive card's failed read degrades that card, never the whole Scope
 screen."* Those two lines are the last in-tree statement of the rule.
 
 The posture is not incidental. `cmd/web` holds 86 conditional-adoption sites of the
 `if v, err := …; err == nil` shape outside tests, and **41 adopt a store or corpus read**; the rest
-parse a form value, a URL or an address. `dashboardData` (`cmd/web/auth.go:517`) contains no
+parse a form value, a URL or an address. `dashboardData` (`cmd/web/auth.go`) contains no
 `serverError` at all, which is what `cold.go`'s deleted text meant by *"exactly as the dashboard's
 signal regions do."*
 
@@ -88,9 +88,9 @@ degradation the operator can see needs no log line; one they cannot see does.
 
 This is the limb that keeps §1 from fabricating. The region renders *no rows*, *no card*, or a note
 saying the read did not resolve. It does not render a number. Two shipped examples:
-`design-system/templates/scope.tmpl:235` renders *"The fan-out measurement did not resolve on this
+`design-system/templates/scope.tmpl#scope` renders *"The fan-out measurement did not resolve on this
 load. Nothing is listed rather than a guessed edge."* against the `CustodyCensusFailed` flag that
-`cmd/web/seeds.go:449` sets, and `scope.tmpl:182` renders *"The count did not resolve"* for the
+`cmd/web/seeds.go#refusalOverCap` sets, and `scope.tmpl:182` renders *"The count did not resolve"* for the
 confirm block.
 
 **A count is not an honest absence.** `cold.go:147`'s failure leaves `walked` nil, and `addressMeter`
@@ -106,13 +106,13 @@ the read's failure into `apertureMeters` and withhold the numerator, exactly as
 
 `previewSeedWithdrawal` renders the narrowing receipt for a `Seed` withdrawal. On a failed receipt
 it logs, sets `confirm.Failed`, and serves the confirm block with the act still offered
-(`cmd/web/seeds.go:264`–`:273`).
+(`cmd/web/seeds.go#joinRefusedInputs`–`:273`).
 
 Two facts make that correct, and both are checkable. **The step is the only route:**
 `/seeds/delete` appears once in the whole template corpus, at
-`design-system/templates/scope.tmpl:184`, inside `{{with .SeedConfirm}}`, and the chip's remove
+`design-system/templates/scope.tmpl#scope`, inside `{{with .SeedConfirm}}`, and the chip's remove
 control at `:170` posts to `/seeds/preview`. **The count binds nothing:** `deleteSeed`
-(`cmd/web/seeds.go:276`) reads no receipt — it calls `WithdrawSeed` and returns — and under ADR-0134
+(`cmd/web/seeds.go#allRefusedFormError`) reads no receipt — it calls `WithdrawSeed` and returns — and under ADR-0134
 §5 the withdrawal is performed by the next membership fold from a tombstone. So refusing would cost
 the operator their only route to a withdrawal, over a figure the act never consults.
 
@@ -135,10 +135,10 @@ each with its shipped example.
 | Class | Example | Why loud |
 | --- | --- | --- |
 | **The page's own subject** | `cold.go:136`–`:140`, `ListSeeds` on Coverage; `seeds.go:408`–`:411`, `ListSeeds` on Scope | Every meter and card on both screens is one `Seed`. Degrading it renders *no scopes declared* — a lie about the operator's own declaration, and one they may act on |
-| **A subject fetched by key** | `cmd/web/subjects.go:221`–`:231` | `pgx.ErrNoRows` renders a distinct missing-subject page; any other error 500s. **No rows and the read failed are different facts**, and the handler keeps them apart |
+| **A subject fetched by key** | `cmd/web/subjects.go#server.endpointPage`–`:231` | `pgx.ErrNoRows` renders a distinct missing-subject page; any other error 500s. **No rows and the read failed are different facts**, and the handler keeps them apart |
 | **The act** | `seeds.go:291`, `cold.go:71`, `:76`, `:81` | A write reported as done when it was not is unrecoverable by reload |
 
-The test is not the surface. `apiCoverage` (`cmd/web/api_v1.go:258`) makes the identical split on the
+The test is not the surface. `apiCoverage` (`cmd/web/api_v1.go`) makes the identical split on the
 identical data: `ListSeeds` reaches `apiReadError` at `:262`, while the zone and subject reads at
 `:266` and `:272` degrade with a log line. The split follows the **subject**, so it holds wherever
 that page's data is projected. `dashboardData` is the limiting case the other way: it has no subject,
@@ -146,14 +146,14 @@ being a summary of several, so no read on it is loud — consistent with this ru
 
 ## Consequences
 
-- **`docs/guides/api.md:103` is narrowed.** Its *"Store read failure → 500"* row describes only the
+- **`docs/guides/api.md#response-semantics` is narrowed.** Its *"Store read failure → 500"* row describes only the
   subject read; a region read on the same endpoint logs and serves.
 - **`cold.go:142` and `:147` are defects under §2.** Both render a fabricated zero. They are named
   here so a later session does not read the code as the rule.
-- **`driftPage` (`cmd/web/drift.go:171`–`:181`) degrades its own subject.** A failed
+- **`driftPage` (`cmd/web/drift.go#server.driftPage`–`:181`) degrades its own subject.** A failed
   `ListRecentDriftEvents` yields `HasEvents: false`, rendering *no drift this period*. Drift is the
   thesis screen (ADR-0110), and this is the exact class §4 forbids.
-- **`foldExposure` (`cmd/web/exposure.go:97`–`:104`) returns an empty board and zero counts** when
+- **`foldExposure` (`cmd/web/exposure.go`–`:104`) returns an empty board and zero counts** when
   its two subject reads fail, so Exposure reports *0 exposed* on a fault. The page already has an
   honest shape for *we cannot say* — the `Withheld` branch at `exposure.go:56`.
 - **Three Scope reads are loud where §1 makes them region reads:** `ListExclusions` (`seeds.go:413`
@@ -168,7 +168,7 @@ being a summary of several, so no read on it is loud — consistent with this ru
 
 | Alternative | Why not |
 | --- | --- |
-| **Every read is loud — one failure, one 500** | A page's availability becomes the product of its reads'. `coveragePage` makes nine, so the screen fails nine times more often than any one query, and eight of those failures remove regions the failed query does not feed. It also hands the operator the one response carrying no information: `serverError` (`cmd/web/auth.go:1887`) writes a bare *internal error* |
+| **Every read is loud — one failure, one 500** | A page's availability becomes the product of its reads'. `coveragePage` makes nine, so the screen fails nine times more often than any one query, and eight of those failures remove regions the failed query does not feed. It also hands the operator the one response carrying no information: `serverError` (`cmd/web/auth.go`) writes a bare *internal error* |
 | **Every read is best-effort, subject included** | What `driftPage` and `foldExposure` do today, and it produces ADR-0110's forbidden fabrication by another route: an empty feed and an empty board are indistinguishable from *nothing happened*, so the page states a falsehood about the estate with full confidence. Degrading a subject does not make a page partial; it makes it wrong |
 | **Substitute a zero or a last-known value for a failed region read** | A zero is a measurement claim: under ADR-0120 the address meter's numerator means *the subjects the batch walked*, so a substituted zero reports an uncovered scope on a database hiccup. A cached value is worse — stale by an unstated interval, with nothing on the page saying so |
 | **Refuse the confirm step when its count fails** | `/seeds/delete` is reachable only through that block (`scope.tmpl:184`), so the refusal removes the operator's only route to a withdrawal, over a figure `deleteSeed` never reads. It converts a read fault into the loss of an operator capability |

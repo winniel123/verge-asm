@@ -18,7 +18,7 @@ relations:
 
 ## Context
 
-`internal/release/release.go:39` carried this, until #1271 deleted it:
+`internal/release/release.go` carried this, until #1271 deleted it:
 
 ```go
 // Store is the narrow slice of the data layer the Checker needs: the one config
@@ -35,17 +35,17 @@ interfaces sit across `internal` and `cmd`. Seventeen are between one and nine m
 
 | Consumer | Interface | Methods |
 | --- | --- | --- |
-| `internal/release/release.go:18` | `Store` | 2 |
-| `internal/queue/hotlag.go:17` | `HotLagStore` | 1 |
-| `internal/queue/addressexclusion.go:8` | `AddressExclusionStore` | 1 |
-| `internal/queue/hot.go:45` | `EstateStore` | 3 |
-| `internal/queue/edgefanout.go:148` | `EdgeFanoutStore` | 5 |
-| `internal/retention/retention.go:35` | `Store` | 3 |
-| `cmd/worker/remoterouter.go:23` | `remoteVantageStore` | 1 |
-| `cmd/web/custodycensus.go:32` | `custodyCensusStore` | 9, over two embedded `queue` interfaces |
-| `cmd/web/api_auth.go:16` | `apiAuthStore` | 4 |
+| `internal/release/release.go#Store` | `Store` | 2 |
+| `internal/queue/hotlag.go` | `HotLagStore` | 1 |
+| `internal/queue/addressexclusion.go#AddressExclusionStore` | `AddressExclusionStore` | 1 |
+| `internal/queue/hot.go#EstateStore` | `EstateStore` | 3 |
+| `internal/queue/edgefanout.go#EdgeFanoutStore` | `EdgeFanoutStore` | 5 |
+| `internal/retention/retention.go` | `Store` | 3 |
+| `cmd/worker/remoterouter.go#remoteVantageStore` | `remoteVantageStore` | 1 |
+| `cmd/web/custodycensus.go#custodyCensusStore` | `custodyCensusStore` | 9, over two embedded `queue` interfaces |
+| `cmd/web/api_auth.go#apiAuthStore` | `apiAuthStore` | 4 |
 | … eight more | | 1 to 5 |
-| **`cmd/web/handlers.go:22`** | **`store`** | **178** |
+| **`cmd/web/handlers.go`** | **`store`** | **178** |
 
 The generated `internal/db.Querier` names **251**. `cmd/web`'s `store` names **178** of them, 71% of
 the whole data layer, in one interface reached through one `server` field by 38 non-test files. It is
@@ -54,14 +54,14 @@ restatement.
 
 **The console aggregate has already lost the guarantee it was meant to give.** The bearer path needs
 `GetPersonalTokenByHash` and `UpdatePersonalTokenLastUsed`. Neither is among the 178. Rather than
-take them as a parameter, `cmd/web/api_auth.go:16` declares a four-method `apiAuthStore` and reaches
-it by asserting on the aggregate at `cmd/web/api_auth.go:24`:
+take them as a parameter, `cmd/web/api_auth.go#apiAuthStore` declares a four-method `apiAuthStore` and reaches
+it by asserting on the aggregate at `cmd/web/api_auth.go#server.apiBearer`:
 
 ```go
 st, ok := s.store.(apiAuthStore)
 ```
 
-`cmd/web/api_auth.go:31` then carries a fail-closed branch, a log line and a comment saying a wired
+`cmd/web/api_auth.go#server.apiBearer` then carries a fail-closed branch, a log line and a comment saying a wired
 store always satisfies it. The concrete `*db.Queries` does. **The compiler cannot see that, because
 the field is typed as the wide interface.** A parameter of type `apiAuthStore` would have been
 checked at build time and the branch, the log line and the comment would not exist. The aggregate
@@ -100,7 +100,7 @@ three `Doer` declarations: a shared interface puts one widening decision above e
 consumer that never asked for a query gains reach the day someone else needs it.
 
 Reuse across consumers happens by **embedding a narrow interface another consumer already owns**, not
-by widening a common one. `cmd/web/custodycensus.go:32` embeds `queue.EdgeFanoutStore` and
+by widening a common one. `cmd/web/custodycensus.go#custodyCensusStore` embeds `queue.EdgeFanoutStore` and
 `queue.AddressExclusionStore` and adds three methods of its own. That is nine, and the import edge
 already existed.
 

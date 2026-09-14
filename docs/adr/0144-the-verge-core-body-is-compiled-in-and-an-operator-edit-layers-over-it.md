@@ -21,14 +21,14 @@ relations:
 [#4](https://github.com/winniel123/verge-asm/issues/4) specified that `verge-core` ship *"as an
 editable list file, not compiled in"*. The code does the opposite and has since the package landed.
 
-`internal/vergecore/vergecore.go:47` carries `//go:embed verge-core.tsv`. Line 50 is
+`internal/vergecore/vergecore.go#shipped` carries `//go:embed verge-core.tsv`. Line 50 is
 `var shippedList = mustParse(shipped)`, and it is the **only** production parse in the tree. `Default`
 (line 52) hands out a clone of that one list. No configuration path, no file path and no database
 column reaches `Parse`.
 
-An operator edit does exist, and it **layers**. `internal/queue/hot.go:165` reads the
+An operator edit does exist, and it **layers**. `internal/queue/hot.go#hotCore` reads the
 `verge_core_frequency_edit` rows and returns `vergecore.Default().WithFrequencyEdits(fe)`.
-`cmd/web/settings.go:787-789` builds the settings view the same way, from `vergecore.Default()`. The
+`cmd/web/settings.go#server.renderSettings` builds the settings view the same way, from `vergecore.Default()`. The
 shipped body is the base at both sites, and the operator's rows are deltas over it.
 
 Four documents still specify the withdrawn shape. `docs/spec/v1-spec.md` §3.5 says `verge-core` *"is

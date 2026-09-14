@@ -54,10 +54,13 @@ export function scanDocuments(repoRoot, files) {
       // A listed document a later edit deleted must not kill the dry run (#1436 reads it so).
       continue;
     }
+    const lines = markdown.split("\n");
     const hits = scanLineAnchorsFromTree(parse(markdown)).map((h) => ({
       ...h,
       file,
       glue: trailingGlue(markdown, h),
+      // The derivation reads the citing line for a name, so the scan carries it (#1977).
+      lineText: lines[h.line - 1] ?? "",
     }));
     found.set(file, { markdown, hits });
   }

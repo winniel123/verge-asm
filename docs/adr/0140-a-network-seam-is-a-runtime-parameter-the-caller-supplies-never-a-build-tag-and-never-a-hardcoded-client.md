@@ -38,11 +38,11 @@ They are one rule. But the five wordings do not agree on the mechanism, and the 
 code twice.
 
 **First: four of the five wordings are satisfied by the one package that breaks the rule.**
-`internal/release/fetcher.go:18` declares `Doer` with a single `Do` method. That is "behind an
-interface" on its face. `NewHTTPFetcher` at `internal/release/fetcher.go:27` then takes a URL and no
+`internal/release/fetcher.go` declares `Doer` with a single `Do` method. That is "behind an
+interface" on its face. `NewHTTPFetcher` at `internal/release/fetcher.go` then takes a URL and no
 client. It writes `&http.Client{Timeout: feedTimeout}` into the unexported field at
-`internal/release/fetcher.go:30`. The interface is declared and never opened. Its only caller,
-`cmd/worker/main.go:166`, has nothing to pass. So `HTTPFetcher.Latest` has no test, and the non-200
+`internal/release/fetcher.go#NewHTTPDoer`. The interface is declared and never opened. Its only caller,
+`cmd/worker/main.go#main`, has nothing to pass. So `HTTPFetcher.Latest` has no test, and the non-200
 refusal, the `maxFeedBytes` cap over a hostile feed and the empty-`tag_name` refusal are all
 unpinned. **The declaration that exists to make those testable is the thing that
 makes their absence look answered.**
@@ -77,12 +77,12 @@ That is what the repo already does at every seam but one.
 | Package | The interface | Where the caller supplies it |
 | --- | --- | --- |
 | `internal/delivery` | `Doer` (`runner.go:26`) | `NewRunner(pool, doer, …)` (`runner.go:76`) |
-| `internal/report` | `delivery.Doer` (`notify.go:58`) | `NewNotifyRunner(pool, doer, …)` (`notify.go:65`), fed from `cmd/worker/main.go:134` |
+| `internal/report` | `delivery.Doer` (`notify.go:58`) | `NewNotifyRunner(pool, doer, …)` (`notify.go:65`), fed from `cmd/worker/main.go` |
 | `internal/proposer` | `Doer` (`proposer.go:33`) | `DefaultRegistry(doer)` (`proposer.go:50`), then `NewARIN` (`arin.go:20`) and `NewCAIDA` (`caida.go:25`) |
-| `internal/queue` | `CTFetcher` (`crtsh.go:34`) | `WithCT` (`crtsh.go:118`), `WithCTTail` and `WithCTVerify`, fed from `cmd/worker/main.go:94-95,210` |
+| `internal/queue` | `CTFetcher` (`crtsh.go:34`) | `WithCT` (`crtsh.go:118`), `WithCTTail` and `WithCTVerify`, fed from `cmd/worker/main.go` |
 | `internal/remoteexec` | `Conn` (`conn.go:20`) | `Probe(ctx, conn, …)` (`probe.go:61`) and `Inspect(ctx, conn)` (`probe.go:31`) |
 | `internal/release` | `Fetcher` | the `Checker` takes it, and `release_test.go` drives `fakeFetcher` |
-| `internal/measure`, six leaf packages | `Connector`, `Handshaker`, `Exchanger`, `Peer`, `Enumerator` | seven entrypoints: `RunWithConnector` (`connectoutcome/run.go:68`), `RunExchange` (`connectoutcome/certificate.go:142`), `RunWithHandshaker` (`edgefanout/run.go:39`), `RunWithExchanger` (`httpexchange/run.go:41`), `RunWithPeer` (`resolutionwalk/run.go:40`), `RunWithPeer` (`wildcarddiscrim/run.go:70`), `RunWithEnumerator` (`tlsacceptance/run.go:59`) |
+| `internal/measure`, six leaf packages | `Connector`, `Handshaker`, `Exchanger`, `Peer`, `Enumerator` | seven entrypoints: `RunWithConnector` (`connectoutcome/run.go`), `RunExchange` (`connectoutcome/certificate.go`), `RunWithHandshaker` (`edgefanout/run.go`), `RunWithExchanger` (`httpexchange/run.go`), `RunWithPeer` (`resolutionwalk/run.go`), `RunWithPeer` (`wildcarddiscrim/run.go`), `RunWithEnumerator` (`tlsacceptance/run.go`) |
 
 Each measure package also exports a plain `Run(spec, w)` that builds the production adapter and calls
 the `RunWith…` form. That is the composition root for a leaf, and it is the only place the real
@@ -126,15 +126,15 @@ supplied by a caller one level up.
 
 The bound on that permission: **an adapter carrying its own logic owes its own test against a
 loopback server.** `TestHTTPCTFetcher` and `TestHTTPCTFetcherDoesNotFollowRedirect`
-(`internal/queue/crtsh_test.go:36,75`) drive `HTTPCTFetcher` through `httptest`.
-`TestHTTPDoerRefusesRedirects` (`internal/delivery/delivery_test.go:219`) pins the redirect refusal
+(`internal/queue/crtsh_test.go`) drive `HTTPCTFetcher` through `httptest`.
+`TestHTTPDoerRefusesRedirects` (`internal/delivery/delivery_test.go`) pins the redirect refusal
 directly. `internal/release/fetcher.go` fails both routes at once. It neither accepts a client nor
 carries a test, and that is what makes it the one violation rather than one more adapter.
 
 ### 5. The interface stays with the consumer and is not consolidated
 
-`Doer` is declared three times — `internal/delivery/runner.go:26`, `internal/proposer/proposer.go:33`,
-`internal/release/fetcher.go:18` — with the same single method. The repetition is kept. Each consumer
+`Doer` is declared three times — `internal/delivery/runner.go`, `internal/proposer/proposer.go#Doer`,
+`internal/release/fetcher.go` — with the same single method. The repetition is kept. Each consumer
 declares the narrowest interface it needs. A shared package therefore cannot widen a seam under a
 consumer that never asked for it. Three packages that share nothing else also gain no import edge. The
 one exception holds the line: `internal/report` takes `delivery.Doer` because those two already share
