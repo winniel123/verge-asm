@@ -77,7 +77,7 @@ func toObservationParams(batchID int64, vantageID pgtype.Int8, observedAt pgtype
 			SubjectKey:    o.Subject,
 			Discriminator: o.Discriminator,
 			VantageID:     vantageID,
-			Source:        sourceFor(o.Facet),
+			Source:        SourceFor(o.Facet),
 			Value:         value,
 			ObservedAt:    observedAt,
 		})
@@ -100,7 +100,7 @@ func subjectKindFor(facet string) string {
 	}
 }
 
-func sourceFor(facet string) string {
+func SourceFor(facet string) string {
 	switch facet {
 	case connectoutcome.FacetReachability, connectoutcome.FacetCertificate,
 		httpexchange.FacetHTTPIdentity, tlsacceptance.Facet:

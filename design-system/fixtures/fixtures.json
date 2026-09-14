@@ -125,7 +125,12 @@
             "facets": [
               {
                 "label": "reachability",
-                "summary": "answers · 22/tcp",
+                "summary": "reached",
+                "since": "2026-04-30"
+              },
+              {
+                "label": "reachability",
+                "summary": "not-reached",
                 "since": "2026-04-30"
               },
               {

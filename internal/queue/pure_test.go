@@ -164,7 +164,7 @@ func TestReachabilityFoldsToServiceProberTimeline(t *testing.T) {
 	if got := subjectKindFor(connectoutcome.FacetReachability); got != "service" {
 		t.Errorf("reachability subject kind = %q, want service", got)
 	}
-	if got := sourceFor(connectoutcome.FacetReachability); got != "prober" {
+	if got := SourceFor(connectoutcome.FacetReachability); got != "prober" {
 		t.Errorf("reachability source = %q, want prober", got)
 	}
 	v := facetVector(connectoutcome.FacetReachability)

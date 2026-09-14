@@ -48,8 +48,12 @@ CREATE TABLE span (
 -- At most one open span per timeline: current state is that one row, read as a
 -- lookup. The partial unique index is what makes "the open span is the current
 -- state" a structural guarantee rather than a query convention. NULLS NOT
--- DISTINCT so the shipped resolver position — which carries no vantage row, hence
--- a NULL vantage_id — is still held to one open span (PostgreSQL 16).
+-- DISTINCT so a NULL-vantage timeline is still held to one open span
+-- (PostgreSQL 16). That timeline is `dns-record` written by the zone reader under
+-- the `zone` source, which restates a stored file from no network position. It is
+-- NOT the shipped resolver position: ADR-0202 made the vantage row the sole source
+-- of a resolver, so that position IS a vantage row and its spans carry its id.
+-- 26200 now refuses every other NULL-vantage row (ADR-1985 §7).
 CREATE UNIQUE INDEX span_open_timeline_idx
     ON span (subject_key, facet, discriminator, vantage_id, source)
     NULLS NOT DISTINCT
