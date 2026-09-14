@@ -30,16 +30,16 @@ function leadingLabel(paragraph) {
 
 // The reach is the label: a body's Site field alone (SPEC docs/spec/citation-anchors.md §6).
 export function siteItems(tree) {
-  const out = [];
+  const out = new Set();
   visitParents(tree, (node, ancestors) => {
-    if (node.type !== "listItem") return;
+    if (node.type !== "paragraph") return;
     if (inOpaque([...ancestors, node])) return;
-    const paragraph = (node.children ?? []).find((c) => c.type === "paragraph");
-    if (!paragraph) return;
-    if (!LABEL.test(leadingLabel(paragraph))) return;
-    out.push(node);
+    if (!LABEL.test(leadingLabel(node))) return;
+    // The list item is the root where there is one, so a wrapped value stays inside the field.
+    const parent = ancestors[ancestors.length - 1];
+    out.add(parent?.type === "listItem" ? parent : node);
   });
-  return out;
+  return [...out];
 }
 
 // One list item is one root, so no neighbouring field lends a Site its prose or its ref.

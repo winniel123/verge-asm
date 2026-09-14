@@ -118,14 +118,38 @@ test("a Site field inside a fenced block is sample text, not a claim", () => {
   assert.equal(judge(body).fields, 0);
 });
 
-test("the label binds on three spellings and on no other field", () => {
-  const spellings = ["- **Site:** `x/y.go`", "- **Site**: `x/y.go`", "- Site: `x/y.go`"];
+test("the label binds on four spellings and on no other field", () => {
+  const spellings = [
+    "- **Site:** `x/y.go`",
+    "- **Site**: `x/y.go`",
+    "- Site: `x/y.go`",
+    // A body may write the field as its own paragraph, and the label is still the reach.
+    "**Site:** `x/y.go`",
+  ];
   for (const line of spellings) {
     assert.equal(siteItems(parse(line)).length, 1, line);
   }
   for (const line of ["- **Thesis:** `x/y.go`", "- The site is `x/y.go`", "- **Proof:** `x/y.go`"]) {
     assert.equal(siteItems(parse(line)).length, 0, line);
   }
+});
+
+test("a paragraph-form Site field is judged like a list-item one", () => {
+  const r = judge(`## Decision proposal\n\n**Site:** \`${GO_TARGET}#noSuchDeclaration\`\n`);
+  assert.equal(r.fields, 1);
+  assert.deepEqual(r.broken.map(key), [`${GO_TARGET}#noSuchDeclaration`]);
+});
+
+test("one list item is one field, however many paragraphs it holds", () => {
+  const body = [
+    "- **Site:**",
+    "",
+    `  \`${GO_TARGET}#goDocSpans\``,
+    "- **Proof:** the suite below.",
+  ].join("\n");
+  const r = judge(body);
+  assert.equal(r.fields, 1);
+  assert.deepEqual(r.verified.map(key), [`${GO_TARGET}#goDocSpans`]);
 });
 
 test("a Site resolves against the tree the gate is handed, so an added target passes", () => {
@@ -231,10 +255,12 @@ test("the arm reports an unreachable API as fatal, never as a pass", async () =>
 });
 
 test("the CLI passes with no pull-request context, and says it judged no body", () => {
+  // A runner exports both keys, so a local shape has to be built rather than inherited.
+  const { GITHUB_EVENT_PATH, GITHUB_REPOSITORY, ...local } = process.env;
   const out = execFileSync(
     process.execPath,
     [join(SCRIPT_DIR, "check-citations.mjs"), "--in-scope-only", join(REPO_ROOT, "CLAUDE.md")],
-    { encoding: "utf8", stdio: "pipe" },
+    { encoding: "utf8", stdio: "pipe", env: local },
   );
   assert.match(out, /no pull-request context, so it judged no Site field/);
 });
