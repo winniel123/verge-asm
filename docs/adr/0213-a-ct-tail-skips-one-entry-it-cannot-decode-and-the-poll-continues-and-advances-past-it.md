@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-[`internal/queue/cttail.go#Worker.completeCTTailRFC`](../../internal/queue/cttail.go) and `cttail.go:227` carried this
+[`internal/queue/cttail.go`](../../internal/queue/cttail.go) and `cttail.go:227` carried this
 text, until #1322 deleted it:
 
 ```go

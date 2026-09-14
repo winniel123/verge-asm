@@ -21,7 +21,7 @@ relations:
 
 ## Context
 
-`internal/queue/spanfold.go#spanFoldStore` carried this in declaration position, until #1327 deleted it:
+`internal/queue/spanfold.go` carried this in declaration position, until #1327 deleted it:
 
 ```go
 // A withdrawal is NOT decided here: whether a subject left the estate is a

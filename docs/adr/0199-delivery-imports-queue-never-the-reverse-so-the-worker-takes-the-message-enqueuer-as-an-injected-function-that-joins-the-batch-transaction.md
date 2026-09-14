@@ -168,7 +168,7 @@ sets no `produceMsgs` and no `enqueue`:
 | Site | Purpose |
 | --- | --- |
 | `internal/queue/ctverify_test.go#testWorker` | CT verification against a scripted fetcher |
-| `internal/queue/ctverify_test.go#TestVerifyMaterialEmbeddedPrecertLogged` | the unwired-verifier refusal |
+| `internal/queue/ctverify_test.go` | the unwired-verifier refusal |
 | `internal/queue/probetimeout_test.go#TestProbeTimeoutUnblocksHungProber` | the probe deadline |
 | `internal/queue/probetimeout_test.go#TestProbeTimeoutZeroUsesParentContext` | the disabled probe deadline |
 | `internal/queue/transcript_test.go#TestPersistTranscriptGate`, `:417`, `:420`, `:425` | the capture guard and the sealed transcript |

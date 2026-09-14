@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-[`internal/queue/hot.go#hotCore`](../../internal/queue/hot.go) carried this text, until #1322 deleted it:
+[`internal/queue/hot.go`](../../internal/queue/hot.go) carried this text, until #1322 deleted it:
 
 ```go
 // Two declared scopes that OVERLAP are not deduped against each other, so the overlap

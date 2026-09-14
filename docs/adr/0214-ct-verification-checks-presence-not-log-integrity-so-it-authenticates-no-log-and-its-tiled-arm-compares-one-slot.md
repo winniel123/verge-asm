@@ -21,7 +21,7 @@ relations:
 ## Context
 
 [`internal/queue/cttail.go#Worker.completeCTTailTiled`](../../internal/queue/cttail.go) and
-[`internal/queue/ctverify.go#VerifyLogged`](../../internal/queue/ctverify.go), `:233` and `:275` carried this
+[`internal/queue/ctverify.go`](../../internal/queue/ctverify.go), `:233` and `:275` carried this
 text, until #1322 deleted it:
 
 ```go
