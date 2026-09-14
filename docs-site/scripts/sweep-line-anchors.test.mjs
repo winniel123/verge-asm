@@ -525,7 +525,7 @@ test("selectFiles reads a path as a document or a directory prefix", () => {
   assert.deepEqual(selectFiles(REPO_ROOT, files, ["docs/none"]), []);
 });
 
-// The audit reads written anchors, because the repaired tokens' burn-down entries are gone.
+// The audit reads a written region anchor, which the conversion arm's line scan never sees.
 const AUDIT_DOC = [
   "# Page",
   "",

@@ -479,7 +479,8 @@ test("a line anchor a named ref pins passes the CLI, and a bare path passes", ()
 
 test("the refusal is unconditional, so no summary line sizes a remaining sweep", () => {
   const out = cliOutput([]);
-  assert.match(out, /0 {2}refused: a citation names no line/);
-  assert.doesNotMatch(out, /the sweep has not reached/);
-  assert.doesNotMatch(out, /stale/);
+  // The count is right-padded, so a bare `0` would also match 10, 20 and every other multiple.
+  assert.match(out, /(?<!\d)0 {2}refused: a citation names no line/);
+  assert.doesNotMatch(out, /line anchor\(s\) the sweep has not reached/);
+  assert.doesNotMatch(out, /stale: an entry no scan finds/);
 });
