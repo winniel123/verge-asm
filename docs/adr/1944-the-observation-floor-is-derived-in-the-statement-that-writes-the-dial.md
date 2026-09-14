@@ -112,8 +112,10 @@ records.
 The repo holds no live-Postgres test. Every test in `cmd/web` runs against an in-memory fake, whose
 dial transaction is a mutex with no row locks and no snapshot. The proof is shaped by that.
 
-The fake models the statement: it reads the scan set at write time and derives the floor from the
-constants the handler passed it. The test commits a competing write at the last instant before the
+The fake models the statement: it reads the scan set at write time, picks the tightest covering
+cadence its own `WHERE` admits, and rounds up on the constants the handler passed. It reaches
+`retention.ObservationFloor` at no point, so it models the statement rather than asserting that the
+two expressions agree. The test commits a competing write at the last instant before the
 statement runs, in three interleavings — cold custody withdrawing the tightest cover, the sweep
 retiring the last observation under it, and cold custody enabling a tighter one. Each asserts what
 landed against the floor then in force. All three fail against the shape this ADR replaces.

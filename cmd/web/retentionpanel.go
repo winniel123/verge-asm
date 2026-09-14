@@ -534,8 +534,7 @@ func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request,
 			UpdatedBy:               pgtype.Int8{Int64: acct.ID, Valid: true},
 		})
 		if err != nil {
-			// With no floor to raise to, a write could persist the ground (ADR-0081).
-			return fmt.Errorf("update retention: %w", err)
+			return err
 		}
 		// The guard compares what landed against the locked read, so the clamp cannot hide a move.
 		obs, disp := row.ObservationCurrencyDays, row.DispatchCadenceMultiple

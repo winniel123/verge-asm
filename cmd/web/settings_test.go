@@ -628,9 +628,6 @@ func (f *fakeStore) SetSeedAddressCap(_ context.Context, arg db.SetSeedAddressCa
 }
 
 func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
-	if f.beforeDialWrite != nil {
-		f.beforeDialWrite()
-	}
 	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
 	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
 	f.retention.TranscriptCurrencyDays = arg.TranscriptCurrencyDays

@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
-	"github.com/winniel123/verge-asm/internal/retention"
 )
 
 func (f *fakeStore) CountHeldObservations(_ context.Context, _ int64) (db.CountHeldObservationsRow, error) {
@@ -48,8 +47,11 @@ func (f *fakeStore) ListCoveringScanKinds(context.Context) ([]string, error) {
 	return f.coveringScans, nil
 }
 
-// The fake stands in for the clamping statement: it reads the scan set as it writes, and it
-// derives the floor from the constants the handler passes rather than its own (ADR-1944).
+// The fake stands in for the clamping statement, and it reaches the Go derivation the
+// statement duplicates at no point. It reads the scan set as it writes, picks the tightest
+// covering cadence the statement's own WHERE admits, and rounds up on the constants the
+// handler passed. A fake that called retention.ObservationFloor would assert the two agree
+// rather than model one of them (ADR-1944).
 
 func (f *fakeStore) UpdateCoverageRetentionSettings(
 	ctx context.Context, arg db.UpdateCoverageRetentionSettingsParams,
@@ -65,12 +67,28 @@ func (f *fakeStore) UpdateCoverageRetentionSettings(
 	if err != nil {
 		return db.UpdateCoverageRetentionSettingsRow{}, err
 	}
+	covers := make(map[string]bool, len(coveringKinds))
+	for _, k := range coveringKinds {
+		covers[k] = true
+	}
+	var tightest int64
+	for _, sc := range scanRows {
+		if !covers[sc.Kind] || sc.CadenceSeconds <= 0 {
+			continue
+		}
+		if tightest == 0 || sc.CadenceSeconds < tightest {
+			tightest = sc.CadenceSeconds
+		}
+	}
 	var floorDays int64
-	tightest := retention.ObservationFloor(scanCadences(scanRows, coveringKinds)).CadenceSeconds
 	if tightest > 0 && arg.SecondsPerDay > 0 {
 		floorDays = (arg.FloorCadences*tightest + arg.SecondsPerDay - 1) / arg.SecondsPerDay
 	}
-	f.retention.ObservationCurrencyDays = retention.ClampToFloor(arg.ObservationCurrencyDays, floorDays)
+	persisted := arg.ObservationCurrencyDays
+	if persisted > 0 && floorDays > persisted {
+		persisted = floorDays
+	}
+	f.retention.ObservationCurrencyDays = persisted
 	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
 	f.retention.UpdatedBy = arg.UpdatedBy
 	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
