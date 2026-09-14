@@ -9,9 +9,8 @@ import { classify } from "./citations/classify.mjs";
 import { loadExemptions } from "./citations/exempt.mjs";
 import { isInScope, inScopeFiles } from "./citations/scope.mjs";
 import { scanLineAnchors } from "./citations/lineanchor.mjs";
-import { loadBurndown } from "./citations/burndown.mjs";
 import { parse } from "./doclint/engine.mjs";
-import { armA, environment, formatStale, run } from "./check-citations.mjs";
+import { environment, run } from "./check-citations.mjs";
 
 // A runner exports a pull-request context for every step, so a spawn drops both keys (#1974).
 const { GITHUB_EVENT_PATH, GITHUB_REPOSITORY, ...LOCAL_ENV } = process.env;
@@ -439,42 +438,10 @@ test("a line anchor in docs/research is outside the boundary", () => {
   assert.deepEqual(lineAnchors.filter((a) => a.file.startsWith("docs/research/")), []);
 });
 
-test("the seeded list holds every in-scope line anchor, and nothing it cannot find", () => {
+// The sweep is complete, and an empty boundary is what proves it (SPEC §8.2, #1980).
+test("no document inside the boundary holds a line anchor", () => {
   const { lineAnchors } = wholeTree();
-  const { refused, stale } = armA(lineAnchors, loadBurndown());
-  assert.deepEqual(refused.map((a) => `${a.file}:${a.line} -> ${a.token}`), []);
-  assert.deepEqual(stale.map((e) => `${e.file} -> ${e.token}`), []);
-});
-
-test("an entry the scanner no longer finds is stale, and the message says so", () => {
-  const found = [{ file: DOC, token: "internal/queue/hot.go:165", line: 31, kind: "code" }];
-  const { refused, stale } = armA(found, [
-    { file: DOC, token: "internal/queue/hot.go:165" },
-    { file: DOC, token: "internal/queue/gone.go:12" },
-  ]);
-  assert.deepEqual(refused, []);
-  assert.deepEqual(stale, [{ file: DOC, token: "internal/queue/gone.go:12" }]);
-  assert.match(formatStale(stale[0]), /stale entry/);
-});
-
-test("a burn-down entry carrying a reason fails the loader", () => {
-  const fixture = join(SCRIPT_DIR, "citations", `burndown-${process.pid}.json`);
-  const entry = { file: DOC, token: "internal/queue/hot.go:165" };
-  try {
-    writeFileSync(fixture, JSON.stringify({ entries: [entry] }));
-    assert.deepEqual(loadBurndown(fixture), [entry]);
-
-    writeFileSync(fixture, JSON.stringify({ entries: [{ ...entry, reason: "it is old" }] }));
-    assert.throws(() => loadBurndown(fixture), /carries no reason/);
-
-    writeFileSync(fixture, JSON.stringify({ entries: [entry, entry] }));
-    assert.throws(() => loadBurndown(fixture), /duplicate burn-down entry/);
-
-    writeFileSync(fixture, JSON.stringify({ entries: [{ file: DOC }] }));
-    assert.throws(() => loadBurndown(fixture), /needs file and token/);
-  } finally {
-    rmSync(fixture, { force: true });
-  }
+  assert.deepEqual(lineAnchors.map((a) => `${a.file}:${a.line} -> ${a.token}`), []);
 });
 
 test("the CLI exits 1 on a new line anchor, and names the document, the line and the token", () => {
@@ -510,44 +477,9 @@ test("a line anchor a named ref pins passes the CLI, and a bare path passes", ()
   }
 });
 
-test("the CLI exits 2 on a list it cannot read, never 1", () => {
-  const list = join(SCRIPT_DIR, "citations", "line-anchors.json");
-  const saved = readFileSync(list, "utf8");
-  const doc = join(SCRIPT_DIR, "citations", `readable-${process.pid}.md`);
-  try {
-    writeFileSync(doc, "The engine is `docs-site/scripts/doclint/engine.mjs`.\n");
-    // SPEC §7.7 separates operator error from a violation, and a broken list is the former.
-    writeFileSync(list, "{ not json");
-    assert.equal(cliStatus([doc]), 2);
-    writeFileSync(list, JSON.stringify({ entries: [{ file: DOC, token: "a/b.go:1", reason: "no" }] }));
-    assert.equal(cliStatus([doc]), 2);
-  } finally {
-    writeFileSync(list, saved);
-    rmSync(doc, { force: true });
-  }
-});
-
-test("--prune-list only removes, so no re-seed re-admits a refused token", () => {
-  const list = join(SCRIPT_DIR, "citations", "line-anchors.json");
-  const saved = readFileSync(list, "utf8");
-  const before = loadBurndown().length;
-  const doc = join(SCRIPT_DIR, "citations", `newanchor-${process.pid}.md`);
-  try {
-    writeFileSync(doc, "The rule sits at `docs/spec/v1-spec.md:247` today.\n");
-    assert.equal(cliStatus(["--prune-list"]), 0);
-    assert.equal(loadBurndown().length, before);
-    // The new token is still refused, because the prune added no entry for it.
-    assert.equal(cliStatus([doc]), 1);
-  } finally {
-    writeFileSync(list, saved);
-    rmSync(doc, { force: true });
-  }
-});
-
-test("the summary prints the list's length, so a reader sizes the sweep", () => {
+test("the refusal is unconditional, so no summary line sizes a remaining sweep", () => {
   const out = cliOutput([]);
-  assert.match(out, /\d+ {2}line anchor\(s\) the sweep has not reached/);
-  assert.match(out, /\d+ {2}refused: a citation names no line/);
-  assert.match(out, /\d+ {2}stale: an entry no scan finds/);
-  assert.match(out, new RegExp(`${loadBurndown().length} {2}line anchor\\(s\\) the sweep has not reached`));
+  assert.match(out, /0 {2}refused: a citation names no line/);
+  assert.doesNotMatch(out, /the sweep has not reached/);
+  assert.doesNotMatch(out, /stale/);
 });

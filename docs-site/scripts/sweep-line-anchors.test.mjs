@@ -12,7 +12,6 @@ import { auditAnchors, countByFamily } from "./sweep/audit.mjs";
 import { familyOf } from "./citations/scope.mjs";
 import { trackedExtensions } from "./citations/classify.mjs";
 import {
-  selectEntries,
   selectFiles,
   planFor,
   scanDocuments,
@@ -434,7 +433,7 @@ test("a reversed range degrades, and mints no anchor from a region holding neith
   assert.match(r.reason, /runs backwards/);
 });
 
-test("a burn-down entry naming a deleted document leaves the dry run alive", () => {
+test("a document a later edit deleted leaves the dry run alive", () => {
   const found = scanDocuments(REPO_ROOT, [`docs/gone-${process.pid}.md`]);
   assert.equal(found.size, 0);
 });
@@ -450,31 +449,15 @@ test("reportRecord carries the anchor or the reason, so the record outlives the 
   assert.equal(record[1].anchor, undefined);
 });
 
-test("selectEntries reads a path as a document or a directory prefix", () => {
-  const entries = [
-    { file: "docs/spec/a.md", token: "x/y.go:1" },
-    { file: "docs/adr/0001-b.md", token: "x/y.go:2" },
-  ];
-  assert.equal(selectEntries(entries, []).length, 2);
-  assert.deepEqual(selectEntries(entries, ["docs/spec"]), [entries[0]]);
-  assert.deepEqual(selectEntries(entries, ["docs/adr/0001-b.md"]), [entries[1]]);
-  assert.deepEqual(selectEntries(entries, ["docs/none"]), []);
-});
-
-test("planFor reports a listed token no scan finds", () => {
+// The list retired, so the conversion arm derives over every token the scan found (#1980).
+test("planFor derives over every scanned token, and no list narrows it", () => {
   const paths = fixture({ "go/decls.go": GO_SOURCE });
   const file = "docs/spec/fixture.md";
-  const markdown = "`" + goToken("return 1") + "`\n";
+  const markdown = "`" + goToken("return 1") + "` and `" + goToken("Beta") + "`\n";
   const hits = scanLineAnchorsFromTree(parse(markdown)).map((h) => ({ ...h, file }));
   const found = new Map([[file, { markdown, hits }]]);
-  const entries = [
-    { file, token: goToken("return 1") },
-    { file, token: goToken("Beta") },
-  ];
-  const { results, missing } = planFor(REPO_ROOT, envFor(paths), entries, found, AT_FIXTURE);
-  assert.equal(results.length, 1);
-  assert.equal(results[0].anchor, "Alpha");
-  assert.deepEqual(missing, [entries[1]]);
+  const results = planFor(REPO_ROOT, envFor(paths), found, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.anchor), ["Alpha", "Beta"]);
 });
 
 // SPEC §4.3 class A: the rival belongs to a second claim, and the site cell comes first.
