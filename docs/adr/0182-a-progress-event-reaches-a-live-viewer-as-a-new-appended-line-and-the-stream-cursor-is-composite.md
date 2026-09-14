@@ -41,7 +41,7 @@ emitter, `cmd/web`'s stream endpoint and the template's client, and none of the 
 `_test.go` file.
 
 **A terminal write mutates the `queue_job` row in place.** `markDone`, `markDead` and `markRetried`
-are `UPDATE queue_job SET state = …` at [`db/queries/measurement.sql#FoldedBatchWindow`](../../db/queries/measurement.sql),
+are `UPDATE queue_job SET state = …` at [`db/queries/measurement.sql`](../../db/queries/measurement.sql),
 `:117` and `:120`, called from [`internal/queue/worker.go#Worker.complete`](../../internal/queue/worker.go),
 `:486` and `:513`. The state log is one line per row
 ([`cmd/web/scans.go`](../../cmd/web/scans.go)), so a dead-letter changes the *text* of a

@@ -63,7 +63,7 @@ the identical table and `color-mix` expression. The Go and the JSX agree value f
 brief place it. Its rule is one line: `strings.FieldsFunc` splitting on `,` or `unicode.IsSpace`, so
 commas, spaces, tabs and newlines all split and `FieldsFunc` drops empty runs — no trim, no case
 fold, no dedupe. Its production callers are the `/scope` declare form
-(`cmd/web/seeds.go#server.takeScopeFlash`) and onboarding's two fields, `seeds` and `seedsadd`, both at
+(`cmd/web/seeds.go`) and onboarding's two fields, `seeds` and `seedsadd`, both at
 `cmd/web/onboarding.go#readOnboardView`. `cmd/web/scope_bulk_test.go#TestScopeAndOnboardingShareTokenizer` pins the two against one input.
 
 **Neither served surface forks it.** `design-system/templates/scope.tmpl#scope` and
@@ -164,7 +164,7 @@ ships as its own ticket.
 
 - **`internal/drift/trend.go#HeatLevels` is wrong on `main` and must be corrected**, not merely cited. Its
   claim that the export ramps is false at `cmd/web/reports_export.go#server.reportsExport`.
-- **`cmd/web/seeds.go#server.takeScopeFlash` and `cmd/web/reports.go` gain citations to this ADR**, so the next
+- **`cmd/web/seeds.go` and `cmd/web/reports.go` gain citations to this ADR**, so the next
   reader of either shared function finds the prohibition and not just the sharing.
 - **Nothing enforces this.** No check fires when a new handler writes its own ramp.
   `cmd/web/scope_bulk_test.go#TestScopeAndOnboardingShareTokenizer` is the only test of this shape in the tree. Review carries the rule,

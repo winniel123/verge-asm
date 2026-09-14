@@ -48,7 +48,7 @@ That is [`comment-policy.md`](../spec/comment-policy.md) §8.3's third measured 
 
 **The `ADR-0105` citation the deleted comment carried was wrong, and it is already gone from the template.** The same wrong citation stood at `drift.tmpl:12` in the design-owned header (*"view JS in tmpl, ADR-0105 precedent"*). PR **#1396** (`e1c8809`, the D3 asset sweep) deleted that whole header — not #1420. Nothing in the template cites ADR-0105 today, so no repair is owed there.
 
-**One thing the code does not do.** For a **custom** range the query takes no upper bound (`db/queries/span.sql#ListSpansForSubject`, `:129`), so the 500 most recent events **since the start date** are read and `filterDriftRowsUntil` trims to the end date at `cmd/web/drift.go` — **before** `truncated` is computed at `:178`. A historical custom range therefore reads 500 rows that all post-date it, drops them all, and renders an empty screen with `Truncated` false. It tells the operator there is no change where there is change it never fetched.
+**One thing the code does not do.** For a **custom** range the query takes no upper bound (`db/queries/span.sql`, `:129`), so the 500 most recent events **since the start date** are read and `filterDriftRowsUntil` trims to the end date at `cmd/web/drift.go` — **before** `truncated` is computed at `:178`. A historical custom range therefore reads 500 rows that all post-date it, drops them all, and renders an empty screen with `Truncated` false. It tells the operator there is no change where there is change it never fetched.
 
 ## Decision
 

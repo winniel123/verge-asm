@@ -51,11 +51,11 @@ or its one boolean is unset.
 
 | Rule | The boolean, and where it is folded | Grade |
 | --- | --- | --- |
-| `certificate-expired` | `notAfter` is at or before now — `cmd/web/signals.go#estateNameSet` | `critical` |
-| `certificate-not-yet-valid` | `notBefore` is after now — `cmd/web/signals.go#signalInstanceView` | `high` |
-| `certificate-weak-key-or-signature` | RSA under 2048 bits, ECDSA under 224, DSA under 2048/224, or an MD5 or SHA-1 signature on any chain link that is not self-signed — `weakKeyOrSignature`, `cmd/web/signals.go#formatSigID` | `high` |
+| `certificate-expired` | `notAfter` is at or before now — `cmd/web/signals.go` | `critical` |
+| `certificate-not-yet-valid` | `notBefore` is after now — `cmd/web/signals.go` | `high` |
+| `certificate-weak-key-or-signature` | RSA under 2048 bits, ECDSA under 224, DSA under 2048/224, or an MD5 or SHA-1 signature on any chain link that is not self-signed — `weakKeyOrSignature`, `cmd/web/signals.go` | `high` |
 | `certificate-self-signed` | the leaf's subject equals its issuer **and** its self-signature verifies — `selfSignedOf`, `cmd/web/signals.go` | `medium` |
-| `certificate-expiring` | `notAfter` is in the future and within the expiry window — `cmd/web/signals.go#estateNameSet` | `medium` |
+| `certificate-expiring` | `notAfter` is in the future and within the expiry window — `cmd/web/signals.go` | `medium` |
 
 ### The ranking is not the one a quality reading produces, and the gap is two bands wide
 
@@ -194,7 +194,7 @@ this ADR refused.
   failure, so it is not covered by this principle and needs its own. That is a gap, not a defect,
   and it is not opened here.
 - **`certificate-expiring`'s window is a defect this ADR rates around, and does not repair.** The
-  shipped predicate reads a flat 30 days, `certExpiryWindow` at `cmd/web/deltas.go#deltasStore`.
+  shipped predicate reads a flat 30 days, `certExpiryWindow` at `cmd/web/deltas.go`.
   [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md) ruled the
   horizon to be `N = ⅓ × (not_after − not_before)`, and `½ ×` below a 10-day validity, and gave the
   three clock-reading certificate rules an evaluability guard on the observation's age against that

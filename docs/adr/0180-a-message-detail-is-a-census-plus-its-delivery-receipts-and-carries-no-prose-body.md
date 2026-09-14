@@ -110,7 +110,7 @@ here: a hover disclosure on one word, not a panel and not a log line.** `AnyUnde
 
 ### 4. The rule binds both message surfaces, and the wire
 
-The `/messages` fold in `design-system/templates/settings.tmpl#settings-integrations` renders the identical
+The `/messages` fold in `design-system/templates/settings.tmpl` renders the identical
 form — cause, class, instant, headline (`:1437`), census rows, receipts, link — with the same
 undelivered markup at `:1447`. The outbound `Body` (`internal/delivery/delivery.go#Body`) carries `message`,
 `class`, `cause`, `subject`, `instant`, `headline`, a census **count** and a link. Three renderings

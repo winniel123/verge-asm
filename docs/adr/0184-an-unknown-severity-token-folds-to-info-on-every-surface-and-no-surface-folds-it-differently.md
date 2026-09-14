@@ -99,7 +99,7 @@ from the HTML, and this one function is what stops the two layouts from disagree
 | --- | --- |
 | `cmd/web/graph.go`, `worstSeverity` | the `data-sev` a graph node draws, and its halo |
 | `cmd/web/subjects.go`, `assetHeaderSeverity` | the grade in the asset-detail header |
-| `cmd/web/seeds.go#server.renderSeeds` | the grade rolled up onto a declared-name tree node |
+| `cmd/web/seeds.go` | the grade rolled up onto a declared-name tree node |
 | `cmd/web/reports.go#server.reportDeliverySignals` | the order of the delivered report's signal rows |
 
 With rank zero on an unknown token, one stale token anywhere in an asset's signal list wins every one
@@ -126,7 +126,7 @@ direction is not arbitrary and is not a tie-break. It is a refusal.
 
 ### An absent grade is not an unknown grade
 
-`cmd/web.sevLabel` (`cmd/web/signals.go#pageWindow`) returns `""` for an empty token and title-cases anything
+`cmd/web.sevLabel` (`cmd/web/signals.go`) returns `""` for an empty token and title-cases anything
 else. It is not a fourth fold, and it must not become one: `assetHeaderSeverity` returns `""` where a
 subject has **no** open signal, and `search.go:199` reads a map that misses. Rendering `Info` there
 would assert a grade nobody computed, which is the fabrication ADR-0116 refuses at the empty state.
@@ -159,7 +159,7 @@ with it.
 
 The fold normalises **how a grade is named and ordered**. It does not change what fired, what is
 stored, or what any rule concluded. `SeverityFor` returns `(SevInfo, false)`, and the second return is
-the whole distinction: the caller can always tell a real `info` from a fold. `cmd/web/seeds.go#server.renderSeeds`
+the whole distinction: the caller can always tell a real `info` from a fold. `cmd/web/seeds.go`
 reads it and skips the row rather than rolling a folded grade into a subject's tree.
 
 Nothing damps a rule, nothing is suppressed, and no timeline moves.

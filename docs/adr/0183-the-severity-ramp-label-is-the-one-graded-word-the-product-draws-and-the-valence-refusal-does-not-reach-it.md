@@ -143,7 +143,7 @@ grade.
 | Console, signals rows and detail | `cmd/web/signals.go#server.buildSignalTabs` and `:585` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
 | Console, search results | `cmd/web/search.go#server.searchPage` and `:207` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
 | Console, graph node signals | `cmd/web/graph.go#joinSignals` | `sevLabel(sev.String())` | the `sevbadge` template's ramp tokens |
-| Console, subject and asset views | `cmd/web/subjects.go#censusVerdict`, `:980` and `:1237` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
+| Console, subject and asset views | `cmd/web/subjects.go`, `:980` and `:1237` | `sevLabel(...)` | the `sevbadge` template's ramp tokens |
 | Console, reports ramp bars | `cmd/web/reports.go#server.reportsSignalCensus` | `strings.ToUpper(string(sev))` | `--text-secondary`, beside a `--sev-<l>-dot` bar |
 | Console, every screen with a signal | `design-system/templates/signals.tmpl#sevbadge` and `:4` — **10** `sevbadge` calls and **1** `sevbadge-md` call, across **7** templates | `{{.SevLabel}}` | the `--sev-<l>-*` tokens |
 | Console, signals severity filter | `design-system/templates/signals.tmpl#signals` and `:182` | `{{.Sev}}`, then each of `.SevOptions` | the control's own tokens |
