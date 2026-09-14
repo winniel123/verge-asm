@@ -232,8 +232,9 @@ Ticket 9 of map [#1967](https://github.com/winniel123/verge-asm/issues/1967) con
 before the guard existed. The guard now reports 4 suspect anchors there, and 2 of them are real.
 §9 fact F3 names all four.
 
-**The sweep tool cannot reach these tokens.** Their burn-down entries are deleted, so the tool no
-longer sees them. The repair needs a reader over the tree's written anchors, not over the list.
+**The sweep tool's conversion arm cannot reach these tokens.** That arm converts a line anchor, and
+these are written region anchors. The repair needs a reader over the tree's written anchors, which
+is the audit arm §6.2 adds.
 
 ### 6.2 The audit reads the tree
 

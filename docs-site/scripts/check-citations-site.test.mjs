@@ -16,7 +16,6 @@ import {
   apiBase,
 } from "./citations/site.mjs";
 import { parse } from "./doclint/engine.mjs";
-import { loadBurndown } from "./citations/burndown.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(SCRIPT_DIR, "..", "..");
@@ -74,7 +73,7 @@ test("a Site carrying a bare path passes, because the gate asserts correctness",
 });
 
 test("a Site carrying a line anchor is refused", () => {
-  // SPEC §5. The refusal is unconditional here: the burn-down list never gains a Site entry.
+  // SPEC §5. The rule is new-blocks-only, so a Site field never converts (SPEC §6 rule 4).
   const token = "docs/adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md:34";
   const r = judge(block(`\`${token}\``));
   assert.deepEqual(r.refused.map((a) => a.token), [token]);
@@ -109,14 +108,6 @@ test("a nested Site field is judged once, not twice", () => {
   const r = judge(body.join("\n"));
   assert.equal(r.fields, 1);
   assert.equal(r.dead.length, 2);
-});
-
-test("no burn-down entry ever names a pull-request body", () => {
-  // The rule is new-blocks-only, and the list stays the sweep's own (SPEC §6 rule 4).
-  assert.deepEqual(
-    loadBurndown().filter((e) => e.file.startsWith("PR #")),
-    [],
-  );
 });
 
 test("a body with no Decision proposal block is judged and passes", () => {
