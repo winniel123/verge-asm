@@ -478,6 +478,67 @@ func (q *Queries) TightestEnabledScanCadenceSeconds(ctx context.Context) (int64,
 	return cadence_seconds, err
 }
 
+const updateCoverageRetentionSettings = `-- name: UpdateCoverageRetentionSettings :one
+UPDATE retention_settings
+SET observation_currency_days = CASE
+        WHEN $1::bigint <= 0
+        -- Zero is the unbounded stop and is never raised (ADR-0081).
+        THEN $1::bigint
+        ELSE GREATEST(
+            $1::bigint,
+            COALESCE((
+                -- The twin of retention.ObservationFloorDays, rounding up the same way.
+                SELECT ($2::bigint * MIN(s.cadence_seconds)
+                        + $3::bigint - 1)
+                       / $3::bigint
+                FROM scan s
+                WHERE s.enabled = TRUE
+                  AND s.cadence_seconds > 0
+                  -- Cover is ListCoveringScanKinds' own semi-join, so the two name one set.
+                  AND EXISTS (
+                      SELECT 1
+                      FROM batch b
+                      JOIN observation o ON o.batch_id = b.id
+                      WHERE b.scan_id = s.id
+                  )
+            ), 0)
+        )
+    END,
+    dispatch_cadence_multiple = $4,
+    updated_by = $5,
+    updated_at = now()
+WHERE id = true
+RETURNING observation_currency_days, dispatch_cadence_multiple
+`
+
+type UpdateCoverageRetentionSettingsParams struct {
+	ObservationCurrencyDays int64       `json:"observation_currency_days"`
+	FloorCadences           int64       `json:"floor_cadences"`
+	SecondsPerDay           int64       `json:"seconds_per_day"`
+	DispatchCadenceMultiple int64       `json:"dispatch_cadence_multiple"`
+	UpdatedBy               pgtype.Int8 `json:"updated_by"`
+}
+
+type UpdateCoverageRetentionSettingsRow struct {
+	ObservationCurrencyDays int64 `json:"observation_currency_days"`
+	DispatchCadenceMultiple int64 `json:"dispatch_cadence_multiple"`
+}
+
+// The floor is derived here, so no scan write lands between the read and the write (ADR-1944).
+// The caller compares the persisted value against the locked read, so the clamp comes back.
+func (q *Queries) UpdateCoverageRetentionSettings(ctx context.Context, arg UpdateCoverageRetentionSettingsParams) (UpdateCoverageRetentionSettingsRow, error) {
+	row := q.db.QueryRow(ctx, updateCoverageRetentionSettings,
+		arg.ObservationCurrencyDays,
+		arg.FloorCadences,
+		arg.SecondsPerDay,
+		arg.DispatchCadenceMultiple,
+		arg.UpdatedBy,
+	)
+	var i UpdateCoverageRetentionSettingsRow
+	err := row.Scan(&i.ObservationCurrencyDays, &i.DispatchCadenceMultiple)
+	return i, err
+}
+
 const updateRetentionSettings = `-- name: UpdateRetentionSettings :exec
 UPDATE retention_settings
 SET observation_currency_days = $1, dispatch_cadence_multiple = $2,

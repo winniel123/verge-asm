@@ -11,6 +11,40 @@ SET observation_currency_days = $1, dispatch_cadence_multiple = $2,
     transcript_currency_days = $3, updated_by = $4, updated_at = now()
 WHERE id = true;
 
+-- name: UpdateCoverageRetentionSettings :one
+-- The floor is derived here, so no scan write lands between the read and the write (ADR-1944).
+UPDATE retention_settings
+SET observation_currency_days = CASE
+        WHEN sqlc.arg(observation_currency_days)::bigint <= 0
+        -- Zero is the unbounded stop and is never raised (ADR-0081).
+        THEN sqlc.arg(observation_currency_days)::bigint
+        ELSE GREATEST(
+            sqlc.arg(observation_currency_days)::bigint,
+            COALESCE((
+                -- The twin of retention.ObservationFloorDays, rounding up the same way.
+                SELECT (sqlc.arg(floor_cadences)::bigint * MIN(s.cadence_seconds)
+                        + sqlc.arg(seconds_per_day)::bigint - 1)
+                       / sqlc.arg(seconds_per_day)::bigint
+                FROM scan s
+                WHERE s.enabled = TRUE
+                  AND s.cadence_seconds > 0
+                  -- Cover is ListCoveringScanKinds' own semi-join, so the two name one set.
+                  AND EXISTS (
+                      SELECT 1
+                      FROM batch b
+                      JOIN observation o ON o.batch_id = b.id
+                      WHERE b.scan_id = s.id
+                  )
+            ), 0)
+        )
+    END,
+    dispatch_cadence_multiple = sqlc.arg(dispatch_cadence_multiple),
+    updated_by = sqlc.arg(updated_by),
+    updated_at = now()
+WHERE id = true
+-- The caller compares the persisted value against the locked read, so the clamp comes back.
+RETURNING observation_currency_days, dispatch_cadence_multiple;
+
 -- name: SlowestEnabledScanCadenceSeconds :one
 SELECT COALESCE(MAX(cadence_seconds), 0)::bigint AS cadence_seconds
 FROM scan
