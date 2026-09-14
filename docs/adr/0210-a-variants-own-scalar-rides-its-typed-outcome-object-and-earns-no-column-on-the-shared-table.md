@@ -20,7 +20,7 @@ relations:
 
 ## Context
 
-`internal/queue/transcript.go:93` carried this in declaration position, until #1327 deleted it:
+`internal/queue/transcript.go#buildCTParams` carried this in declaration position, until #1327 deleted it:
 
 ```go
 // encodeZoneOutcome encodes a zone restate's typed outcome as the JSONB object the
@@ -30,7 +30,7 @@ relations:
 // outcome carries its exit code. The union is closed, so an unknown member is a bug.
 ```
 
-`encodeCTOutcome` at `internal/queue/transcript.go:156` stated the same rule a second time, for the
+`encodeCTOutcome` at `internal/queue/transcript.go` stated the same rule a second time, for the
 request URL — *"so the §6 read handler reads it without a separate column, mirroring how the zone
 outcome carries its restated count"*. Two comments, each pointing at the other as its precedent, and
 no source. That is #1321's gap 2.
@@ -39,9 +39,9 @@ no source. That is #1321's gap 2.
 
 | Variant | Its own scalar | Where it lands | Read at |
 | --- | --- | --- | --- |
-| `prober` | exit code, or signal name | `{"kind":"exited","code":N}`, `{"kind":"signalled","signal":S}` | `cmd/web/rawoutput.go:180` |
-| `zone` | the restated record count | `{"kind":"parsed","restated":N}` | `cmd/web/rawoutput.go:206` |
-| `ct` | the request URL | on **every** arm of the CT outcome | `cmd/web/rawoutput.go:230` |
+| `prober` | exit code, or signal name | `{"kind":"exited","code":N}`, `{"kind":"signalled","signal":S}` | `cmd/web/rawoutput.go` |
+| `zone` | the restated record count | `{"kind":"parsed","restated":N}` | `cmd/web/rawoutput.go` |
+| `ct` | the request URL | on **every** arm of the CT outcome | `cmd/web/rawoutput.go` |
 
 **The columns that do exist are role columns, and each is reused across variants.** Migration
 `23700_transcript.sql` gives the table eleven columns. Three are the common frame (`kind`,
@@ -97,7 +97,7 @@ A scalar that only one variant can produce fails that test by construction.
 
 ### 3. The read surface reads it out of the object, and a scalar with no reader earns nothing
 
-The three decoders at `cmd/web/rawoutput.go:180`, `:206` and `:230` are the only readers of the
+The three decoders at `cmd/web/rawoutput.go`, `:206` and `:230` are the only readers of the
 corpus, because ADR-0126's fence puts no derivation on it. A scalar that no decoder renders is not
 stored anywhere at all. It is not put on the object "for later".
 

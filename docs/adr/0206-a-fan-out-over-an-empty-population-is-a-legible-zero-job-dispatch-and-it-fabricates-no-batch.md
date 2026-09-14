@@ -25,7 +25,7 @@ relations:
 
 ## Context
 
-`internal/queue/tlsacceptance.go:24` carried this in Go declaration position, until #1324 deleted it:
+`internal/queue/tlsacceptance.go#Dispatcher.fanOutTLSAcceptance` carried this in Go declaration position, until #1324 deleted it:
 
 ```go
 // fanOutTLSAcceptance enqueues one tls-acceptance job per Vantage over the Services
@@ -33,7 +33,7 @@ relations:
 // hot Scan has run — it produces no jobs, a legible empty scope rather than an error.
 ```
 
-`internal/queue/httpidentity.go:21` carried the same three sentences over the `http-identity`
+`internal/queue/httpidentity.go#Dispatcher.fanOutHTTPIdentity` carried the same three sentences over the `http-identity`
 population, and #1324 deleted them too. Neither block carried a citation. Nothing on disk states
 the rule for either `Scan`. That is #1320's gap 1.
 
@@ -79,7 +79,7 @@ Both dispatch paths claim the tick first and build jobs second.
 - The streamed path (`queue.go:170`) calls `claimDispatch`, which commits the `dispatch` row in its
   own transaction before `fanOutHot`, `fanOutCold` or `fanOutEdgeFanout` runs at all.
 
-`TryFanOut` (`db/queries/measurement.sql:45`) inserts one `dispatch` row with status `fanned-out`,
+`TryFanOut` (`db/queries/measurement.sql`) inserts one `dispatch` row with status `fanned-out`,
 `ON CONFLICT ON CONSTRAINT dispatch_tick_key DO NOTHING`. The row is therefore present for a
 zero-job tick and for a full one, and it is present in both paths.
 
@@ -115,7 +115,7 @@ was nothing**.
 ### 2. The recorded artefact is the `dispatch` row, and it is named
 
 **The zero-job tick's artefact is its `dispatch` row: `(scan_id, scheduled_time, status =
-'fanned-out')`, written by `TryFanOut` at `db/queries/measurement.sql:45` into the table
+'fanned-out')`, written by `TryFanOut` at `db/queries/measurement.sql` into the table
 `db/migrations/18802_measurement_dispatch.sql` defines.**
 
 This is not a new obligation. The row is written before the population is read, in both dispatch
@@ -127,8 +127,8 @@ The row is legible to an operator rather than only to the table. `ListDispatchPr
 reach `queue_job` through a `LEFT JOIN`, so a dispatch with no job renders with `total = 0` instead
 of vanishing. `ListConcludedDispatchProgress`'s `HAVING count(*) FILTER (WHERE j.state IN ('ready',
 'running')) = 0` admits it on the first read. The console's run and scan-history surfaces read
-`ListDispatchProgress` from `cmd/web/restore.go:404`, `cmd/web/drift.go:290`,
-`cmd/web/settings.go:1034`, `cmd/web/search.go:210` and `cmd/web/reports.go:567`.
+`ListDispatchProgress` from `cmd/web/restore.go`, `cmd/web/drift.go`,
+`cmd/web/settings.go`, `cmd/web/search.go#server.searchPage` and `cmd/web/reports.go#server.reportsPage`.
 
 The dispatcher also logs the tick with its count — `"%s fanned out %d job(s) at %s"`, on both paths.
 The log line is a convenience and not the artefact. ADR-0108 already ruled that a state legible only

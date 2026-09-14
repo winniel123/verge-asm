@@ -186,7 +186,7 @@ reader may fairly say the rule is being decided by its largest submit. The answe
 partial-batch argument of §3 holds on all three, and it does not depend on the count.
 
 **The rendered table has not been read at this scale.** The Subject cell ships with its ellipsis
-treatment (`design-system/templates/settings.tmpl:914`) and the reader ships with its date range, but
+treatment (`design-system/templates/settings.tmpl#settings-audit`) and the reader ships with its date range, but
 nobody has read an audit page holding a 200-row decline. If that page reads badly, the repair is in
 the reader — grouping rows on the page — and never a fold in the corpus.
 

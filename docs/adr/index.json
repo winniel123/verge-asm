@@ -731,6 +731,11 @@
           "kind": "bounds",
           "from": 1895,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1985,
+          "clause": null
         }
       ],
       "sections": [],
@@ -841,7 +846,13 @@
       "pr": null,
       "withdrawal": null,
       "relations": [],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1985,
+          "clause": null
+        }
+      ],
       "sections": [],
       "markers": [],
       "decision": {
@@ -5699,6 +5710,11 @@
         {
           "kind": "rests-on",
           "from": 217,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1985,
           "clause": null
         }
       ],
@@ -11872,6 +11888,55 @@
       "decision": {
         "words": 134,
         "text": "**The observation currency dial is written by an `UPDATE` that derives its floor in the same\nstatement, and the clamped value comes back through `RETURNING`.**\n\nThe dial lock is on `retention_settings` and holds no `scan` row. Under READ COMMITTED a write to\n`scan` that commits between a floor read and the `UPDATE` leaves a value below the floor then in\nforce.\n\nRejected: `FOR SHARE` over the enabled scans. It cannot lock a row that is still `FALSE`, and it\ntouches no `batch` or `observation` row, so the worker moves the floor straight through it.\nRejected: re-read and re-clamp before the write, which makes the window smaller and leaves it open.\n\nThe price is one derivation expressed twice, in Go and in SQL.\n\nReversal puts the window back and returns the floor to one home."
+      }
+    },
+    {
+      "number": 1985,
+      "file": "docs/adr/1985-a-timeline-row-on-a-per-vantage-facet-is-refused-by-the-database-without-a-vantage.md",
+      "title": "A timeline row on a per-vantage facet is refused by the database without a vantage",
+      "slug": "a-timeline-row-on-a-per-vantage-facet-is-refused-by-the-database-without-a-vantage",
+      "date": "2026-09-14",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1985
+      },
+      "ticket": 1985,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 17
+        },
+        {
+          "kind": "rests-on",
+          "adr": 14
+        },
+        {
+          "kind": "rests-on",
+          "adr": 129
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 141,
+        "text": "**A `span` or `observation` row on a per-vantage facet cannot be stored without a\n`vantage_id`. A `CHECK` on both tables refuses it.**\n\nThe predicate is a deny-list. A row needs a vantage unless its `source` is `zone`, or its\nfacet is `certificate`. A facet added later is covered by default, and it must argue its\nway out.\n\nA reader asks why, because no production writer emits the row. The answer is that a render\nalready lied about one. The asset page read `never looked` over a measured service, because\nthe class read inner-joins `vantage` and the census read carries no vantage predicate.\n\nRejected: a fifth `LegStatus` word for an unattributable reading, which is vocabulary ahead\nof reality. Rejected: a left outer join, which under this `CHECK` admits nothing.\n\nReversal drops two constraints, and restores a representable state that no fold writes."
       }
     }
   ]
