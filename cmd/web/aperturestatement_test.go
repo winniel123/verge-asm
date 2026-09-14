@@ -18,6 +18,7 @@ const (
 	portTierInput       = "Port and transport tiers"
 	custodyGateInput    = "The custody gate"
 	queriedQtypeInput   = "The queried qtype set"
+	tlsCandidateInput   = "The TLS candidate set"
 	vantageClassInput   = "Vantage class"
 )
 
@@ -314,7 +315,7 @@ func TestVantageClassRowWithholdsWhatItCouldNotRead(t *testing.T) {
 	}
 }
 
-// The ledger's order is SPEC §2.5's: sources 1, port tiers 2, gate 3, qtypes 4, class 6.
+// The ledger's order is SPEC §2.5's: sources 1, port tiers 2, gate 3, qtypes 4, TLS 5, class 6.
 
 func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
 	rows := apertureStatement(nil, true, nameOnlySeeds(), testDNSCadenceSeconds, true, nil, true)
@@ -322,7 +323,7 @@ func TestTheLedgerRendersItsRowsInTheSpecsOrder(t *testing.T) {
 	for _, r := range rows {
 		order = append(order, r.Input)
 	}
-	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, queriedQtypeInput, vantageClassInput}
+	want := []string{enabledSourcesInput, portTierInput, custodyGateInput, queriedQtypeInput, tlsCandidateInput, vantageClassInput}
 	if strings.Join(order, "|") != strings.Join(want, "|") {
 		t.Errorf("ledger order = %v, want %v", order, want)
 	}

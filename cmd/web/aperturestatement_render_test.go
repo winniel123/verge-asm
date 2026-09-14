@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/tlsoffer"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -170,6 +171,42 @@ func TestCoverageRendersTheCustodyGateRow(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("the gate row is missing %q; body: %s", want, page)
 		}
+	}
+}
+
+// The TLS row sits in slot 5, between the qtypes and the class (SPEC §2.5).
+
+func TestCoverageRendersTheTLSCandidateSetRow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declare(t, ac, base, "name", "example.com").Body.Close()
+	page := coverageBody(t, ac, base)
+
+	qtypes := strings.Index(page, "The queried qtype set")
+	tlsSet := strings.Index(page, "The TLS candidate set")
+	class := strings.Index(page, "Vantage class")
+	if qtypes < 0 || tlsSet < 0 || class < 0 || qtypes > tlsSet || tlsSet > class {
+		t.Errorf("the TLS row must sit in slot 5; qtypes at %d, TLS at %d, class at %d", qtypes, tlsSet, class)
+	}
+	for _, want := range []string{
+		// A `fixed` chip drops the status dot, because this input has no on and no off.
+		fmt.Sprintf(`<span class="cv-chip">TLS 1.0 · 1.1 · 1.2 · 1.3 · %d cipher suites</span>`, len(tlsoffer.Ciphers())),
+		"weekly · daily · monthly",
+		"the certificate handshake carries the same list on whichever port tier makes the connect: hot daily, and cold monthly where the cold tier runs.",
+		"Release-coupled: a cadence dial ships for the dns and zone Scans alone.",
+		"The floor is TLS 1.0 on purpose",
+		"widening it would cost a Break on every acceptance and certificate timeline at once.",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the TLS row is missing %q; body: %s", want, page)
+		}
+	}
+	// No tls-acceptance setter ships, so a pointer here would be #1854's silence in a new costume.
+	if strings.Contains(page, "Narrow the TLS") {
+		t.Error("the row offers a control that does not exist")
 	}
 }
 
