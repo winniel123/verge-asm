@@ -41,6 +41,7 @@ func apertureStatement(states []db.SourceState, statesRead bool, seeds []db.List
 	return []apertureRowView{
 		enabledSourcesRow(states, statesRead),
 		portTierRow(seeds),
+		custodyGateRow(seeds),
 		vantageClassRow(classes, classesRead),
 	}
 }
@@ -158,6 +159,8 @@ func enabledSourcesRow(states []db.SourceState, statesRead bool) apertureRowView
 	return row
 }
 
+const apertureScopeHref = "/scope"
+
 func portTierRow(seeds []db.ListSeedsRow) apertureRowView {
 	core := vergecore.Default()
 	sensitive := core.Count().Sensitive
@@ -171,7 +174,7 @@ func portTierRow(seeds []db.ListSeedsRow) apertureRowView {
 		StateKind:   "off",
 		StateDetail: "The cold tier's state is the shadow of an empty scope list, not a switch. UDP has no flag at all.",
 		Remedy:      "Declare an address scope",
-		RemedyHref:  "/scope",
+		RemedyHref:  apertureScopeHref,
 		RemedyWhy:   "No declared scope reads a sensitive pair. An address scope, or a custody extension on a name scope, moves this figure.",
 	}
 	unread := sensitive
@@ -187,6 +190,63 @@ func portTierRow(seeds []db.ListSeedsRow) apertureRowView {
 		{Text: fmt.Sprintf("0 of %d sensitive pairs the instrument cannot report as reached", sensitive), Zero: true},
 		// Configuration absence routes outside the domain, so no rule is unevaluable (ADR-0095).
 		{Text: fmt.Sprintf("0 of %d rules unevaluable", len(signal.AllRuleNames())), Zero: true},
+	}
+	return row
+}
+
+const custodyGateDetail = "The gate derives custody before any vantage class is read, and refuses every address it does not derive as yours. " +
+	"A declared address scope admits an address directly. " +
+	"A custody extension admits the addresses a name scope resolves into."
+
+// The address scope is a lever on this gate, never a row of its own (ADR-0079, #1906).
+
+func custodyGateRow(seeds []db.ListSeedsRow) apertureRowView {
+	row := apertureRowView{
+		Input:       "The custody gate",
+		Cadence:     "every dispatch · daily",
+		CadenceWhy:  "The gate runs at every connect dispatch, and the extension's fan-out test rides the daily edge-fanout Scan. Release-coupled: a cadence dial ships for the dns and zone Scans alone.",
+		StateDetail: custodyGateDetail,
+		StateKind:   "off",
+		State:       "total · extension off",
+		Remedy:      "Extend custody to a name scope",
+		RemedyHref:  apertureScopeHref,
+	}
+
+	names, extended := 0, 0
+	for _, sd := range seeds {
+		if sd.Kind != "name" {
+			continue
+		}
+		names++
+		if sd.CustodyExtension {
+			extended++
+		}
+	}
+
+	if names == 0 {
+		// The extension is barred from an address scope, so a name scope comes first (ADR-0013).
+		row.Remedy = "Declare a name scope"
+		row.RemedyWhy = "A custody extension is a property of a name scope. Declare a name scope, then extend custody to the addresses it resolves into."
+		return row
+	}
+
+	// The count is over our own list of declared name scopes, which SPEC §8.8's bar does not reach.
+	row.Figures = []apertureFigureView{{
+		Text: fmt.Sprintf("%d of %d name %s extended", extended, names, plural(names, "scope", "scopes")),
+	}}
+
+	switch {
+	case extended == 0:
+		row.RemedyWhy = "No name scope carries the extension, so the gate admits an address only where a declared address scope covers it. A switch on the Scope screen extends custody to the addresses a name scope resolves into."
+	case extended < names:
+		// The switch is per scope, so a binary chip would read `on` over a scope still unextended.
+		row.State = "total · extension partial"
+		row.RemedyWhy = "A switch on the Scope screen reaches each name scope that does not carry the extension yet."
+	default:
+		row.State, row.StateKind = "total · extension on", "on"
+		row.Remedy, row.RemedyHref = apertureNone, ""
+		// A pointer at a screen holding no relevant control is #1854's silence in a new costume.
+		row.RemedyWhy = "Every declared name scope carries the extension, so no further switch widens this gate."
 	}
 	return row
 }
