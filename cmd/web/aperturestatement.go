@@ -9,6 +9,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/measure/tlsoffer"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -44,6 +45,7 @@ func apertureStatement(states []db.SourceState, statesRead bool, seeds []db.List
 		portTierRow(seeds),
 		custodyGateRow(seeds),
 		queriedQtypeSetRow(dnsCadence, dnsCadenceRead),
+		tlsCandidateSetRow(),
 		vantageClassRow(classes, classesRead),
 	}
 }
@@ -301,6 +303,28 @@ func queriedQtypeSetRow(dnsCadence int64, dnsCadenceRead bool) apertureRowView {
 		row.CadenceWhy = "The dns Scan's interval did not resolve on this load, so this cell names no cadence. The set itself ships with the release and is unchanged."
 	}
 	return row
+}
+
+const tlsCandidateSetDetail = "The versions and suites a prober puts on the wire, never a library default. " +
+	"The floor is TLS 1.0 on purpose, because a higher floor reports a TLS-1.0-only listener as no TLS at all. " +
+	"No TLS 1.3 suite sits in that count, because the library picks the 1.3 suites itself and reads no declared list there."
+
+// One list carries both TLS exchanges, so the row reads the offer and neither caller (ADR-0030 §3).
+
+func tlsCandidateSetRow() apertureRowView {
+	ciphers := tlsoffer.Ciphers()
+	return apertureRowView{
+		Input: "The TLS candidate set",
+		// The certificate handshake rides a port tier, so this input moves on three edges (#1883).
+		Cadence:    "weekly · daily · monthly",
+		CadenceWhy: "The tls-acceptance Scan re-asks the whole set weekly, and the certificate handshake carries the same list on whichever port tier makes the connect: hot daily, and cold monthly where the cold tier runs. Release-coupled: a cadence dial ships for the dns and zone Scans alone.",
+		State:      fmt.Sprintf("TLS %s · %d cipher %s", strings.Join(tlsoffer.Versions(), " · "), len(ciphers), plural(len(ciphers), "suite", "suites")),
+		// No toggle narrows an offer, so the chip carries no on and no off (ADR-0030).
+		StateKind:   "fixed",
+		StateDetail: tlsCandidateSetDetail,
+		Remedy:      apertureNone,
+		RemedyWhy:   "No setting narrows this set. An offer the operator can narrow is a finding the operator can silence, so the set moves with a release and never with a switch. One list serves both TLS exchanges, so widening it would cost a Break on every acceptance and certificate timeline at once.",
+	}
 }
 
 const apertureVantagesHref = "/settings?tab=vantages"

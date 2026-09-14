@@ -284,6 +284,18 @@ that list, so read the row count off your own response.
       "remedy_why": "…"
     },
     {
+      "input": "The TLS candidate set",
+      "cadence": "weekly · daily · monthly",
+      "cadence_why": "…",
+      "state": "TLS 1.0 · 1.1 · 1.2 · 1.3 · 19 cipher suites",
+      "state_kind": "fixed",
+      "figures": [],
+      "state_detail": "…",
+      "remedy": "none",
+      "remedy_href": "",
+      "remedy_why": "…"
+    },
+    {
       "input": "Vantage class",
       "cadence": "none",
       "cadence_why": "…",
@@ -319,6 +331,11 @@ A `state_kind` of `fixed` means no setting moves the input. The `state` value is
 a set rather than a switch, and `remedy` carries `none`. The queried qtype set is such
 a row: it states the qtypes the prober asks, and `cadence` follows the `dns` scan
 interval you set. An input read this way is not off — it has no on and no off.
+
+The TLS candidate set is such a row too, and its `cadence` names three edges rather
+than one. One declared list rides both TLS exchanges, so the set is re-asked on the
+weekly `tls-acceptance` scan and on whichever port tier makes the connect. No scan
+interval you set moves any of the three.
 
 ---
 
