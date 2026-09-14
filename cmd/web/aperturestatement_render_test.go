@@ -12,6 +12,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/tlsoffer"
+	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -239,6 +240,45 @@ func TestCoverageRendersTheQueriedQtypeSetRow(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("the qtype row is missing %q; body: %s", want, page)
 		}
+	}
+}
+
+// The control-probe row sits in slot 7, the last of the ledger (SPEC §2.5).
+
+func TestCoverageRendersTheControlProbePopulationRow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A fresh install declares no Seed, so the population is empty before the scope lands.
+	empty := coverageBody(t, ac, base)
+	if !strings.Contains(empty, "No name scope is declared, so no name resolves under a parent inside one") {
+		t.Errorf("the empty population states no reason on a fresh install; body: %s", empty)
+	}
+
+	declare(t, ac, base, "name", "example.com").Body.Close()
+	page := coverageBody(t, ac, base)
+
+	class := strings.Index(page, "Vantage class")
+	controls := strings.Index(page, "The control-probe population")
+	if class < 0 || controls < 0 || class > controls {
+		t.Errorf("the control-probe row must sit last; class at %d, controls at %d", class, controls)
+	}
+	for _, want := range []string{
+		// A `fixed` chip drops the status dot, because this input has no on and no off.
+		fmt.Sprintf(`<span class="cv-chip">derived per batch · %d control labels per parent</span>`, wildcarddiscrim.LabelCount),
+		"The dns Scan rebuilds the population from its own resolution scope on every run.",
+		"The label count is per surviving parent, never per name.",
+		"No switch suppresses a control probe, so this population carries no toggle of its own.",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the control-probe row is missing %q; body: %s", want, page)
+		}
+	}
+	// The gate stops the population at the Seed, so no screen holds a control over it.
+	if strings.Contains(page, "Narrow the control") || strings.Contains(page, "Add a control probe") {
+		t.Error("the row offers a control that does not exist")
 	}
 }
 

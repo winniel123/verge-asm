@@ -339,10 +339,12 @@ A `state_kind` of `withheld` means the read behind the row did not land. Read it
 absent, never as `off`: `state` then carries the literal `not read` rather than a
 value, and `figures` is empty.
 
-A `state_kind` of `fixed` means no setting moves the input. The `state` value is then
-a set rather than a switch, and `remedy` carries `none`. The queried qtype set is such
-a row: it states the qtypes the prober asks, and `cadence` follows the `dns` scan
-interval you set. An input read this way is not off — it has no on and no off.
+A `state_kind` of `fixed` means no setting narrows the input. The `state` value is
+then a set or a construction rather than a switch, and `remedy` carries `none`. A
+`fixed` row can still move: what it refuses is a control that suppresses part of it.
+The queried qtype set is such a row. It states the qtypes the prober asks, and
+`cadence` follows the `dns` scan interval you set. An input read this way is not
+off — it has no on and no off.
 
 The TLS candidate set is such a row too, and its `cadence` names three edges rather
 than one. One declared list rides both TLS exchanges, so the set is re-asked on the

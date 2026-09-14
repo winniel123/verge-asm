@@ -428,7 +428,8 @@ func sensitiveUDPPairs(core vergecore.List) int {
 const controlProbePurpose = "The population discriminates a wildcard: a name is decided at its parent, never at its own apex."
 
 const controlProbeDetail = controlProbePurpose +
-	" A control label is generated under the parent of each name the dns Scan resolves inside a declared name scope. " +
+	" The dns Scan takes the parent of each name it resolves inside a declared name scope, and deduplicates them. " +
+	"The label count is per surviving parent, never per name. " +
 	"The probing gate stops the population at your scope, so a parent above your own apex is never probed. " +
 	"A name whose parent went unprobed records a Gap and never a value."
 
@@ -436,6 +437,14 @@ const controlProbeDetail = controlProbePurpose +
 
 const controlProbeEmptyDetail = controlProbePurpose +
 	" No name scope is declared, so no name resolves under a parent inside one, and the population is empty."
+
+// A probe the operator can suppress is a wildcard finding the operator can silence (ADR-0030).
+
+const controlProbeRemedyWhy = "No switch suppresses a control probe, so this population carries no toggle of its own. " +
+	"It widens where your declared name scopes resolve more names, and narrows where they resolve fewer."
+
+const controlProbeEmptyRemedyWhy = "No switch suppresses a control probe, and none mints one. " +
+	"The population appears where a declared name scope resolves a name under a parent, so it follows the scope you declare rather than a control of its own."
 
 func controlProbePopulationRow(seeds []db.ListSeedsRow, dnsCadence int64, dnsCadenceRead bool) apertureRowView {
 	row := apertureRowView{
@@ -448,11 +457,12 @@ func controlProbePopulationRow(seeds []db.ListSeedsRow, dnsCadence int64, dnsCad
 		StateKind:   "fixed",
 		StateDetail: controlProbeDetail,
 		Remedy:      apertureNone,
-		RemedyWhy:   "No setting narrows or widens this population on its own. A control probe the operator can suppress is a wildcard finding the operator can silence, so the population follows the name scopes you declare and moves with no switch of its own.",
+		RemedyWhy:   controlProbeRemedyWhy,
 	}
 	if !declaresNameScope(seeds) {
 		row.State = apertureNone
 		row.StateDetail = controlProbeEmptyDetail
+		row.RemedyWhy = controlProbeEmptyRemedyWhy
 	}
 	if !dnsCadenceRead {
 		row.Cadence = "not read"
