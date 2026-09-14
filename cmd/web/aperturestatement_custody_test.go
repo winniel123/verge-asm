@@ -11,7 +11,7 @@ import (
 
 func custodyGateRowOf(t *testing.T, seeds ...db.ListSeedsRow) apertureRowView {
 	t.Helper()
-	return statementRow(t, apertureStatement(nil, true, seeds, nil, true), custodyGateInput)
+	return statementRow(t, apertureStatement(nil, true, seeds, testDNSCadenceSeconds, true, nil, true), custodyGateInput)
 }
 
 func nameSeed(extended bool) db.ListSeedsRow {
@@ -112,7 +112,7 @@ func TestCustodyGateCadenceNamesTheDispatchAndDeniesADial(t *testing.T) {
 
 func TestCustodyGateIsOneRowAndNamesTheAddressScopeLever(t *testing.T) {
 	gates := 0
-	for _, r := range apertureStatement(nil, true, addressScopeSeeds(t), nil, true) {
+	for _, r := range apertureStatement(nil, true, addressScopeSeeds(t), testDNSCadenceSeconds, true, nil, true) {
 		if strings.Contains(strings.ToLower(r.Input), "address scope") {
 			t.Errorf("%q is a row of its own, and ADR-0079 rules the address scope a lever on the gate", r.Input)
 		}
@@ -132,7 +132,7 @@ func TestCustodyGateIsOneRowAndNamesTheAddressScopeLever(t *testing.T) {
 
 func TestNeitherExtensionRowClaimsTheOthersFigure(t *testing.T) {
 	seeds := []db.ListSeedsRow{nameSeed(false)}
-	rows := apertureStatement(nil, true, seeds, nil, true)
+	rows := apertureStatement(nil, true, seeds, testDNSCadenceSeconds, true, nil, true)
 	gate := statementRow(t, rows, custodyGateInput)
 	ports := statementRow(t, rows, portTierInput)
 	sensitive := strconv.Itoa(vergecore.Default().Count().Sensitive)

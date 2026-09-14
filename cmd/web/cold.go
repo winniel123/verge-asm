@@ -27,6 +27,7 @@ import (
 type coldStore interface {
 	addressScopeCensusStore
 
+	GetDnsCadenceSeconds(ctx context.Context) (int64, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
@@ -210,6 +211,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), sharedEdges)
 	classes, classesRead := s.apertureVantageClasses(ctx, s.coldStore, "coverage")
 	states, statesRead := apertureSourceStates(ctx, s.coldStore, "coverage")
+	dnsCadence, dnsCadenceRead := apertureDNSCadence(ctx, s.coldStore, "coverage")
 
 	var gaps []coverageGapView
 	var messages []coverageMessageView
@@ -234,7 +236,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	s.render(w, r, "coverage", pageData(acct, "Coverage", "coverage", map[string]any{
-		"Statement":   apertureStatement(states, statesRead, seeds, classes, classesRead),
+		"Statement":   apertureStatement(states, statesRead, seeds, dnsCadence, dnsCadenceRead, classes, classesRead),
 		"Meters":      meters,
 		"Messages":    messages,
 		"Gaps":        gaps,
