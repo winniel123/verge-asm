@@ -2,14 +2,6 @@
   "comment": "The line anchors the sweep has not reached, one entry per document and token. A citation names no line, and the check refuses every line anchor this list does not hold (SPEC docs/spec/citation-anchors.md §5, §8.2). It also refuses an entry no scan finds, so a conversion pull request edits the document and this list together. An entry carries no reason: a reason makes the list permanent, and an empty list is what proves the sweep complete. `npm run check:citations -- --prune-list` drops every converted entry. It only removes, because a command that could add an entry would re-admit the token the ratchet refuses (#1969).",
   "entries": [
     {
-      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
-      "token": "cmd/web/signals_cert_test.go:30"
-    },
-    {
-      "file": "docs/adr/0175-certificate-identity-is-compared-as-presented-dns-byte-exactly-and-only-dnsname-sans-participate.md",
-      "token": "cmd/web/signals_cert_test.go:47-67"
-    },
-    {
       "file": "docs/adr/0199-delivery-imports-queue-never-the-reverse-so-the-worker-takes-the-message-enqueuer-as-an-injected-function-that-joins-the-batch-transaction.md",
       "token": "cmd/worker/main.go:88"
     },
