@@ -98,6 +98,12 @@ jobs:
   # WHOLE TREE, not the diff. A citation dies when the file it names is deleted, and
   # that PR need touch no document at all.
   #
+  # ARM A, the line-anchor refusal (SPEC docs/spec/citation-anchors.md §5, §7.5, #1969). A
+  # citation names no line. The job also fails on a `path:NNN` or `#L247` token that
+  # docs-site/scripts/citations/line-anchors.json does not already hold, and on an entry in
+  # that list no scan finds. The list holds the anchors the sweep has not reached, and an
+  # empty list is what proves the sweep complete.
+  #
   # fetch-depth: 0 is load-bearing for the ref arm. raw-job-output.md §6 cites a path
   # that lives only on origin/research/843-rawoutput-prototype, and the gate resolves it
   # with `git cat-file -e <ref>:<path>`. A ref the clone cannot see is reported as an
