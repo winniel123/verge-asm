@@ -104,6 +104,17 @@ jobs:
   # that list no scan finds. The list holds the anchors the sweep has not reached, and an
   # empty list is what proves the sweep complete.
   #
+  # ARM B, the anchor resolution (SPEC §7.1, §7.3, #1970). Every anchor a citation writes
+  # must resolve against its row in the SPEC §3.2 table. A broken anchor exits 1. An
+  # unparseable target, or an absent Go toolchain, exits 2: it is a claim the gate should
+  # judge and could not (SPEC §7.7).
+  #
+  # setup-go IS LOAD-BEARING for Arm B. A column-0 regex verifies a Go anchor in neither
+  # direction (SPEC §7.3), so the Go row shells out to cmd/godecls for a real go/parser
+  # parse. The step reads go-version-file, as all nine other setup-go steps in this repo do:
+  # scripts/check-go-pins.sh reads no workflow file, so a literal version would drift with
+  # nothing to catch it. The job name does not move, so the ruleset needs no change.
+  #
   # fetch-depth: 0 is load-bearing for the ref arm. raw-job-output.md §6 cites a path
   # that lives only on origin/research/843-rawoutput-prototype, and the gate resolves it
   # with `git cat-file -e <ref>:<path>`. A ref the clone cannot see is reported as an
@@ -121,6 +132,10 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: docs-site/package-lock.json
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: .go-version
 
       - name: Install dependencies
         working-directory: docs-site

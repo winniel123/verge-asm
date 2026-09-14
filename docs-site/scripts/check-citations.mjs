@@ -13,6 +13,7 @@ import {
 } from "./citations/classify.mjs";
 import { loadExemptions, exemptionMatcher } from "./citations/exempt.mjs";
 import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
+import { armB, formatBroken, formatFatal } from "./citations/armb.mjs";
 import {
   loadBurndown,
   burndownKey,
@@ -143,6 +144,7 @@ function main() {
   }
 
   const { refused, stale } = armA(lineAnchors, burndown);
+  const { anchored, broken, noRow, unresolved, fatal } = armB(REPO_ROOT, results);
   const staleCount = wholeTree ? stale.length : 0;
   const of = (status) => results.filter((r) => r.status === status);
   const ok = of("ok");
@@ -157,7 +159,9 @@ function main() {
   const judged = results.length - skipped.length;
 
   for (const r of unreadable) console.error(`check:citations: cannot read ${r.file} (${r.code})`);
+  for (const f of fatal) console.error(formatFatal(f));
   for (const a of refused) console.log(formatLineAnchor(a));
+  for (const r of broken) console.log(formatBroken(r));
   if (wholeTree) for (const e of stale) console.log(formatStale(e));
   for (const r of dead) console.log(formatDead(r));
 
@@ -174,6 +178,16 @@ function main() {
     ["Addresses another project's tree, so this gate cannot judge it:", foreign, () => "not our tree"],
     ["A path .gitignore covers, so the tree never tracks it:", untracked, () => "never tracked"],
     ["Resolved against a ref the document names:", onRef, (r) => `resolves on ${r.ref}`],
+    [
+      "Anchored, and this gate does not resolve the path:",
+      unresolved,
+      (r) => `#${r.anchor} on a ${r.status} path`,
+    ],
+    [
+      "Anchored, and the table gives this target kind no vocabulary:",
+      noRow,
+      (r) => `#${r.anchor} on a target kind with no row`,
+    ],
   ];
   if (verbose) {
     for (const [heading, rows, note] of passedOver) {
@@ -186,7 +200,8 @@ function main() {
 
   console.log("");
   console.log(
-    `check:citations — ${dead.length} dead path(s) and ${refused.length} new line anchor(s) across ${files.length} file(s).`,
+    `check:citations — ${dead.length} dead path(s), ${broken.length} broken anchor(s) and ` +
+      `${refused.length} new line anchor(s) across ${files.length} file(s).`,
   );
   const n = (rows) => String(rows.length).padStart(5);
   console.log(`  ${judged} path citation(s) judged`);
@@ -199,6 +214,14 @@ function main() {
   console.log(`  ${n(refUnknown)}  name a ref this clone cannot see`);
   console.log(`  ${n(dead)}  dead`);
   console.log(`  ${skipped.length} candidate(s) were not path citations, and are not judged`);
+  const verified = anchored.length - unresolved.length - noRow.length - broken.length;
+  console.log("");
+  console.log(`  ${anchored.length} anchor(s) written by a citation`);
+  console.log(`  ${String(verified).padStart(5)}  resolve against their row`);
+  console.log(`  ${n(unresolved)}  sit on a path this gate does not resolve`);
+  console.log(`  ${n(noRow)}  sit on a target kind the table gives no vocabulary`);
+  console.log(`  ${n(broken)}  broken: the target declares no such name`);
+
   if (!verbose && judged - ok.length - dead.length > 0) {
     console.log("Re-run with --verbose to list every citation this gate passed over.");
   }
@@ -211,8 +234,8 @@ function main() {
   if (wholeTree) console.log(`  ${n(stale)}  stale: an entry no scan finds`);
   else console.log("  the stale-entry rule needs the whole tree, and this run named paths");
 
-  if (unreadable.length > 0) process.exit(2);
-  if (dead.length + refused.length + staleCount > 0) process.exit(1);
+  if (unreadable.length + fatal.length > 0) process.exit(2);
+  if (dead.length + broken.length + refused.length + staleCount > 0) process.exit(1);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
