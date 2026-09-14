@@ -22,7 +22,7 @@ renumbers, or retitles no existing ADR.
 | Decision block | The first `## Decision` heading through to the next heading. |
 | Marker | One tool-written blockquote line under an affected heading, ending in an `<!-- adr-marker -->` sentinel. |
 | Index | The committed `index.json` under `docs/adr/`, regenerated from front matter. |
-| Decision proposal block | Five PR-body fields: Thesis (16 words or fewer), Site (`file:line`), Alternative, Reversal, Proof. One unticked "Ratified" checkbox ends it. |
+| Decision proposal block | Five PR-body fields: Thesis (16 words or fewer), Site (`path#anchor`, per `docs/spec/citation-anchors.md` §6), Alternative, Reversal, Proof. One unticked "Ratified" checkbox ends it. |
 | Touch | A PR diff that includes an ADR file, a line that cites it, or the code beside a comment that cites it. |
 
 ## 3. The file (#1641, #1912)
@@ -53,12 +53,9 @@ An ADR never amends itself in place. It changes only through a later ADR with an
 or `supersedes` relation. The citation `ADR-nnnn #nnn` names a legacy in-file amendment and is valid
 at 227 and below only.
 
-A cross-file citation names a `§` where the target numbers its headings, and a bare path where it
-does not. It names no line. A line anchor shifts under every insertion above it. No check reads one:
-the path pattern in `docs-site/scripts/citations/extract.mjs` admits no colon, so a `path:NNN` token
-never becomes a citation candidate. Repointing a stale anchor is a factual repair, and it needs no
-relation. Changing what an ADR asserts is not a repair, and it runs through a later ADR's relation
-under §4.
+`docs/spec/citation-anchors.md` rules the form of a cross-file citation. It names no line.
+Repointing a stale anchor is a factual repair, and it needs no relation. Changing what an ADR
+asserts is not a repair, and it runs through a later ADR's relation under §4.
 
 ## 4. Relations and status (#1641)
 
