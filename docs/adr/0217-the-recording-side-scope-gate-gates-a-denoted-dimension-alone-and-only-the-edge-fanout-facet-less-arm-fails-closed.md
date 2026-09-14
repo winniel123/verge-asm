@@ -22,7 +22,7 @@ relations:
 
 ## Context
 
-[`internal/queue/scopegate.go:299`](../../internal/queue/scopegate.go) and `:320` carried this text,
+[`internal/queue/scopegate.go`](../../internal/queue/scopegate.go) and `:320` carried this text,
 until #1322 deleted it:
 
 ```go
@@ -51,15 +51,15 @@ denotes an empty set on that dimension*.
 
 | Producer | Site | Fields the union reads | Denotes | Reaches the gate |
 | --- | --- | --- | --- | --- |
-| `HotJob` | `internal/scan/hot.go:91` | `addresses` | addrs | yes |
-| `ColdJob` | `internal/scan/cold.go:115` | `addresses` | addrs | yes |
-| `EdgeFanoutJob` | `internal/scan/edgefanout.go:59` | `addresses` | addrs | yes |
-| `HTTPIdentityJob` | `internal/scan/httpidentity.go:113` | `targets[].address` | addrs | yes |
-| `TLSAcceptanceJob` | `internal/scan/tlsacceptance.go:106` | `services[].address` | addrs | yes |
-| `Job` (dns) | `internal/scan/scan.go:72` | `names` | names | yes |
-| `ZoneJob` | `internal/scan/zone.go:94` | `domain` only | **neither** | no |
-| `CTJob` | `internal/scan/crtsh.go:65` | `domain` only | **neither** | no |
-| `CTTailJob` | `internal/scan/cttail.go:155` | `log_id` only | **neither** | no |
+| `HotJob` | `internal/scan/hot.go` | `addresses` | addrs | yes |
+| `ColdJob` | `internal/scan/cold.go` | `addresses` | addrs | yes |
+| `EdgeFanoutJob` | `internal/scan/edgefanout.go` | `addresses` | addrs | yes |
+| `HTTPIdentityJob` | `internal/scan/httpidentity.go` | `targets[].address` | addrs | yes |
+| `TLSAcceptanceJob` | `internal/scan/tlsacceptance.go` | `services[].address` | addrs | yes |
+| `Job` (dns) | `internal/scan/scan.go` | `names` | names | yes |
+| `ZoneJob` | `internal/scan/zone.go` | `domain` only | **neither** | no |
+| `CTJob` | `internal/scan/crtsh.go` | `domain` only | **neither** | no |
+| `CTTailJob` | `internal/scan/cttail.go` | `log_id` only | **neither** | no |
 
 The last three are worker-read `Scan`s. `Worker.process` routes them to `completeZone`,
 `completeCT` and `completeCTTail` before it ever runs a prober (`worker.go:288`, `:293`, `:297`), so

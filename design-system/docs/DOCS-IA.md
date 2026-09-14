@@ -1,6 +1,6 @@
 # Docs IA — the designed left rail (D1 ruling)
 
-Ruled 2026-08-24 in the design workspace. This is the binding section model for docs-site's left rail. It lands as pure frontmatter edits in docs/guides/*.md — no pipeline change (nav-build/T3 already renders it). Spec preview: examples/DocsPage.jsx NAV · shot docs.jpg.
+Ruled 2026-08-24 in the design workspace. This is the binding section model for docs-site's left rail. It lands as pure frontmatter edits in docs/guides/*.md — no pipeline change (nav-build/T3 already renders it). Spec preview: the `SECTIONS` rail of `design-system/examples/DocsPage.jsx` · ~~shot docs.jpg~~. `55aa367` deleted `design-system/screenshots/docs.jpg` on 2026-08-28 ([#1450](https://github.com/winniel123/verge-asm/issues/1450)). No successor spec capture carries it ([ADR-0115](../../docs/adr/0115-the-docs-site-renders-the-guides-in-place-and-a-version-is-a-git-ref-not-a-copy.md)), so `DocsPage.jsx` is the only preview of this ruling a reader can open. `docs-site/tests/baseline/docs.png` is a different artefact: it captures a built page for the `check:screenshot` pixel diff, not the designed spec.
 
 ## What this fixes
 
@@ -47,6 +47,6 @@ Section names deliberately echo the console's SettingsNav groups (Scanning, Acce
 
 ## Acceptance
 
-- Left rail renders exactly the six sections above, in this order, with these labels — compare against docs.jpg.
+- Left rail renders exactly the six sections above, in this order, with these labels — ~~compare against docs.jpg~~. The capture is deleted — see the preview note above. Compare against the `SECTIONS` list in `design-system/examples/DocsPage.jsx` and the rail it renders.
 - No two guides in a section share an `order`.
 - Breadcrumb reads Docs › ‹section› › ‹title› (PARITY D5).

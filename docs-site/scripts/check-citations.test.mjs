@@ -433,9 +433,10 @@ test("a line anchor in docs/research is outside the boundary", () => {
   assert.ok(scanLineAnchors(readFileSync(outside, "utf8")).length > 0);
   assert.equal(isInScope(REPO_ROOT, outside), false);
 
-  const anchors = wholeTree().lineAnchors;
-  assert.ok(anchors.length > 0);
-  assert.deepEqual(anchors.filter((a) => a.file.startsWith("docs/research/")), []);
+  const { results, lineAnchors } = wholeTree();
+  // The sweep emptied the in-scope tree, so the scan itself is what proves the run read it (#1979).
+  assert.ok(results.length > 0);
+  assert.deepEqual(lineAnchors.filter((a) => a.file.startsWith("docs/research/")), []);
 });
 
 test("the seeded list holds every in-scope line anchor, and nothing it cannot find", () => {

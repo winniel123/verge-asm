@@ -26,7 +26,7 @@ relations:
 
 ## Context
 
-[`internal/queue/withdrawal.go:82`](../../internal/queue/withdrawal.go) carried this text, until
+[`internal/queue/withdrawal.go#composeAddressWithdrawals`](../../internal/queue/withdrawal.go) carried this text, until
 #1322 deleted it:
 
 ```go
@@ -54,7 +54,7 @@ side.**
 each return nil when `w.produceMsgs` is false, and `produce` returns immediately in the same case
 (`worker.go:188`). `produceMsgs` is set only by `WithMessages`.
 
-**Today `cmd/worker/main.go:97` always calls `WithMessages`, so the nil path is the test path.** The
+**Today `cmd/worker/main.go#main` always calls `WithMessages`, so the nil path is the test path.** The
 boundary is therefore a design boundary rather than a shipped configuration, and that is exactly why
 it needs a record. A reviewer who reads the guard as *this fold is part of the message path* has no
 counter-example in front of them.
@@ -115,7 +115,7 @@ append to the collector where there is one.
 ## Consequences
 
 - **This ADR changes no Go code.** All five folds already split this way.
-- **The nil-collector path is exercised by tests alone today.** `cmd/worker/main.go:97` wires
+- **The nil-collector path is exercised by tests alone today.** `cmd/worker/main.go#main` wires
   `WithMessages` unconditionally, so no shipped configuration takes it. A build that omits it — a
   future measurement-only worker, or a migration tool that folds without notifying — is what the
   boundary is for, and the tests are what keep it working until then.
