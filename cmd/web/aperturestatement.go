@@ -64,10 +64,14 @@ type apertureInputStore interface {
 // Seeds stay a parameter, because both callers read them first and return early on their error.
 
 func (s *server) readApertureInputs(ctx context.Context, store apertureInputStore, where string) apertureInputs {
+	// Both callers read in this order before #2002, and each failed read logs a line.
+	classes := s.apertureVantageClasses(ctx, store, where)
+	states := apertureSourceStates(ctx, store, where)
+	cadence := apertureDNSCadence(ctx, store, where)
 	return apertureInputs{
-		VantageClasses: s.apertureVantageClasses(ctx, store, where),
-		SourceStates:   apertureSourceStates(ctx, store, where),
-		DNSCadence:     apertureDNSCadence(ctx, store, where),
+		SourceStates:   states,
+		DNSCadence:     cadence,
+		VantageClasses: classes,
 	}
 }
 
