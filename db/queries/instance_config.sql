@@ -34,3 +34,10 @@ WHERE id = true;
 UPDATE instance_config
 SET seed_address_cap = $1, seed_address_cap_updated_by = $2, seed_address_cap_updated_at = now()
 WHERE id = true;
+
+-- name: LockInstanceConfig :one
+-- FOR UPDATE holds the row across the compare and the write, so two submits serialise (ADR-1914).
+SELECT api_enabled, update_check_enabled, seed_address_cap
+FROM instance_config
+WHERE id = true
+FOR UPDATE;

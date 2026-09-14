@@ -591,6 +591,18 @@ func (q *Queries) ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeC
 	return items, nil
 }
 
+const lockDnsCadenceSeconds = `-- name: LockDnsCadenceSeconds :one
+SELECT cadence_seconds FROM scan WHERE kind = 'dns' FOR UPDATE
+`
+
+// FOR UPDATE holds the row across the compare and the write (ADR-1914).
+func (q *Queries) LockDnsCadenceSeconds(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, lockDnsCadenceSeconds)
+	var cadence_seconds int64
+	err := row.Scan(&cadence_seconds)
+	return cadence_seconds, err
+}
+
 const markJobDead = `-- name: MarkJobDead :execrows
 UPDATE queue_job SET state = 'dead', batch_id = $2 WHERE id = $1 AND state = 'running'
 `

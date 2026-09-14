@@ -272,6 +272,14 @@ type Querier interface {
 	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]ListWithdrawalLifespansRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]ListZoneDeclarationsRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error)
+	// FOR UPDATE holds the row across the compare and the write (ADR-1914).
+	LockDnsCadenceSeconds(ctx context.Context) (int64, error)
+	// FOR UPDATE holds the row across the compare and the write, so two submits serialise (ADR-1914).
+	LockInstanceConfig(ctx context.Context) (LockInstanceConfigRow, error)
+	// FOR UPDATE holds the row across the compare and the write, so two submits serialise (ADR-1914).
+	LockRetentionSettings(ctx context.Context) (LockRetentionSettingsRow, error)
+	// FOR UPDATE holds the row across the compare and the write (ADR-1914).
+	LockZoneCadenceSeconds(ctx context.Context) (int64, error)
 	MarkAllMessagesRead(ctx context.Context, arg MarkAllMessagesReadParams) error
 	MarkDeliveryDelivered(ctx context.Context, arg MarkDeliveryDeliveredParams) error
 	MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error

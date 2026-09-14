@@ -115,7 +115,7 @@ func main() {
 			log.Printf("web: VERGE_DEV: could not pin fixture clock (%v); using wall time", perr)
 		}
 	}
-	web := newServer(queries, key, setupToken, clock)
+	web := newServer(newPgStore(queries, pool), key, setupToken, clock)
 	web.devMode = devMode
 	web.useTranscriptKey(transcriptKey)
 	web.stateDir = stateDir

@@ -30,7 +30,6 @@ type retentionPanelStore interface {
 	ListDerivationBreaks(ctx context.Context, rowLimit int64) ([]db.ListDerivationBreaksRow, error)
 	ListEnabledScans(ctx context.Context) ([]db.Scan, error)
 	ListFacetSourceFloors(ctx context.Context) ([]db.ListFacetSourceFloorsRow, error)
-	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
 }
 
 // Ground is not a value the operator may pick and be corrected for (ADR-0081).
@@ -511,53 +510,63 @@ func rowsPerAddressPerYear(scans []retention.ScanCadence) int64 {
 
 func (s *server) updateCoverageRetention(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
-	settings, err := s.retentionPanelStore.GetRetentionSettings(ctx)
-	if err != nil {
-		s.serverError(w, "retention settings", err)
-		return
-	}
-	scanRows, err := s.retentionPanelStore.ListEnabledScans(ctx)
-	if err != nil {
-		// With no floor to raise to, a write could persist the ground (ADR-0081).
-		s.serverError(w, "enabled scans", err)
-		return
-	}
-	coveringKinds, err := s.retentionPanelStore.ListCoveringScanKinds(ctx)
-	if err != nil {
-		// A write clamps to the covering floor, so a missed cover raises the wrong one.
-		s.serverError(w, "covering scans", err)
-		return
-	}
-	scans := scanCadences(scanRows, coveringKinds)
+	// The first form read pulls the body off the network, so a slow client may not hold the lock.
+	obsRaw := r.FormValue("observation_currency_days")
+	dispRaw := r.FormValue("dispatch_cadence_multiple")
 
-	// Below the floor is not the operator's territory, so nothing is rejected (ADR-0081).
-	obs := retention.ClampToFloor(
-		parseDialValue(r.FormValue("observation_currency_days"), settings.ObservationCurrencyDays),
-		retention.ObservationFloor(scans).Days())
-	disp := retention.ClampToFloor(
-		parseDialValue(r.FormValue("dispatch_cadence_multiple"), settings.DispatchCadenceMultiple),
-		retention.FloorCadences)
+	// The lock covers both dials at once, because the two share the one settings row (ADR-1914).
+	ok := s.moveDial(w, r, "update retention", func(q dialQueries, rec recorder) error {
+		settings, err := q.LockRetentionSettings(ctx)
+		if err != nil {
+			return err
+		}
+		scanRows, err := q.ListEnabledScans(ctx)
+		if err != nil {
+			// With no floor to raise to, a write could persist the ground (ADR-0081).
+			return fmt.Errorf("enabled scans: %w", err)
+		}
+		coveringKinds, err := q.ListCoveringScanKinds(ctx)
+		if err != nil {
+			// A write clamps to the covering floor, so a missed cover raises the wrong one.
+			return fmt.Errorf("covering scans: %w", err)
+		}
+		// The floor is read under the lock, so the clamp and the write read one scan set.
+		scans := scanCadences(scanRows, coveringKinds)
 
-	if err := s.retentionPanelStore.UpdateRetentionSettings(ctx, db.UpdateRetentionSettingsParams{
-		ObservationCurrencyDays: obs,
-		DispatchCadenceMultiple: disp,
-		TranscriptCurrencyDays:  settings.TranscriptCurrencyDays,
-		UpdatedBy:               pgtype.Int8{Int64: acct.ID, Valid: true},
-	}); err != nil {
-		s.serverError(w, "update retention", err)
+		// Below the floor is not the operator's territory, so nothing is rejected (ADR-0081).
+		obs := retention.ClampToFloor(
+			parseDialValue(obsRaw, settings.ObservationCurrencyDays),
+			retention.ObservationFloor(scans).Days())
+		disp := retention.ClampToFloor(
+			parseDialValue(dispRaw, settings.DispatchCadenceMultiple),
+			retention.FloorCadences)
+
+		if err := q.UpdateRetentionSettings(ctx, db.UpdateRetentionSettingsParams{
+			ObservationCurrencyDays: obs,
+			DispatchCadenceMultiple: disp,
+			TranscriptCurrencyDays:  settings.TranscriptCurrencyDays,
+			UpdatedBy:               pgtype.Int8{Int64: acct.ID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		// One Subject cell holding both dials is the list-valued subject §4.1 bars (spec §2.2).
+		if obs != settings.ObservationCurrencyDays {
+			if err := rec.Record(ctx, actingAccount(acct), act.ObservationCurrencySet{
+				DialMove: act.DialMove{Dial: "observation currency", Value: humanDays(obs)},
+			}); err != nil {
+				return err
+			}
+		}
+		// A dial left where it stood moved nothing, so it writes no row (spec §2.2).
+		if disp != settings.DispatchCadenceMultiple {
+			return rec.Record(ctx, actingAccount(acct), act.DispatchCadenceSet{
+				DialMove: act.DialMove{Dial: "dispatch cadence", Value: humanCadences(disp)},
+			})
+		}
+		return nil
+	})
+	if !ok {
 		return
-	}
-	// One Subject cell holding both dials is the list-valued subject §4.1 bars (spec §2.2).
-	if obs != settings.ObservationCurrencyDays {
-		s.recorder().Record(ctx, actingAccount(acct), act.ObservationCurrencySet{
-			DialMove: act.DialMove{Dial: "observation currency", Value: humanDays(obs)},
-		})
-	}
-	// A submit that leaves a dial where it stood moved nothing, so it writes no row (spec §2.2).
-	if disp != settings.DispatchCadenceMultiple {
-		s.recorder().Record(ctx, actingAccount(acct), act.DispatchCadenceSet{
-			DialMove: act.DialMove{Dial: "dispatch cadence", Value: humanCadences(disp)},
-		})
 	}
 	s.redirectBack(w, r, "/coverage")
 }

@@ -39,6 +39,16 @@ type fakeStore struct {
 	byName   map[string]int64
 	nextID   int64
 
+	// The fake's lock stands where FOR UPDATE stands, so a dial's critical section
+	// serialises here as it does in Postgres (ADR-1914).
+
+	dialMu         sync.Mutex
+	insideDialLock func()
+
+	// Two concurrent requests share one session row, and the middleware writes it.
+
+	sessMu sync.Mutex
+
 	// The recorder runs after the mutation, so this order is the assertion (spec §7.6).
 
 	acts     []db.InsertActParams

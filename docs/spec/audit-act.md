@@ -831,6 +831,10 @@ route reading as missing, which is correct.
 mutation, on its own connection. The SPEC carries one named failure mode: **an act with no `Act`**, and
 it states that this failure can pass unnoticed.
 
+**Two exceptions are named, and rulings 4 and 10 hold them.** The restore is one. The dial guard is the
+other, on ruling 9's compare, which a second connection cannot hold against a concurrent submit.
+[ADR-1914](../adr/1914-a-dial-move-is-serialised-by-a-row-lock-inside-one-transaction.md) rules it.
+
 **Recorder-before is barred, not merely worse.** It produces an **`Act` with no act** — the log
 asserting something that did not happen. Append-only generates no `DELETE`, so a phantom row **can
 never be retracted**. Recorder-before builds a failure the corpus's own rule forbids you from
@@ -849,25 +853,31 @@ estimate and was not measured.
 loops over N proposals, does two unrelated writes per iteration, and **bails mid-loop** via
 `s.serverError`, leaving a partially applied batch already committed.
 
-**Nine further rulings the recorder carries.**
+**Ten further rulings the recorder carries.**
 
-1. **Uniform across all 61 classes.** One recorder, one call-site shape, one thing for §7 to find. A
-   split by limb would put a limb classifier inside a conformance test.
+1. **Uniform across all 61 classes.** One recorder, and one call-site shape per binding, which §7
+   finds by the bare method name. A split by limb would put a limb classifier inside a conformance
+   test. Ruling 10 adds a third binding, and the conformance gate reads the `recorder` type on the
+   declaration to accept it.
 2. **Only a successful act writes an `Act`.** The predicate is written in the past tense of doing. A
    refused act directed nothing, and an unbounded never-deleted corpus must not be writable by failure.
 3. **One `Act` per subject, never one per request.** A request-level row needs a list-valued subject,
    which fights §4 and gives the Subject column a second thing to render. And `declineLookup` bails
    mid-loop, so per-subject rows are the only shape that can be true about a partial batch. **Price
    accepted: a 200-item decline writes 200 rows.**
-4. **The restore's `Act` sits inside the restore transaction, after the replay** — one named
-   exception. `cmd/web/restore.go:301` is the only handler in `cmd/web` that holds a transaction, so it
-   is the only place atomicity costs nothing. Outside it, a crash between commit and recorder leaves a
-   wholesale-replaced corpus with **no record of the discontinuity at all**.
+4. **The restore's `Act` sits inside the restore transaction, after the replay** — the first named
+   exception. `applyRestore` holds a transaction the replay needs anyway, so atomicity costs it
+   nothing. Without it, a crash between commit and recorder leaves a wholesale-replaced corpus with
+   **no record of the discontinuity at all**. Ruling 10 names the second exception, which pays for its
+   transaction rather than inheriting one.
 5. **The recorder call uses a context detached from request cancellation**, with its own short
    timeout. On `r.Context()` the record dies when the operator navigates away, so *an act with no
    `Act`* would fire on ordinary use rather than on a database fault. **Without this the failure mode
    is mispriced by an order of magnitude.** `cmd/web/auth.go:1948` already reaches for
-   `context.Background()` in the chrome render for the same reason.
+   `context.Background()` in the chrome render for the same reason. **A tx-bound recorder detaches
+   nothing**, because a detached insert would outlive the rollback tearing its own transaction down. A
+   cancelled act under rulings 4 or 10 therefore leaves neither a mutation nor a row, which is the
+   outcome ruling 5 protects.
 6. **No retry.** One attempt on the detached context. Ruling 5 removes the dominant cause. What remains
    is a genuine database fault. A retry inside a request whose mutation has already committed charges
    the operator latency for a guarantee the SPEC declined to make, and a retry that also fails leaves
@@ -889,10 +899,21 @@ loops over N proposals, does two unrelated writes per iteration, and **bails mid
    stood — and is untouched. **Two prices accepted.** Five handlers now read a value their mutation
    does not need; `updateRetention` already read its settings row and pays nothing. And a failed read
    refuses the act, because a handler that cannot see the stored value cannot tell a move from a
-   repeat, and recording anyway writes the row this ruling bars. **The comparison is not atomic with
-   the mutation**, so two concurrent submits can still repeat a row or lose one.
-   [ADR-1909](../adr/1909-a-dial-submitted-at-its-current-value-writes-no-act-row.md) §6 names both
-   interleavings and leaves the repair to a later ruling.
+   repeat, and recording anyway writes the row this ruling bars. **Ruling 10 makes the comparison
+   atomic with the mutation.**
+   [ADR-1909](../adr/1909-a-dial-submitted-at-its-current-value-writes-no-act-row.md) §6 named both
+   interleavings and left the repair to a later ruling.
+10. **A dial's guard runs inside one transaction that holds a row lock.** The wrapper opens with
+   `SELECT … FOR UPDATE` on the row the dial lives on, then reads, mutates, compares and records. It
+   is the second exception to this section's opening rule, and it reaches all eight `act.DialMove`
+   sites. Without the lock, two submits of one move both read the old value and both record, so the
+   corpus takes a phantom row it can never retract. A stale read loses a row instead.
+   **Rejected: `UPDATE … WHERE col IS DISTINCT FROM $1`**, recording on rows affected. It reaches five
+   sites, because the three retention dials share one row, and it stops a no-op stamping the
+   attribution columns that §9 governs. **Rejected: an advisory lock**, which buys a key convention
+   for rows that already exist. **Two prices accepted.** A failed insert now rolls its own mutation
+   back, and `cmd/web` holds a transaction outside the restore path.
+   [ADR-1914](../adr/1914-a-dial-move-is-serialised-by-a-row-lock-inside-one-transaction.md) rules it.
 
 ### 7.7 The notice cannot be made durable, and the SPEC says so
 

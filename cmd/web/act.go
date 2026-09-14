@@ -17,7 +17,7 @@ type actStore interface {
 
 const actRecordBudget = 5 * time.Second
 
-// One method name, two receivers: the pool binds it, the restore a tx (spec §7.1).
+// One method name, two bindings: the pool, or a transaction the caller holds (spec §7.1).
 
 type recorder struct {
 	store actStore
@@ -26,7 +26,7 @@ type recorder struct {
 
 func (s *server) recorder() recorder { return recorder{store: s.actStore} }
 
-// The restore's Act commits with the replay it records, spec §7.6's one exception (#1834).
+// A tx-bound Act commits with the act it records: the restore, and a dial move (ADR-1914).
 
 func txRecorder(tx db.DBTX) recorder { return recorder{store: db.New(tx), inTx: true} }
 

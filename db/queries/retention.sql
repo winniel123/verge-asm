@@ -204,3 +204,10 @@ WHERE previous IS NOT NULL
   AND derivation <> previous
 ORDER BY opened_at DESC
 LIMIT sqlc.arg(row_limit)::bigint;
+
+-- name: LockRetentionSettings :one
+-- FOR UPDATE holds the row across the compare and the write, so two submits serialise (ADR-1914).
+SELECT observation_currency_days, dispatch_cadence_multiple, transcript_currency_days
+FROM retention_settings
+WHERE id = true
+FOR UPDATE;

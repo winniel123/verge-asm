@@ -431,6 +431,27 @@ func (q *Queries) ListLiveObservationsForDerivation(ctx context.Context, arg Lis
 	return items, nil
 }
 
+const lockRetentionSettings = `-- name: LockRetentionSettings :one
+SELECT observation_currency_days, dispatch_cadence_multiple, transcript_currency_days
+FROM retention_settings
+WHERE id = true
+FOR UPDATE
+`
+
+type LockRetentionSettingsRow struct {
+	ObservationCurrencyDays int64 `json:"observation_currency_days"`
+	DispatchCadenceMultiple int64 `json:"dispatch_cadence_multiple"`
+	TranscriptCurrencyDays  int64 `json:"transcript_currency_days"`
+}
+
+// FOR UPDATE holds the row across the compare and the write, so two submits serialise (ADR-1914).
+func (q *Queries) LockRetentionSettings(ctx context.Context) (LockRetentionSettingsRow, error) {
+	row := q.db.QueryRow(ctx, lockRetentionSettings)
+	var i LockRetentionSettingsRow
+	err := row.Scan(&i.ObservationCurrencyDays, &i.DispatchCadenceMultiple, &i.TranscriptCurrencyDays)
+	return i, err
+}
+
 const slowestEnabledScanCadenceSeconds = `-- name: SlowestEnabledScanCadenceSeconds :one
 SELECT COALESCE(MAX(cadence_seconds), 0)::bigint AS cadence_seconds
 FROM scan
