@@ -20,7 +20,7 @@ relations:
 
 ## Context
 
-`internal/queue/tlsacceptance.go:56` carried this in Go declaration position, until #1324 deleted it:
+`internal/queue/tlsacceptance.go#reachedServices` carried this in Go declaration position, until #1324 deleted it:
 
 ```go
 // reachedServices reads the open `Service` population from the current reachability
@@ -35,7 +35,7 @@ The same commit deleted the inline half of it, at the first of the two skips:
 continue // a Service with no vantage row — the enumeration is per-vantage
 ```
 
-#1324 compressed the block to one surviving line at `internal/queue/tlsacceptance.go:42`:
+#1324 compressed the block to one surviving line at `internal/queue/tlsacceptance.go#reachedServices`:
 
 ```go
 // A target the enumeration cannot name is skipped, never fabricated from a partial row.
@@ -53,17 +53,17 @@ cites another, and none of them cites a document.
 
 | Read | Site | Row it drops | What it cannot name |
 | --- | --- | --- | --- |
-| `reachedServices` | `internal/queue/tlsacceptance.go:50` | a reachability span whose `vantage_id` is NULL | the probe site — the enumeration is per-vantage |
-| `reachedServices` | `internal/queue/tlsacceptance.go:53` | a `service` subject key that does not parse | the address and the port |
-| `hotEstate` | `internal/queue/hot.go:90` | a name-cited address whose text does not parse | the `Address` itself |
-| `coldScope` | `internal/queue/cold.go:47` and `:51` | a `Seed` row whose limb column is NULL | the CIDR, or the domain |
-| `nameSeedDomains` | `internal/queue/helpers.go:20` | a name `Seed` row whose domain is NULL | the domain to resolve |
-| `mergeResolutionNames` | `internal/queue/helpers.go:42` | an admitted name that canonicalises to empty | the name to resolve |
-| `ctSeeds` | `internal/queue/crtsh.go:380` | a name `Seed` row whose domain is NULL | the domain to query CT for |
-| `BuildTLSAcceptanceJobs` | `internal/scan/tlsacceptance.go:56` and `:60` | a reached `Service` whose vantage is not in the list, or whose address does not parse | the vantage, or the address |
-| `BuildHTTPIdentityJobs` | `internal/scan/httpidentity.go:52` and `:56` | the same two | the same two |
+| `reachedServices` | `internal/queue/tlsacceptance.go#reachedServices` | a reachability span whose `vantage_id` is NULL | the probe site — the enumeration is per-vantage |
+| `reachedServices` | `internal/queue/tlsacceptance.go#reachedServices` | a `service` subject key that does not parse | the address and the port |
+| `hotEstate` | `internal/queue/hot.go#hotEstate` | a name-cited address whose text does not parse | the `Address` itself |
+| `coldScope` | `internal/queue/cold.go#coldScope` and `:51` | a `Seed` row whose limb column is NULL | the CIDR, or the domain |
+| `nameSeedDomains` | `internal/queue/helpers.go#nameSeedDomains` | a name `Seed` row whose domain is NULL | the domain to resolve |
+| `mergeResolutionNames` | `internal/queue/helpers.go#mergeResolutionNames` | an admitted name that canonicalises to empty | the name to resolve |
+| `ctSeeds` | `internal/queue/crtsh.go` | a name `Seed` row whose domain is NULL | the domain to query CT for |
+| `BuildTLSAcceptanceJobs` | `internal/scan/tlsacceptance.go#BuildTLSAcceptanceJobs` and `:60` | a reached `Service` whose vantage is not in the list, or whose address does not parse | the vantage, or the address |
+| `BuildHTTPIdentityJobs` | `internal/scan/httpidentity.go#BuildHTTPIdentityJobs` and `:56` | the same two | the same two |
 
-`zoneFiles` (`internal/queue/zone.go:80`) is the one target-set read with no drop, and it is not a
+`zoneFiles` (`internal/queue/zone.go#zoneFiles`) is the one target-set read with no drop, and it is not a
 counter-example. Its query filters `WHERE s.kind = 'name'` and `seed_shape` in
 `db/migrations/00003_seeds.sql` makes `name_domain` NOT NULL for that kind, so the row it would drop
 cannot exist.
@@ -139,7 +139,7 @@ manufactures drift in the sense [#6](https://github.com/winniel123/verge-asm/iss
 ### 3. The drop is silent at the enumeration, and this is a decision rather than an oversight
 
 The observation fold takes the same direction and **names** each drop.
-`toEdgeFanoutRows` (`internal/queue/edgefanout.go:71`) builds a `dropped []string` with a reason per
+`toEdgeFanoutRows` (`internal/queue/edgefanout.go#toEdgeFanoutRows`) builds a `dropped []string` with a reason per
 line, and `foldEdgeFanoutObservations` logs each one against the job id. The enumerations do not.
 
 The difference is in what the dropped row is evidence of.
@@ -164,7 +164,7 @@ closes, by removing the parse rather than by adding a counter to it.
 ### 4. A gate refusal is a different act, and this rule does not reach it
 
 `BuildTLSAcceptanceJobs` and `BuildHTTPIdentityJobs` also `continue` past a service whose address
-fails `estate.MayProbe` (`internal/scan/tlsacceptance.go:64`, `internal/scan/httpidentity.go:59`).
+fails `estate.MayProbe` (`internal/scan/tlsacceptance.go#BuildTLSAcceptanceJobs`, `internal/scan/httpidentity.go#BuildHTTPIdentityJobs`).
 That looks like a drop and is not one.
 
 | | A cannot-name drop | A gate refusal |
@@ -176,7 +176,7 @@ That looks like a drop and is not one.
 
 Both end in `continue`, and conflating them would let a reader argue that a cannot-name drop is a
 `Custody` decision and belongs on a census surface. It is not. `candidateAddrs`' exclusion skip
-(`internal/queue/hot.go:144`) is a third thing again — a cost optimisation ahead of a gate that
+(`internal/queue/hot.go#candidateAddrs`) is a third thing again — a cost optimisation ahead of a gate that
 would refuse anyway — and it is out of this rule too.
 
 ### 5. What this rule does not reach
@@ -198,7 +198,7 @@ would refuse anyway — and it is out of this rule too.
 
 - **This ADR changes no Go code.** All nine sites already drop. The rule they take was stated only in
   a deleted comment and in one uncited survivor.
-- **The survivor at `internal/queue/tlsacceptance.go:42` gains a citation.** It is the one site that
+- **The survivor at `internal/queue/tlsacceptance.go#reachedServices` gains a citation.** It is the one site that
   states the rule in the tree, so it is the one that should point at it.
 - **Eight guards that can never fire today are now protected from deletion.** Before this, a reader
   who checked `seed_shape` would find `coldScope`'s, `nameSeedDomains`' and `ctSeeds`' NULL checks

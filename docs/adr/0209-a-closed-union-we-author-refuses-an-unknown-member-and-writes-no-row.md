@@ -20,7 +20,7 @@ relations:
 
 ## Context
 
-`internal/queue/transcript.go:24` carried this in declaration position, until #1327 deleted it:
+`internal/queue/transcript.go#buildTranscriptParams` carried this in declaration position, until #1327 deleted it:
 
 ```go
 // buildTranscriptParams turns a captured wire.Transcript into the row the worker
@@ -43,10 +43,10 @@ in this one file.**
 
 | Switch | Site | Union | Default |
 | --- | --- | --- | --- |
-| `buildTranscriptParams` | `internal/queue/transcript.go:22` | `wire.Transcript` | `fmt.Errorf("queue: transcript variant %T not captured yet", t)` |
-| `encodeZoneOutcome` | `internal/queue/transcript.go:75` | `wire.ZoneOutcome` | `fmt.Errorf("queue: unknown zone outcome %T", o)` |
-| `encodeCTOutcome` | `internal/queue/transcript.go:123` | `wire.CTOutcome` | `fmt.Errorf("queue: unknown ct outcome %T", o)` |
-| `encodeProberOutcome` | `internal/queue/transcript.go:195` | `wire.ProberOutcome` | `fmt.Errorf("queue: unknown prober outcome %T", o)` |
+| `buildTranscriptParams` | `internal/queue/transcript.go#buildTranscriptParams` | `wire.Transcript` | `fmt.Errorf("queue: transcript variant %T not captured yet", t)` |
+| `encodeZoneOutcome` | `internal/queue/transcript.go#encodeZoneOutcome` | `wire.ZoneOutcome` | `fmt.Errorf("queue: unknown zone outcome %T", o)` |
+| `encodeCTOutcome` | `internal/queue/transcript.go#encodeCTOutcome` | `wire.CTOutcome` | `fmt.Errorf("queue: unknown ct outcome %T", o)` |
+| `encodeProberOutcome` | `internal/queue/transcript.go#encodeProberOutcome` | `wire.ProberOutcome` | `fmt.Errorf("queue: unknown prober outcome %T", o)` |
 
 The four remaining type switches in the tree are over Go AST nodes, over a template parse node
 (`internal/commentlint/surface`), and over `crypto.PublicKey`. All four are over a foreign type. So
@@ -54,7 +54,7 @@ the whole population of this rule is four sites, one comment stated it, and the 
 
 **The unions are sealed, and that is what makes "a wiring bug" a precise claim rather than a figure
 of speech.** Each carries an unexported marker method — `isTranscript()`, `isProberOutcome()`,
-`isCTOutcome()`, `isZoneOutcome()` (`internal/wire/transcript.go:9`, `:43`, `:64`, `:87`). Only
+`isCTOutcome()`, `isZoneOutcome()` (`internal/wire/transcript.go`, `:43`, `:64`, `:87`). Only
 `internal/wire` can add a member. The default branch is therefore unreachable from any input, from
 any operator act and from any remote party. It is reachable only after an edit inside `internal/wire`
 that adds a member and does not add the encoder arm.

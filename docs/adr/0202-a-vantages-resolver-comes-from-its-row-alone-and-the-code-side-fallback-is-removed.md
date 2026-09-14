@@ -22,7 +22,7 @@ relations:
 
 ## Context
 
-[`internal/scan/scan.go:108`](../../internal/scan/scan.go) carried this text until #1318 deleted it:
+[`internal/scan/scan.go`](../../internal/scan/scan.go) carried this text until #1318 deleted it:
 
 ```go
 	// The resolver is carried on the Vantage and copied onto the job's spec by
@@ -99,7 +99,7 @@ ADR-0121 exempts the operator-declared recursive resolver from the egress guard,
 once refused `127.0.0.11` and dead-lettered every default install
 ([#612](https://github.com/winniel123/verge-asm/issues/612),
 [#239](https://github.com/winniel123/verge-asm/issues/239)). The exemption is keyed on the **path**,
-not on the address: [`internal/measure/resolutionwalk/netpeer.go:34`](../../internal/measure/resolutionwalk/netpeer.go)
+not on the address: [`internal/measure/resolutionwalk/netpeer.go`](../../internal/measure/resolutionwalk/netpeer.go)
 returns true for `PathDeclared`, and `Exchange` then dials with `trustedDialer()` rather than
 `custodyDialer()`.
 

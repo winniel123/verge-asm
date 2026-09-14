@@ -19,7 +19,7 @@ relations:
 
 ## Context
 
-`internal/queue/cold.go:22` carried this, in the file-header block above `fanOutCold`, until #1327
+`internal/queue/cold.go#Dispatcher.fanOutCold` carried this, in the file-header block above `fanOutCold`, until #1327
 deleted it:
 
 ```go
@@ -35,13 +35,13 @@ The rule binds the web opt-in handler as much as the dispatcher, and it is the o
 ADR-0044 nor the v1 SPEC rules.
 
 **What the opt-in handler actually does is three statements.** `setColdScope`
-(`cmd/web/cold.go:57`) parses the seed id, then calls `OptInColdScope` — one `INSERT INTO
+(`cmd/web/cold.go`) parses the seed id, then calls `OptInColdScope` — one `INSERT INTO
 cold_scan_scope (seed_id, created_by)` — then `SyncColdScanEnabled`, which is
 `SET enabled = EXISTS (SELECT 1 FROM cold_scan_scope)`, then redirects. There is no `EnqueueJob`, no
 `Trigger`, and no dispatch on that path.
 
 **The enrolment is read at the tick, never carried to it.** `fanOutCold`
-(`internal/queue/cold.go:15`) calls `coldScope`, which reads `ListColdScopeSeeds` at dispatch time
+(`internal/queue/cold.go#Dispatcher.fanOutCold`) calls `coldScope`, which reads `ListColdScopeSeeds` at dispatch time
 and builds the tier's address set from every opted-in seed at once. So the fan-out is **one dispatch
 over the union of the enrolled scopes**, not one dispatch per enrolment. That property is what makes
 the ruling below cheap, and §4 turns on it.
@@ -54,12 +54,12 @@ the ruling below cheap, and §4 turns on it.
 | ADR-0044, Decision table | Opt-in is per `Seed` scope, and the tier ships configured and disabled | Rules the granularity of the opt-in and the tier's shipped state. Says nothing about what happens at the moment of the opt-in |
 | `v1-spec.md` §3.4, cold row | *"never runs unasked, including at onboarding"* | Rules the unasked case. The opt-in **is** an ask, so §3.4 stops exactly where this question starts |
 
-`cmd/web/cold.go:59` already cites both, which is why the gap went unnoticed: the handler looks
+`cmd/web/cold.go` already cites both, which is why the gap went unnoticed: the handler looks
 covered, and the citation is true of the half those sources rule.
 
 **The deleted comment overstates, and the survivor still does.** `Dispatcher.Trigger`
-(`internal/queue/queue.go:98`) reads the `Scan` and, where `Enabled` is true, calls `fanOut` — which
-routes the cold kind to the streamed fan-out (`queue.go:111`). `cmd/web/scantrigger.go:52` refuses a
+(`internal/queue/queue.go`) reads the `Scan` and, where `Enabled` is true, calls `fanOut` — which
+routes the cold kind to the streamed fan-out (`queue.go:111`). `cmd/web/scantrigger.go` refuses a
 trigger only **while the scan is disabled**, which is the state the opt-in has just ended, and its
 copy says so: *"the disabled cold tier cannot be triggered at all"*. So an operator may opt a scope
 in and then press *Run now*. The monthly tick is **not** the sole firing, and §5 states the honest
@@ -129,7 +129,7 @@ a run sooner than the tier's cadence. This ADR says no.
 
 ### 5. The bound: a manual dispatch is a second act
 
-An enabled cold `Scan` can be dispatched on demand (`internal/queue/queue.go:98`,
+An enabled cold `Scan` can be dispatched on demand (`internal/queue/queue.go`,
 `cmd/web/scantrigger.go`). This ADR does not change that and does not refuse it.
 
 What it refuses is the causal claim. The opt-in did not fire the sweep. The operator did, in a second
@@ -179,5 +179,5 @@ ADR does not carry it forward.
 | **Close the gap as `wontfix`, naming ADR-0044 and `v1-spec.md` §3.4** | Neither rules the act. ADR-0044 refuses firing at `Seed` **declaration**, which is a different act on a different object, and §3.4 rules the **unasked** case. The opt-in is the ask, and the handler cites both sources today while the act itself is unruled |
 | **Amend ADR-0044 rather than write this** | Under ADR-0058 an amendment marks a superseded mechanism. Nothing in ADR-0044 is superseded: its rejected alternative stands verbatim and this ADR agrees with it. A rule ADR-0044 never stated is a new decision, not a correction to an old one |
 | **Run a one-off sweep of the newly enrolled scope alone, then fall onto the cadence** | ADR-0044's whole finding, restated at a smaller scope: no cadence, no currency bound, and spans the currency machinery cannot age. It also breaks the aperture statement's constancy that #44 decision 10 rests on |
-| **Keep the deleted comment's wording — "the monthly cadence tick is the sole firing"** | False. `Dispatcher.Trigger` (`internal/queue/queue.go:98`) fires the cold fan-out for an enabled `Scan`, and the opt-in is precisely what enables it. A rule stated on a false premise fails the first time a reader checks it |
+| **Keep the deleted comment's wording — "the monthly cadence tick is the sole firing"** | False. `Dispatcher.Trigger` (`internal/queue/queue.go`) fires the cold fan-out for an enabled `Scan`, and the opt-in is precisely what enables it. A rule stated on a false premise fails the first time a reader checks it |
 | **Refuse a manual dispatch of the cold tier as well** | It would overturn ADR-0005's manual run for one tier, and it would remove the one path on which the operator really is present and watching — which is the condition §6.4 asks for, rather than the one it forbids |

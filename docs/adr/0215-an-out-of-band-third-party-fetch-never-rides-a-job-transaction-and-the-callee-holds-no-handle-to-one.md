@@ -24,7 +24,7 @@ relations:
 
 ## Context
 
-[`internal/queue/ctverify.go:103`](../../internal/queue/ctverify.go) carried this text, until #1322
+[`internal/queue/ctverify.go#Worker.verifyMaterial`](../../internal/queue/ctverify.go) carried this text, until #1322
 deleted it:
 
 ```go
@@ -32,7 +32,7 @@ deleted it:
 ```
 
 The sweep left a compressed line at `ctverify.go:68` and one at
-[`internal/queue/worker.go:459`](../../internal/queue/worker.go). The second cites
+[`internal/queue/worker.go#Worker.complete`](../../internal/queue/worker.go). The second cites
 `ct-source-replacement.md` §5.4, which rules the verification trigger and states nothing about a
 transaction. No ADR and no SPEC states the ordering. That is #1323's gap 4.
 
@@ -149,7 +149,7 @@ Two, and both are named rather than mitigated.
   reviewer checks. A caller that moved `w.autoVerifyCerts(ctx, job, obs)` above the closing brace
   would compile, pass every test, and hold a transaction open for tens of minutes only under a slow
   third party.
-- **`internal/queue/worker.go:459` carries a wrong citation.** It cites
+- **`internal/queue/worker.go#Worker.complete` carries a wrong citation.** It cites
   `ct-source-replacement.md` §5.4, which rules the verification trigger and the result and states
   nothing about a transaction. The replacement is in this issue's manifest.
 - **[`v1-spec.md`](../spec/v1-spec.md) §2.4 gains nothing.** It requires the outcome, the

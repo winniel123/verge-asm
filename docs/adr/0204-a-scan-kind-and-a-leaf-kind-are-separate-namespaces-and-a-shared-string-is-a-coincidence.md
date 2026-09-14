@@ -17,7 +17,7 @@ relations:
 
 ## Context
 
-[`internal/scan/httpidentity.go:17`](../../internal/scan/httpidentity.go) carried this text until
+[`internal/scan/httpidentity.go`](../../internal/scan/httpidentity.go) carried this text until
 #1318 deleted it:
 
 ```go
@@ -81,7 +81,7 @@ oversight. The deleted comment was the only place that answered.
 ### The cost of the confusion is silent, twice
 
 **Compare a job kind to a Scan constant and the branch never fires.**
-[`internal/queue/availability.go:24`](../../internal/queue/availability.go) is the live case:
+[`internal/queue/availability.go#availabilityAfterOutcome`](../../internal/queue/availability.go) is the live case:
 
 ```go
 if !vantageValid || kind != resolutionwalk.Kind {
