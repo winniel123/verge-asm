@@ -10,6 +10,7 @@ import { derive, splitToken } from "./sweep/derive.mjs";
 import { rewriteDocument, replacementFor, trailingGlue, namesAnotherSite } from "./sweep/rewrite.mjs";
 import { auditAnchors, countByFamily } from "./sweep/audit.mjs";
 import { familyOf } from "./citations/scope.mjs";
+import { trackedExtensions } from "./citations/classify.mjs";
 import {
   selectEntries,
   selectFiles,
@@ -45,7 +46,7 @@ function envFor(paths) {
     const parts = f.split("/");
     for (let i = 1; i < parts.length; i++) dirs.add(parts.slice(0, i).join("/"));
   }
-  const extensions = new Set([...files].map((f) => f.slice(f.lastIndexOf("."))));
+  const extensions = trackedExtensions({ files });
   return {
     repoRoot: REPO_ROOT,
     tracked: { files, dirs },
@@ -619,6 +620,40 @@ test("a sibling line-anchor token names a target, not a declaration", () => {
   const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
   assert.equal(r.outcome, "anchor");
   assert.equal(r.anchor, "Alpha");
+});
+
+// `pkg/dir.Name` parses as a path, and rule 1 must still reach it (SPEC §5.2, #2013).
+test("a package-qualified name spelled before the citation degrades the token", () => {
+  const token = goToken("return 1");
+  const citing = `\`${FIXTURE}/go.Delta.Epsilon\` (\`${token}\`) caps it`;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "degraded");
+  assert.match(r.reason, /names `Delta\.Epsilon` before the citation/);
+});
+
+test("a package-qualified name spelled after the citation enters the review queue", () => {
+  const token = goToken("return 1");
+  const citing = `\`${token}\` holds \`${FIXTURE}/go.Delta.Epsilon\``;
+  const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, citing);
+  assert.equal(r.outcome, "anchor");
+  assert.deepEqual(r.review, { rival: "Delta.Epsilon", position: "after" });
+});
+
+// An unused extension is not enough on its own: a real path keeps its spans out (#2013).
+test("a sibling path corroborates nothing with an anchor, a line, or neither", () => {
+  const token = goToken("return 1");
+  for (const sibling of [
+    `${FIXTURE}/go/decls.go#Delta.Epsilon`,
+    `${FIXTURE}/go/decls.go:${goLine("func (d *Delta) Epsilon() {}")}`,
+    `${FIXTURE}/Delta/Epsilon`,
+    `${FIXTURE}/go/decls.key#Delta.Epsilon`,
+    `web-state/Delta.Epsilon`,
+  ]) {
+    const [r] = runCiting({ "go/decls.go": GO_SOURCE }, token, `\`${sibling}\` and \`${token}\``);
+    assert.equal(r.outcome, "anchor", sibling);
+    assert.equal(r.anchor, "Alpha", sibling);
+    assert.equal(r.review, undefined, sibling);
+  }
 });
 
 test("a bare-prose copy of the token does not reorder the rival", () => {
