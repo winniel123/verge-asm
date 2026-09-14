@@ -5,8 +5,10 @@ export function headingInventory(markdown) {
   const slugger = new GithubSlugger();
   const ids = new Set();
   const deduplicated = new Set();
+  const headings = [];
+  const lines = markdown.split(/\r?\n/);
   let inFence = false;
-  for (const line of markdown.split(/\r?\n/)) {
+  for (const [i, line] of lines.entries()) {
     if (/^\s*(```|~~~)/.test(line)) {
       inFence = !inFence;
       continue;
@@ -25,8 +27,21 @@ export function headingInventory(markdown) {
     // The suffix is positional, so a heading inserted above silently re-points it (SPEC §4 rule 4).
     if (id !== slug(label)) deduplicated.add(id);
     ids.add(id);
+    headings.push({ id, level: m[1].length, line: i + 1 });
   }
-  return { ids, deduplicated };
+  return { ids, deduplicated, sections: sectionsOf(headings, lines.length) };
+}
+
+// A heading declares its section, and a snippet must sit inside it (SPEC §3.4, #1973).
+function sectionsOf(headings, lineCount) {
+  const sections = new Map();
+  for (const [i, heading] of headings.entries()) {
+    const next = headings.slice(i + 1).find((h) => h.level <= heading.level);
+    const end = next ? next.line - 1 : lineCount;
+    if (!sections.has(heading.id)) sections.set(heading.id, []);
+    sections.get(heading.id).push([heading.line, end]);
+  }
+  return sections;
 }
 
 export function collectAnchors(markdown) {

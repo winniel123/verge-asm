@@ -15,8 +15,9 @@ import (
 )
 
 type entry struct {
-	Names []string `json:"names"`
-	Error string   `json:"error,omitempty"`
+	Names []string            `json:"names"`
+	Spans map[string][][2]int `json:"spans,omitempty"`
+	Error string              `json:"error,omitempty"`
 }
 
 func main() {
@@ -50,12 +51,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	out := make(map[string]entry, len(paths))
 	for _, p := range paths {
-		names, err := inventory(root, p)
+		names, spans, err := inventory(root, p)
 		if err != nil {
 			out[p] = entry{Error: err.Error()}
 			continue
 		}
-		out[p] = entry{Names: names}
+		out[p] = entry{Names: names, Spans: spans}
 	}
 	body, err := json.Marshal(out)
 	if err != nil {
@@ -85,42 +86,64 @@ func readLines(r io.Reader) ([]string, error) {
 	return lines, s.Err()
 }
 
-func inventory(root *os.Root, path string) ([]string, error) {
+func inventory(root *os.Root, path string) ([]string, map[string][][2]int, error) {
 	src, err := root.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, path, src, parser.SkipObjectResolution)
+	mode := parser.SkipObjectResolution | parser.ParseComments
+	file, err := parser.ParseFile(fset, path, src, mode)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	names := []string{}
-	add := func(n string) {
+	spans := map[string][][2]int{}
+	add := func(n string, node ast.Node, doc *ast.CommentGroup) {
 		// A blank identifier declares no name a citation can ever reach.
-		if n != "" && n != "_" {
-			names = append(names, n)
+		if n == "" || n == "_" {
+			return
 		}
+		names = append(names, n)
+		// The region is what a disambiguating snippet must sit inside (SPEC §3.4).
+		start := fset.Position(node.Pos()).Line
+		// A doc comment reads as part of the declaration, and a false red is the fatal direction.
+		if doc != nil {
+			start = fset.Position(doc.Pos()).Line
+		}
+		end := fset.Position(node.End()).Line
+		spans[n] = append(spans[n], [2]int{start, end})
 	}
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
-			add(funcName(d))
+			add(funcName(d), d, d.Doc)
 		case *ast.GenDecl:
 			// A parenthesised group indents its specs, so the walk reads the spec, not the line.
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {
 				case *ast.TypeSpec:
-					add(s.Name.Name)
+					add(s.Name.Name, s, specDoc(d, s.Doc))
 				case *ast.ValueSpec:
 					for _, id := range s.Names {
-						add(id.Name)
+						add(id.Name, s, specDoc(d, s.Doc))
 					}
 				}
 			}
 		}
 	}
-	return names, nil
+	return names, spans, nil
+}
+
+func specDoc(d *ast.GenDecl, own *ast.CommentGroup) *ast.CommentGroup {
+	if own != nil {
+		return own
+	}
+	// An unparenthesised declaration carries its doc on the GenDecl, never on the spec.
+	if d.Lparen == token.NoPos {
+		return d.Doc
+	}
+	return nil
 }
 
 func funcName(d *ast.FuncDecl) string {

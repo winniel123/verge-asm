@@ -14,6 +14,8 @@ import { rowFor } from "./citations/rows.mjs";
 import { SQLC_ROW } from "./citations/rows/sqlc.mjs";
 import { TEMPLATE_ROW } from "./citations/rows/template.mjs";
 import { MARKDOWN_ROW } from "./citations/rows/markdown.mjs";
+import { CONTAINMENT_ROW } from "./citations/rows/containment.mjs";
+import { markerInventory } from "./citations/rows/marker.mjs";
 import { readdirSync, readFileSync } from "node:fs";
 import { environment } from "./check-citations.mjs";
 
@@ -162,12 +164,12 @@ test("an anchor on a withdrawn path is passed over, and --verbose names the buck
   }
 });
 
-test("a target kind with no row is passed over, and neither passes nor fails", () => {
-  // The table is open, and a missing row never blocks a citation (SPEC §3.2 rule 1).
-  assert.equal(rowFor("db/migrations/00100_init.sql"), null);
-  const { noRow, broken } = anchorsOf("The scripts are `docs-site/package.json#scripts`.");
-  assert.deepEqual(broken, []);
-  assert.deepEqual(noRow.map(key), ["docs-site/package.json#scripts"]);
+test("a target kind with no declaring row falls to containment", () => {
+  // A target that declares no name MAY carry a containment anchor (SPEC §3.2 rule 2).
+  assert.equal(rowFor("db/migrations/00100_init.sql").name, "containment");
+  assert.deepEqual(verifiedAnchors("The scripts are `docs-site/package.json#scripts`."), [
+    "docs-site/package.json#scripts",
+  ]);
 });
 
 test("a row whose inventory reports an unparseable target is fatal, never a violation", () => {
@@ -272,10 +274,10 @@ test("a template anchor naming a {{define}} passes, and an absent one is broken"
 
 test("a goose migration is not judged by the sqlc row, because the key is a path predicate", () => {
   // A migration declares no names, and containment covers it instead (SPEC §3.2 rule 2).
-  assert.equal(rowFor(MIGRATION), null);
-  const { broken, noRow } = anchorsOf(`The table is \`${MIGRATION}#heartbeat\`.`);
-  assert.deepEqual(broken, []);
-  assert.deepEqual(noRow.map(key), [`${MIGRATION}#heartbeat`]);
+  assert.equal(rowFor(MIGRATION).name, "containment");
+  assert.deepEqual(verifiedAnchors(`The table is \`${MIGRATION}#heartbeat\`.`), [
+    `${MIGRATION}#heartbeat`,
+  ]);
 });
 
 test("every tracked .sql outside db/queries/ falls outside the sqlc row", () => {
@@ -500,6 +502,224 @@ test("the CLI exits 1 on a broken Markdown anchor, and 0 on one that resolves", 
     writeFileSync(fixture, `The form is \`${MD_TARGET}#no-such-heading\`.\n`);
     assert.equal(cliStatus([fixture]), 1);
     writeFileSync(fixture, `The form is \`${MD_TARGET}#3-the-form\`.\n`);
+    assert.equal(cliStatus([fixture]), 0);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+// Containment and the disambiguating snippet (SPEC §3.2 rules 2 and 3, §3.4, #1973).
+
+test("a containment anchor passes when the target holds the token, and fails when it does not", () => {
+  assert.deepEqual(verifiedAnchors(`The table is \`${MIGRATION}#heartbeat\`.`), [
+    `${MIGRATION}#heartbeat`,
+  ]);
+  const token = `${MIGRATION}#no_such_token`;
+  const { broken } = anchorsOf(`The table is \`${token}\`.`);
+  assert.deepEqual(broken.map(key), [token]);
+  assert.match(formatBroken(broken[0]), /declares no token named no_such_token/);
+});
+
+test("a containment anchor that occurs more than once passes", () => {
+  // Containment proves existence, and it need not be unique (SPEC §3.2 rule 3).
+  const rel = `db/migrations/99999_repeat-${process.pid}.sql`;
+  const fixture = join(REPO_ROOT, rel);
+  try {
+    writeFileSync(fixture, "-- +goose Up\nCREATE TABLE widget (id int);\nDROP TABLE widget;\n");
+    const entry = CONTAINMENT_ROW.inventory(REPO_ROOT, [rel]).get(rel);
+    assert.equal(entry.holds("widget"), true);
+    assert.equal(entry.holds("gadget"), false);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+test("a containment anchor matches a token, never a substring of a longer one", () => {
+  // A rename to `heartbeat_v2` is the drift this row exists to catch (SPEC §3.2 rule 3).
+  const rel = `db/migrations/99998_rename-${process.pid}.sql`;
+  const fixture = join(REPO_ROOT, rel);
+  try {
+    writeFileSync(fixture, "-- +goose Up\nALTER TABLE heartbeat_v2 ADD COLUMN identity int;\n");
+    const entry = CONTAINMENT_ROW.inventory(REPO_ROOT, [rel]).get(rel);
+    assert.equal(entry.holds("heartbeat_v2"), true);
+    assert.equal(entry.holds("heartbeat"), false);
+    assert.equal(entry.holds("id"), false);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+test("containment never rescues a target that has a declaring row", () => {
+  // `spans` is a local golang.go holds on many lines, and it declares nothing (SPEC §3.2 rule 4).
+  assert.deepEqual(brokenAnchors(`The lexer is \`${GO_TARGET}#spans\`.`), [`${GO_TARGET}#spans`]);
+  for (const target of [GO_TARGET, SQL_TARGET, TMPL_TARGET, MD_TARGET]) {
+    assert.notEqual(rowFor(target).name, "containment", target);
+  }
+});
+
+test("a citation on a no-vocabulary target carrying no anchor passes", () => {
+  // The checker asserts correctness, never presence (SPEC §7.2).
+  const { anchored, broken } = anchorsOf(`The migration is \`${MIGRATION}\`.`);
+  assert.deepEqual(anchored, []);
+  assert.deepEqual(broken, []);
+});
+
+test("an anchor span followed by a code span matches one line inside the declaration", () => {
+  const token = `${GO_TARGET}#goDocSpans`;
+  assert.deepEqual(verifiedAnchors(`The parse is \`${token}\` \`fset := token.NewFileSet()\`.`), [
+    token,
+  ]);
+});
+
+test("a snippet that matches no line inside the declaration is broken", () => {
+  const token = `${GO_TARGET}#goDocSpans`;
+  const { broken } = anchorsOf(`The parse is \`${token}\` \`no such line anywhere\`.`);
+  assert.deepEqual(broken.map(key), [token]);
+  assert.match(formatBroken(broken[0]), /no such snippet: no line inside goDocSpans/);
+});
+
+test("a snippet that sits in the file but outside the declaration is broken", () => {
+  // The snippet sits inside the declaration the anchor names, not merely in the file.
+  const token = `${GO_TARGET}#goDocSpans`;
+  assert.deepEqual(brokenAnchors(`The parse is \`${token}\` \`packageDoc bool\`.`), [token]);
+});
+
+test("a snippet that differs only by whitespace passes", () => {
+  const token = `${GO_TARGET}#goDocSpans`;
+  assert.deepEqual(verifiedAnchors(`The parse is \`${token}\` \`fset  :=   token.NewFileSet()\`.`), [
+    token,
+  ]);
+});
+
+test("a bare path followed by a code span is not read as a snippet", () => {
+  // The pairing keys on the `#`, and a bare path beside a code span is unrelated (SPEC §3.4).
+  const { anchored, broken } = anchorsOf(`The lexer is \`${GO_TARGET}\` \`no such line\`.`);
+  assert.deepEqual(anchored, []);
+  assert.deepEqual(broken, []);
+});
+
+test("only whitespace may separate the anchor span from its snippet", () => {
+  // Two anchored citations in one sentence must not read each other as snippets.
+  const markdown = `It is \`${GO_TARGET}#Go.Lex\` and \`${GO_TARGET}#goDocSpans\`.`;
+  assert.deepEqual(verifiedAnchors(markdown).sort(), [
+    `${GO_TARGET}#Go.Lex`,
+    `${GO_TARGET}#goDocSpans`,
+  ]);
+});
+
+test("a second citation is never read as the first one's snippet", () => {
+  // A path span disambiguates nothing, and reading one as a snippet is a false red.
+  for (const second of [`${GO_TARGET}#Go.Lex`, SQL_TARGET, `${MIGRATION}`]) {
+    const markdown = `Two legs: \`${GO_TARGET}#goDocSpans\` \`${second}\`.`;
+    assert.deepEqual(anchorsOf(markdown).broken, [], second);
+    assert.ok(verifiedAnchors(markdown).includes(`${GO_TARGET}#goDocSpans`), second);
+  }
+});
+
+test("a soft line break between two citations is not a snippet pairing", () => {
+  // remark makes the break a whitespace text node, so adjacency alone cannot settle it.
+  const markdown = `Two legs: \`${GO_TARGET}#goDocSpans\`\n\`${GO_TARGET}#Go.Lex\`.`;
+  assert.deepEqual(anchorsOf(markdown).broken, []);
+});
+
+test("a Go span covers the declaration's doc comment", () => {
+  // A doc comment reads as part of the declaration, and a false red is the fatal direction.
+  const rel = `docs-site/scripts/citations/doccomment-${process.pid}.go.txt`;
+  const fixture = join(REPO_ROOT, rel);
+  const source = [
+    "package x",
+    "",
+    "// Wide exists because ADR-0001 says so.",
+    "func Wide() {}",
+    "",
+    "// Narrow exists too.",
+    "var Narrow = 1",
+    "",
+    "const (",
+    "\t// Grouped carries its own doc.",
+    "\tGrouped = 2",
+    ")",
+    "",
+  ].join("\n");
+  try {
+    writeFileSync(fixture, source);
+    const spans = goInventory(REPO_ROOT, [rel]).get(rel).spans;
+    assert.deepEqual(spans.get("Wide"), [[3, 4]]);
+    assert.deepEqual(spans.get("Narrow"), [[6, 7]]);
+    assert.deepEqual(spans.get("Grouped"), [[10, 11]]);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+test("a marker row reads every marker even when the caller passes a global pattern", () => {
+  // A sticky or global pattern carries lastIndex between lines, and drops every other marker.
+  const rel = `db/queries/global-${process.pid}.sql`;
+  const fixture = join(REPO_ROOT, rel);
+  try {
+    writeFileSync(fixture, "-- name: One :one\nSELECT 1;\n-- name: Two :one\nSELECT 2;\n");
+    const row = {
+      ...SQLC_ROW,
+      inventory: (root, paths) => markerInventory(root, paths, /^[ \t]*-- name: (\S+)/gm),
+    };
+    assert.deepEqual([...row.inventory(REPO_ROOT, [rel]).get(rel).names], ["One", "Two"]);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+test("the snippet rule is kind-blind, so it reaches a Markdown anchor too", () => {
+  const token = `${MD_TARGET}#34-disambiguation`;
+  assert.deepEqual(verifiedAnchors(`The rule is \`${token}\` \`The rule is kind-blind\`.`), [token]);
+  assert.deepEqual(brokenAnchors(`The rule is \`${token}\` \`no such line at all\`.`), [token]);
+});
+
+test("a snippet on a containment anchor matches any line in the file", () => {
+  // A containment anchor proves existence only, so its region is the whole file (§3.2 rule 3).
+  const token = `${MIGRATION}#heartbeat`;
+  assert.deepEqual(verifiedAnchors(`The table is \`${token}\` \`+goose Up\`.`), [token]);
+  assert.deepEqual(brokenAnchors(`The table is \`${token}\` \`no such line at all\`.`), [token]);
+});
+
+test("a link fragment carries the snippet rule too", () => {
+  // The rule binds both spellings, for every row (SPEC §3.5).
+  const token = `../../${GO_TARGET}#goDocSpans`;
+  assert.deepEqual(verifiedAnchors(`See [it](${token}) \`fset := token.NewFileSet()\`.`), [token]);
+  assert.deepEqual(brokenAnchors(`See [it](${token}) \`no such line at all\`.`), [token]);
+});
+
+test("a row that reports no region for a verified anchor is fatal, never a violation", () => {
+  // A snippet this gate should have judged and could not takes exit 2 (SPEC §7.7).
+  const { fatal, broken, verified } = stubbed(`It is \`${GO_TARGET}#Go.Lex\` \`some line\`.`, {
+    name: "stub",
+    vocabulary: "name",
+    matches: (path) => path.endsWith(".go"),
+    inventory: (_root, paths) => new Map(paths.map((p) => [p, { names: new Set(["Go.Lex"]) }])),
+  });
+  assert.deepEqual(broken, []);
+  assert.deepEqual(verified, []);
+  assert.match(formatFatal(fatal[0]), /the row reports no region for this anchor/);
+});
+
+test("the CLI exits 1 on a broken containment anchor, and 0 on one that resolves", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `contain-${process.pid}.md`);
+  try {
+    writeFileSync(fixture, `The table is \`${MIGRATION}#no_such_token\`.\n`);
+    assert.equal(cliStatus([fixture]), 1);
+    writeFileSync(fixture, `The table is \`${MIGRATION}#heartbeat\`.\n`);
+    assert.equal(cliStatus([fixture]), 0);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
+});
+
+test("the CLI exits 1 on a broken snippet, and 0 on one that resolves", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `snippet-${process.pid}.md`);
+  const token = `${GO_TARGET}#goDocSpans`;
+  try {
+    writeFileSync(fixture, `The parse is \`${token}\` \`no such line at all\`.\n`);
+    assert.equal(cliStatus([fixture]), 1);
+    writeFileSync(fixture, `The parse is \`${token}\` \`fset := token.NewFileSet()\`.\n`);
     assert.equal(cliStatus([fixture]), 0);
   } finally {
     rmSync(fixture, { force: true });

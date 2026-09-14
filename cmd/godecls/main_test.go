@@ -202,6 +202,67 @@ func TestStdinCarriesOnePathPerLine(t *testing.T) {
 	}
 }
 
+func sampleSpans(t *testing.T) (map[string][][2]int, []string) {
+	t.Helper()
+	dir := t.TempDir()
+	name := write(t, dir, "hot.go", sample)
+	got, _, code := invoke(t, dir, "", name)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	return got[name].Spans, strings.Split(sample, "\n")
+}
+
+func TestSpansCoverTheDeclarationTheNameDeclares(t *testing.T) {
+	// The region is what a disambiguating snippet must sit inside (SPEC §3.4).
+	spans, lines := sampleSpans(t)
+	for _, c := range []struct {
+		name  string
+		first string
+	}{
+		{"hotCore", "func hotCore() int"},
+		{"Queue.Run", "func (q *Queue) Run() error"},
+		{"Queue", "type Queue struct"},
+		{"grouped", "grouped  = 1"},
+		{"alsoHere", "alsoHere = 2"},
+		{"Pair", "Pair struct{ A, B int }"},
+	} {
+		got := spans[c.name]
+		if len(got) != 1 {
+			t.Errorf("%q: want one span, got %#v", c.name, got)
+			continue
+		}
+		start, end := got[0][0], got[0][1]
+		if start < 1 || end > len(lines) || start > end {
+			t.Errorf("%q: span %v leaves the file, which runs to line %d", c.name, got[0], len(lines))
+			continue
+		}
+		if !strings.Contains(lines[start-1], c.first) {
+			t.Errorf("%q: line %d is %q, want it to hold %q", c.name, start, lines[start-1], c.first)
+		}
+	}
+}
+
+func TestAGroupedSpecSpansItsOwnSpecAndNotTheGroup(t *testing.T) {
+	// A snippet inside `grouped` must not match a line that belongs to `alsoHere`.
+	spans, _ := sampleSpans(t)
+	if spans["grouped"][0] == spans["alsoHere"][0] {
+		t.Fatalf("a parenthesised group shares one span: %v", spans["grouped"][0])
+	}
+}
+
+func TestAMultiLineDeclarationSpansEveryLineOfItsBody(t *testing.T) {
+	dir := t.TempDir()
+	name := write(t, dir, "many.go", "package x\n\nfunc Wide() {\n\tprintln(1)\n\tprintln(2)\n}\n")
+	got, _, code := invoke(t, dir, "", name)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if want := ([2]int{3, 6}); got[name].Spans["Wide"][0] != want {
+		t.Fatalf("want %v, got %v", want, got[name].Spans["Wide"][0])
+	}
+}
+
 func TestAnAbsentRootExitsTwo(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	args := []string{"--root", filepath.Join(t.TempDir(), "gone"), "a.go"}
