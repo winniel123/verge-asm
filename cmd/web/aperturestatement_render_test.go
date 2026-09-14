@@ -173,6 +173,38 @@ func TestCoverageRendersTheCustodyGateRow(t *testing.T) {
 	}
 }
 
+// The qtype row sits in slot 4, between the gate and the class (SPEC §2.5).
+
+func TestCoverageRendersTheQueriedQtypeSetRow(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.dnsCadence = 7 * 86400
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declare(t, ac, base, "name", "example.com").Body.Close()
+	page := coverageBody(t, ac, base)
+
+	gate := strings.Index(page, "The custody gate")
+	qtypes := strings.Index(page, "The queried qtype set")
+	class := strings.Index(page, "Vantage class")
+	if gate < 0 || qtypes < 0 || class < 0 || gate > qtypes || qtypes > class {
+		t.Errorf("the qtype row must sit in slot 4; gate at %d, qtypes at %d, class at %d", gate, qtypes, class)
+	}
+	for _, want := range []string{
+		// A `fixed` chip drops the status dot, because this input has no on and no off.
+		`<span class="cv-chip">A · AAAA · CNAME · NS · SOA · MX · TXT</span>`,
+		// The dial moved, so a typed `daily` would render a cadence the operator withdrew.
+		"every 7 days",
+		"the DNS scan interval on the Scope screen moves it.",
+		"An offer the operator can narrow is a finding the operator can silence",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the qtype row is missing %q; body: %s", want, page)
+		}
+	}
+}
+
 // One computation feeds two renderers, so a cell a later row fills must reach both (SPEC §5).
 
 func TestAPIApertureRowCarriesEveryCellOfTheComputation(t *testing.T) {
@@ -214,7 +246,7 @@ func TestAPIv1CoverageCarriesTheStatementBesideTheMeters(t *testing.T) {
 		t.Error("the statement must ride beside meters, never replace it")
 	}
 	// The fake declares no vantage, so the class row reads its own no-leg case.
-	wantRows := apertureStatement(nil, true, nil, nil, true)
+	wantRows := apertureStatement(nil, true, nil, testDNSCadenceSeconds, true, nil, true)
 	if len(got.Statement) != len(wantRows) {
 		t.Fatalf("statement rows = %d, want %d (body %q)", len(got.Statement), len(wantRows), rec.Body.String())
 	}

@@ -14,6 +14,7 @@ import (
 )
 
 type apiV1Store interface {
+	GetDnsCadenceSeconds(ctx context.Context) (int64, error)
 	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
 	ListCurrentEndpointSubjects(ctx context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error)
 	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
@@ -313,7 +314,8 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 
 	classes, classesRead := s.apertureVantageClasses(ctx, s.apiV1Store, "api: coverage")
 	states, statesRead := apertureSourceStates(ctx, s.apiV1Store, "api: coverage")
-	rows := apertureStatement(states, statesRead, seeds, classes, classesRead)
+	dnsCadence, dnsCadenceRead := apertureDNSCadence(ctx, s.apiV1Store, "api: coverage")
+	rows := apertureStatement(states, statesRead, seeds, dnsCadence, dnsCadenceRead, classes, classesRead)
 	out := apiCoverageResponse{
 		Meters:    make([]apiCoverageMeter, 0, len(meters)),
 		Statement: make([]apiApertureRow, 0, len(rows)),
