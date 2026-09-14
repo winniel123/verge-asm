@@ -18,7 +18,7 @@ relations:
 
 ## Context
 
-`internal/scan/crtsh.go:31` carried this, until #1307 rewrote it:
+`internal/scan/crtsh.go` carried this, until #1307 rewrote it:
 
 ```go
 // CrtshSource is the source every CT admission is attributed to: crt.sh, the
@@ -27,13 +27,13 @@ relations:
 // the enablement state keys line up.
 ```
 
-The sweep kept the last clause as a one-line reason at `internal/scan/crtsh.go:21`:
+The sweep kept the last clause as a one-line reason at `internal/scan/crtsh.go`:
 
 ```go
 // It must equal the source-catalogue slug, or the enablement state keys stop lining up.
 ```
 
-**The tail's half of the same rule is not stated anywhere.** `internal/scan/cttail.go:23` reads
+**The tail's half of the same rule is not stated anywhere.** `internal/scan/cttail.go#CTTailSource` reads
 `const CTTailSource = "ct-tail"` and carries no comment at all. The issue body named `CTTailSource`
 as a pre-sweep symbol. It survives, uncommented.
 
@@ -41,12 +41,12 @@ as a pre-sweep symbol. It survives, uncommented.
 
 | Site | Form | Who reads it |
 | --- | --- | --- |
-| `internal/scan/crtsh.go:23` | `const CrtshSource = "crtsh"` | `internal/queue`, `cmd/web` |
-| `cmd/web/sources.go:43` | `Slug: "crtsh"` — a bare literal in `sourceCatalog` | the toggle handler, the Sources page |
-| `db/migrations/23600_ct_throttle_per_source.sql:17` | `VALUES ('crtsh', …)` | PostgreSQL, once, at install |
+| `internal/scan/crtsh.go#CrtshSource` | `const CrtshSource = "crtsh"` | `internal/queue`, `cmd/web` |
+| `cmd/web/sources.go` | `Slug: "crtsh"` — a bare literal in `sourceCatalog` | the toggle handler, the Sources page |
+| `db/migrations/23600_ct_throttle_per_source.sql` | `VALUES ('crtsh', …)` | PostgreSQL, once, at install |
 
-`ct-tail` repeats the shape at `internal/scan/cttail.go:23` and `cmd/web/sources.go:49`.
-`certspotter` repeats it at `internal/scan/certspotter.go:16` and `cmd/web/sources.go:99`.
+`ct-tail` repeats the shape at `internal/scan/cttail.go#CTTailSource` and `cmd/web/sources.go#catalogSource`.
+`certspotter` repeats it at `internal/scan/certspotter.go#CertSpotterSource` and `cmd/web/sources.go#sourceCatalog`.
 
 **`cmd/web` already imports `internal/scan` and already uses the constants.** `sources.go:209`,
 `:211`, `:219` and `:314` all read `scan.CrtshSource`, `scan.CertSpotterSource` and
@@ -55,11 +55,11 @@ the same file resolves through the constant fifty lines further down.
 
 ### The writer and the reader are on opposite sides of that split
 
-`cmd/web/sources.go:448` `toggleSource` takes `r.FormValue("slug")`, validates it with
+`cmd/web/sources.go` `toggleSource` takes `r.FormValue("slug")`, validates it with
 `catalogBySlug`, and writes `UpsertSourceState{Slug: slug}`. **The row's key is therefore the
-catalogue literal.** `cmd/web/sources.go:476` `settingsSources` does the same on the settings form.
+catalogue literal.** `cmd/web/sources.go` `settingsSources` does the same on the settings form.
 
-`internal/queue/crtsh.go:360` `sourceEnabled` reads it back:
+`internal/queue/crtsh.go` `sourceEnabled` reads it back:
 
 ```go
 for _, s := range states {
@@ -70,8 +70,8 @@ for _, s := range states {
 return shipDefault, nil
 ```
 
-and is called with the **Go constant**, at `internal/queue/crtsh.go:339`
-(`d.selectedCTSource()`) and `internal/queue/cttail.go:285` (`scan.CTTailSource`).
+and is called with the **Go constant**, at `internal/queue/crtsh.go#sleepUntil`
+(`d.selectedCTSource()`) and `internal/queue/cttail.go#knownNameSet` (`scan.CTTailSource`).
 
 ### The failure is not one failure, and *"silently disables"* names only one third of it
 
@@ -79,18 +79,18 @@ Three consumers read the same constant, and drift breaks each of them differentl
 
 | Consumer | What a drifted constant does | Loud or silent |
 | --- | --- | --- |
-| `sourceEnabled` (`internal/queue/crtsh.go:360`) | No row matches, so the function returns `shipDefault` and the operator's override is discarded | **Silent** |
-| `ReserveCTSlot` (`db/queries/crtsh.sql:29`) | `UPDATE ct_throttle … WHERE source = $1` matches no row. The CTE is empty, the `:one` query returns no row, and `internal/queue/crtsh.go:149` wraps it as `ct throttle: no rows in result set` | **Loud** |
-| `InsertAdmittedName`'s `source` column (`internal/queue/crtsh.go:279`, `internal/queue/cttail.go:215`) | Rows land under a source string the catalogue does not know, so the Sources page counts them nowhere | **Silent** |
+| `sourceEnabled` (`internal/queue/crtsh.go`) | No row matches, so the function returns `shipDefault` and the operator's override is discarded | **Silent** |
+| `ReserveCTSlot` (`db/queries/crtsh.sql#ReserveCTSlot`) | `UPDATE ct_throttle … WHERE source = $1` matches no row. The CTE is empty, the `:one` query returns no row, and `internal/queue/crtsh.go#Worker.completeCT` wraps it as `ct throttle: no rows in result set` | **Loud** |
+| `InsertAdmittedName`'s `source` column (`internal/queue/crtsh.go#Worker.admitCT`, `internal/queue/cttail.go#Worker.completeCTTailTiled`) | Rows land under a source string the catalogue does not know, so the Sources page counts them nowhere | **Silent** |
 
 **The silent half does not always disable.** `sourceEnabled` takes a `shipDefault` argument and the
 two CT sources pass opposite values:
 
-- `crtsh` passes `true` (`internal/queue/crtsh.go:339`). An operator who toggles crt.sh **off** gets
+- `crtsh` passes `true` (`internal/queue/crtsh.go#sleepUntil`). An operator who toggles crt.sh **off** gets
   a `source_state` row the dispatcher never finds, so the fallback returns `true` and **the Scan
   keeps querying crt.sh.** The failure is an ignored **off**, not an ignored on. Under ADR-0003 the
   toggle is consent, so this direction spends a consent the operator withdrew.
-- `ct-tail` passes `false` (`internal/queue/cttail.go:285`). An operator who toggles the tail **on**
+- `ct-tail` passes `false` (`internal/queue/cttail.go#knownNameSet`). An operator who toggles the tail **on**
   gets nothing. That direction is the silent disable the deleted comment described.
 
 So the deleted comment was right that the coupling exists and wrong about its cost. The cost is
@@ -99,7 +99,7 @@ whichever way the ship default points, and for `crtsh` that is the worse way.
 ### Nothing checks the equality, and nothing in `internal/scan` can
 
 `internal/scan` cannot import `cmd/web`, which is a `main` package. No test anywhere compares a
-constant against `sourceCatalog`. `cmd/web/sources_test.go:328` ranges over `sourceCatalog` and
+constant against `sourceCatalog`. `cmd/web/sources_test.go#TestSourcesCTCapabilitiesStatesTheExpiredLogList` ranges over `sourceCatalog` and
 asserts that each row's display `Name` renders in the Sources modal, which touches no slug at all.
 The one direction that compiles is `cmd/web` reading `internal/scan`, and that direction is the fix
 rather than the check.
@@ -150,8 +150,8 @@ and what makes the fix available.
 
 ### 4. The migration literal stays a literal, and it is not a live coupling
 
-`db/migrations/23600_ct_throttle_per_source.sql:17` seeds `ct_throttle` with `'crtsh'`, and
-`db/migrations/24100_certspotter_throttle.sql:11` seeds `'certspotter'`. SQL cannot read a Go
+`db/migrations/23600_ct_throttle_per_source.sql` seeds `ct_throttle` with `'crtsh'`, and
+`db/migrations/24100_certspotter_throttle.sql` seeds `'certspotter'`. SQL cannot read a Go
 constant, so those two sites cannot be brought under §1.
 
 They are not a live coupling and they do not need to be. A migration runs **once**, at install, and
@@ -166,9 +166,9 @@ writing is a one-time act under review, and it fails loudly rather than silently
 
 ### 5. A Scan kind and a source slug are two constants, and `ct-tail` being both is a coincidence
 
-`scan.CTTailKind` and `scan.CTTailSource` are both `"ct-tail"` (`internal/scan/cttail.go:21` and
+`scan.CTTailKind` and `scan.CTTailSource` are both `"ct-tail"` (`internal/scan/cttail.go#CTTailKind` and
 `:23`). They are not the same fact. The kind is the `scan.kind` column, constrained by
-`db/migrations/23900_ct_log_cursor.sql:15`. The slug is the `source_state.slug` and
+`db/migrations/23900_ct_log_cursor.sql`. The slug is the `source_state.slug` and
 `admitted_name.source` key.
 
 `ct` and `crtsh` show that the two namespaces are genuinely separate: ADR-0106 named the Scan for the
@@ -187,15 +187,15 @@ today, by coincidence, and stops working the moment one of the two moves.
 
 ## Consequences
 
-- **This ADR changes no Go code.** The catalogue's three bare literals at `cmd/web/sources.go:43`,
+- **This ADR changes no Go code.** The catalogue's three bare literals at `cmd/web/sources.go#catalogSource`,
   `:49` and `:99` are a known violation of §1 and are **not** fixed here. That ships as its own
   ticket: replace the three literals with `scan.CrtshSource`, `scan.CTTailSource` and
   `scan.CertSpotterSource`. It is a three-line change with no behaviour change, because the strings
   are equal today.
-- **`internal/scan/cttail.go:23` gains a comment.** `CTTailSource` carries none, and the rule it is
+- **`internal/scan/cttail.go#CTTailSource` gains a comment.** `CTTailSource` carries none, and the rule it is
   bound by is not recoverable from `const CTTailSource = "ct-tail"`. Recorded in this issue's
   manifest.
-- **`internal/scan/crtsh.go:21` gains this ADR's citation** on the surviving line that states the
+- **`internal/scan/crtsh.go` gains this ADR's citation** on the surviving line that states the
   rule. Recorded in this issue's manifest.
 - **The deleted comment's failure claim is corrected rather than carried forward.** It said a
   drifted constant *"silently disables the source instead of erroring"*. §Context measures three

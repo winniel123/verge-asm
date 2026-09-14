@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-`internal/message/render.go:361` carried this, until #1299 deleted it:
+`internal/message/render.go` carried this, until #1299 deleted it:
 
 ```go
 // normSev folds an unknown severity token to info rather than manufacturing
@@ -40,12 +40,12 @@ folds to info"* went with the block around it. Nothing on disk states the rule.
 
 [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md) built the grade and
 [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md) closed the
-set at five. `design-system/components/display/SeverityBadge.d.ts:3`–`:4` states the closure in the type,
+set at five. `design-system/components/display/SeverityBadge.d.ts`–`:4` states the closure in the type,
 with the comment *"Exactly these five levels — never synonymize"*. A closed set with a re-rating
 history is exactly the shape that produces a stale token:
 
 - A severity is **a property of the rule, identical for every instance it raises**
-  (`internal/signal/severity.go:3`), and **a re-rating is deliberate and stays out of the version
+  (`internal/signal/severity.go`), and **a re-rating is deliberate and stays out of the version
   vector, so censuses stay comparable** (`severity.go:4`). So a re-rating changes a grade under rows
   already written, and nothing versions the change.
 - `signal.SeverityFor` keys on the **rule name**, over three registries (`All`,
@@ -58,9 +58,9 @@ history is exactly the shape that produces a stale token:
 
 | Site | Input it folds | Result | Line |
 | --- | --- | --- | --- |
-| `internal/message.normSev` | a token string, against `artifactSevLevels` | `"info"` | `internal/message/render.go:275` |
-| `internal/signal.SeverityFor` | a rule name, against three rule registries | `SevInfo`, and `false` | `internal/signal/severity.go:30` |
-| `SeverityBadge` | a `level` prop, against `LEVELS` — and an absent prop, by default parameter | `"info"` | `design-system/components/display/SeverityBadge.jsx:5`, `:6` |
+| `internal/message.normSev` | a token string, against `artifactSevLevels` | `"info"` | `internal/message/render.go` |
+| `internal/signal.SeverityFor` | a rule name, against three rule registries | `SevInfo`, and `false` | `internal/signal/severity.go` |
+| `SeverityBadge` | a `level` prop, against `LEVELS` — and an absent prop, by default parameter | `"info"` | `design-system/components/display/SeverityBadge.jsx`, `:6` |
 
 A fourth site folds the **order** rather than the value:
 
@@ -76,7 +76,7 @@ func (s Severity) Rank() int {
 }
 ```
 
-`internal/signal/severity.go:18`. The explicit `return len(SevOrder)` is the whole content of that
+`internal/signal/severity.go#Severity.Rank`. The explicit `return len(SevOrder)` is the whole content of that
 site: the loop's natural fall-through in Go is the zero value, and rank zero is `SevCritical`.
 
 **`normSev` reaches both render forms of the report.** ~~`render.go:286`, `render.go:301` and
@@ -97,14 +97,14 @@ from the HTML, and this one function is what stops the two layouts from disagree
 
 | Site | What it decides |
 | --- | --- |
-| `cmd/web/graph.go:504`, `worstSeverity` | the `data-sev` a graph node draws, and its halo |
-| `cmd/web/subjects.go:1181`, `assetHeaderSeverity` | the grade in the asset-detail header |
-| `cmd/web/seeds.go:527` | the grade rolled up onto a declared-name tree node |
-| `cmd/web/reports.go:869` | the order of the delivered report's signal rows |
+| `cmd/web/graph.go`, `worstSeverity` | the `data-sev` a graph node draws, and its halo |
+| `cmd/web/subjects.go`, `assetHeaderSeverity` | the grade in the asset-detail header |
+| `cmd/web/seeds.go` | the grade rolled up onto a declared-name tree node |
+| `cmd/web/reports.go#server.reportDeliverySignals` | the order of the delivered report's signal rows |
 
 With rank zero on an unknown token, one stale token anywhere in an asset's signal list wins every one
 of those minimums. The asset header, the graph node and the tree node all paint at the top of the ramp,
-and the report's rows sort that signal first. `cmd/web/reports.go:146` reads
+and the report's rows sort that signal first. `cmd/web/reports.go#server.signalRaises` reads
 `sev.Rank() <= signal.SevHigh.Rank()` to set `Elevated`, so the stale row would also count as elevated.
 
 **In the rendered grade.** `artifactSevLevels` (`render.go:273`) and `SevOrder` (`severity.go:16`) both
@@ -115,7 +115,7 @@ that fold paints the loudest element in the system for a token nobody recognises
 
 > **WITHDRAWN in part, by [#1567](https://github.com/winniel123/verge-asm/issues/1567).** PR
 > [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge`. The
-> `sevbadge` define at `design-system/templates/signals.tmpl:1` carries the same special case, and
+> `sevbadge` define at `design-system/templates/signals.tmpl` carries the same special case, and
 > `internal/message/artifactdoc.go` renders the delivered report through it, so the solid fill and the
 > collision both stand. The three later mentions of the symbol in this file sit under **Alternatives
 > rejected**. They record refusals at this ADR's date, and each keeps a live co-referent — the
@@ -126,7 +126,7 @@ direction is not arbitrary and is not a tie-break. It is a refusal.
 
 ### An absent grade is not an unknown grade
 
-`cmd/web.sevLabel` (`cmd/web/signals.go:671`) returns `""` for an empty token and title-cases anything
+`cmd/web.sevLabel` (`cmd/web/signals.go`) returns `""` for an empty token and title-cases anything
 else. It is not a fourth fold, and it must not become one: `assetHeaderSeverity` returns `""` where a
 subject has **no** open signal, and `search.go:199` reads a map that misses. Rendering `Info` there
 would assert a grade nobody computed, which is the fabrication ADR-0116 refuses at the empty state.
@@ -159,7 +159,7 @@ with it.
 
 The fold normalises **how a grade is named and ordered**. It does not change what fired, what is
 stored, or what any rule concluded. `SeverityFor` returns `(SevInfo, false)`, and the second return is
-the whole distinction: the caller can always tell a real `info` from a fold. `cmd/web/seeds.go:522`
+the whole distinction: the caller can always tell a real `info` from a fold. `cmd/web/seeds.go`
 reads it and skips the row rather than rolling a folded grade into a subject's tree.
 
 Nothing damps a rule, nothing is suppressed, and no timeline moves.
@@ -195,13 +195,13 @@ order fold keeps it off the top of every list. A ruling that covered only the va
 - **What a grade may be called once folded.** That is
   [ADR-0183](./0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md).
 - **Whether a rule's grade is right.** A severity is a property of the rule
-  (`internal/signal/severity.go:3`), and re-rating one is a rule change with its own review.
+  (`internal/signal/severity.go`), and re-rating one is a rule change with its own review.
 
 ## Consequences
 
 - **This ADR changes no Go code, no template and no test.** All four fold sites already behave this
   way. The ADR states the rule and names the sites it binds.
-- **`internal/signal/severity_test.go:43` is the one test that asserts the fold**, and it asserts one
+- **`internal/signal/severity_test.go#TestSeverityForResolvesEveryRuleName` is the one test that asserts the fold**, and it asserts one
   half of it: `SeverityFor("no-such-rule")` must return `(info, false)`. No test asserts `normSev`'s
   fold, `SeverityBadge`'s fold, or `Rank()`'s last-place fold. That is a coverage gap this ADR exposes
   rather than creates, and **it ships as its own ticket.**
