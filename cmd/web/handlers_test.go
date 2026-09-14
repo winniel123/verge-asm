@@ -131,6 +131,7 @@ type fakeStore struct {
 
 	driftEventsErr  error
 	reachSpansErr   error
+	openSpansErr    error
 	pendingPropsErr error
 
 	channels       []fakeChannel
@@ -797,6 +798,9 @@ func fakeFacetVector(facet string) drift.Vector {
 }
 
 func (f *fakeStore) ListAllOpenSpans(_ context.Context) ([]db.ListAllOpenSpansRow, error) {
+	if f.openSpansErr != nil {
+		return nil, f.openSpansErr
+	}
 	type tlkey struct{ kind, key, facet, discriminator, source string }
 	order := []tlkey{}
 	byKey := map[tlkey][]drift.Reading{}
