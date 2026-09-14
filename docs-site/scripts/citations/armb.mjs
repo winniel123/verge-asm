@@ -44,7 +44,10 @@ export function armB(repoRoot, results, rows = ROWS) {
         fatal.push({ ...r, row: row.name, detail: entry.error });
         continue;
       }
-      if (entry.names.has(r.anchor)) verified.push(r);
+      // A row may hold a name and still refuse the spelling, and the reason is its own (SPEC §4).
+      const refusal = entry.refused?.get(r.anchor);
+      if (refusal) broken.push({ ...r, row: row.name, vocabulary: row.vocabulary, why: refusal });
+      else if (entry.names.has(r.anchor)) verified.push(r);
       else broken.push({ ...r, row: row.name, vocabulary: row.vocabulary });
     }
   }
@@ -55,7 +58,7 @@ export function armB(repoRoot, results, rows = ROWS) {
 }
 
 export function formatBroken(r) {
-  const why = `no such anchor: ${r.path} declares no ${r.vocabulary} named ${r.anchor}`;
+  const why = r.why ?? `no such anchor: ${r.path} declares no ${r.vocabulary} named ${r.anchor}`;
   return `${r.file}:${r.line}  ->  ${r.value}#${r.anchor}  (${why})`;
 }
 

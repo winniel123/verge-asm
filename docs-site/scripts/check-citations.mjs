@@ -219,7 +219,7 @@ function main() {
   console.log(`  ${n(verified)}  resolve against their row`);
   console.log(`  ${n(unresolved)}  sit on a path this gate does not resolve`);
   console.log(`  ${n(noRow)}  sit on a target kind the table gives no vocabulary`);
-  console.log(`  ${n(broken)}  broken: the target declares no such name`);
+  console.log(`  ${n(broken)}  broken: the target declares no such name, or refuses the spelling`);
   if (fatal.length > 0) console.log(`  ${n(fatal)}  this gate should have judged and could not`);
 
   const passedOverAnchors = unresolved.length + noRow.length;

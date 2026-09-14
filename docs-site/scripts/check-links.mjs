@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import GithubSlugger from "github-slugger";
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { collectAnchors } from "./headings.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -121,30 +121,6 @@ export function loadVersions(root = DEFAULT_ROOT) {
       adrFiles: adrNamesOf(lsTree(root, ref, ADR_DIR)),
     };
   });
-}
-
-// slugging a subset diverges the de-dup counter from the renderer (docs-site/PIPELINE.md)
-function collectAnchors(markdown) {
-  const slugger = new GithubSlugger();
-  const ids = new Set();
-  let inFence = false;
-  for (const line of markdown.split(/\r?\n/)) {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    const m = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(line);
-    if (!m) continue;
-    const label = m[2]
-      .replace(/`([^`]+)`/g, "$1")
-      .replace(/\*\*([^*]+)\*\*/g, "$1")
-      .replace(/\*([^*]+)\*/g, "$1")
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-      .trim();
-    ids.add(slugger.slug(label));
-  }
-  return ids;
 }
 
 function scanLinks(markdown) {
