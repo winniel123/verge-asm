@@ -365,15 +365,18 @@ test("the CLI exits 2 on an argument it cannot read", () => {
 // Arm A: a citation names no line (SPEC docs/spec/citation-anchors.md §5, §7.5, §8.2).
 
 const tokens = (markdown) => scanLineAnchors(markdown).map((a) => a.token);
+// The scan also carries a position and the following code span, which only the sweep reads (#1975).
+const sites = (markdown) =>
+  scanLineAnchors(markdown).map(({ token, kind, line }) => ({ token, kind, line }));
 
 test("a line anchor is found in a code span, in a link target, and as a line fragment", () => {
   assert.deepEqual(tokens("The rule sits at `docs/spec/v1-spec.md:247` today."), [
     "docs/spec/v1-spec.md:247",
   ]);
-  assert.deepEqual(scanLineAnchors("See [the rule](docs/spec/v1-spec.md:247)."), [
+  assert.deepEqual(sites("See [the rule](docs/spec/v1-spec.md:247)."), [
     { token: "docs/spec/v1-spec.md:247", kind: "link", line: 1 },
   ]);
-  assert.deepEqual(scanLineAnchors("A range sits at `internal/queue/hot.go:165-172`."), [
+  assert.deepEqual(sites("A range sits at `internal/queue/hot.go:165-172`."), [
     { token: "internal/queue/hot.go:165-172", kind: "code", line: 1 },
   ]);
   assert.deepEqual(tokens("GitHub writes `internal/queue/hot.go#L247`."), [

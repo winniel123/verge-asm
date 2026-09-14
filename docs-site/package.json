@@ -29,6 +29,8 @@
     "test:adr-markers": "node --test scripts/check-adr-markers.test.mjs",
     "check:adr-review": "node scripts/check-adr-review.mjs",
     "test:adr-review": "node --test scripts/check-adr-review.test.mjs",
+    "sweep:line-anchors": "node scripts/sweep-line-anchors.mjs",
+    "test:sweep": "node --test scripts/sweep-line-anchors.test.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
