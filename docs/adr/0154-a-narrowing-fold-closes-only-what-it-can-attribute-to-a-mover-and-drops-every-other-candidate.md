@@ -49,7 +49,7 @@ mechanical defeat of the suppressing rule, and names #1326 as the record. ADR-01
 the exclusion act without stating the rule either, and ADR-0135 inherits it through ADR-0134.
 
 **The discipline is wider than the three folds.** `decideNameDeparture`
-(`internal/queue/membership.go#closeUncitedAddresses`) closes a Name `descoped` only where an exclusion covers it, and
+(`internal/queue/membership.go`) closes a Name `descoped` only where an exclusion covers it, and
 `coveringExclusionKey` carries a comment saying it must mirror that same test so the cited boundary
 is the one that removed the Name.
 

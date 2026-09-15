@@ -34,7 +34,7 @@ substance holds and the pointer has since moved: line 74 is now the ADR-0109 bul
 [#1410](https://github.com/winniel123/verge-asm/issues/1410) struck through, and the rule reads at
 lines 40 and 103 — *"design-system empty-states where a new screen has no backing data yet, never
 fabricated data"*, in the Decision blockquote and again in Consequences. Two repairs already cite it
-in the tree, `cmd/web/reports.go#reportsStore` and `cmd/web/settings.go#initialsFromUsername`. **The never-fabricate rule has a
+in the tree, `cmd/web/reports.go` and `cmd/web/settings.go`. **The never-fabricate rule has a
 live home, and this ADR is not it.**
 
 What neither ticket separated out is the other half of the same sentence, and that half is genuinely
@@ -47,7 +47,7 @@ document that names `design-system/fixtures/fixtures.json` — names it only for
 **The mechanism as it stands today.** `devMode` is set once, from `VERGE_DEV`, at
 `cmd/web/main.go` and assigned at `:117`. Twenty-two `xxxFixtureData` builders exist —
 twenty-one in `cmd/web/devfixtures.go` (`:404` through `:2340`) and one at
-`cmd/web/settings_fixtures.go#loadSettingsFixture`. **Not seventeen**, which is #1333's count. Every one of them is
+`cmd/web/settings_fixtures.go`. **Not seventeen**, which is #1333's count. Every one of them is
 reached only from inside an `if s.devMode` branch — nineteen call sites, among them `cold.go:131`,
 `exposure.go:33`, `seeds.go:94`, `settings.go:274`, `auth.go:455` and `:1831`, and
 `subjects.go:933`. The dev-only routes are registered inside one `if s.devMode` block at
@@ -81,7 +81,7 @@ It said `seedsPage` *"serves the pinned fixtures.json → scope slice"*. It does
 
 A screen qualifies only where the design's figure has **no first-class datum behind it**. ADR-0120's
 Coverage meter is the worked case: the denominator is a first-class read and the numerator —
-subjects the batch walked within a declared range — is not one yet. `cmd/web/seeds.go#refusalView` states
+subjects the batch walked within a declared range — is not one yet. `cmd/web/seeds.go` states
 the same shape for the custody census: *"No measured resolution numerator exists yet."*
 
 An empty database is not a qualification. A screen whose reads all resolve and return nothing renders
@@ -149,7 +149,7 @@ and no operator-facing document may quote a figure from it as a fact about an es
   refusal and at this ADR for the pinned-fixture half. That edit belongs to the ticket that owns
   `0120`.
 - **One defect is exposed by §2 and is not fixed here.** `devRunningRunJobs`
-  (`cmd/web/devfixtures.go#devRetentionPanel`) transcribes the six job rows of
+  (`cmd/web/devfixtures.go`) transcribes the six job rows of
   `settings.scans.active[0].jobs` in `fixtures.json` (ids 912 to 917) and **no drift test compares
   them.** It is the only unpinned transcription in the tree.
 - **`docs/spec/comment-policy.md` §4.7 needs a second row for the `SPEC-CHANGE` family.** Today it

@@ -28,7 +28,7 @@ column reaches `Parse`.
 
 An operator edit does exist, and it **layers**. `internal/queue/hot.go#hotCore` reads the
 `verge_core_frequency_edit` rows and returns `vergecore.Default().WithFrequencyEdits(fe)`.
-`cmd/web/settings.go#server.renderSettings` builds the settings view the same way, from `vergecore.Default()`. The
+`cmd/web/settings.go` builds the settings view the same way, from `vergecore.Default()`. The
 shipped body is the base at both sites, and the operator's rows are deltas over it.
 
 Four documents still specify the withdrawn shape. `docs/spec/v1-spec.md` §3.5 says `verge-core` *"is
