@@ -15,7 +15,7 @@ import (
 // §10's two per-site tests hold the value. This gate holds the shape, and neither replaces the
 // other.
 //
-// Three coverage gaps, named rather than smoothed (ADR-1945 §3).
+// Four coverage gaps, named rather than smoothed (ADR-1945 §3).
 //
 //  1. The root set is a list, not a derivation. A wholly new comparison escapes this gate,
 //     because nobody adds its function to webComparisonRoots. What the gate does change is the
@@ -27,9 +27,19 @@ import (
 //  3. Dynamic dispatch is invisible. A binding reached through a function value, a struct field
 //     or an interface method is not a call on the static graph. Every site in this package calls
 //     the producer directly today, and the gate reads that tree.
+//  4. Two handlers pair a figure and its change under two bindings, and neither is a root.
+//     dashboardData reads the Exposed-services tile's Value through currentExposedCount and its
+//     Change through exposureCountDeltas. exposurePage reads its stats through foldExposure and
+//     its changes through the same deltas. Rooting either here fails today. ADR-1895 §1 counts
+//     both readers as present-state and rules that neither compares, so moving them is a
+//     decision rather than an edit, and #1940 did not own it.
 //
 // This gate carries no exemption list. internal/queue's twin does, for rulesOpenedByGapClose.
-// Nothing in cmd/web acquires a binding inside a comparison and is right to.
+//
+// The walk below is this file's own rather than contractPkg.calleesOf, which prunes every
+// `if s.devMode` body through inspectLive. That pruning is a fourth exemption the header would
+// then have to carry, and it is live: exposurePage returns inside such a branch. The queue twin
+// prunes nothing, so an own walk is what makes the two gates count the same tree.
 
 // The one producer in this package. The gate keys on the name, so a rename that left this map
 // behind would read every comparison as binding zero times, which the count check below refuses.
@@ -46,15 +56,49 @@ var webComparisonRoots = map[string]string{
 	"s.dashboardDeltas":     "the dashboard fold, which holds the exposure comparison and three more",
 }
 
-func (c *contractPkg) bindingSites(root string, producers map[string]string) []string {
-	var sites []string
-	c.reach(root, map[string]bool{}, func(short string, fn *ast.FuncDecl) {
-		for _, callee := range c.calleesOf(fn) {
-			if _, ok := producers[callee]; ok {
-				sites = append(sites, short+" → "+shortName(callee))
+func (c *contractPkg) bindingCallees(fn *ast.FuncDecl) []string {
+	var out []string
+	ast.Inspect(fn, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch f := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			if id, ok := f.X.(*ast.Ident); ok && id.Name == "s" {
+				out = append(out, "s."+f.Sel.Name)
+			}
+		case *ast.Ident:
+			if _, known := c.funcs[f.Name]; known {
+				out = append(out, f.Name)
 			}
 		}
+		return true
 	})
+	return out
+}
+
+func (c *contractPkg) bindingSites(root string, producers map[string]string) []string {
+	var sites []string
+	seen := map[string]bool{}
+	var walk func(string)
+	walk = func(name string) {
+		if seen[name] {
+			return
+		}
+		seen[name] = true
+		fn, ok := c.decl(name)
+		if !ok {
+			return
+		}
+		for _, callee := range c.bindingCallees(fn) {
+			if _, isProducer := producers[callee]; isProducer {
+				sites = append(sites, shortName(name)+" → "+shortName(callee))
+			}
+			walk(callee)
+		}
+	}
+	walk(root)
 	sort.Strings(sites)
 	return sites
 }

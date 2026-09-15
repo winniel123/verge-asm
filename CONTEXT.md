@@ -1248,8 +1248,8 @@ _Avoid_: health, status, up, reachable
 
 **Address-scope binding**:
 The predicate over presented addresses under which a `Vantage class` is read — derived from the
-address-scope `Seed`s the system holds **at one instant**, less the `exclusion`s standing at that
-same instant ([ADR-0133](./docs/adr/0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md)).
+address-scope `Seed`s the system holds **when the binding is acquired**, less the `exclusion`s
+standing then ([ADR-0133](./docs/adr/0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md)).
 A binding is a **reading of declared configuration, and no row holds one**. So two acquisitions at
 two instants may disagree, wherever an operator edited an address scope between them. That is the
 whole reason **every leg of one comparison classifies under one binding**: a comparison that binds

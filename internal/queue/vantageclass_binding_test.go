@@ -173,20 +173,15 @@ func TestQueueBindingGateNamesAreLive(t *testing.T) {
 		}
 	}
 	for name, why := range queueOutsideTheSeam {
-		fn, ok := c.funcs[name]
-		if !ok {
+		if _, ok := c.funcs[name]; !ok {
 			t.Errorf("queueOutsideTheSeam names %q, which this package no longer declares as a "+
 				"package-level function; delete the entry", name)
 			continue
 		}
-		bound := false
-		for _, callee := range c.calleesOf(fn) {
-			if _, isProducer := queueBindingProducers[callee]; isProducer {
-				bound = true
-			}
-		}
-		if !bound {
-			t.Errorf("queueOutsideTheSeam names %q (%s), which acquires no address-scope binding; "+
+		// A direct-callee scan would fire the day the acquisition moved one hop down, and
+		// obeying it would fail the count test at buildMessages. The two must not disagree.
+		if len(c.bindingSites(name, queueBindingProducers, map[string]string{})) == 0 {
+			t.Errorf("queueOutsideTheSeam names %q (%s), which reaches no address-scope binding; "+
 				"the walk stops there for nothing, so delete the entry", name, why)
 		}
 	}
