@@ -861,6 +861,7 @@ type assetPageData struct {
 	DNSFailed        bool
 	CertFailed       bool
 	ProvenanceFailed bool
+	PortsFailed      bool
 }
 
 type assetPort struct {
@@ -944,13 +945,9 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Provenance, data.InScopeSince, data.ProvenanceFailed = prov, inScopeSince, provErr != nil
 	dns, dnsErr := s.assetDNS(r, key, res)
 	data.DNS, data.DNSFailed = dns, dnsErr != nil
-	ports, err := s.assetPorts(r, res.Addresses)
-	if err != nil {
-		// An empty list is the honest no-ports answer, so a swallow erases the verdict (#1948).
-		s.serverError(w, "asset ports", err)
-		return
-	}
-	data.Ports = ports
+	// A read whose failure escapes its region shows an absence at both ends, never a 500 (ADR-2030 §2).
+	ports, portsErr := s.assetPorts(r, res.Addresses)
+	data.Ports, data.PortsFailed = ports, portsErr != nil
 	cert, certErr := s.assetCertificate(r, key, res.Addresses)
 	// A note belongs in the region that failed, never a page-wide banner (ADR-0168 §2).
 	data.Cert, data.CertFailed = cert, certErr != nil
