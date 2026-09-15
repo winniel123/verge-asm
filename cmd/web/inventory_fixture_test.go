@@ -99,15 +99,17 @@ func TestInventoryFixtureCountsMatchPackage(t *testing.T) {
 	applyInventoryFixtureCounts(got, "")
 	for i := range got {
 		g := got[i]
-		if _, pinned := devInventoryGroupTotals[g.Kind]; !pinned {
+		wg, ok := byKind[g.Kind]
+		if !ok {
+			t.Errorf("built group %q is absent from fixtures.json", g.Kind)
 			continue
 		}
-		wg := byKind[g.Kind]
 		if g.Total != wg.Total || g.More != wg.More {
 			t.Errorf("group %q windowed counts = Total %d / More %d, want fixtures.json Total %d / More %d",
 				g.Kind, g.Total, g.More, wg.Total, wg.More)
 		}
-		if g.ShowAllHref != wg.ShowAllHref {
+		// A group under the window states no "Show all", so fixtures.json omits the href there.
+		if wg.ShowAllHref != "" && g.ShowAllHref != wg.ShowAllHref {
 			t.Errorf("group %q show_all_href = %q, want %q", g.Kind, g.ShowAllHref, wg.ShowAllHref)
 		}
 	}
