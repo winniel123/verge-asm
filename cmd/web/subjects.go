@@ -1231,8 +1231,10 @@ func reachGapNoteFor(internal, internet legInfo) *reachGapNote {
 		}
 		classes = append(classes, string(leg.class))
 		// A Gap is absence of reach, so the cause is stated in the operator's words (ADR-0104).
-		if leg.info.reason != "" && !slices.Contains(reasons, leg.info.reason) {
-			reasons = append(reasons, leg.info.reason)
+		for _, r := range leg.info.reasons {
+			if !slices.Contains(reasons, r) {
+				reasons = append(reasons, r)
+			}
 		}
 	}
 	if len(classes) == 0 {

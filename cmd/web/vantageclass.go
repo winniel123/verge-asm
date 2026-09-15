@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/exposure"
 	"github.com/winniel123/verge-asm/internal/queue"
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
@@ -117,13 +119,6 @@ func reachRowsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow) []reach
 	return out
 }
 
-func moreRecent(openedAt time.Time, id int64, cur reachLegRow) bool {
-	if openedAt.After(cur.openedAt) {
-		return true
-	}
-	return openedAt.Equal(cur.openedAt) && id > cur.id
-}
-
 func collapseReachLegs(rows []reachLegRow, covered func(netip.Addr) bool) map[string]map[string]legInfo {
 	grouped := map[string]map[string][]reachLegRow{}
 	for _, row := range rows {
@@ -147,26 +142,47 @@ func collapseReachLegs(rows []reachLegRow, covered func(netip.Addr) bool) map[st
 }
 
 func legFromClassGroup(group []reachLegRow) legInfo {
-	cur := group[0]
-	for _, row := range group[1:] {
-		if moreRecent(row.openedAt, row.id, cur) {
-			cur = row
-		}
+	values := make([]reachabilityValue, len(group))
+	outcomes := make([]string, len(group))
+	for i, row := range group {
+		values[i] = decodeReachability(row.value)
+		outcomes[i] = values[i].Outcome
 	}
-	rv := decodeReachability(cur.value)
-	info := legInfo{outcome: rv.Outcome, reason: rv.Reason, since: cur.openedAt, isGap: cur.isGap, present: true}
+	info := legInfo{present: true}
+	// Reach is class-scoped and existential, so one vantage of the class settles it (ADR-0080).
+	if v, ok := exposure.ComposeReach(outcomes); ok {
+		info.outcome = string(v)
+	} else {
+		info.isGap, info.reasons = classGap(group, values)
+	}
 	held := legFrom(info)
-	for _, row := range group {
-		other := decodeReachability(row.value)
+	for i, row := range group {
 		// The leg holds one value, and a span of another value never dates it (#2017).
-		if legFrom(legInfo{outcome: other.Outcome, isGap: row.isGap, present: true}) != held {
+		if legFrom(legInfo{outcome: outcomes[i], isGap: row.isGap, present: true}) != held {
 			continue
 		}
-		if row.openedAt.Before(info.since) {
+		if info.since.IsZero() || row.openedAt.Before(info.since) {
 			info.since = row.openedAt
 		}
 	}
 	return info
+}
+
+// A class that composed no value and holds a Gap span stopped looking (ADR-0017 decision 4).
+
+func classGap(group []reachLegRow, values []reachabilityValue) (bool, []string) {
+	var reasons []string
+	gapped := false
+	for i, row := range group {
+		if !row.isGap {
+			continue
+		}
+		gapped = true
+		if r := values[i].Reason; r != "" && !slices.Contains(reasons, r) {
+			reasons = append(reasons, r)
+		}
+	}
+	return gapped, reasons
 }
 
 func collapseNameResolutions(rows []db.ListNameResolutionsByClassRow, covered func(netip.Addr) bool) map[string]map[string]resolutionValue {
