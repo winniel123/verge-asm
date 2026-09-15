@@ -915,7 +915,6 @@ type assetPort struct {
 	Service  string
 	Internal legChip
 	Internet legChip
-	Since    string
 }
 
 type assetCert struct {
@@ -1169,7 +1168,7 @@ func buildAssetPorts(rows []db.ListAllOpenSpansRow, legs map[string]map[string]l
 		}
 	}
 	var order []string
-	since := map[string]string{}
+	listed := map[string]bool{}
 	for _, row := range rows {
 		if row.SubjectKind != "service" || row.Facet != "reachability" {
 			continue
@@ -1179,24 +1178,25 @@ func buildAssetPorts(rows []db.ListAllOpenSpansRow, legs map[string]map[string]l
 			continue
 		}
 		// A reachability span is per vantage, so one port opens one span per prober (#1962).
-		d := row.OpenedAt.Time.UTC().Format(spanTimeFmt)
-		cur, seen := since[row.SubjectKey]
-		if !seen {
-			order = append(order, row.SubjectKey)
+		if listed[row.SubjectKey] {
+			continue
 		}
-		if !seen || d < cur {
-			since[row.SubjectKey] = d
-		}
+		listed[row.SubjectKey] = true
+		order = append(order, row.SubjectKey)
 	}
 	var ports []assetPort
 	for _, key := range order {
 		addr, port, transport := splitServiceKey(key)
+		internal, internet := legs[key]["internal"], legs[key]["internet"]
+		internalChip := reachLegChip(custody.ClassInternal, legFrom(internal))
+		internalChip.Date = legSince(internal)
+		internetChip := reachLegChip(custody.ClassInternet, legFrom(internet))
+		internetChip.Date = legSince(internet)
 		ports = append(ports, assetPort{
 			Port:     ":" + port,
 			Service:  assetPortService(transport, servers[addr+":"+port]),
-			Internal: reachLegChip(custody.ClassInternal, legFrom(legs[key]["internal"])),
-			Internet: reachLegChip(custody.ClassInternet, legFrom(legs[key]["internet"])),
-			Since:    since[key],
+			Internal: internalChip,
+			Internet: internetChip,
 		})
 	}
 	return ports
@@ -1408,6 +1408,8 @@ func assetHeaderInternetLeg(ports []assetPort) *legChip {
 		return nil
 	}
 	chip := ports[best].Internet
+	// The header names the asset, and one port's leg date belongs beside that leg alone (#2035).
+	chip.Date = ""
 	return &chip
 }
 

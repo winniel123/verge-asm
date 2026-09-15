@@ -1573,27 +1573,28 @@ const devAssetKey = "edge-gw-03.acmecorp.io"
 const devAssetCertFingerprint = "SHA256:2b:9e:44:a1:7c:03:d8:f2:61:5b:c9:10:8e:af:72:d4" // #nosec G101 -- a public TLS certificate fingerprint fixture, not a credential
 
 type devAssetPort struct {
-	port     string
-	service  string
-	internal string
-	internet string
-	since    string
+	port         string
+	service      string
+	internal     string
+	internalDate string
+	internet     string
+	internetDate string
 }
 
 var devAssetPorts = []devAssetPort{
-	{port: ":443", service: "https · nginx/1.25.0", internal: "reached", internet: "reached", since: "2026-06-14"},
-	{port: ":5900", service: "vnc — no transport encryption", internal: "reached", internet: "reached", since: "2026-08-22"},
-	{port: ":22", service: "ssh · OpenSSH 9.6", internal: "reached", internet: "not-reached", since: "2026-06-14"},
+	{port: ":443", service: "https · nginx/1.25.0", internal: "reached", internalDate: "2026-06-14 09:00 UTC", internet: "reached", internetDate: "2026-06-14 09:00 UTC"},
+	{port: ":5900", service: "vnc — no transport encryption", internal: "reached", internalDate: "2026-08-22 14:00 UTC", internet: "reached", internetDate: "2026-09-02 08:30 UTC"},
+	{port: ":22", service: "ssh · OpenSSH 9.6", internal: "reached", internalDate: "2026-06-14 09:00 UTC", internet: "not-reached", internetDate: "2026-07-18 11:20 UTC"},
 }
 
 func devAssetPortRows() []assetPort {
 	rows := make([]assetPort, 0, len(devAssetPorts))
 	for _, p := range devAssetPorts {
 		rows = append(rows, assetPort{
-			Port: p.port, Service: p.service, Since: p.since,
+			Port: p.port, Service: p.service,
 			// The fixture page renders through the live formatter, so it cannot drift off it.
-			Internal: reachLegChip(custody.ClassInternal, legFrom(devLegInfo(p.internal))),
-			Internet: reachLegChip(custody.ClassInternet, legFrom(devLegInfo(p.internet))),
+			Internal: *devLegChip(custody.ClassInternal, p.internal, p.internalDate),
+			Internet: *devLegChip(custody.ClassInternet, p.internet, p.internetDate),
 		})
 	}
 	return rows
