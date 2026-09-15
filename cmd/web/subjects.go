@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"net/netip"
 	"slices"
@@ -96,9 +97,8 @@ type servicePageData struct {
 	InternalLeg        *legChip
 	InternetLeg        *legChip
 	GapNote            *reachGapNote
-	Since              string
 	Provenance         []assetKV
-	Rules              []subjectRule
+	Rules              subjectRulesView
 	Signals            []assetSignal
 }
 
@@ -124,7 +124,7 @@ type endpointPageData struct {
 	Seen               string
 	InScopeSince       string
 	Provenance         []assetKV
-	Rules              []subjectRule
+	Rules              subjectRulesView
 }
 
 type subjectRule struct {
@@ -133,6 +133,11 @@ type subjectRule struct {
 	Severity string
 	SevLabel string
 	Verdict  signal.Outcome
+}
+
+type subjectRulesView struct {
+	Rows   []subjectRule
+	Failed bool
 }
 
 type timelineView struct {
@@ -368,10 +373,14 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
 		}
 	}
-	data.Since = currentReachSince(data.Timelines)
 	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
-	data.Signals = s.assetSignals(r, subject.SubjectKey)
+	signals, sigErr := s.assetSignals(r, subject.SubjectKey)
+	if sigErr != nil {
+		// This card omits itself, so the operator cannot see the degradation (ADR-0168 §1).
+		log.Printf("web: service detail: asset signals: %v", sigErr)
+	}
+	data.Signals = signals
 
 	s.render(w, r, "service", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
 		"Service": data,
@@ -500,27 +509,13 @@ func firstSeenFromTimelines(tls []timelineView) string {
 	return best
 }
 
-func currentReachSince(tls []timelineView) string {
-	// One timeline per vantage means an arbitrary pick moves with the row order (#2005).
-	best := ""
-	for _, tl := range tls {
-		if tl.Facet != "reachability" || tl.Current == nil {
-			continue
-		}
-		// Every OpenedAt is fixed-width UTC, so the lexicographic minimum is the earliest instant.
-		if best == "" || tl.Current.OpenedAt < best {
-			best = tl.Current.OpenedAt
-		}
-	}
-	return best
-}
-
-func (s *server) subjectRules(r *http.Request, key string) []subjectRule {
+func (s *server) subjectRules(r *http.Request, key string) subjectRulesView {
 	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
-		return nil
+		// An empty table claims no rule reads this subject (ADR-0168 §2).
+		return subjectRulesView{Failed: true}
 	}
-	return subjectRulesFor(signal.EvaluateCorpus(corpus), key)
+	return subjectRulesView{Rows: subjectRulesFor(signal.EvaluateCorpus(corpus), key)}
 }
 
 func subjectRulesFor(censuses []signal.Census, key string) []subjectRule {
@@ -839,20 +834,21 @@ func httpIdentityDetails(v httpIdentityValue) []spanDetail {
 }
 
 type assetPageData struct {
-	Key          string
-	Type         string
-	Withdrawn    bool
-	Seen         string
-	InScopeSince string
-	Severity     string
-	SevLabel     string
-	InternetLeg  *legChip
-	Ports        []assetPort
-	DNS          []assetDNSRow
-	Cert         *assetCert
-	Provenance   []assetKV
-	Signals      []assetSignal
-	Drift        []assetDriftEvent
+	Key           string
+	Type          string
+	Withdrawn     bool
+	Seen          string
+	InScopeSince  string
+	Severity      string
+	SevLabel      string
+	InternetLeg   *legChip
+	Ports         []assetPort
+	DNS           []assetDNSRow
+	Cert          *assetCert
+	Provenance    []assetKV
+	Signals       []assetSignal
+	SignalsFailed bool
+	Drift         []assetDriftEvent
 }
 
 type assetPort struct {
@@ -942,7 +938,9 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 	data.Ports = ports
 	data.Cert = s.assetCertificate(r, key, res.Addresses)
-	data.Signals = s.assetSignals(r, key)
+	// The corpus is not this page's subject, so its failure empties one card (ADR-0168 §1, #1951).
+	signals, sigErr := s.assetSignals(r, key)
+	data.Signals, data.SignalsFailed = signals, sigErr != nil
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(data.Ports)
@@ -979,7 +977,9 @@ func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, ac
 	// A withdrawn Name has no current value, so only closed timelines render (ADR-0072).
 	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
 	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
-	data.Signals = s.assetSignals(r, key)
+	// An empty list is expected here, so a failed read still needs its own flag.
+	signals, sigErr := s.assetSignals(r, key)
+	data.Signals, data.SignalsFailed = signals, sigErr != nil
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(nil)
@@ -1169,7 +1169,9 @@ func (s *server) serviceReachLegs(ctx context.Context, key string) (*serviceReac
 	internal := byClass[string(custody.ClassInternal)]
 	internet := byClass[string(custody.ClassInternet)]
 	internalChip := reachLegChip(custody.ClassInternal, legFrom(internal))
+	internalChip.Date = legSince(internal)
 	internetChip := reachLegChip(custody.ClassInternet, legFrom(internet))
+	internetChip.Date = legSince(internet)
 	return &serviceReachCard{
 		Internal: &internalChip,
 		Internet: &internetChip,
@@ -1310,14 +1312,14 @@ func assetHeaderInternetLeg(ports []assetPort) *legChip {
 	return &chip
 }
 
-func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
+func (s *server) assetSignals(r *http.Request, key string) ([]assetSignal, error) {
 	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	instances, err := s.deriveSignalInstances(r.Context(), signal.EvaluateCorpus(corpus))
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	now := s.now().UTC()
 	var out []assetSignal
@@ -1339,7 +1341,7 @@ func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
 		}
 		out = append(out, sig)
 	}
-	return out
+	return out, nil
 }
 
 func assetDrift(timelines []timelineView) []assetDriftEvent {
