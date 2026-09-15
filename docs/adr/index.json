@@ -578,6 +578,11 @@
           "kind": "rests-on",
           "from": 205,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2027,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4025,6 +4030,11 @@
           "kind": "amends",
           "from": 1902,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4426,6 +4436,11 @@
         {
           "kind": "rests-on",
           "from": 202,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2027,
           "clause": null
         }
       ],
@@ -7851,6 +7866,11 @@
           "kind": "rests-on",
           "from": 181,
           "clause": "3"
+        },
+        {
+          "kind": "rests-on",
+          "from": 2027,
+          "clause": null
         }
       ],
       "sections": [
@@ -11585,6 +11605,11 @@
           "kind": "rests-on",
           "from": 1909,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
         }
       ],
       "sections": [
@@ -11694,6 +11719,11 @@
           "kind": "amends",
           "from": 1945,
           "clause": "9"
+        },
+        {
+          "kind": "amends",
+          "from": 1946,
+          "clause": "9"
         }
       ],
       "sections": [
@@ -11712,6 +11742,11 @@
         {
           "kind": "amends",
           "from": 1945,
+          "clause": "9"
+        },
+        {
+          "kind": "amends",
+          "from": 1946,
           "clause": "9"
         }
       ],
@@ -11748,7 +11783,13 @@
           "adr": 1891
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11962,6 +12003,62 @@
       }
     },
     {
+      "number": 1946,
+      "file": "docs/adr/1946-an-address-scope-edit-reaches-the-operator-through-an-act-reader-never-a-message.md",
+      "title": "An address-scope edit reaches the operator through an Act reader, never a Message",
+      "slug": "an-address-scope-edit-reaches-the-operator-through-an-act-reader-never-a-message",
+      "date": "2026-09-14",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1939
+      },
+      "ticket": 1946,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1895,
+          "clause": "9"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 92
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1891
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1902
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 148,
+        "text": "**An address-scope edit mints no `Message`. The act reaches the operator through a bounded,\ndisplay-only `Act` reader beside the `Exposure` figure: `seed.declared` acts over seven days, five\nrows, newest first, linked to the audit tab.**\n\nA reader asks why, because the flagship figure moves between two page loads and nothing announces\nit. ADR-0092 rules that the system announces what it found, never what the operator did, and no\n`Message` constructor is reached outside `internal/queue`, so none can fire on the act.\n\nThe reader asserts no causal tie. None exists: the class is stored nowhere and the figure is\nrecomputed per read.\n\nRejected: a `Kind` field on the seed-scope act subject, as the exclusion reference already carries.\nThe `Act` corpus is never deleted, so historic rows would lack it and the fallback would survive.\n\nReversal reopens the four-cause enumeration and owes a message to every dial ADR-0092 left silent."
+      }
+    },
+    {
       "number": 1985,
       "file": "docs/adr/1985-a-timeline-row-on-a-per-vantage-facet-is-refused-by-the-database-without-a-vantage.md",
       "title": "A timeline row on a per-vantage facet is refused by the database without a vantage",
@@ -11993,7 +12090,13 @@
           "adr": 129
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 2027,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -12008,6 +12111,57 @@
       "decision": {
         "words": 141,
         "text": "**A `span` or `observation` row on a per-vantage facet cannot be stored without a\n`vantage_id`. A `CHECK` on both tables refuses it.**\n\nThe predicate is a deny-list. A row needs a vantage unless its `source` is `zone`, or its\nfacet is `certificate`. A facet added later is covered by default, and it must argue its\nway out.\n\nA reader asks why, because no production writer emits the row. The answer is that a render\nalready lied about one. The asset page read `never looked` over a measured service, because\nthe class read inner-joins `vantage` and the census read carries no vantage predicate.\n\nRejected: a fifth `LegStatus` word for an unattributable reading, which is vocabulary ahead\nof reality. Rejected: a left outer join, which under this `CHECK` admits nothing.\n\nReversal drops two constraints, and restores a representable state that no fold writes."
+      }
+    },
+    {
+      "number": 2027,
+      "file": "docs/adr/2027-an-inventory-row-counts-a-reading-and-a-per-vantage-facet-names-its-derived-class.md",
+      "title": "An inventory row counts a reading, and a per-vantage facet names its derived class",
+      "slug": "an-inventory-row-counts-a-reading-and-a-per-vantage-facet-names-its-derived-class",
+      "date": "2026-09-15",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2027
+      },
+      "ticket": 2027,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 11
+        },
+        {
+          "kind": "rests-on",
+          "adr": 103
+        },
+        {
+          "kind": "rests-on",
+          "adr": 167
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1985
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 145,
+        "text": "**An inventory facet row counts a reading, never a subject. The listing renders one row\nper open span, and it collapses nothing.**\n\nWhere the discriminator is empty and the row carries a vantage, the label names the\nderived vantage class. Where two rows of one subject and facet share a class, both also\nname their vantage. Where the row carries no vantage, the label stays bare. The rule holds\nfor every facet with an empty discriminator, not for `reachability` alone.\n\nA reader asks why the label names a class where the span key names a vantage. A person\nreads the label, and ADR-0103 derives a provisioned prober's name from its endpoint.\n\nRejected: collapsing the per-vantage rows, an arbitration the span key refuses. Rejected:\nthe vantage name as the label, which leaks that endpoint.\n\nReversal restores a listing that renders two identical labels over contradictory\nsummaries."
       }
     }
   ]
