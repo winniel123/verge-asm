@@ -175,17 +175,18 @@ func (f *fakeStore) SyncColdScanEnabled(context.Context) error {
 	return nil
 }
 
-func (f *fakeStore) ListBlanketedReachServices(_ context.Context) ([]string, error) {
-	seen := map[string]struct{}{}
+func (f *fakeStore) ListOpenReachGapServices(_ context.Context) ([]db.ListOpenReachGapServicesRow, error) {
+	rows := []db.ListOpenReachGapServicesRow{}
 	for k, o := range f.currentReachByVantage() {
 		if reachOutcomeIsGap(o.Value) {
-			seen[k.svc] = struct{}{}
+			rows = append(rows, db.ListOpenReachGapServicesRow{SubjectKey: k.svc, Value: o.Value})
 		}
 	}
-	out := make([]string, 0, len(seen))
-	for svc := range seen {
-		out = append(out, svc)
-	}
-	sort.Strings(out)
-	return out, nil
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return string(rows[i].Value) < string(rows[j].Value)
+	})
+	return rows, nil
 }

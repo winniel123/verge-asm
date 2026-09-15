@@ -19,6 +19,7 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
@@ -29,8 +30,8 @@ type coldStore interface {
 
 	GetDnsCadenceSeconds(ctx context.Context) (int64, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
-	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
+	ListOpenReachGapServices(ctx context.Context) ([]db.ListOpenReachGapServicesRow, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
@@ -213,8 +214,8 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 	var gaps []coverageGapView
 	var messages []coverageMessageView
-	if svc, berr := s.coldStore.ListBlanketedReachServices(ctx); berr == nil {
-		gaps, messages = blanketGapsAndMessages(svc)
+	if reachGaps, berr := s.coldStore.ListOpenReachGapServices(ctx); berr == nil {
+		gaps, messages = blanketGapsAndMessages(reachGaps)
 	}
 	if rows, uerr := s.coldStore.ListUnavailableVantages(ctx); uerr == nil {
 		messages = append(messages, unavailableVantageMessages(rows)...)
@@ -394,11 +395,14 @@ func staleZones(rows []db.ListZoneFileStatusRow, cadenceSeconds int64, now time.
 	return out
 }
 
-func blanketGapsAndMessages(keys []string) ([]coverageGapView, []coverageMessageView) {
+func blanketGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView) {
 	seen := map[string]bool{}
 	var addrs []string
-	for _, key := range keys {
-		if addr, _, _ := splitServiceKey(key); addr != "" && !seen[addr] {
+	for _, row := range rows {
+		if decodeReachability(row.Value).Cause != blanketdiscrim.GapCause {
+			continue
+		}
+		if addr, _, _ := splitServiceKey(row.SubjectKey); addr != "" && !seen[addr] {
 			seen[addr] = true
 			addrs = append(addrs, addr)
 		}
