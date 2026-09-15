@@ -4816,6 +4816,11 @@
           "kind": "rests-on",
           "from": 184,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1988,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4834,11 +4839,16 @@
           "kind": "amends",
           "from": 181,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 1988,
+          "clause": null
         }
       ],
       "decision": {
-        "words": 717,
-        "text": "> **The console screens in `design-system/examples/console/` are the console's information-architecture\n> spec, ported verbatim.** Each screen's composition — its components, layout, spacing, hierarchy, and\n> copy — is translated from the reference JSX into the app's server-rendered Go templates\n> (`cmd/web/`), swapping only inline sample data for real data of the same shape (design-system\n> empty-states where a new screen has no backing data yet, never fabricated data). `ConsoleApp.jsx` is\n> the shell spec (TopNav, ~~org switcher,~~ ⌘K palette, toast stack, theme toggle, messages bell).\n> ~~`screenshots/` are the visual ground truth every screen verifies against.~~\n>\n> **The `org switcher` clause is WITHDRAWN at the site that specifies it, 2026-09-05\n> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**\n> `ConsoleApp.jsx:95` passes no `orgs`, so the shell spec never instantiated a switcher, and\n> [ADR-0181](./0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md)\n> rules that no `Organisation` is modelled. The rest of this Decision stands.\n>\n> **The `screenshots/` clause is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /\n> [#1450](https://github.com/winniel123/verge-asm/issues/1450)\n> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** That\n> commit retired the G1/G2 byte-compare lane. It deleted the `design-system/screenshots/` tree that\n> lane drove. **No successor artefact carries the per-screen reference shot**. No path replaces the\n> deleted screenshots tree. A reader now reads fidelity off `design-system/examples/` and the served\n> `design-system/templates/`, which\n> [ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md)\n> makes the source of truth. No byte-compare checks a console screen now. The Consequences section\n> below strikes the same fact at its own site. The rest of this Decision stands.\n\nThis reverses exactly one clause and nothing else. Every other guardrail in\n`docs/agents/design-system.md` stands unchanged:\n\n- **Drift is the thesis.** Drift remains a top-level screen — nav item 4 of 7 — so \"drift is never a\n  secondary screen\" is preserved *by* the port, not despite it. This is the fact that made the reversal\n  admissible.\n- **`signal` never `finding`.** Signals are **withdrawn** by the world, never \"resolved\" by operators.\n\n  > **Amended 2026-09-05 by [ADR-0147](0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md) /\n  > [#1288](https://github.com/winniel123/verge-asm/issues/1288): this rule refuses a KPI, not only a\n  > word.** The reference mock's **mean time-to-resolve** is refused, and the reporting KPI is a **mean\n  > time-to-withdrawal** (`drift.MeanTimeToWithdrawal`, rendered as `MTTW` on Reports). A resolve time\n  > would have to be measured from a departure the world caused, so the number would count subject\n  > departures and label them operator resolutions — an operator act the product never observed. The\n  > interval is the subject's earliest `opened_at` to the closure of its timelines\n  > ([ADR-0082](0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)),\n  > read off the never-compacted span corpus\n  > ([ADR-0041](0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)), so it is\n  > measured rather than fabricated. This refusal was previously written only in a code comment and in\n  > `SPEC-CHANGE.md`, which no longer exists in the tree.\n  > [ADR-0116](0116-the-design-package-is-normative-for-look-and-functionality.md) restates the\n  > vocabulary rule, but it is **Superseded (2026-08-28)** and it never named the KPI either. This\n  > Decision is the rule's live site.\n- **Domain nouns, not wire nouns** — `Name` / `Address` / `Service` / `Endpoint`, never\n  host / IP / port / URL as modelled things.\n- **`seed` / `scope`** never target · **`channel`** never webhook · **`vantage`** never probe ·\n  **`annotation`** never mute / triage.\n- **No technology fingerprinting.**\n- **Severity is exactly `Critical / High / Medium / Low / Info`** via `SeverityBadge`. The change\n  vocabulary rides its own drift palette, never the severity ramp.\n- ~~**Verge ASM does not author design-system components** ([ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md)).\n  Porting a screen translates the reference composition into template CSS classes within the existing\n  token vocabulary — restyling, not authoring. A genuine component gap is a\n  `design-system/requests/*.md` COMPONENT-REQUEST plus a flag, never an in-repo build.~~\n\n  > **This bullet is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /\n  > [#1410](https://github.com/winniel123/verge-asm/issues/1410)\n  > ([ADR-0058](0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** That\n  > commit retired the design-system handoff workflow and superseded\n  > [ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md).\n  > `design-system/` is the source of truth and may be edited in the repo — templates, tokens and\n  > components alike. `design-system/COMPONENT-REQUEST.md` and `design-system/requests/` are deleted,\n  > so the mechanism this bullet prescribes no longer exists. The Accepted ADR that states the\n  > replacing rule is\n  > [ADR-0145](0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md);\n  > `CLAUDE.md` and [`docs/agents/design-system.md`](../agents/design-system.md) restate it. The\n  > rest of this Decision stands: the console screens are still the IA spec, ported verbatim.\n\nThe scope of the port is the console only (`cmd/web`). The marketing `Homepage.jsx` and `DocsPage.jsx`\nhave no serving surface in-repo and are out of scope."
+        "words": 847,
+        "text": "> ~~**The console screens in `design-system/examples/console/` are the console's\n> information-architecture spec, ported verbatim.** Each screen's composition — its components,\n> layout, spacing, hierarchy, and copy — is translated from the reference JSX into the app's\n> server-rendered Go templates (`cmd/web/`), swapping only inline sample data for real data of the\n> same shape (design-system empty-states where a new screen has no backing data yet, never\n> fabricated data). `ConsoleApp.jsx` is the shell spec (TopNav, org switcher, ⌘K palette,\n> toast stack, theme toggle, messages bell).\n> `screenshots/` are the visual ground truth every screen verifies against.~~\n>\n> **This Decision is WITHDRAWN in whole at the site that specifies it, 2026-09-15\n> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** The\n> `org switcher` and `screenshots/` clauses were already struck below, and the verbatim-port ruling\n> is the remainder, so the paragraph above now stands struck in whole. This Decision was a migration\n> instruction, and the migration completed.\n> [ADR-1988](./1988-design-system-examples-is-the-consoles-original-design-reference-and-it-binds-no-template.md)\n> rules that `design-system/examples/` is the console's original design reference and binds no\n> template. A console screen's information architecture is decided in its SPEC under `docs/spec/`,\n> and `design-system/templates/` is the surface that realises it. A difference between an example\n> and its template is not a defect. No clause of this Decision now stands. The Context and\n> Consequences below remain a record of what was decided in 2026-08.\n>\n> **The `org switcher` clause is WITHDRAWN at the site that specifies it, 2026-09-05\n> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**\n> `ConsoleApp.jsx:95` passes no `orgs`, so the shell spec never instantiated a switcher, and\n> [ADR-0181](./0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md)\n> rules that no `Organisation` is modelled. The rest of this Decision stands.\n>\n> **The `screenshots/` clause is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /\n> [#1450](https://github.com/winniel123/verge-asm/issues/1450)\n> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** That\n> commit retired the G1/G2 byte-compare lane. It deleted the `design-system/screenshots/` tree that\n> lane drove. **No successor artefact carries the per-screen reference shot**. No path replaces the\n> deleted screenshots tree. A reader now reads fidelity off `design-system/examples/` and the served\n> `design-system/templates/`, which\n> [ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md)\n> makes the source of truth. No byte-compare checks a console screen now. The Consequences section\n> below strikes the same fact at its own site. The rest of this Decision stands.\n\nThis reverses exactly one clause and nothing else. Every other guardrail in\n`docs/agents/design-system.md` stands unchanged:\n\n- **Drift is the thesis.** Drift remains a top-level screen — nav item 4 of 7 — so \"drift is never a\n  secondary screen\" is preserved *by* the port, not despite it. This is the fact that made the reversal\n  admissible.\n- **`signal` never `finding`.** Signals are **withdrawn** by the world, never \"resolved\" by operators.\n\n  > **Amended 2026-09-05 by [ADR-0147](0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md) /\n  > [#1288](https://github.com/winniel123/verge-asm/issues/1288): this rule refuses a KPI, not only a\n  > word.** The reference mock's **mean time-to-resolve** is refused, and the reporting KPI is a **mean\n  > time-to-withdrawal** (`drift.MeanTimeToWithdrawal`, rendered as `MTTW` on Reports). A resolve time\n  > would have to be measured from a departure the world caused, so the number would count subject\n  > departures and label them operator resolutions — an operator act the product never observed. The\n  > interval is the subject's earliest `opened_at` to the closure of its timelines\n  > ([ADR-0082](0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)),\n  > read off the never-compacted span corpus\n  > ([ADR-0041](0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)), so it is\n  > measured rather than fabricated. This refusal was previously written only in a code comment and in\n  > `SPEC-CHANGE.md`, which no longer exists in the tree.\n  > [ADR-0116](0116-the-design-package-is-normative-for-look-and-functionality.md) restates the\n  > vocabulary rule, but it is **Superseded (2026-08-28)** and it never named the KPI either. This\n  > Decision is the rule's live site.\n- **Domain nouns, not wire nouns** — `Name` / `Address` / `Service` / `Endpoint`, never\n  host / IP / port / URL as modelled things.\n- **`seed` / `scope`** never target · **`channel`** never webhook · **`vantage`** never probe ·\n  **`annotation`** never mute / triage.\n- **No technology fingerprinting.**\n- **Severity is exactly `Critical / High / Medium / Low / Info`** via `SeverityBadge`. The change\n  vocabulary rides its own drift palette, never the severity ramp.\n- ~~**Verge ASM does not author design-system components** ([ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md)).\n  Porting a screen translates the reference composition into template CSS classes within the existing\n  token vocabulary — restyling, not authoring. A genuine component gap is a\n  `design-system/requests/*.md` COMPONENT-REQUEST plus a flag, never an in-repo build.~~\n\n  > **This bullet is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /\n  > [#1410](https://github.com/winniel123/verge-asm/issues/1410)\n  > ([ADR-0058](0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** That\n  > commit retired the design-system handoff workflow and superseded\n  > [ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md).\n  > `design-system/` is the source of truth and may be edited in the repo — templates, tokens and\n  > components alike. `design-system/COMPONENT-REQUEST.md` and `design-system/requests/` are deleted,\n  > so the mechanism this bullet prescribes no longer exists. The Accepted ADR that states the\n  > replacing rule is\n  > [ADR-0145](0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md);\n  > `CLAUDE.md` and [`docs/agents/design-system.md`](../agents/design-system.md) restate it. The\n  > rest of this Decision stands: the console screens are still the IA spec, ported verbatim.\n\nThe scope of the port is the console only (`cmd/web`). The marketing `Homepage.jsx` and `DocsPage.jsx`\nhave no serving surface in-repo and are out of scope."
       }
     },
     {
@@ -6710,6 +6720,11 @@
         {
           "kind": "rests-on",
           "from": 177,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1988,
           "clause": null
         }
       ],
@@ -12165,6 +12180,47 @@
       "decision": {
         "words": 141,
         "text": "**A `span` or `observation` row on a per-vantage facet cannot be stored without a\n`vantage_id`. A `CHECK` on both tables refuses it.**\n\nThe predicate is a deny-list. A row needs a vantage unless its `source` is `zone`, or its\nfacet is `certificate`. A facet added later is covered by default, and it must argue its\nway out.\n\nA reader asks why, because no production writer emits the row. The answer is that a render\nalready lied about one. The asset page read `never looked` over a measured service, because\nthe class read inner-joins `vantage` and the census read carries no vantage predicate.\n\nRejected: a fifth `LegStatus` word for an unattributable reading, which is vocabulary ahead\nof reality. Rejected: a left outer join, which under this `CHECK` admits nothing.\n\nReversal drops two constraints, and restores a representable state that no fold writes."
+      }
+    },
+    {
+      "number": 1988,
+      "file": "docs/adr/1988-design-system-examples-is-the-consoles-original-design-reference-and-it-binds-no-template.md",
+      "title": "`design-system/examples/` is the console's original design reference, and it binds no template",
+      "slug": "design-system-examples-is-the-consoles-original-design-reference-and-it-binds-no-template",
+      "date": "2026-09-15",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "none": "a ruling about the status of a document, which no test and no measurement can prove"
+      },
+      "ticket": 1988,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 110
+        },
+        {
+          "kind": "rests-on",
+          "adr": 145
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 115,
+        "text": "> **`design-system/examples/` is the console's original design reference.** It records what each\n> screen looked like when the T0 port consumed it. It binds no template, no ticket and no session.\n>\n> A console screen's information architecture is decided in its SPEC under `docs/spec/`, and the\n> served `design-system/templates/*.tmpl` is the surface that realises it. An example may be edited\n> when something else requires it — the `--console-surface` invariant in\n> `design-system/console_tokens_test.go` does — but no template change obliges a matching example\n> change, and a difference between the two is not a defect.\n>\n> Rejected: parity as a standing obligation, which no check enforces and which twelve screens\n> already fail."
       }
     },
     {
