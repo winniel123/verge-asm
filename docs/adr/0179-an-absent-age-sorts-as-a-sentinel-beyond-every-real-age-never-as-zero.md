@@ -38,7 +38,7 @@ ADR-0158 §1).
 
 So the same decision is made twice, in two files, in two languages, on two sides of the
 client/server line ADR-0158 draws — and it was written down nowhere. #1365 swept the two
-declaration comments that carried it into one uncited line at `cmd/web/messages.go#reportScheduleRow`:
+declaration comments that carried it into one uncited line at `cmd/web/messages.go`:
 
 ```go
 // A never-run schedule sorts last under the client-side sort, so the sentinel exceeds any age.
@@ -125,14 +125,14 @@ row then reads *now* and sorts *never*. That is a defect against this limb.
 
 ## Consequences
 
-- **`cmd/web/messages.go#reportScheduleRow` gains a citation** and keeps its clause. The rule now has a document,
+- **`cmd/web/messages.go` gains a citation** and keeps its clause. The rule now has a document,
   so the comment is repairable under `comment-policy.md` §4.7 rather than uncited.
-- **`cmd/web/signals.go#sevLabel` and `:691` become a defect** against the naming half: one value, two
+- **`cmd/web/signals.go` and `:691` become a defect** against the naming half: one value, two
   bare literals, no name. The fix is a hoisted constant; the ordering is already right.
 - **`reportScheduleNeverRunMins` is declared inside the `for` body** (`messages.go:389`), so it is
   scoped to one iteration and no test and no other function can name it. A named constant nothing
   can reference does half the job this ADR asks of it. It moves to package scope.
-- **`cmd/web/messages.go#lastReportDelivery` becomes a defect** against §5. Its negative-age fall-through
+- **`cmd/web/messages.go` becomes a defect** against §5. Its negative-age fall-through
   disagrees with the `relTime` call one line above it, and with `seenAgeMinutes`.
 - **A new age-ordered column states its sentinel and its headroom.** The arithmetic in §4 is the
   work a reviewer checks, and it is cheap once.

@@ -1222,9 +1222,18 @@ _Avoid_: ownership, owned, in scope, authorized, mine
 **Availability**:
 Whether a `Vantage` is currently able to observe, concluded from its recent batch
 outcomes over a fixed window rather than measured directly. A vantage that has failed
-every attempt across the window is `unavailable`, which opens a `Gap` on the `Reach` of
-its class. So `Exposure` that would need it is absent rather than quietly computed from
-the class that still answers. Derived, though the `Vantage` it belongs to is Declared — we
+every attempt across the window is `unavailable`. That **transition** is a write, and the
+transition is the event rather than the column value — a resolver-only vantage holds no value and
+still transitions. The same write closes **every open span the vantage fed, whatever
+the facet**, and opens a `Gap` carrying the cause `vantage-unavailable`
+behind each one. **Every facet, never `Reach` alone**: one per-vantage scalar moves, and every
+facet is read per vantage, so a facet added later needs no edit here and none at the write
+(ADR-2087, #2137, #2144). The exclusion lives at that write and nowhere else
+— **no composition read carries an availability predicate**, because filtering the cross-class
+denominator would conclude from the survivor, the reading
+[ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) refuses. So `Exposure` that would
+need it is absent rather than quietly computed from the class that still answers. Derived, though
+the `Vantage` it belongs to is Declared — we
 never measured the vantage, we inferred it from what failed. **The derivation is produced from
 terminal `Batch` outcomes** ([ADR-0108](./docs/adr/0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md)).
 A **completed** `Batch` restores it to `available` and a **dead-lettered** one opens it to
@@ -1613,9 +1622,10 @@ lives on the Operational side of the fence and nothing derived may read it. It r
 which is retained in its own corpus while the closure is the boundary that measurement drew. Writing
 one reason onto every timeline a departing subject held is not the *one fact in n representations*
 defect that refuses a `withdrawn` **value**. A closure is a boundary rather than a value, so *this
-timeline stopped, on this ground* is true at every key it sits on. And the model already writes one
-cause onto n objects wherever a `Vantage` going `unavailable` opens a `Gap` on every timeline it fed.
-The `Gap` recording its cause is this term's precedent and predates it. See
+timeline stopped, on this ground* is true at every key it sits on. That is the whole ground, and it
+needs no precedent. A `Vantage` going `unavailable` writes one cause onto every timeline it fed in
+exactly this shape, but that rule is **ADR-2087, which is later than this term** (#2137). It is a
+parallel rather than a precedent, and nothing here rests on it. See
 [ADR-0087](./docs/adr/0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md),
 and [ADR-0082](./docs/adr/0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)
 for why the closure is the whole record.
@@ -1726,7 +1736,9 @@ _Avoid_: seam (reserved for architectural boundaries), fault, discontinuity, ver
 
 **Gap**:
 A `Span` holding no value — the period over which we could not say. Opened by a dead-lettered
-`Batch`'s empty scope, by a `Vantage` becoming `unavailable`, by evidence absent where a
+`Batch`'s empty scope, by a `Vantage` becoming `unavailable` — one write closing **every
+open span it fed, whatever the facet**, and opening the gap behind each, never a predicate on the
+read side (ADR-2087, #2137, #2144) — by evidence absent where a
 `Signal` would be `not-evaluable`, by an observation ageing past its currency bound, and by an
 answer we cannot read — a truncated RRset no fallback transport recovered, or a `resolution` we
 could not discriminate because the control probe under the name's parent did not complete, or a

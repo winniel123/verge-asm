@@ -142,9 +142,9 @@ its own ticket.
 
 ### 5. What this rule does not reach
 
-- **A package that owns a transaction boundary.** `internal/queue.Worker` (`worker.go:100`) and
-  `internal/delivery.Runner` (`runner.go:67`) take a `*pgxpool.Pool` and build `*db.Queries`
-  themselves, because they call `w.q.WithTx(tx)` (`worker.go:523`). `WithTx` returns `*db.Queries`
+- **A package that owns a transaction boundary.** `internal/queue.Worker` (`internal/queue/worker.go#Worker`) and
+  `internal/delivery.Runner` (`internal/delivery/runner.go`) take a `*pgxpool.Pool` and build `*db.Queries`
+  themselves, because they call `w.q.WithTx(tx)` (`internal/queue/worker.go`). `WithTx` returns `*db.Queries`
   and no consumer-side interface can express it. Owning the pool is a different act from being
   handed a store, and this rule binds the second.
 - **An unexported helper threading an open transaction.** `foldOne(ctx, qtx *db.Queries, …)` and its

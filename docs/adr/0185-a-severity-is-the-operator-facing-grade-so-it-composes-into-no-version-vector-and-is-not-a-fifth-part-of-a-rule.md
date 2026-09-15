@@ -130,7 +130,7 @@ population, and the rule's own identity beside them.
 
 A severity moves none of the three lists and moves no subject between them. It is read after the
 census exists, by the web layer, to rank and badge rows the engine already partitioned —
-`cmd/web/reports.go#server.reportsSignalCensus`, `cmd/web/graph.go#joinSignals`, `cmd/web/subjects.go#censusVerdict`, `cmd/web/auth.go#firstRunStep`
+`cmd/web/reports.go#server.reportsSignalCensus`, `cmd/web/graph.go#joinSignals`, `cmd/web/subjects.go`, `cmd/web/auth.go`
 and six more sites all call `SeverityFor(rule)` on a census that is already built.
 
 So the grade is downstream of the output the vector versions. Composing it would move a version for
@@ -232,7 +232,7 @@ and no evidence moved.
   its `Severity()` is varied.
 - **The ruling's own test exposes a live violation, and it is not this ADR's to fix.**
   `certificate-expiring`'s predicate reads a 30-day window, `certExpiryWindow` at
-  `cmd/web/deltas.go#deltasStore`, applied in the fold at `cmd/web/signals.go#estateNameSet`. That constant decides
+  `cmd/web/deltas.go`, applied in the fold at `cmd/web/signals.go`. That constant decides
   **which subjects the rule matches**, so under §2's replacement wording it composes into the rule's
   vector. It does not: `certVersion()` composes `co.CertVersion` alone. The repo already knows the
   shape and applies it one rule away — `weakKeyRule.Version()` at `internal/signal/endpoint.go`
@@ -256,7 +256,7 @@ and no evidence moved.
 | --- | --- |
 | **Fold the grade in — ADR-0024's clause read literally** | Charges a `Break` on every timeline of a rule for a change that moves no member between the three lists, moves no subject into or out of the domain, and leaves the census identical byte for byte. The reader is told two censuses may not be compared and finds nothing that differs. It also prices the one part of a rule an operator argues with at the highest price in the model, so the ramp would be defended against correction by its cost rather than by its argument |
 | **Number the severity a fifth part of a rule, but keep it out of the vector** | Splits ADR-0024's guard from its own part list. The guard is stated over *everything a rule declares*, and the part list is the only place that ADR says what a rule declares. The split leaves two readings of *declares* inside one document, and the next author to meet the guard alone folds the grade in correctly by its wording. §3 resolves the two questions together for exactly this reason |
-| **Mint a second, severity-only version axis** | Creates a comparability question nobody has: two censuses would be comparable on evidence and not on grade, and the console would have to render which. It also re-imports the cost the exclusion exists to avoid, one axis over, and every consumer of `Version.String()` — the drawer at `cmd/web/signals.go#server.renderSignals`, the subject page at `cmd/web/subjects.go#isCensusMember`, the cold page at `cmd/web/cold.go#blanketGapsAndMessages` — would have to choose one |
+| **Mint a second, severity-only version axis** | Creates a comparability question nobody has: two censuses would be comparable on evidence and not on grade, and the console would have to render which. It also re-imports the cost the exclusion exists to avoid, one axis over, and every consumer of `Version.String()` — the drawer at `cmd/web/signals.go`, the subject page at `cmd/web/subjects.go`, the cold page at `cmd/web/cold.go` — would have to choose one |
 | **Store a severity on `signal_instance` so a re-rating is dated** | `db/migrations/22300_signal_instance.sql` refuses it in the table's own header: only identity and first-seen persist, and *"the severity is the rule's … not stored"*. Storing it would make a grade a fact about history, so a re-rating would need a backfill and a rule would carry two grades at once. It also puts an operator-facing ramp inside the record, which is the collapse ADR-0064 refused for the message store |
 | **Rule it on [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md)** | That ADR is `Superseded`, and what survives it is one bullet whose scope was fixed by [#1410](https://github.com/winniel123/verge-asm/issues/1410) at *a signal carries a five-level severity assigned per rule*. Adding a new rule to a superseded document puts a live decision behind a status word every reader is told to distrust |
 | **Rule it on [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)** | Its subject is the measurement binary, its five decision procedures and the authored hermetic corpus. A `Signal` rule is not a measurement leaf and has no corpus rows of that kind. The ruling would state a signal-layer rule inside a document scoped to the prober |

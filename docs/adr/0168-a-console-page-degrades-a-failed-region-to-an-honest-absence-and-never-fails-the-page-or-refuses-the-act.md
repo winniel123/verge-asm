@@ -23,12 +23,13 @@ relations:
 
 `coveragePage` stated one rule five times, in five uncited blocks, and PR #1361 deleted all five: *a
 failed read empties its own region rather than 500ing the page*. **Every line number in #1360 has
-moved.** The pre-sweep sites `:233`, `:245`, `:273`, `:289` and `:297` are now the reads at
-`cmd/web/cold.go` (zone declarations), `:147` (current Service subjects), `:162` and `:165`
-(blanketed reach, unavailable vantages), `:171` (the signal corpus) and `:176`–`:177` (zone cadence
-and zone-file status). Nothing states the rule at any of them. **#1360's three "unswept residue"
-sites are gone too** — `exposure.go`, `drift.go` and `custodycensus.go` carry no statement of it
-today, and `custodycensus.go` is 130 lines with no line 237.
+moved.** The pre-sweep sites `:233`, `:245`, `:273`, `:289` and `:297` are now the reads in
+`cmd/web/cold.go#server.coveragePage` — zone declarations, current Service subjects, the signal
+corpus, zone cadence and zone-file status — plus the blanketed-reach and unavailable-vantage reads,
+which have since left `server.coveragePage` for another declaration in the same file and are
+degraded here to `cmd/web/cold.go` alone. Nothing states the rule at any of them. **#1360's three "unswept residue" sites are gone too** —
+`exposure.go`, `drift.go` and `custodycensus.go` carry no statement of it today, and
+`custodycensus.go` is 130 lines with no line 237.
 
 **#1339's two are compressed rather than gone**, and both survive uncited: `cmd/web/seeds.go` —
 *"A failed count degrades the block; refusing the act would leave no route to the withdrawal"* — and
@@ -77,14 +78,16 @@ other region derives from. Its read is adopted only on a nil error; a failure le
 zero value and the page serves.
 
 The reason is availability arithmetic. `coveragePage` makes eight such reads, so if each were loud
-the screen's availability would be the product of eight, and a fault in the corpus builder at
-`cold.go:171` would take away the aperture meters, the coverage messages and the stale-zone callout,
-none of which it feeds. A 500 costs the operator every region to protect one.
+the screen's availability would be the product of eight, and a fault in the corpus builder in
+`cmd/web/cold.go#server.coveragePage` would take away the aperture meters, the coverage messages
+and the stale-zone callout, none of which it feeds. A 500 costs the operator every region to
+protect one.
 
-**Logging is decided per site.** `cold.go:153` degrades but logs, under a cited reason at `:152`:
-that read *hides evidence* rather than emptying a region, because a missing edge count silently
-drops the `Covers` and `SharedEdges` fields from a meter that otherwise renders normally. A
-degradation the operator can see needs no log line; one they cannot see does.
+**Logging is decided per site.** The shared-edges read in `cmd/web/cold.go#server.coveragePage`
+degrades but logs, under a cited reason beside it: that read *hides evidence* rather than emptying
+a region, because a missing edge count silently drops the `Covers` and `SharedEdges` fields from a
+meter that otherwise renders normally. A degradation the operator can see needs no log line; one
+they cannot see does.
 
 ### 2. Emptying means an honest absence, never a substituted value
 
@@ -95,13 +98,14 @@ load. Nothing is listed rather than a guessed edge."* against the `CustodyCensus
 `cmd/web/seeds.go` sets, and `scope.tmpl:182` renders *"The count did not resolve"* for the
 confirm block.
 
-**A count is not an honest absence.** `cold.go:147`'s failure leaves `walked` nil, and `addressMeter`
-then renders `counted 0`, `Pct 0`. ADR-0120 defines that numerator as *"the subjects the batch
-walked"*, so a zero asserts the batch walked none of them — a measurement claim from a read that
-never resolved, and an alarm about the operator's estate raised by a database hiccup. The same defect
-stands at `cold.go:142`, where a failed zone read renders a name scope's meter as `0 declared names`.
-**Both sites contradict this ADR and are named as defects, not ratified.** The fix is small: carry
-the read's failure into `apertureMeters` and withhold the numerator, exactly as
+**A count is not an honest absence.** The current-Service-subjects read in
+`cmd/web/cold.go#server.coveragePage` fails, `walked` stays nil, and `addressMeter` then renders
+`counted 0`, `Pct 0`. ADR-0120 defines that numerator as *"the subjects the batch walked"*, so a
+zero asserts the batch walked none of them — a measurement claim from a read that never resolved,
+and an alarm about the operator's estate raised by a database hiccup. The same defect
+stands at the zone read in the same declaration, where a failure renders a name scope's meter as
+`0 declared names`. **Both sites contradict this ADR and are named as defects, not ratified.** The
+fix is small: carry the read's failure into `apertureMeters` and withhold the numerator, exactly as
 `oldestCurrentInRange` already withholds the as-of label when it has nothing.
 
 ### 3. An advisory figure degrades the confirm block and never refuses the act
@@ -136,9 +140,9 @@ each with its shipped example.
 
 | Class | Example | Why loud |
 | --- | --- | --- |
-| **The page's own subject** | `cold.go:136`–`:140`, `ListSeeds` on Coverage; `seeds.go:408`–`:411`, `ListSeeds` on Scope | Every meter and card on both screens is one `Seed`. Degrading it renders *no scopes declared* — a lie about the operator's own declaration, and one they may act on |
+| **The page's own subject** | `cmd/web/cold.go#server.coveragePage`, `ListSeeds` on Coverage; `seeds.go:408`–`:411`, `ListSeeds` on Scope | Every meter and card on both screens is one `Seed`. Degrading it renders *no scopes declared* — a lie about the operator's own declaration, and one they may act on |
 | **A subject fetched by key** | `cmd/web/subjects.go#server.endpointPage`–`:231` | `pgx.ErrNoRows` renders a distinct missing-subject page; any other error 500s. **No rows and the read failed are different facts**, and the handler keeps them apart |
-| **The act** | `seeds.go:291`, `cold.go:71`, `:76`, `:81` | A write reported as done when it was not is unrecoverable by reload |
+| **The act** | `seeds.go:291`, the `serverError` calls in `cmd/web/cold.go#server.setColdScope` | A write reported as done when it was not is unrecoverable by reload |
 
 The test is not the surface. `apiCoverage` (`cmd/web/api_v1.go`) makes the identical split on the
 identical data: `ListSeeds` reaches `apiReadError` at `:262`, while the zone and subject reads at
@@ -150,8 +154,9 @@ being a summary of several, so no read on it is loud — consistent with this ru
 
 - **`docs/guides/api.md#response-semantics` is narrowed.** Its *"Store read failure → 500"* row describes only the
   subject read; a region read on the same endpoint logs and serves.
-- **`cold.go:142` and `:147` are defects under §2.** Both render a fabricated zero. They are named
-  here so a later session does not read the code as the rule.
+- **The zone and current-Service-subjects reads in `cmd/web/cold.go#server.coveragePage` are
+  defects under §2.** Both render a fabricated zero. They are named here so a later session does
+  not read the code as the rule.
 - **`driftPage` (`cmd/web/drift.go#server.driftPage`–`:181`) degrades its own subject.** A failed
   `ListRecentDriftEvents` yields `HasEvents: false`, rendering *no drift this period*. Drift is the
   thesis screen (ADR-0110), and this is the exact class §4 forbids.
@@ -163,7 +168,7 @@ being a summary of several, so no read on it is loud — consistent with this ru
   `proposalLookups` (`:433` → `Proposals`). Each takes the whole screen down for one card.
 - **`seeds.go:251` and `:448` get their citation rather than a rewrite.** A comment beside a
   best-effort read is otherwise redundant under the comment policy's gate 1, unless it carries a fact
-  the shape does not, as `cold.go:152` does.
+  the shape does not, as the shared-edges comment in `cmd/web/cold.go#server.coveragePage` does.
 - **This ADR licenses nothing about writes, exports or the act.** Every 500 named in §4 stays.
 
 ## Alternatives rejected

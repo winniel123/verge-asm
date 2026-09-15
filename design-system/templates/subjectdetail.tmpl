@@ -207,7 +207,7 @@
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="sd-tag">service</span>
 {{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{else}}{{with .InternetLeg}}<span class="sd-hleg"><span class="sd-micro">Internet leg</span>{{template "legchip" .}}</span>{{end}}{{end}}
-{{if or .Seen .InScopeSince .SeedFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen (or .InScopeSince .SeedFailed)}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{else if .SeedFailed}}in scope since — the Seed read did not resolve{{end}}</span>{{end}}
+{{if or .Seen .CoveredSince .SeedFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen (or .CoveredSince .SeedFailed)}} · {{end}}{{if .CoveredSince}}covered since {{.CoveredSince}}{{else if .SeedFailed}}covered since — the Seed read did not resolve{{end}}</span>{{end}}
 </div>
 </div>
 <div style="margin-left:auto;display:flex;gap:8px">
@@ -266,9 +266,12 @@
 </div>
 <div style="display:flex;flex-direction:column;gap:24px">
 {{template "subjectprovenance" .Provenance}}
-{{if and (not .Withdrawn) .Signals}}
+{{if or .SignalsFailed (and (not .Withdrawn) .Signals)}}
 <section class="sd-card">
 <div class="sd-cardhead"><span class="sd-micro">Open</span><h3>Signals here</h3></div>
+{{if .SignalsFailed}}
+<div class="sd-body"><span class="sd-mutedline">The signal read did not resolve on this load. No signal is listed rather than a claimed none, so nothing here says this subject holds no open signal. Reload to read it again.</span></div>
+{{else}}
 <div style="padding:12px">
 {{range .Signals}}<a class="sd-sig" href="/signals?view={{.SigID}}">
 {{template "sevbadge" .}}
@@ -276,6 +279,7 @@
 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);flex:none"><path d="m9 18 6-6-6-6"></path></svg>
 </a>{{end}}
 </div>
+{{end}}
 </section>
 {{end}}
 <section class="sd-card">
@@ -301,7 +305,7 @@
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="sd-tag">endpoint</span>
 {{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{end}}
-{{if or .Seen .InScopeSince .SeedFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen (or .InScopeSince .SeedFailed)}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{else if .SeedFailed}}in scope since — the Seed read did not resolve{{end}}</span>{{end}}
+{{if or .Seen .CoveredSince .SeedFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen (or .CoveredSince .SeedFailed)}} · {{end}}{{if .CoveredSince}}covered since {{.CoveredSince}}{{else if .SeedFailed}}covered since — the Seed read did not resolve{{end}}</span>{{end}}
 </div>
 </div>
 <div style="margin-left:auto;display:flex;gap:8px">

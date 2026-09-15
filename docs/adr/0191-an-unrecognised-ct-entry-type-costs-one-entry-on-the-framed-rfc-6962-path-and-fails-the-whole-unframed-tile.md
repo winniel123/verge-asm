@@ -21,7 +21,7 @@ relations:
 
 ## Context
 
-`internal/scan/cttail.go#CertSANs` and `:522` carried these, until #1307 shortened them:
+`internal/scan/cttail.go` and `:522` carried these, until #1307 shortened them:
 
 ```go
 // An entry
@@ -34,14 +34,14 @@ relations:
 // tile cannot be framed. Fail the tile rather than guess an offset.
 ```
 
-Both survive in short form, at `internal/scan/cttail.go#ParseLogEntries`:
+Both survive in short form, at `internal/scan/cttail.go`:
 
 ```go
 default:
 	return nil, nil // a future entry type is tolerated, never a failed poll
 ```
 
-and at `internal/scan/cttail.go#DataTilePath`:
+and at `internal/scan/cttail.go`:
 
 ```go
 default:
@@ -67,7 +67,7 @@ already framed every entry, so an entry's length never depends on its content.**
 one entry's bytes and returns.
 
 **A static-ct-api data tile is one concatenated byte stream.** `ParseDataTile`
-(`internal/scan/cttail.go#CertSANs`) loops:
+(`internal/scan/cttail.go`) loops:
 
 ```go
 der, rest, err := parseTileLeaf(b)
@@ -191,13 +191,13 @@ that is a defect rather than a decision.
   not two. It is not this rule.
 - **Whether the tail should learn a new entry type.** That is a release decision, taken when one
   exists. This ADR rules what happens in the meantime.
-- **The `get-entries` short-read rule.** `internal/scan/cttail.go#CTTailJob.JobSpec` already states that the cursor
+- **The `get-entries` short-read rule.** `internal/scan/cttail.go` already states that the cursor
   advances by the count returned, and that is §4.4's rule rather than this one.
 
 ## Consequences
 
 - **This ADR changes no Go code.** Both arms are correct as they stand.
-- **`internal/scan/cttail.go#ParseLogEntries` and `:378` each gain this ADR's citation**, on the surviving line
+- **`internal/scan/cttail.go` and `:378` each gain this ADR's citation**, on the surviving line
   that states their half of the rule. Recorded in this issue's manifest.
 - **A stalled tiled log is invisible as a stall, and that is a defect this ruling exposes.** A
   dead-lettered `ct-tail` Batch carrying `data tile leaf N: unsupported entry type 7` looks exactly

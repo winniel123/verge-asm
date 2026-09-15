@@ -89,7 +89,7 @@ The test is a question about the user, not about the code's shape.
 (`pluralScans`, `cmd/web/reports.go`); the CSV carries it as a `scans_per_day` row
 (`cmd/web/reports_export.go#server.writeReportsExportCSV`). An operator can open the page and the export of the same
 `?period` and read the two side by side. If a boundary condition — the UTC whole-day truncation at
-`cmd/web/reports.go#server.reportsPage`, the newest-first row cap at `:31`, the out-of-span drop at `:693` — moved
+`cmd/web/reports.go`, the newest-first row cap at `:31`, the out-of-span drop at `:693` — moved
 in one and not the other, the two would print different numbers for one date. That is a visible
 defect, so `bucketScanActivity` is one function.
 
@@ -113,7 +113,7 @@ one function, and the tokenizer's shape never becomes a per-form question.
 
 The rule reaches the split boundary and stops there. What each surface does with the tokens after it
 is its own: onboarding dedupes with `dedupeStrings` (`cmd/web/onboarding.go`), the declare loop
-dedupes and refuses per token against the address cap (`cmd/web/seeds.go#server.seedsPage`–`:126`). Different acts
+dedupes and refuses per token against the address cap (`cmd/web/seeds.go`–`:126`). Different acts
 on the same tokens, not two answers to one question.
 
 The shared function is named for the fact and not for its first caller, and it sits where every

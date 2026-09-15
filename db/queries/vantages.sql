@@ -81,11 +81,58 @@ SET host_key = $2, availability = 'available'
 WHERE id = $1 AND host_key IS NULL;
 
 -- name: MarkVantageUnavailable :exec
-UPDATE vantage
-SET availability = 'unavailable'
-WHERE id = $1;
+-- A vantage that becomes unavailable closes its open spans here, so no composition read
+-- carries an availability predicate.
+WITH became_unavailable AS (
+    -- NULL has never been unavailable, so a resolver-only vantage still closes (ADR-2087).
+    UPDATE vantage
+    SET availability = 'unavailable'
+    WHERE vantage.id = $1
+    RETURNING vantage.id AS vantage_id
+),
+closed AS (
+    -- Every facet, named nowhere: one added later needs no query edit (ADR-2087, #2144).
+    UPDATE span
+    SET closed_at = now()
+    WHERE span.closed_at IS NULL
+      AND span.vantage_id IN (SELECT became_unavailable.vantage_id FROM became_unavailable)
+      -- The guard is on the spans, so a second mark reaches what opened since (#2060).
+      AND (span.is_gap AND span.value ->> 'cause' = 'vantage-unavailable') IS NOT TRUE
+    RETURNING span.subject_kind, span.subject_key, span.facet, span.discriminator,
+              span.vantage_id, span.source, span.derivation
+)
+INSERT INTO span (
+    subject_kind, subject_key, facet, discriminator, vantage_id, source,
+    value, is_gap, derivation, opened_at
+)
+SELECT subject_kind, subject_key, facet, discriminator, vantage_id, source,
+       -- A spelling, never a scope: reachability alone decodes a lowercase outcome
+       -- (connectoutcome.GapOutcome) and every other facet the capitalised one, so a facet
+       -- added later takes the default rather than a new branch.
+       CASE facet
+           WHEN 'reachability' THEN '{"outcome":"gap","cause":"vantage-unavailable","reason":"we could not look from this position"}'::jsonb
+           ELSE '{"outcome":"Gap","cause":"vantage-unavailable"}'::jsonb
+       END,
+       TRUE,
+       -- No leaf ran, so the Gap carries the closed span's vector (ADR-0014).
+       derivation,
+       now()
+FROM closed;
 
 -- name: MarkVantageAvailable :exec
-UPDATE vantage
-SET availability = 'available'
-WHERE id = $1;
+-- Recovery retires the outage Gap on the facets the recovering batch re-read (ADR-2087).
+WITH became_available AS (
+    UPDATE vantage
+    SET availability = 'available'
+    WHERE vantage.id = sqlc.arg(id)
+    RETURNING vantage.id AS vantage_id
+)
+UPDATE span
+SET closed_at = now()
+WHERE span.closed_at IS NULL
+  AND span.vantage_id IN (SELECT became_available.vantage_id FROM became_available)
+  -- A resolver signal measures no port, so it retires no connect Gap (ADR-2087, #2060).
+  AND span.facet = ANY(sqlc.arg(facets)::text[])
+  -- A connect batch keeps opening reached spans behind an outage (#2060).
+  AND span.is_gap
+  AND span.value ->> 'cause' = 'vantage-unavailable';

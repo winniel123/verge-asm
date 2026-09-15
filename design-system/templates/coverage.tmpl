@@ -186,7 +186,11 @@
 </div>
 {{end}}
 </div>
-{{else}}
+{{end}}
+{{if .MessagesFailed}}
+<div class="cv-empty"><span class="msg">Coverage messages did not resolve</span>
+<span class="det">A read behind this card did not resolve on this load. Any message listed is real, but the list is not the whole set, and nothing is guessed in its place. Reload to read it again.</span></div>
+{{else if not .Messages}}
 <div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
 <span class="msg">No coverage messages</span>
 <span class="det">Nothing has aged past its currency and no position has gone silent. A gap, a stale source, or a vantage we could not look from would surface here.</span></div>
@@ -197,7 +201,10 @@
 <div class="cv-col">
 <section class="cv-card flush">
 <div class="cv-cardhead"><span class="cv-micro">Gaps</span><h3>Expected, not observed</h3></div>
-{{if .Gaps}}
+{{if .GapsFailed}}
+<div class="cv-empty"><span class="msg">Gaps did not resolve</span>
+<span class="det">The open reach Gap read did not resolve on this load. No gap is listed rather than a claimed none, so nothing here says the estate holds no gap. Reload to read it again.</span></div>
+{{else if .Gaps}}
 <table class="cv-table">
 <thead><tr><th>Subject</th><th style="width:130px">Gap</th><th style="width:190px">Expected</th><th style="width:60px;text-align:right">Since</th></tr></thead>
 <tbody>
@@ -212,7 +219,7 @@
 {{else}}
 <div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
 <span class="msg">No gaps this batch</span>
-<span class="det">Every expected observation arrived. A subject we expected to observe but did not — a name with no address, a service with no origin behind its edge — would appear here.</span></div>
+<span class="det">Every expected observation arrived. A subject we expected to observe but did not — a name with no address, a service whose reach we could not discriminate — would appear here.</span></div>
 {{end}}
 </section>
 <section class="cv-card">

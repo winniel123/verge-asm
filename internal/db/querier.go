@@ -298,7 +298,10 @@ type Querier interface {
 	MarkReportDeliveryDelivered(ctx context.Context, arg MarkReportDeliveryDeliveredParams) error
 	MarkReportNotificationDelivered(ctx context.Context, id int64) error
 	MarkReportNotificationUndelivered(ctx context.Context, arg MarkReportNotificationUndeliveredParams) error
-	MarkVantageAvailable(ctx context.Context, id int64) error
+	// Recovery retires the outage Gap on the facets the recovering batch re-read (ADR-2087).
+	MarkVantageAvailable(ctx context.Context, arg MarkVantageAvailableParams) error
+	// A vantage that becomes unavailable closes its open spans here, so no composition read
+	// carries an availability predicate.
 	MarkVantageUnavailable(ctx context.Context, id int64) error
 	MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error
 	// The owner rides the batch's dns-record rows, so no leaf version moves (ADR-0151 §2, #1678).

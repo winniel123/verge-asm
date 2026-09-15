@@ -95,7 +95,7 @@ RRs = [{Name: Type: Data:} {Name: Type: Data:}]
 Two records, every field blank.
 
 **And the two sources compete for the same row.** `ListNameDNSRecords`
-(`internal/db/signals.sql.go#Queries.ListEndpointCertificates`) keys its cadence CTEs per source and then collapses:
+(`internal/db/signals.sql.go`) keys its cadence CTEs per source and then collapses:
 
 ```sql
 SELECT DISTINCT ON (o.subject_key, o.discriminator) …
@@ -104,7 +104,7 @@ ORDER BY o.subject_key, o.discriminator, o.observed_at DESC, o.id DESC
 
 **`source` is not in the `DISTINCT ON` key.** A zone file supplied more recently than the last
 resolver walk therefore wins the slot for that `(name, qtype)`, in both consumers of that query:
-`cmd/web/subjects.go#server.assetProvenance` renders blank rows on the asset page, and `cmd/web/signals.go#annotationViews` fails
+`cmd/web/subjects.go` renders blank rows on the asset page, and `cmd/web/signals.go` fails
 to read a `CNAME` target or an `NS` lame flag it would otherwise have read from the resolver.
 
 ## Decision
