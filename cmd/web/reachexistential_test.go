@@ -58,8 +58,8 @@ func TestReachFoldNotReachedOnlyWhereNoVantageReached(t *testing.T) {
 	if got := legFrom(leg); got != (exposure.Leg{Status: exposure.LegValued, Value: exposure.NotReached}) {
 		t.Fatalf("internet leg = %+v, want a valued not-reached", got)
 	}
-	if !leg.since.Equal(reachFoldOlder) {
-		t.Errorf("leg date = %v, want the earliest span carrying not-reached (%v)", leg.since, reachFoldOlder)
+	if !leg.since.Equal(reachFoldNewer) {
+		t.Errorf("leg date = %v, want the latest span carrying not-reached (%v)", leg.since, reachFoldNewer)
 	}
 }
 
@@ -85,8 +85,8 @@ func TestReachFoldGapsWhereNoVantageOfTheClassDecided(t *testing.T) {
 	if got := legFrom(leg); got != (exposure.Leg{Status: exposure.LegGap}) {
 		t.Fatalf("internet leg = %+v, want a Gap", got)
 	}
-	if !leg.since.Equal(reachFoldOlder) {
-		t.Errorf("leg date = %v, want the earliest gapped span (%v)", leg.since, reachFoldOlder)
+	if !leg.since.Equal(reachFoldNewer) {
+		t.Errorf("leg date = %v, want the latest gapped span (%v)", leg.since, reachFoldNewer)
 	}
 	want := []string{"the control probe did not complete", "an edge answers for the origin"}
 	if len(leg.reasons) != 2 || leg.reasons[0] != want[0] || leg.reasons[1] != want[1] {
@@ -170,4 +170,20 @@ func addInternetProber(f *fakeStore, adminID int64, name, dialled string) int64 
 	f.vantages = append(f.vantages, v)
 	f.vantageNextID++
 	return v.ID
+}
+
+func TestServiceReachCardNotReachedLegDatesFromTheLastVantage(t *testing.T) {
+	older := obsClock.Add(-168 * time.Hour)
+	f := legProbeStore(t)
+	a := f.addVantagePresenting("internet-a", "198.51.100.10")
+	b := f.addVantagePresenting("internet-b", "198.51.100.11")
+	f.addReachabilityAtVantage(t, legProbeService, a, older, `{"outcome":"not-reached"}`)
+	f.addReachabilityAtVantage(t, legProbeService, b, obsClock, `{"outcome":"not-reached"}`)
+
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	if got := reachCardLeg(t, page, "Internet leg"); got != (legChip{Tone: "neutral", Label: "not reached"}) {
+		t.Fatalf("internet leg = %+v, want a neutral not reached", got)
+	}
+	assertReachCardLegDate(t, page, "Internet leg", obsClock)
 }
