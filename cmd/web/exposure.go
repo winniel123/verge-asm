@@ -107,6 +107,7 @@ type legInfo struct {
 	outcome string
 	// An existential composition names no vantage, so a gapped leg carries every cause (ADR-0080).
 	reasons []string
+	causes  []string
 	since   time.Time
 	isGap   bool
 	present bool

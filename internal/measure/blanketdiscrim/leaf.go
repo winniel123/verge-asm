@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 )
 
 const Version = "blanket-discrimination/v1" // moves only with a moved golden row (ADR-0021)
@@ -81,6 +82,23 @@ const ( // the sixth gap cause: two operator reasons, one cause (CONTEXT.md Gap,
 	ReasonBlanket    = "this address answers on all ports — it is a proxy edge, not your origin"
 	ReasonIncomplete = "the control-port probe did not complete, so this reach could not be discriminated from a blanket responder"
 )
+
+const ( // render-only prose: stored in no observation, so neither string moves Version (ADR-0021)
+	explainBlanket = "can tell a real origin service behind the proxy edge from the proxy edge answering for it, so this reach is undiscriminated — a Gap, not a value."
+	remedyBlanket  = "Declare your origin IPs as an address scope to measure the real surface."
+)
+
+func GapProse(cause string, classes []string) (explanation, remedy string) {
+	if cause != GapCause {
+		// A cause this leaf does not name renders less prose, never wrong prose (ADR-0104 §4).
+		return "", ""
+	}
+	subject := "No vantage"
+	if len(classes) > 0 {
+		subject += " of the " + strings.Join(classes, " or ") + " class"
+	}
+	return subject + " " + explainBlanket, remedyBlanket
+}
 
 func ReasonFor(v Verdict) string {
 	switch v {

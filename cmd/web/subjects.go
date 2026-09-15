@@ -20,6 +20,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
@@ -183,6 +184,7 @@ type reachabilityValue struct {
 	Outcome string `json:"outcome"`
 	Result  string `json:"result"`
 	Reason  string `json:"reason"`
+	Cause   string `json:"cause"`
 }
 
 const reachOutcomeGap = "gap"
@@ -1228,8 +1230,9 @@ type serviceReachCard struct {
 }
 
 type reachGapNote struct {
-	Classes string
-	Reason  string
+	Reason      string
+	Explanation string
+	Remedy      string
 }
 
 func (s *server) serviceReachLegs(ctx context.Context, key string) (*serviceReachCard, error) {
@@ -1264,11 +1267,13 @@ func subjectGapNote(rv reachabilityValue) *reachGapNote {
 	if rv.Outcome != reachOutcomeGap {
 		return nil
 	}
-	return &reachGapNote{Reason: rv.Reason}
+	note := &reachGapNote{Reason: rv.Reason}
+	note.Explanation, note.Remedy = blanketdiscrim.GapProse(rv.Cause, nil)
+	return note
 }
 
 func reachGapNoteFor(internal, internet legInfo) *reachGapNote {
-	var classes, reasons []string
+	var classes, reasons, causes []string
 	for _, leg := range []struct {
 		class custody.VantageClass
 		info  legInfo
@@ -1283,12 +1288,22 @@ func reachGapNoteFor(internal, internet legInfo) *reachGapNote {
 				reasons = append(reasons, r)
 			}
 		}
+		for _, c := range leg.info.causes {
+			if !slices.Contains(causes, c) {
+				causes = append(causes, c)
+			}
+		}
 	}
+	// A gapped leg owns the banner, or the class-blind note speaks over a live leg (#1985).
 	if len(classes) == 0 {
 		return nil
 	}
-	// The advice is one action, so two gapped legs state it once under both class names.
-	return &reachGapNote{Classes: strings.Join(classes, " or "), Reason: strings.Join(reasons, ". ")}
+	note := &reachGapNote{Reason: strings.Join(reasons, ". ")}
+	if len(causes) == 1 {
+		// Two gapped legs state one banner, and one banner attributes one cause (#2005 decision 9).
+		note.Explanation, note.Remedy = blanketdiscrim.GapProse(causes[0], classes)
+	}
+	return note
 }
 
 // A pre-parse span stored only chain and not_after, so issuer and algorithm read empty.

@@ -153,7 +153,7 @@ func legFromClassGroup(group []reachLegRow) legInfo {
 	if v, ok := exposure.ComposeReach(outcomes); ok {
 		info.outcome = string(v)
 	} else {
-		info.isGap, info.reasons = classGap(group, values)
+		info.isGap, info.reasons, info.causes = classGap(group, values)
 	}
 	held := legFrom(info)
 	for i, row := range group {
@@ -170,8 +170,8 @@ func legFromClassGroup(group []reachLegRow) legInfo {
 
 // A class that composed no value and holds a Gap span stopped looking (ADR-0017 decision 4).
 
-func classGap(group []reachLegRow, values []reachabilityValue) (bool, []string) {
-	var reasons []string
+func classGap(group []reachLegRow, values []reachabilityValue) (bool, []string, []string) {
+	var reasons, causes []string
 	gapped := false
 	for i, row := range group {
 		if !row.isGap {
@@ -181,8 +181,11 @@ func classGap(group []reachLegRow, values []reachabilityValue) (bool, []string) 
 		if r := values[i].Reason; r != "" && !slices.Contains(reasons, r) {
 			reasons = append(reasons, r)
 		}
+		if c := values[i].Cause; !slices.Contains(causes, c) {
+			causes = append(causes, c)
+		}
 	}
-	return gapped, reasons
+	return gapped, reasons, causes
 }
 
 func collapseNameResolutions(rows []db.ListNameResolutionsByClassRow, covered func(netip.Addr) bool) map[string]map[string]resolutionValue {

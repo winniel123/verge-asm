@@ -198,10 +198,11 @@ func TestServiceDetailWithNoReachRowKeepsItsOriginalEmptyState(t *testing.T) {
 	assertNoHeaderLegChip(t, page, "a service with no reach row")
 }
 
-const gapBannerCopy = "so the reach is undiscriminated"
+const gapBannerCopy = "so this reach is undiscriminated"
 
 func TestServiceDetailReachReadFailureWithholdsTheSubjectGapNote(t *testing.T) {
-	gapValue := `{"outcome":"gap","reason":"an edge answers for the origin"}`
+	// #2018 resolves the banner's prose from the cause, so a causeless Gap states the reason alone.
+	gapValue := `{"outcome":"gap","reason":"an edge answers for the origin","cause":"blanket-responder"}`
 
 	healthy := legProbeStore(t)
 	healthy.addReachability(t, legProbeService, obsClock, gapValue)
