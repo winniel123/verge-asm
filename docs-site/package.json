@@ -55,7 +55,7 @@
     "pos": "0.4.2",
     "remark-frontmatter": "^5.0.0",
     "remark-parse": "^11.0.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
     "unist-util-visit-parents": "^6.0.2"
