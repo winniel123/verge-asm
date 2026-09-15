@@ -87,6 +87,32 @@ func (f *fakeStore) ListActsInRange(ctx context.Context, arg db.ListActsInRangeP
 	return out, nil
 }
 
+func (f *fakeStore) ListActsOfClassSince(ctx context.Context, arg db.ListActsOfClassSinceParams) ([]db.Act, error) {
+	if f.actListErr != nil {
+		return nil, f.actListErr
+	}
+	out := []db.Act{}
+	for _, row := range f.actRows {
+		if row.Action != arg.Action {
+			continue
+		}
+		if arg.FromTime.Valid && row.CreatedAt.Time.Before(arg.FromTime.Time) {
+			continue
+		}
+		out = append(out, row)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if !out[i].CreatedAt.Time.Equal(out[j].CreatedAt.Time) {
+			return out[i].CreatedAt.Time.After(out[j].CreatedAt.Time)
+		}
+		return out[i].ID > out[j].ID
+	})
+	if n := int(arg.MaxActs); arg.MaxActs > 0 && len(out) > n {
+		out = out[:n]
+	}
+	return out, nil
+}
+
 func decodeAct(t *testing.T, arg db.InsertActParams) (act.Actor, act.Act) {
 	t.Helper()
 	actor, err := act.DecodeActor(arg.ActorKind, arg.Actor)

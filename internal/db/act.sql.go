@@ -89,3 +89,46 @@ func (q *Queries) ListActsInRange(ctx context.Context, arg ListActsInRangeParams
 	}
 	return items, nil
 }
+
+const listActsOfClassSince = `-- name: ListActsOfClassSince :many
+SELECT id, created_at, actor_kind, actor, action, subject
+FROM act
+WHERE action = $1
+  AND created_at >= $2
+ORDER BY created_at DESC, id DESC
+LIMIT $3
+`
+
+type ListActsOfClassSinceParams struct {
+	Action   string             `json:"action"`
+	FromTime pgtype.Timestamptz `json:"from_time"`
+	MaxActs  int32              `json:"max_acts"`
+}
+
+// The panel beside a figure is a pointer at the audit trail, not a second one (ADR-1946 §3).
+func (q *Queries) ListActsOfClassSince(ctx context.Context, arg ListActsOfClassSinceParams) ([]Act, error) {
+	rows, err := q.db.Query(ctx, listActsOfClassSince, arg.Action, arg.FromTime, arg.MaxActs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Act{}
+	for rows.Next() {
+		var i Act
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.ActorKind,
+			&i.Actor,
+			&i.Action,
+			&i.Subject,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
