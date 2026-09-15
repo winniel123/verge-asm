@@ -197,7 +197,9 @@
 <section class="as-card">
 <div class="as-cardhead"><span class="as-micro">Open</span><h3>Signals here</h3></div>
 <div style="padding:12px">
-{{if .Signals}}
+{{if .SignalsFailed}}
+<div class="as-empty" style="padding:24px 12px"><span class="msg">Signals did not resolve</span><span class="det">The signal read did not resolve on this load. Nothing is listed rather than a guessed verdict. Reload to read it again.</span></div>
+{{else if .Signals}}
 <div style="display:flex;flex-direction:column">
 {{range .Signals}}<a class="as-sig" href="/signals?view={{.SigID}}">
 {{template "sevbadge" .}}

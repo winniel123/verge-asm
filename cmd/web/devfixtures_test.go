@@ -1548,11 +1548,11 @@ func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d 
 		}
 	}
 	assertSubjectTimelines(t, name, a.Timelines, d.Timelines)
-	if len(a.Rules) != len(d.Rules) {
-		t.Fatalf("%s: rules length drift: %d vs %d", name, len(a.Rules), len(d.Rules))
+	if len(a.Rules) != len(d.Rules.Rows) {
+		t.Fatalf("%s: rules length drift: %d vs %d", name, len(a.Rules), len(d.Rules.Rows))
 	}
 	for i, r := range a.Rules {
-		q := d.Rules[i]
+		q := d.Rules.Rows[i]
 		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Verdict != string(q.Verdict) {
 			t.Errorf("%s: rules[%d] drift: %+v vs %+v", name, i, r, q)
 		}
@@ -1653,11 +1653,11 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 	assertSubjectTimelines(t, "endpoint", a.Timelines, d.Timelines)
-	if len(a.Rules) != len(d.Rules) {
-		t.Fatalf("endpoint rules length drift: %d vs %d", len(a.Rules), len(d.Rules))
+	if len(a.Rules) != len(d.Rules.Rows) {
+		t.Fatalf("endpoint rules length drift: %d vs %d", len(a.Rules), len(d.Rules.Rows))
 	}
 	for i, r := range a.Rules {
-		q := d.Rules[i]
+		q := d.Rules.Rows[i]
 		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Verdict != string(q.Verdict) {
 			t.Errorf("endpoint rules[%d] drift: %+v vs %+v", i, r, q)
 		}

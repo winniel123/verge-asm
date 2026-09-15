@@ -163,11 +163,13 @@
 
 {{define "subjectrules"}}<section class="sd-card flush">
 <div class="sd-cardhead" style="padding-bottom:14px"><span class="sd-micro">Rules</span><h3>Rules over this subject</h3></div>
-{{if .}}
+{{if .Failed}}
+<div class="sd-body"><span class="sd-mutedline">The rule read did not resolve on this load. No rule is listed rather than a guessed verdict. Reload to read it again.</span></div>
+{{else if .Rows}}
 <table class="sd-table">
 <thead><tr><th>Rule</th><th style="width:90px">Version</th><th style="width:130px">Verdict</th></tr></thead>
 <tbody>
-{{range .}}<tr class="link" data-href="/signals">
+{{range .Rows}}<tr class="link" data-href="/signals">
 <td><span style="display:inline-flex;align-items:center;gap:8px">{{template "sevbadge" .}}<span style="font-family:var(--font-mono);font-size:12.5px">{{.Rule}}</span></span></td>
 <td class="mono">v{{.Version}}</td>
 <td>{{if eq .Verdict "fired"}}<span class="sd-badge danger">fired</span>{{else if eq .Verdict "not-evaluable"}}<span class="sd-badge stale">not evaluable</span>{{else}}<span class="sd-badge">did not fire</span>{{end}}</td>
