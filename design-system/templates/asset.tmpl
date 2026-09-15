@@ -108,7 +108,7 @@
 <span class="as-tag">{{.Type}}</span>
 {{if .Severity}}{{template "sevbadge" .}}{{end}}
 {{with .InternetLeg}}<span class="as-hleg"><span class="as-micro">Internet leg</span>{{template "legchip" .}}</span>{{end}}
-{{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}seen {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
+{{if or .Seen .InScopeSince .ScopeDateFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}seen {{.Seen}}{{end}}{{if and .Seen (or .InScopeSince .ScopeDateFailed)}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{else if .ScopeDateFailed}}in scope since — the Seed read did not resolve{{end}}</span>{{end}}
 </div>
 </div>
 <div style="margin-left:auto;display:flex;gap:8px">

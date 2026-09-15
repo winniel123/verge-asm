@@ -601,6 +601,9 @@ func (f *fakeStore) GetEndpointSubject(_ context.Context, arg db.GetEndpointSubj
 }
 
 func (f *fakeStore) FindNameCitingAddress(_ context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error) {
+	if f.nameCitingAddressErr != nil {
+		return db.FindNameCitingAddressRow{}, f.nameCitingAddressErr
+	}
 	address := arg.Address
 	var best *db.FindNameCitingAddressRow
 	for name, o := range f.latestResolutionByName(f.liveObservations(arg.AsOf.Time)) {
