@@ -1246,6 +1246,20 @@ the resolver gave, and never inferred from a batch of null values. The unavailab
 surfaced on `Coverage` by name.
 _Avoid_: health, status, up, reachable
 
+**Address-scope binding**:
+The predicate over presented addresses under which a `Vantage class` is read — derived from the
+address-scope `Seed`s the system holds **at one instant**, less the `exclusion`s standing at that
+same instant ([ADR-0133](./docs/adr/0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md)).
+A binding is a **reading of declared configuration, and no row holds one**. So two acquisitions at
+two instants may disagree, wherever an operator edited an address scope between them. That is the
+whole reason **every leg of one comparison classifies under one binding**: a comparison that binds
+twice reports the operator's edit as a movement in the estate, in a figure the operator reads as
+drift. [ADR-1895](./docs/adr/1895-a-vantage-class-reads-present-configuration-so-a-historic-observation-carries-none.md)
+states that rule and
+[ADR-1945](./docs/adr/1945-one-address-scope-binding-per-comparison-held-by-a-seam-and-fenced-by-an-ast-gate.md)
+fences it. A reader of present state alone starts no comparison and acquires its own.
+_Avoid_: coverage check, scope lookup, the covered flag
+
 **Vantage composition**:
 How a reader of a **per-vantage** facet turns the set of per-vantage values into the one value it
 reads. Every Derived value over such a facet performs one, and there are exactly **two kinds**.
