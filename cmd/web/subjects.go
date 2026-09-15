@@ -97,7 +97,6 @@ type servicePageData struct {
 	InternalLeg        *legChip
 	InternetLeg        *legChip
 	GapNote            *reachGapNote
-	Since              string
 	Provenance         []assetKV
 	Rules              subjectRulesView
 	Signals            []assetSignal
@@ -374,7 +373,6 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
 		}
 	}
-	data.Since = currentReachSince(data.Timelines)
 	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	signals, sigErr := s.assetSignals(r, subject.SubjectKey)
@@ -506,21 +504,6 @@ func firstSeenFromTimelines(tls []timelineView) string {
 		}
 		for _, sp := range tl.Closed {
 			consider(sp.OpenedAt)
-		}
-	}
-	return best
-}
-
-func currentReachSince(tls []timelineView) string {
-	// One timeline per vantage means an arbitrary pick moves with the row order (#2005).
-	best := ""
-	for _, tl := range tls {
-		if tl.Facet != "reachability" || tl.Current == nil {
-			continue
-		}
-		// Every OpenedAt is fixed-width UTC, so the lexicographic minimum is the earliest instant.
-		if best == "" || tl.Current.OpenedAt < best {
-			best = tl.Current.OpenedAt
 		}
 	}
 	return best
@@ -1186,7 +1169,9 @@ func (s *server) serviceReachLegs(ctx context.Context, key string) (*serviceReac
 	internal := byClass[string(custody.ClassInternal)]
 	internet := byClass[string(custody.ClassInternet)]
 	internalChip := reachLegChip(custody.ClassInternal, legFrom(internal))
+	internalChip.Date = legSince(internal)
 	internetChip := reachLegChip(custody.ClassInternet, legFrom(internet))
+	internetChip.Date = legSince(internet)
 	return &serviceReachCard{
 		Internal: &internalChip,
 		Internet: &internetChip,
