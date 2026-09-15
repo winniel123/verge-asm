@@ -3607,7 +3607,8 @@
     "empty_variant": {
       "query": "zzz-none",
       "total": 0
-    }
+    },
+    "not_resolved_variant": "reads-not-resolved"
   },
   "onboarding": {
     "steps": [

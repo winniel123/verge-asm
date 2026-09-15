@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -132,6 +134,54 @@ func TestSearchKeepsItsEmptyStateWhenNothingMatches(t *testing.T) {
 		if strings.Contains(page, banned) {
 			t.Errorf("a resolved read matching no signal read as a failed one: found %q; body: %s", banned, page)
 		}
+	}
+}
+
+func TestSearchDevFixtureShowsItsNotResolvedVariant(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	srv := newServer(f, testKey, "", fixedClock())
+	srv.devMode = true
+	ts := httptest.NewServer(srv.handler())
+	t.Cleanup(ts.Close)
+
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+	page := getBody(t, ac, ts.URL+"/search?variant="+devSearchNotResolvedVariant, http.StatusOK)
+
+	for _, want := range []string{
+		searchSignalsFailed, signalsDidNotResolve, searchAssetsFailed, searchBatchesFailed,
+		searchTotalWithheld, "the signal, asset and batch reads did not resolve", "<h3>Documentation</h3>",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the dev did-not-resolve variant does not render %q; body: %s", want, page)
+		}
+	}
+	if count := searchCountLine(t, page); strings.Contains(count, " results") {
+		t.Errorf("the dev did-not-resolve variant still states a result total: %q", count)
+	}
+	if strings.Contains(page, searchNothingMatches) {
+		t.Errorf("the dev did-not-resolve variant still claims nothing matches; body: %s", page)
+	}
+}
+
+func TestSearchDevFixtureKeepsItsResolvedDefault(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	srv := newServer(f, testKey, "", fixedClock())
+	srv.devMode = true
+	ts := httptest.NewServer(srv.handler())
+	t.Cleanup(ts.Close)
+
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+	page := getBody(t, ac, ts.URL+"/search?q="+url.QueryEscape(loadSearchFixture().Query), http.StatusOK)
+
+	for _, banned := range []string{searchSignalsFailed, searchAssetsFailed, searchBatchesFailed, searchTotalWithheld} {
+		if strings.Contains(page, banned) {
+			t.Errorf("the default dev fixture read as a failed one: found %q; body: %s", banned, page)
+		}
+	}
+	if count := searchCountLine(t, page); !strings.Contains(count, " results") {
+		t.Errorf("the default dev fixture lost its result total: %q", count)
 	}
 }
 

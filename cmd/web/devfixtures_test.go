@@ -393,6 +393,26 @@ func TestCoverageFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
+type fixtureSearchPackage struct {
+	Search struct {
+		NotResolvedVariant string `json:"not_resolved_variant"`
+	} `json:"search"`
+}
+
+func TestSearchFixtureMatchesPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureSearchPackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	if f.Search.NotResolvedVariant != devSearchNotResolvedVariant {
+		t.Errorf("not_resolved_variant drift: fixtures.json = %q, pinned = %q", f.Search.NotResolvedVariant, devSearchNotResolvedVariant)
+	}
+}
+
 type fixtureExposurePackage struct {
 	Exposure struct {
 		Exposed         int    `json:"exposed"`
