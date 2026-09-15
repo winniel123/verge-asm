@@ -147,7 +147,7 @@ Every path below is relative to `design-system/`.
 
 Each component ships as a `.jsx`, a `.d.ts`, and a `.prompt.md`, beside a per-family `<family>.card.html` specimen page. Not every component reaches a screen. Some carry a card and a `.prompt.md` and nothing composes them yet.
 
-- `examples/console/` — the console screen and flow compositions plus the `ConsoleApp.jsx` shell. This is the console's IA reference, ported verbatim (ADR-0110).
+- `examples/console/` — the console screen and flow compositions plus the `ConsoleApp.jsx` shell. This is the console's original design reference. It binds no template, and a difference between one of these screens and the template that serves it is not a defect (ADR-1988).
 - `examples/Homepage.jsx` — the marketing homepage.
 - `examples/DocsPage.jsx` — the docs page.
 - `templates/` — the Go `html/template` files the web app serves, one per screen.

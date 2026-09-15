@@ -16,7 +16,7 @@ This directory is the **source of truth** and may be edited in-repo. (The former
 - `tokens/` — colors, typography, spacing, radius, elevation, motion, base (7 files).
 - `styles.css` — single import that pulls all seven token files.
 - `components/forms|display|feedback|navigation|media/` — React components (`.jsx` + `.d.ts` + `.prompt.md`) consumed by the docs-site.
-- `examples/console/` — screen/flow compositions + shell (`ConsoleApp.jsx`); the console's IA reference.
+- `examples/console/` — screen/flow compositions + shell (`ConsoleApp.jsx`); the console's original design reference, which binds no template (ADR-1988).
 - `examples/Homepage.jsx`, `examples/DocsPage.jsx` — marketing and docs surfaces.
 - `fixtures/fixtures.json` — the fixture corpus the web app renders in dev/test.
 - `docs/DESIGN-NOTES.md` — full design rationale: palette math, severity contrast tables, component history, production notes.

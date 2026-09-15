@@ -18,6 +18,8 @@ proof: {none: "predates the governance SPEC"}
 
 > **Amended** by [ADR-0181: the deployment is single-tenant, so no `Organisation` is modelled and the shell ships a static chip](./0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md), 2026-09-05. <!-- adr-marker amends 181 -->
 
+> **Amended** by [ADR-1988: `design-system/examples/` is the console's original design reference, and it binds no template](./1988-design-system-examples-is-the-consoles-original-design-reference-and-it-binds-no-template.md), 2026-09-15. <!-- adr-marker amends 1988 -->
+
 - **Supersedes:** the "`examples/` is a reference look, not an IA ruling" clause of `docs/agents/design-system.md` — and only that clause.
 
 ## Context
@@ -47,13 +49,23 @@ where a verbatim port is both cheaper and more faithful. The user ratified the r
 
 ## Decision
 
-> **The console screens in `design-system/examples/console/` are the console's information-architecture
-> spec, ported verbatim.** Each screen's composition — its components, layout, spacing, hierarchy, and
-> copy — is translated from the reference JSX into the app's server-rendered Go templates
-> (`cmd/web/`), swapping only inline sample data for real data of the same shape (design-system
-> empty-states where a new screen has no backing data yet, never fabricated data). `ConsoleApp.jsx` is
-> the shell spec (TopNav, ~~org switcher,~~ ⌘K palette, toast stack, theme toggle, messages bell).
+> ~~**The console screens in `design-system/examples/console/` are the console's
+> information-architecture spec, ported verbatim.**~~ Each screen's composition — its components,
+> layout, spacing, hierarchy, and copy — is translated from the reference JSX into the app's
+> server-rendered Go templates (`cmd/web/`), swapping only inline sample data for real data of the
+> same shape (design-system empty-states where a new screen has no backing data yet, never
+> fabricated data). `ConsoleApp.jsx` is the shell spec (TopNav, ~~org switcher,~~ ⌘K palette,
+> toast stack, theme toggle, messages bell).
 > ~~`screenshots/` are the visual ground truth every screen verifies against.~~
+>
+> **The verbatim-port clause is WITHDRAWN at the site that specifies it, 2026-09-15
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** This
+> Decision was a migration instruction, and the migration completed.
+> [ADR-1988](./1988-design-system-examples-is-the-consoles-original-design-reference-and-it-binds-no-template.md)
+> rules that `design-system/examples/` is the console's original design reference and binds no
+> template. A console screen's information architecture is decided in its SPEC under `docs/spec/`,
+> and `design-system/templates/` is the surface that realises it. A difference between an example
+> and its template is not a defect. No clause of this Decision now stands.
 >
 > **The `org switcher` clause is WITHDRAWN at the site that specifies it, 2026-09-05
 > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
