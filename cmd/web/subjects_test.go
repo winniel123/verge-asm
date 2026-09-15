@@ -630,6 +630,9 @@ func (f *fakeStore) GetNameSubject(_ context.Context, arg db.GetNameSubjectParam
 }
 
 func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error) {
+	if f.nameCitationErr != nil {
+		return db.GetNameCitationRow{}, f.nameCitationErr
+	}
 	key := arg.SubjectKey
 
 	var admission *db.AdmittedName
@@ -677,6 +680,9 @@ func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationPar
 }
 
 func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.FindCoveringNameSeedRow, error) {
+	if f.coveringNameSeedErr != nil {
+		return db.FindCoveringNameSeedRow{}, f.coveringNameSeedErr
+	}
 	var best *db.Seed
 	for i := range f.seeds {
 		s := &f.seeds[i]
@@ -700,6 +706,9 @@ func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.Fin
 }
 
 func (f *fakeStore) FindNameSeedByID(_ context.Context, seedID int64) (db.FindNameSeedByIDRow, error) {
+	if f.nameSeedByIDErr != nil {
+		return db.FindNameSeedByIDRow{}, f.nameSeedByIDErr
+	}
 	for i := range f.seeds {
 		s := &f.seeds[i]
 		if s.Kind != "name" || s.ID != seedID {

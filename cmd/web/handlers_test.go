@@ -149,6 +149,10 @@ type fakeStore struct {
 	signalInstancesErr  error
 	mintInstancesErr    error
 
+	nameCitationErr     error
+	nameSeedByIDErr     error
+	coveringNameSeedErr error
+
 	channels       []fakeChannel
 	chanNextID     int64
 	retention      db.GetRetentionSettingsRow
