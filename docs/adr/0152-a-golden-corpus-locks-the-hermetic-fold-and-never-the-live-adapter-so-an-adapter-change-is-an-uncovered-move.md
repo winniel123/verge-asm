@@ -25,7 +25,7 @@ relations:
 
 ## Context
 
-[`internal/measure/connectoutcome/tls.go#ParseChainCert`](../../internal/measure/connectoutcome/tls.go) carries
+[`internal/measure/connectoutcome/tls.go`](../../internal/measure/connectoutcome/tls.go) carries
 this, above `classifyDialError`:
 
 ```go

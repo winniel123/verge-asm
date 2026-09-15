@@ -45,15 +45,15 @@ IP question is its item 2, which poses rather than rules.
 
 **What is written covers neighbours only.** `weak-key-and-signature.md` §4.1 states the
 shared-predicate half and nothing about byte-exactness; the sweep kept that citation at
-`cmd/web/signals.go#server.deriveSignalInstances`, correctly. `docs/spec/golden-corpus.md` §10.3 states that an `iPAddress`
+`cmd/web/signals.go`, correctly. `docs/spec/golden-corpus.md` §10.3 states that an `iPAddress`
 SAN *"raise[s] the count by zero"* — but in the shared-edge reduction, a different path, whose
 `internal/queue/edgefanout.go` returns `cert.DNSNames` alone. A search of `docs/spec/`,
 `docs/adr/`, `docs/guides/`, `docs/research/` and `CONTEXT.md` returns nothing for either rule here.
 
 **The code, verified in this tree.** `selfSignedOf` is `cmd/web/signals.go` and its body
 is `return subject == issuer && selfSigVerifies`. The two strings are not DER: they are
-`pkix.Name.String()` renderings taken at measure time (`internal/measure/connectoutcome/tls.go#NetHandshaker.Handshake`,
-`:204`), carried as `chain_certs[].subject` and `.issuer` and decoded at `cmd/web/signals.go#server.buildEndpointFacts`.
+`pkix.Name.String()` renderings taken at measure time (`internal/measure/connectoutcome/tls.go`,
+`:204`), carried as `chain_certs[].subject` and `.issuer` and decoded at `cmd/web/signals.go`.
 That rendering discards the ASN.1 string type and emits the nine standard attribute types in a fixed
 order, so it is neither raw bytes nor RFC 5280 §7.1. `selfSigVerifies` does come from
 `CheckSignatureFrom` — `tls.go:201` — captured in-leaf and stored at `:205`. Two callers, both in
@@ -61,7 +61,7 @@ this file: `certDetailsFromValue` on `chain_certs[0]` at `:1076`, and `weakKeyOr
 at `:1171`. There is no third outside the test.
 
 **`san_ip` is captured and read by nothing.** `tls.go:165-168` renders every `leaf.IPAddresses`
-entry, `certificate.go:63` emits it, `cmd/web/signals.go#server.buildEndpointFacts` decodes it — and no expression reads
+entry, `certificate.go:63` emits it, `cmd/web/signals.go` decodes it — and no expression reads
 that field. `certcorpus/rows.go` pins the shape as `cert_v3_san_ip_only.ndjson`, whose own
 claim says the read side *"ignores san_ip entirely"*.
 

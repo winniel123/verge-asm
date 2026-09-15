@@ -24,15 +24,15 @@ relations:
 `coveragePage` stated one rule five times, in five uncited blocks, and PR #1361 deleted all five: *a
 failed read empties its own region rather than 500ing the page*. **Every line number in #1360 has
 moved.** The pre-sweep sites `:233`, `:245`, `:273`, `:289` and `:297` are now the reads at
-`cmd/web/cold.go#coverageMeterView` (zone declarations), `:147` (current Service subjects), `:162` and `:165`
+`cmd/web/cold.go` (zone declarations), `:147` (current Service subjects), `:162` and `:165`
 (blanketed reach, unavailable vantages), `:171` (the signal corpus) and `:176`–`:177` (zone cadence
 and zone-file status). Nothing states the rule at any of them. **#1360's three "unswept residue"
 sites are gone too** — `exposure.go`, `drift.go` and `custodycensus.go` carry no statement of it
 today, and `custodycensus.go` is 130 lines with no line 237.
 
-**#1339's two are compressed rather than gone**, and both survive uncited: `cmd/web/seeds.go#nameRefusal` —
+**#1339's two are compressed rather than gone**, and both survive uncited: `cmd/web/seeds.go` —
 *"A failed count degrades the block; refusing the act would leave no route to the withdrawal"* — and
-`cmd/web/seeds.go#refusalOverCap` — *"An additive card's failed read degrades that card, never the whole Scope
+`cmd/web/seeds.go` — *"An additive card's failed read degrades that card, never the whole Scope
 screen."* Those two lines are the last in-tree statement of the rule.
 
 The posture is not incidental. `cmd/web` holds 86 conditional-adoption sites of the
@@ -92,7 +92,7 @@ This is the limb that keeps §1 from fabricating. The region renders *no rows*, 
 saying the read did not resolve. It does not render a number. Two shipped examples:
 `design-system/templates/scope.tmpl#scope` renders *"The fan-out measurement did not resolve on this
 load. Nothing is listed rather than a guessed edge."* against the `CustodyCensusFailed` flag that
-`cmd/web/seeds.go#refusalOverCap` sets, and `scope.tmpl:182` renders *"The count did not resolve"* for the
+`cmd/web/seeds.go` sets, and `scope.tmpl:182` renders *"The count did not resolve"* for the
 confirm block.
 
 **A count is not an honest absence.** `cold.go:147`'s failure leaves `walked` nil, and `addressMeter`
@@ -108,13 +108,13 @@ the read's failure into `apertureMeters` and withhold the numerator, exactly as
 
 `previewSeedWithdrawal` renders the narrowing receipt for a `Seed` withdrawal. On a failed receipt
 it logs, sets `confirm.Failed`, and serves the confirm block with the act still offered
-(`cmd/web/seeds.go#joinRefusedInputs`–`:273`).
+(`cmd/web/seeds.go`–`:273`).
 
 Two facts make that correct, and both are checkable. **The step is the only route:**
 `/seeds/delete` appears once in the whole template corpus, at
 `design-system/templates/scope.tmpl#scope`, inside `{{with .SeedConfirm}}`, and the chip's remove
 control at `:170` posts to `/seeds/preview`. **The count binds nothing:** `deleteSeed`
-(`cmd/web/seeds.go#allRefusedFormError`) reads no receipt — it calls `WithdrawSeed` and returns — and under ADR-0134
+(`cmd/web/seeds.go`) reads no receipt — it calls `WithdrawSeed` and returns — and under ADR-0134
 §5 the withdrawal is performed by the next membership fold from a tombstone. So refusing would cost
 the operator their only route to a withdrawal, over a figure the act never consults.
 

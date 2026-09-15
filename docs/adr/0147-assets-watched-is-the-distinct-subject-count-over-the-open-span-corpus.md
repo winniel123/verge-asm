@@ -21,7 +21,7 @@ The dashboard stat band draws a tile labelled **Assets watched**. It draws one l
 different reads**, and they can disagree.
 
 **The value is a subject listing.** `cmd/web/auth.go#server.dashboardData` computes `assetsWatched := names + services`.
-`names` is `len(rows)` from `ListCurrentNameSubjects` (`cmd/web/auth.go#server.home`) and `services` is
+`names` is `len(rows)` from `ListCurrentNameSubjects` (`cmd/web/auth.go`) and `services` is
 `len(rows)` from `ListCurrentServiceSubjects` (`cmd/web/auth.go`). Both queries live in
 `db/queries/subjects.sql`. Both read the **observation** table through a freshness gate —
 `as_of - observed_at <= floor_cadences * tightest_cadence` — and the name query additionally drops any

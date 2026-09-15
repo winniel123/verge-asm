@@ -76,7 +76,7 @@ clears the anchor with everything else; `cmd/web/auth.go` calls it on every succ
 non-empty, the key carries that prefix and the anchor is set, a key past its ceiling is skipped
 instead of reported locked.
 
-`cmd/web/auth.go#server.loginSubmit` builds the account key — `func loginAccountKey(username string) string
+`cmd/web/auth.go` builds the account key — `func loginAccountKey(username string) string
 { return "acct:" + strings.ToLower(username) }` — and `cmd/web/clientip.go#server.loginIPKey` builds the IP key
 as `"ip:" + s.clientIP(r)`. Both handlers pass the pair together (`auth.go:245`, `:292`).
 

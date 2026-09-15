@@ -49,10 +49,10 @@ table is the authority. ADR-0157 borrows the rule; this ADR states it.
 
 | Fact | Site |
 | --- | --- |
-| `server.routes` is a `*http.ServeMux` field | [`cmd/web/handlers.go#newServer`](../../cmd/web/handlers.go) |
+| `server.routes` is a `*http.ServeMux` field | [`cmd/web/handlers.go`](../../cmd/web/handlers.go) |
 | `handler()` assigns it after the last registration, including `mountAPIv1` | `handlers.go:323`, `:493`, `:495-496` |
 | `handler()` returns `s.recoverPanics(mux)`, so the served handler and the stored table are one object | `handlers.go:498` |
-| 134 registrations in `handler()` and 6 in `api_v1.go`; **every one carries an explicit method token**, none is method-less | `handlers.go:325-493`, [`cmd/web/api_v1.go#apiV1Store`](../../cmd/web/api_v1.go) |
+| 134 registrations in `handler()` and 6 in `api_v1.go`; **every one carries an explicit method token**, none is method-less | `handlers.go:325-493`, [`cmd/web/api_v1.go`](../../cmd/web/api_v1.go) |
 | `routeServesGET` builds a synthetic `GET` request and asks `(*http.ServeMux).Handler` for the matched pattern | [`cmd/web/backurl.go#server.routeServesGET`](../../cmd/web/backurl.go), the call at `:124` |
 | It fails closed on a nil receiver or a nil table | `backurl.go:116-118` |
 | It narrows the `GET /` catch-all by hand, because `home` answers 404 for every path but the root | `routeServesGET` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)), `home` ([`cmd/web/auth.go`](../../cmd/web/auth.go)) |
