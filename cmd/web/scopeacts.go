@@ -124,8 +124,9 @@ func (s *server) recentAddressScopeActs(ctx context.Context) (out []scopeActRow,
 			Scope: scope,
 			Verb:  m.verb,
 		})
+		// A filled render says five rendered, never that the reads saw no more (#2188).
 		if len(out) == scopeActRows {
-			return out, false, nil
+			break
 		}
 	}
 	return out, capped, nil

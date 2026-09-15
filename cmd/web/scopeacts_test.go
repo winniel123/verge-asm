@@ -297,6 +297,69 @@ func TestExposurePanelNamesACappedRead(t *testing.T) {
 	}
 }
 
+// A read that returned its whole LIMIT may hide a newer address scope behind a name-scope burst,
+// and filling the five render rows from another class says nothing about what it hid (#2188).
+
+func TestACappedReadSurvivesAFullRender(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	exposureBoardFixture(t, f, now)
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	// seed.declared fills its own read with name scopes, so it renders nothing and hides the rest.
+	for i := range int(scopeActReadCap) {
+		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
+			fmt.Sprintf("host-%d.acmecorp.io", i))
+	}
+	// A second class supplies every row the render caps at, so the early return fires.
+	for i := range scopeActRows {
+		recordActAt(t, f, now.Add(-time.Duration(i+1)*time.Hour), who,
+			act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{
+				Kind: "address", Scope: fmt.Sprintf("192.0.2.%d/32", i)}})
+	}
+
+	s := &server{scopeActStore: f, now: func() time.Time { return now }}
+	rows, capped, err := s.recentAddressScopeActs(context.Background())
+	if err != nil {
+		t.Fatalf("recentAddressScopeActs: %v", err)
+	}
+	if len(rows) != scopeActRows {
+		t.Fatalf("rows = %d, want %d: the render must fill or this proves nothing", len(rows), scopeActRows)
+	}
+	if !capped {
+		t.Error("a filled render reported an uncapped read: a read returning its LIMIT means " +
+			"there may be more, and five rendered rows is a different fact (#2188)")
+	}
+}
+
+func TestExposurePanelNamesACappedReadBesideFiveRows(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	exposureBoardFixture(t, f, now)
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	for i := range int(scopeActReadCap) {
+		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
+			fmt.Sprintf("host-%d.acmecorp.io", i))
+	}
+	for i := range scopeActRows {
+		recordActAt(t, f, now.Add(-time.Duration(i+1)*time.Hour), who,
+			act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{
+				Kind: "address", Scope: fmt.Sprintf("192.0.2.%d/32", i)}})
+	}
+
+	base := startAt(t, f, now)
+	page := getBody(t, login(t, base, "admin", "hunter2hunter2"), base+"/exposure", http.StatusOK)
+
+	if !strings.Contains(page, "This read stopped at the 50 newest acts of each class") {
+		t.Error("a full list claimed a completeness its capped reads cannot support, and the " +
+			"operator is told nothing (#2188)")
+	}
+	if !strings.Contains(page, "192.0.2.0/32") {
+		t.Fatal("the fixture did not render the five address rows the note sits beside")
+	}
+}
+
 // The scope that withholds the board is the one the reader most needs, so the panel survives it.
 
 func TestExposurePanelRendersUnderAWithheldBoard(t *testing.T) {

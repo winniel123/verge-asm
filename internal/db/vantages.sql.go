@@ -305,23 +305,28 @@ const markVantageAvailable = `-- name: MarkVantageAvailable :exec
 WITH became_available AS (
     UPDATE vantage
     SET availability = 'available'
-    WHERE vantage.id = $1
+    WHERE vantage.id = $2
     RETURNING vantage.id AS vantage_id
 )
 UPDATE span
 SET closed_at = now()
 WHERE span.closed_at IS NULL
   AND span.vantage_id IN (SELECT became_available.vantage_id FROM became_available)
-  -- A connect batch keeps opening reached spans behind an outage, so only the Gap the
-  -- availability writer opened may close here (#2060).
+  -- A resolver signal measures no port, so it retires no connect Gap (ADR-2087, #2060).
+  AND span.facet = ANY($1::text[])
+  -- A connect batch keeps opening reached spans behind an outage (#2060).
   AND span.is_gap
   AND span.value ->> 'cause' = 'vantage-unavailable'
 `
 
-// Recovery closes what the outage opened. The Gap says the position could not look, and a
-// timeline given no further reading would otherwise say that forever (ADR-2087).
-func (q *Queries) MarkVantageAvailable(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, markVantageAvailable, id)
+type MarkVantageAvailableParams struct {
+	Facets []string `json:"facets"`
+	ID     int64    `json:"id"`
+}
+
+// Recovery retires the outage Gap on the facets the recovering batch re-read (ADR-2087).
+func (q *Queries) MarkVantageAvailable(ctx context.Context, arg MarkVantageAvailableParams) error {
+	_, err := q.db.Exec(ctx, markVantageAvailable, arg.Facets, arg.ID)
 	return err
 }
 

@@ -232,6 +232,25 @@ func TestMarkVantageAvailableClosesTheOutagesGapAndNothingElse(t *testing.T) {
 	}
 }
 
+func TestMarkVantageAvailableRetiresTheRecoveringBatchsFacetsAlone(t *testing.T) {
+	// The unavailable writer closes every facet, because a dark position measures none of them.
+	// Recovery is reached only from a completed resolution-walk batch, which re-reads two. An
+	// unscoped closure retires the reachability Gap with nothing to replace it, the span leaves
+	// ListServiceReachabilitySpansByClass, and the board reads never-configured (#2060).
+	q := uncommented(namedQuery(t, "vantages.sql", "MarkVantageAvailable"))
+
+	if !strings.Contains(q, "span.facet = ANY") {
+		t.Fatalf("recovery must close the Gap on the facets the caller names, not on every facet "+
+			"the outage opened (ADR-2087); got:\n%s", q)
+	}
+	for _, facet := range []string{"resolution", "dns-record", "reachability"} {
+		if strings.Contains(q, "'"+facet+"'") {
+			t.Errorf("the facet set is the recovering batch's own, so it comes from the caller "+
+				"and %s is named nowhere in this query; got:\n%s", facet, q)
+		}
+	}
+}
+
 func TestMarkVantageAvailableOpensNothingBehindTheClosedGap(t *testing.T) {
 	// Closing alone leaves the timeline silent, which is what holds: the position can look and
 	// has not looked yet. A replacement Gap would write two rows per timeline on every flap,

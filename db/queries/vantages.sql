@@ -120,19 +120,19 @@ SELECT subject_kind, subject_key, facet, discriminator, vantage_id, source,
 FROM closed;
 
 -- name: MarkVantageAvailable :exec
--- Recovery closes what the outage opened. The Gap says the position could not look, and a
--- timeline given no further reading would otherwise say that forever (ADR-2087).
+-- Recovery retires the outage Gap on the facets the recovering batch re-read (ADR-2087).
 WITH became_available AS (
     UPDATE vantage
     SET availability = 'available'
-    WHERE vantage.id = $1
+    WHERE vantage.id = sqlc.arg(id)
     RETURNING vantage.id AS vantage_id
 )
 UPDATE span
 SET closed_at = now()
 WHERE span.closed_at IS NULL
   AND span.vantage_id IN (SELECT became_available.vantage_id FROM became_available)
-  -- A connect batch keeps opening reached spans behind an outage, so only the Gap the
-  -- availability writer opened may close here (#2060).
+  -- A resolver signal measures no port, so it retires no connect Gap (ADR-2087, #2060).
+  AND span.facet = ANY(sqlc.arg(facets)::text[])
+  -- A connect batch keeps opening reached spans behind an outage (#2060).
   AND span.is_gap
   AND span.value ->> 'cause' = 'vantage-unavailable';

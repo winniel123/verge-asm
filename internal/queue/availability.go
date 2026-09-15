@@ -34,10 +34,24 @@ func availabilityAfterOutcome(vantageValid bool, kind, outcome string) availabil
 	}
 }
 
+func recoveredFacets(kind string) []string {
+	switch kind {
+	case resolutionwalk.Kind:
+		// The facets resolutionwalk.Emit writes, and the whole of what a completed walk re-reads.
+		return []string{resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord}
+	default:
+		return nil
+	}
+}
+
 func applyAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, kind, outcome string) error {
 	switch availabilityAfterOutcome(vantageID.Valid, kind, outcome) {
 	case availabilityAvailable:
-		return qtx.MarkVantageAvailable(ctx, vantageID.Int64)
+		// The outage closed every facet; recovery retires this batch's own (ADR-2087, #2060).
+		return qtx.MarkVantageAvailable(ctx, db.MarkVantageAvailableParams{
+			ID:     vantageID.Int64,
+			Facets: recoveredFacets(kind),
+		})
 	case availabilityUnavailable:
 		return qtx.MarkVantageUnavailable(ctx, vantageID.Int64)
 	default:
