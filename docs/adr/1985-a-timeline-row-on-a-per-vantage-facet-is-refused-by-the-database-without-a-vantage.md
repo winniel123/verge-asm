@@ -99,6 +99,8 @@ with any other read to keep it true. Every reader inherits it.
 
 ## 4. The predicate is a deny-list, and it fails closed
 
+> **Amended** by [ADR-2028: An exception on the per-vantage CHECK names a writer that a test proves exists](./2028-an-exception-on-the-per-vantage-check-names-a-writer-that-a-test-proves-exists.md), 2026-09-15. <!-- adr-marker amends 2028 -->
+
 The constraint could be written as an allow-list — name the per-vantage facets, and require a
 vantage for those. It is written the other way. A row requires a vantage **unless** it is
 zone-sourced or a `certificate`.
