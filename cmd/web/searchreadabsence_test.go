@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -10,6 +11,8 @@ import (
 
 const (
 	searchSignalsFailed  = "Signals did not resolve"
+	searchAssetsFailed   = "Assets did not resolve"
+	searchBatchesFailed  = "Batches did not resolve"
 	searchTotalWithheld  = "Results not totalled"
 	searchNothingMatches = "Nothing matches."
 	sevBadgeGeometry     = "height:18px;padding:0 8px;border-radius:999px"
@@ -129,5 +132,129 @@ func TestSearchKeepsItsEmptyStateWhenNothingMatches(t *testing.T) {
 		if strings.Contains(page, banned) {
 			t.Errorf("a resolved read matching no signal read as a failed one: found %q; body: %s", banned, page)
 		}
+	}
+}
+
+func TestSearchNamesAFailedAssetRead(t *testing.T) {
+	f := searchAbsenceStore(t)
+	f.nameSubjectsErr = errors.New("name subject read failed")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/search", http.StatusOK)
+
+	for _, want := range []string{searchAssetsFailed, searchTotalWithheld, "the asset read did not resolve"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("search page does not name the failed asset read: missing %q; body: %s", want, page)
+		}
+	}
+	if count := searchCountLine(t, page); strings.Contains(count, " results") {
+		t.Errorf("a failed asset read still states a result total: %q", count)
+	}
+	if strings.Contains(page, searchNothingMatches) {
+		t.Errorf("a failed asset read still claims nothing matches; body: %s", page)
+	}
+	if group := searchAssetsGroup(t, page); strings.Contains(group, `href="/asset/`) {
+		t.Errorf("a failed asset read listed an asset anyway; group: %s", group)
+	}
+	for _, want := range []string{"<h3>Batches</h3>", `href="/run/7"`, "<h3>Documentation</h3>"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("a failed asset read took away %q from another result group; body: %s", want, page)
+		}
+	}
+	for _, banned := range []string{searchSignalsFailed, searchBatchesFailed} {
+		if strings.Contains(page, banned) {
+			t.Errorf("a failed asset read reported %q on a group that resolved; body: %s", banned, page)
+		}
+	}
+}
+
+func TestSearchNamesAFailedWithdrawnNameRead(t *testing.T) {
+	f := searchAbsenceStore(t)
+	f.subjectSpansErr = errors.New("span read failed")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/search?q=gone.example.com", http.StatusOK)
+
+	for _, want := range []string{searchAssetsFailed, searchTotalWithheld, "the asset read did not resolve"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("search page does not name the failed withdrawn-name read: missing %q; body: %s", want, page)
+		}
+	}
+	if count := searchCountLine(t, page); strings.Contains(count, " results") {
+		t.Errorf("a failed withdrawn-name read still states a result total: %q", count)
+	}
+	if strings.Contains(page, searchNothingMatches) {
+		t.Errorf("a failed withdrawn-name read still claims nothing matches; body: %s", page)
+	}
+}
+
+func TestSearchNamesAFailedBatchRead(t *testing.T) {
+	f := searchAbsenceStore(t)
+	f.dispatchProgressErr = errors.New("dispatch progress read failed")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/search", http.StatusOK)
+
+	for _, want := range []string{searchBatchesFailed, searchTotalWithheld, "the batch read did not resolve"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("search page does not name the failed batch read: missing %q; body: %s", want, page)
+		}
+	}
+	if count := searchCountLine(t, page); strings.Contains(count, " results") {
+		t.Errorf("a failed batch read still states a result total: %q", count)
+	}
+	if strings.Contains(page, searchNothingMatches) {
+		t.Errorf("a failed batch read still claims nothing matches; body: %s", page)
+	}
+	if strings.Contains(page, `href="/run/7"`) {
+		t.Errorf("a failed batch read listed a batch anyway; body: %s", page)
+	}
+	for _, want := range []string{"<h3>Assets</h3>", `href="/asset/lame.example.com"`, "<h3>Documentation</h3>"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("a failed batch read took away %q from another result group; body: %s", want, page)
+		}
+	}
+}
+
+func TestSearchNamesEveryFailedReadTogether(t *testing.T) {
+	f := searchAbsenceStore(t)
+	corpusReadFails(f)
+	f.nameSubjectsErr = errors.New("name subject read failed")
+	f.dispatchProgressErr = errors.New("dispatch progress read failed")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/search", http.StatusOK)
+
+	for _, want := range []string{searchSignalsFailed, searchAssetsFailed, searchBatchesFailed, "the signal, asset and batch reads did not resolve"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("search page does not name every failed read: missing %q; body: %s", want, page)
+		}
+	}
+	if strings.Contains(page, searchNothingMatches) {
+		t.Errorf("three failed reads still claim nothing matches; body: %s", page)
+	}
+}
+
+func TestSearchKeepsItsGroupCountsWhenEveryReadResolves(t *testing.T) {
+	f := searchAbsenceStore(t)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/search", http.StatusOK)
+
+	for _, banned := range []string{searchAssetsFailed, searchBatchesFailed, "not resolved"} {
+		if strings.Contains(page, banned) {
+			t.Errorf("a resolved read read as a failed one: found %q; body: %s", banned, page)
+		}
+	}
+	if !strings.Contains(page, "match</span><h3>Assets</h3>") && !strings.Contains(page, "matches</span><h3>Assets</h3>") {
+		t.Errorf("a resolved asset read lost its match count; body: %s", page)
+	}
+	if !strings.Contains(page, "recent</span><h3>Batches</h3>") {
+		t.Errorf("a resolved batch read lost its recent count; body: %s", page)
 	}
 }

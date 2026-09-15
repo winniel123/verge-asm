@@ -146,17 +146,50 @@ func searchMatch(text, q string) bool {
 	return q == "" || strings.Contains(strings.ToLower(text), strings.ToLower(q))
 }
 
-func searchRenderMap(acct db.Account, q string, total int, signalsFailed bool, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
+type searchFailedReads struct {
+	Signals bool
+	Assets  bool
+	Batches bool
+}
+
+func (f searchFailedReads) any() bool { return f.Signals || f.Assets || f.Batches }
+
+func (f searchFailedReads) note() string {
+	var groups []string
+	if f.Signals {
+		groups = append(groups, "signal")
+	}
+	if f.Assets {
+		groups = append(groups, "asset")
+	}
+	if f.Batches {
+		groups = append(groups, "batch")
+	}
+	switch len(groups) {
+	case 0:
+		return ""
+	case 1:
+		return "the " + groups[0] + " read did not resolve"
+	}
+	last := len(groups) - 1
+	return "the " + strings.Join(groups[:last], ", ") + " and " + groups[last] + " reads did not resolve"
+}
+
+func searchRenderMap(acct db.Account, q string, total int, failed searchFailedReads, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
 	rest := map[string]any{
 		"Query":         q,
 		"Assets":        assets,
 		"Signals":       signals,
 		"Batches":       batches,
 		"Docs":          docs,
-		"SignalsFailed": signalsFailed,
+		"SignalsFailed": failed.Signals,
+		"AssetsFailed":  failed.Assets,
+		"BatchesFailed": failed.Batches,
+		"TotalWithheld": failed.any(),
+		"WithheldNote":  failed.note(),
 	}
-	if !signalsFailed {
-		// A total missing the unread group is a figure the read never produced (ADR-2030).
+	if !failed.any() {
+		// A total missing an unread group is a figure the read never produced (ADR-0168 §2).
 		rest["Total"] = total
 	}
 	return pageData(acct, "Search results", "", rest)
@@ -174,10 +207,10 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	var signals []searchSignal
 	assetSev := map[string]string{}
 	openSignals := 0
-	signalsFailed := false
+	var failed searchFailedReads
 	if corpus, err := s.buildSignalCorpus(r); err != nil {
 		log.Printf("web: search: build signal corpus: %v", err)
-		signalsFailed = true
+		failed.Signals = true
 	} else {
 		for _, c := range signal.EvaluateCorpus(corpus) {
 			openSignals += len(c.Fired)
@@ -206,6 +239,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 		Search: q, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err != nil {
 		log.Printf("web: search: list name subjects: %v", err)
+		failed.Assets = true
 	} else {
 		for _, row := range rows {
 			exactHit = exactHit || row.SubjectKey == q
@@ -225,6 +259,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 			SubjectKind: "name", SubjectKey: q,
 		}); err != nil {
 			log.Printf("web: search: list spans for %q: %v", q, err)
+			failed.Assets = true
 		} else if allSpansClosed(rows) {
 			sev := assetSev[q]
 			assets = append(assets, searchAsset{
@@ -240,6 +275,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	var batches []searchBatch
 	if rows, err := s.searchStore.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
 		log.Printf("web: search: list dispatch progress: %v", err)
+		failed.Batches = true
 	} else {
 		for _, row := range rows {
 			dv := toDispatchView(row)
@@ -274,7 +310,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 
 	total := len(assets) + len(signals) + len(batches) + len(docsHits)
 
-	data := searchRenderMap(acct, q, total, signalsFailed, assets, signals, batches, docsHits)
+	data := searchRenderMap(acct, q, total, failed, assets, signals, batches, docsHits)
 	if openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}

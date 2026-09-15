@@ -2499,7 +2499,7 @@ func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]
 	fx := loadSearchFixture()
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if q != fx.Query {
-		return searchRenderMap(acct, q, 0, false, nil, nil, nil, nil)
+		return searchRenderMap(acct, q, 0, searchFailedReads{}, nil, nil, nil, nil)
 	}
 
 	assets := make([]searchAsset, 0, len(fx.Assets))
@@ -2539,5 +2539,5 @@ func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]
 	}
 
 	total := len(assets) + len(signals) + len(batches) + len(docs)
-	return searchRenderMap(acct, q, total, false, assets, signals, batches, docs)
+	return searchRenderMap(acct, q, total, searchFailedReads{}, assets, signals, batches, docs)
 }
