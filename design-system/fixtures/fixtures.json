@@ -13,7 +13,7 @@
             "link": "/asset/www.acmecorp.io",
             "facets": [
               {
-                "label": "resolution",
+                "label": "resolution · internal",
                 "summary": "A · 2 addresses",
                 "since": "2026-07-14",
                 "details": [
@@ -28,7 +28,7 @@
                 ]
               },
               {
-                "label": "dns-records",
+                "label": "dns-records · TXT",
                 "summary": "CNAME · TXT",
                 "since": "2026-07-14",
                 "details": [
@@ -50,18 +50,18 @@
             "link": "/asset/api.acmecorp.io",
             "facets": [
               {
-                "label": "resolution",
+                "label": "resolution · internal",
                 "summary": "A · 203.0.113.44",
                 "since": "2026-06-02"
               },
               {
-                "label": "dns-records",
-                "summary": "CAA · 1 record",
+                "label": "dns-records · TXT",
+                "summary": "TXT · 1 record",
                 "since": "2026-06-02",
                 "details": [
                   {
-                    "type": "CAA",
-                    "data": "0 issue “letsencrypt.org”"
+                    "type": "TXT",
+                    "data": "v=spf1 -all"
                   }
                 ]
               }
@@ -73,12 +73,12 @@
             "link": "/asset/mail.acmecorp.io",
             "facets": [
               {
-                "label": "resolution",
+                "label": "resolution · internal",
                 "summary": "A · 203.0.113.25",
                 "since": "2026-05-19"
               },
               {
-                "label": "dns-records",
+                "label": "dns-records · MX",
                 "is_gap": true,
                 "since": "2026-08-21"
               }
@@ -97,12 +97,12 @@
             "link": "/subjects/service?key=198.51.100.7%3A443%2Ftcp",
             "facets": [
               {
-                "label": "tls-acceptance",
+                "label": "tls-acceptance · internet",
                 "summary": "TLS 1.2 · 1.3",
                 "since": "2026-07-14"
               },
               {
-                "label": "certificate-chain",
+                "label": "certificate-chain · internet",
                 "summary": "leaf www.acmecorp.io · exp 2026-11-02",
                 "since": "2026-08-03",
                 "details": [
@@ -124,17 +124,17 @@
             "link": "/subjects/service?key=203.0.113.44%3A22%2Ftcp",
             "facets": [
               {
-                "label": "reachability",
+                "label": "reachability · internal",
                 "summary": "reached",
                 "since": "2026-04-30"
               },
               {
-                "label": "reachability",
+                "label": "reachability · internet",
                 "summary": "not-reached",
                 "since": "2026-04-30"
               },
               {
-                "label": "tls-acceptance",
+                "label": "tls-acceptance · internet",
                 "summary": "none · plaintext ssh",
                 "since": "2026-04-30"
               }
@@ -146,7 +146,7 @@
             "link": "/subjects/service?key=198.51.100.31%3A8443%2Ftcp",
             "facets": [
               {
-                "label": "certificate-chain",
+                "label": "certificate-chain · internet",
                 "is_gap": true,
                 "since": "2026-08-19"
               }
@@ -165,7 +165,7 @@
             "link": "/subjects/endpoint?key=www.acmecorp.io+%C2%B7+%3A443+https",
             "facets": [
               {
-                "label": "http-identity",
+                "label": "http-identity · internet",
                 "summary": "nginx · 200 · “Acme — sign in”",
                 "since": "2026-07-14"
               }
@@ -177,7 +177,7 @@
             "link": "/subjects/endpoint?key=grafana.acmecorp.io+%C2%B7+%3A443+https",
             "facets": [
               {
-                "label": "http-identity",
+                "label": "http-identity · internet",
                 "summary": "Grafana · 302 → /login",
                 "since": "2026-06-27"
               }
@@ -185,58 +185,6 @@
           }
         ],
         "total": 2
-      },
-      {
-        "kind": "address",
-        "label": "Addresses",
-        "subjects": [
-          {
-            "key": "198.51.100.7",
-            "type": "Address",
-            "link": "",
-            "facets": [
-              {
-                "label": "reachability · vantage 1",
-                "summary": "answers · 443/tcp",
-                "since": "2026-07-14"
-              },
-              {
-                "label": "reachability · vantage 3",
-                "summary": "answers · 443/tcp · 8443/tcp",
-                "since": "2026-08-02"
-              }
-            ]
-          },
-          {
-            "key": "203.0.113.44",
-            "type": "Address",
-            "link": "",
-            "facets": [
-              {
-                "label": "reachability · prober",
-                "summary": "answers · 22/tcp",
-                "since": "2026-04-30"
-              }
-            ]
-          },
-          {
-            "key": "104.18.22.90",
-            "type": "Address",
-            "link": "",
-            "proxy_edge": true,
-            "facets": [
-              {
-                "label": "reachability · vantage 1",
-                "is_gap": true,
-                "proxy_edge": true,
-                "since": "2026-08-19"
-              }
-            ]
-          }
-        ],
-        "total": 41,
-        "more": 38,
-        "show_all_href": "/inventory?all=address"
       }
     ]
   },

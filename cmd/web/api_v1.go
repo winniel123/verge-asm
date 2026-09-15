@@ -23,6 +23,7 @@ type apiV1Store interface {
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	ListVantagesForDispatch(ctx context.Context) ([]db.ListVantagesForDispatchRow, error)
 	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
 }
 
@@ -91,7 +92,12 @@ func (s *server) apiInventory(w http.ResponseWriter, r *http.Request, _ db.Accou
 		apiReadError(w, "inventory: list all open spans", err)
 		return
 	}
-	groups := buildInventory(rows)
+	vantages, err := s.inventoryVantages(r.Context(), s.apiV1Store.ListVantagesForDispatch)
+	if err != nil {
+		apiReadError(w, "inventory: vantage classes", err)
+		return
+	}
+	groups := buildInventory(rows, vantages)
 	out := apiInventoryResponse{Groups: make([]apiInventoryGroup, 0, len(groups))}
 	for _, g := range groups {
 		grp := apiInventoryGroup{Kind: g.Kind, Label: g.Label, Subjects: make([]apiInventorySubject, 0, len(g.Subjects))}

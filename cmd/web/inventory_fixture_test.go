@@ -94,7 +94,7 @@ func TestInventoryFixtureCountsMatchPackage(t *testing.T) {
 		}
 	}
 
-	got := buildInventory(fixtureSpanRows(t))
+	got := buildInventory(fixtureSpanRows(t), fixtureInventoryVantages(t))
 	windowInventoryGroups(got, "")
 	applyInventoryFixtureCounts(got, "")
 	for i := range got {
@@ -123,7 +123,7 @@ func TestBuildInventoryMatchesDesignFixture(t *testing.T) {
 		t.Fatalf("parse fixtures.json: %v", err)
 	}
 
-	got := buildInventory(fixtureSpanRows(t))
+	got := buildInventory(fixtureSpanRows(t), fixtureInventoryVantages(t))
 
 	if len(got) != len(want.Inventory.Groups) {
 		t.Fatalf("group count = %d, want %d", len(got), len(want.Inventory.Groups))

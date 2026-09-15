@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
@@ -20,6 +21,12 @@ func openSpanRow(kind, key, facet, disc, value string, isGap bool) db.ListAllOpe
 	}
 }
 
+func openSpanRowFrom(kind, key, facet, disc, value string, isGap bool, vantageID int64) db.ListAllOpenSpansRow {
+	row := openSpanRow(kind, key, facet, disc, value, isGap)
+	row.VantageID = pgtype.Int8{Int64: vantageID, Valid: true}
+	return row
+}
+
 func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "a.example.com", "resolution", "", `{"rrtype":"A","addresses":["203.0.113.1","203.0.113.2"]}`, false),
@@ -30,7 +37,7 @@ func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 		openSpanRow("endpoint", "@203.0.113.1:443/tcp", "http-identity", "", `{"server":"nginx","status":200}`, false),
 	}
 
-	groups := buildInventory(rows)
+	groups := buildInventory(rows, nil)
 
 	if len(groups) != 3 {
 		t.Fatalf("groups = %d, want 3 (name, service, endpoint); %#v", len(groups), groups)
@@ -185,7 +192,7 @@ func TestBuildInventoryDistinguishesTimelinesByDiscriminator(t *testing.T) {
 		openSpanRow("address", "198.51.100.7", "reachability", "vantage 3", `{"outcome":"answers","ports":["443/tcp","8443/tcp"]}`, false),
 	}
 
-	facets := buildInventory(rows)[0].Subjects[0].Facets
+	facets := buildInventory(rows, nil)[0].Subjects[0].Facets
 	if len(facets) != 2 {
 		t.Fatalf("want 2 reachability facets, got %d", len(facets))
 	}
@@ -329,7 +336,7 @@ func TestBuildInventoryPropagatesServiceProxyEdgeToAddress(t *testing.T) {
 		openSpanRow("address", "198.51.100.7", "reachability", "vantage 1", `{"outcome":"answers","ports":["443/tcp"]}`, false),
 	}
 
-	groups := buildInventory(rows)
+	groups := buildInventory(rows, nil)
 	byKind := map[string][]inventorySubject{}
 	for _, g := range groups {
 		byKind[g.Kind] = g.Subjects
@@ -367,5 +374,95 @@ func TestInventoryRequiresLogin(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("unauthenticated /inventory: status=%d location=%q, want redirect to /login",
 			resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+func TestInventoryFacetLabelNamesTheDerivedVantageClass(t *testing.T) {
+	vantages := map[int64]inventoryVantage{
+		7: {class: custody.ClassInternet, name: "scanner@probe-1"},
+	}
+	cases := []struct {
+		kind  string
+		key   string
+		facet string
+		value string
+		want  string
+	}{
+		{"name", "a.example.com", "resolution", `{"rrtype":"A","addresses":["203.0.113.1"]}`, "resolution · internet"},
+		{"service", "203.0.113.1:443/tcp", "reachability", `{"outcome":"reached"}`, "reachability · internet"},
+		{"service", "203.0.113.1:443/tcp", "tls-acceptance", `{"outcome":"enumerated","versions":["1.3"]}`, "tls-acceptance · internet"},
+		{"service", "203.0.113.1:443/tcp", "certificate", `{"chain":[{"cn":"a.example.com","not_after":"2026-11-02"}]}`, "certificate-chain · internet"},
+		{"endpoint", "@203.0.113.1:443/tcp", "http-identity", `{"server":"nginx","status":200}`, "http-identity · internet"},
+	}
+	for _, c := range cases {
+		rows := []db.ListAllOpenSpansRow{openSpanRowFrom(c.kind, c.key, c.facet, "", c.value, false, 7)}
+		got := buildInventory(rows, vantages)[0].Subjects[0].Facets[0].Label
+		if got != c.want {
+			t.Errorf("%s facet label = %q, want %q", c.facet, got, c.want)
+		}
+	}
+}
+
+func TestInventoryWithinClassTieAlsoNamesTheVantage(t *testing.T) {
+	vantages := map[int64]inventoryVantage{
+		1: {class: custody.ClassInternet, name: "scanner@probe-1"},
+		2: {class: custody.ClassInternet, name: "scanner@probe-2"},
+		3: {class: custody.ClassInternal, name: "scanner@probe-3"},
+	}
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRowFrom("service", "203.0.113.1:443/tcp", "reachability", "", `{"outcome":"reached"}`, false, 1),
+		openSpanRowFrom("service", "203.0.113.1:443/tcp", "reachability", "", `{"outcome":"not-reached"}`, false, 2),
+		openSpanRowFrom("service", "203.0.113.1:443/tcp", "tls-acceptance", "", `{"outcome":"enumerated","versions":["1.3"]}`, false, 3),
+	}
+
+	facets := buildInventory(rows, vantages)[0].Subjects[0].Facets
+	want := []string{
+		"reachability · internet · scanner@probe-1",
+		"reachability · internet · scanner@probe-2",
+		"tls-acceptance · internal",
+	}
+	if len(facets) != len(want) {
+		t.Fatalf("facets = %d, want %d", len(facets), len(want))
+	}
+	for i, w := range want {
+		if facets[i].Label != w {
+			t.Errorf("facet[%d] label = %q, want %q", i, facets[i].Label, w)
+		}
+	}
+}
+
+func TestInventoryFacetLabelStaysBareWithoutAVantage(t *testing.T) {
+	// ADR-1985's CHECK exempts the certificate facet, so a vantage-less row is representable.
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("service", "203.0.113.1:443/tcp", "certificate", "", `{"chain":[{"cn":"a.example.com","not_after":"2026-11-02"}]}`, false),
+	}
+	vantages := map[int64]inventoryVantage{1: {class: custody.ClassInternet, name: "scanner@probe-1"}}
+
+	got := buildInventory(rows, vantages)[0].Subjects[0].Facets[0].Label
+	if got != "certificate-chain" {
+		t.Errorf("vantage-less certificate label = %q, want %q", got, "certificate-chain")
+	}
+}
+
+func TestInventoryDNSRecordKeepsItsQtypeAndGainsNoClass(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRowFrom("name", "a.example.com", "dns-record", "MX", `{"rrs":[{"type":"MX","data":"10 mail.example.com"}]}`, false, 1),
+	}
+	vantages := map[int64]inventoryVantage{1: {class: custody.ClassInternal, name: "scanner@probe-1"}}
+
+	got := buildInventory(rows, vantages)[0].Subjects[0].Facets[0].Label
+	if got != "dns-records · MX" {
+		t.Errorf("dns-record label = %q, want %q", got, "dns-records · MX")
+	}
+}
+
+func TestInventoryFacetLabelIgnoresAnUnknownVantage(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRowFrom("service", "203.0.113.1:443/tcp", "reachability", "", `{"outcome":"reached"}`, false, 99),
+	}
+
+	got := buildInventory(rows, map[int64]inventoryVantage{})[0].Subjects[0].Facets[0].Label
+	if got != "reachability" {
+		t.Errorf("unknown-vantage label = %q, want %q", got, "reachability")
 	}
 }
