@@ -506,7 +506,7 @@ nothing. Both review axes called it the branch's strongest over-delete, and the 
 **A rule stated nowhere is a gap, never a licence.**
 
 **Describing a fact that lives in unswept residue is safe. Pointing at a block there is not.**
-`cmd/web/scans_test.go#TestScansPageHistory` states the fake's seeded Scans, which live in the unswept
+`cmd/web/scans_test.go` states the fake's seeded Scans, which live in the unswept
 `cmd/web/handlers_test.go` (#1223). The survivor states the fact rather than naming the block, so a
 later sweep of the sibling cannot orphan it. The prohibition above is about the collapse, not about
 every mention.
@@ -567,7 +567,7 @@ the file you are sweeping before you delete a block a document may name.
 **A document may quote the comment rather than point at it, and no "see the comment in" grep finds
 that.** Two shapes are measured, and compressing the block breaks each one silently.
 
-- **A guide block-quotes it.** `docs/guides/integrations.md#disconnecting-an-integration` reproduces a comment verbatim
+- **A guide block-quotes it.** `docs/guides/integrations.md` reproduces a comment verbatim
   under the heading "From `cmd/web/integrations.go`" (#1214). Compressing the block leaves the rule
   true and the attribution intact, and makes the quotation false. Tracked in **#1362**.
 - **An `Accepted` ADR cites it as precedent.** `ADR-0136:132` names the Drift feed's cap as "already
@@ -859,7 +859,7 @@ are measured, and three were **already wrong before the sweep that would have br
 | Source | Pointer | State |
 | --- | --- | --- |
 | `docs/adr/0133` §4 | `internal/custody/scopecensus.go#Estate.AddressScopeCensus`, and it says the comment must not be deleted | Already wrong. #1187's sweep moved it (#1218) |
-| `docs/adr/0133` | `cmd/web/proposals.go#undoControlView` and `addressscopecensus.go:72` | Already wrong. #1215 then cut `proposals.go` from 387 lines to 278 (#1215, #1217) |
+| `docs/adr/0133` | `cmd/web/proposals.go` and `addressscopecensus.go:72` | Already wrong. #1215 then cut `proposals.go` from 387 lines to 278 (#1215, #1217) |
 | `docs/research/comment-gate-test.md` | **Eight** `cmd/web/handlers_test.go` pointers | All wrong after #1219 (#1219) |
 | `docs/spec/release-pipeline.md` | Four pointers, one of which the SPEC itself calls **machine-read** | Wrong after #1216 (#1216) |
 
@@ -872,8 +872,8 @@ chasing the first pointer looks for it where an earlier record put it and finds 
 
 **The defect is not confined to this SPEC's Appendix A, and every section may carry one.** An
 earlier version of this paragraph scoped it there. §4.6 rule 3's example pointed at
-`cmd/web/adr0130_contract_test.go#TestTheSessionFormFlashIsSingleConsume`, which stage B had already moved, and §4.10 falsifier 8
-pointed at `cmd/web/proposals_test.go#TestDeclineIsBulkOverALookup`, which #1222 moved to `:217`. **The second was written
+`cmd/web/adr0130_contract_test.go`, which stage B had already moved, and §4.10 falsifier 8
+pointed at `cmd/web/proposals_test.go`, which #1222 moved to `:217`. **The second was written
 into the amendment that rules against such pointers.** Both are repaired below.
 
 **Where an amendment cites a corpus location, name the symbol rather than the line.** This section
@@ -1317,7 +1317,7 @@ a behaviour change against a record nobody can read, so a reader recovers neithe
 when. Delete the marker rather than keep an unreadable date.
 
 **`#774` is a second deleted issue, and it sits in already-merged sweep output.** It returns
-HTTP 410 at `internal/seed/seed.go#WildcardError` and `:39`, in two survivors a sweep kept (#1227). **410 is
+HTTP 410 at `internal/seed/seed.go` and `:39`, in two survivors a sweep kept (#1227). **410 is
 not 404**, so a check written against "the issue does not exist" can miss it, and `gh` reports the
 deletion rather than a miss. #1227 correctly left its own survivor uncited rather than repairing to
 it. Recorded here, not repaired. #1462 and PR #1511 later repaired every code site in the #740-#774
@@ -1371,7 +1371,7 @@ in `cmd/web/clientip.go` above and **correct** in `cmd/web/ratelimit_test.go` (#
 below names a citation at a site. It never condemns a number.
 
 **A repair re-derives the section by reading it, and never copies the source's own
-cross-reference.** `docs/spec/ct-source-replacement.md#26-admission-mapping--a-decoder-translates-shape-never-fact-d-bulk` says "(runtime failover is deferred,
+cross-reference.** `docs/spec/ct-source-replacement.md` says "(runtime failover is deferred,
 §7)". The deferral is **§8** (#1212). An agent repairing a citation by lifting the source's pointer
 inherits the source's error, and the result passes every check the agent then runs.
 
@@ -1390,7 +1390,7 @@ held ten.
 | `(ADR-0130 §3)` on `cmd/web`'s `server.routes` | "Redirects preserve the submitting URL" | Nothing. Validating a redirect against the route table is stated nowhere (#1203) |
 | `(#286)` on the anchor-slug rule in `cmd/web/seeds.go` | T10 IA reconciliation | `docs/spec/v1-spec.md` §5.3 (#1206) |
 | `ADR-0081` on the host-only redaction rule, three sites | A Delivery-has-no-cause rule | Nothing. The host-only rendering rule is stated nowhere (#1354) |
-| `(ADR-0053)` on `cmd/web/reports.go#server.reportDeliveryWithdrawals` — a **repair** that landed | Secret custody: `web` renders "set" or "not set", never a value | Nothing, as above (#1210, PR #1350) |
+| `(ADR-0053)` on `cmd/web/reports.go` — a **repair** that landed | Secret custody: `web` renders "set" or "not set", never a value | Nothing, as above (#1210, PR #1350) |
 | `(ADR-0134 §5)` a second time, on "a count that is advisory by construction" | §5 rules when the fold runs and when the tombstone is spent | Nothing. The advisory-count rule is written in none of the five places (#1223) |
 | `(ADR-0129 §2)` on `internal/queue/edgefanout.go`, "a negative found nothing at the address" | §2 is "It escapes ADR-0013 §3 because the failure direction is reversed" | Neither limb. Cleared by PR #1420 (#1227) |
 | `ADR-0110` cited for a rule `ADR-0053` states | Not that rule | `ADR-0053` (#1226) |
@@ -1468,7 +1468,7 @@ appears.
 **`ADR-0081` is misattributed, and a blanket replace would be wrong.** It contains zero occurrences
 of "host", "token" or "URL". **Three** sites cite it for the host-only redaction rule:
 `internal/message/render.go`, `cmd/web/reportdelivery_test.go#TestReportDeliveryRendersRealDelivery` and `:102`. Its **eleven**
-other uses cite it for a Delivery-has-no-cause rule, which it does state — `cmd/web/messages.go#messagesStore`,
+other uses cite it for a Delivery-has-no-cause rule, which it does state — `cmd/web/messages.go`,
 `:94`, `:270` and `:508`, `cmd/web/messages_test.go#TestMessagePanelSurfacesUndeliveredDeliveries`, and six `internal/db` sites, which are
 three comments each written into `querier.go` and into its own query file. Those eleven are correct
 and stay. **#1354** tracks the three.
@@ -1480,7 +1480,7 @@ a token in it" only as an example inside its Context's "surfaces that do not exi
 It fails test 1 above. A grep of `docs/` and `CONTEXT.md` for the rendering rule returns nothing, so
 **route 3 applies: the reason goes uncited and the rule is recorded as a gap.**
 
-**#1210 made that repair, and it is on `main`.** `cmd/web/reports.go#server.reportDeliveryWithdrawals` reads "only its host is
+**#1210 made that repair, and it is on `main`.** `cmd/web/reports.go` reads "only its host is
 shown (ADR-0053)" (PR #1350). This is the shape a repair is most likely to produce: the ADR is
 `Accepted`, its title and its Context both name a secret in a URL, and a token grep answers. Only
 reading the Decision separates it from a target. Fold it into **#1354**.
@@ -1503,7 +1503,7 @@ so read this as a rate rather than as a closed list.
 | `internal/queue/worker.go` cited `DF-F4`, and `edgefanout.go` carried `(ADR-0129 §5)` on a rule §5 does not state | #1194, PR #1317 | **Repaired.** #1328 merged as `b158035`, and it fixed a third the same file held. |
 | `cmd/web/seeds.go` said the head block inlines `tokens/*.css` "only when this datum is set", against 42 `cmd/web` sites that set it `true` and 0 that set it `false` | #1206, PR #1340 | **Repaired.** #1355, PR #1356, which also deleted the inert gate. |
 | `ADR-0081` on the host-only redaction rule, three sites | Batches 5 to 10 | **Repaired.** #1354, PR #1440. The citation is dropped at both live sites, and `docs/guides/reports.md` states the rule in its own voice. |
-| `cmd/web/reports.go#server.reportDeliveryWithdrawals` cites `ADR-0053` for a rule `ADR-0053` does not state | #1210, PR #1350 | **Repaired.** Folded into #1354 and cleared by PR #1440. |
+| `cmd/web/reports.go` cites `ADR-0053` for a rule `ADR-0053` does not state | #1210, PR #1350 | **Repaired.** Folded into #1354 and cleared by PR #1440. |
 | `internal/custody/census.go` and `scopecensus.go:7`, `:35` cite `ADR-0129 §5`, which rules "v1 ships fan-out alone" | #1187, PR #1309 | **Repaired.** #1368, PR #1440. `census.go` names the `#944` amendment and both `scopecensus.go` lines name `#956`. |
 | `internal/auth/key.go#LoadOrCreateKey` and `password.go:3` cite `v1 spec §4.3` for the session-key custody rule | Inherited, kept by #1166, PR #1284 | **Repaired.** #1376, PR #1440. Both now cite `ADR-0053`, which states it. |
 | `docs/adr/0195` cited `ADR-0129 §5` for the display-only rule, and `docs/adr/0163` recorded the three code-side instances as untouched | The `adr-gap` sessions of batch seventeen | Open. **#1441**. Both sites are repaired in the working tree and neither is merged. |
@@ -1722,7 +1722,7 @@ owes no repair.
 - `internal/delivery/delivery.go#NewRequest` cites `§3.2` for *no bearer header is ever set*.
   `notification-channels.md` §3.2 is "Authentication", and it states **"No bearer header, ever."**
   `v1-spec.md` §3.2 is "Seeds & aperture", which rules nothing about a header.
-- `internal/delivery/runner.go#Runner` cites `§4` for a refused 3xx. `notification-channels.md` §4
+- `internal/delivery/runner.go` cites `§4` for a refused 3xx. `notification-channels.md` §4
   rules any 3xx **Failed**, and its table row gives this comment's own reason in the same words.
   `v1-spec.md` §4 is "Architecture".
 
@@ -1901,7 +1901,7 @@ falsifier above describes a comment the world moved under. None describes one th
 **re-asserted**. #1220 compressed a false TOTP claim forward, and its own falsifier-8 pass cleared
 it. **Re-verify a kept block as if you had just written it.**
 
-**A dead citation is not by itself a falsity verdict.** `cmd/web/seeds.go#seedAnchor` cites the superseded
+**A dead citation is not by itself a falsity verdict.** `cmd/web/seeds.go` cites the superseded
 ADR-0116 and its prose is merely redundant, so it dies on gate A with no `false` row. `:842`
 restates the retired doctrine as live and earns one (#1206). Read the prose, not the token.
 
@@ -3366,11 +3366,11 @@ The verdicts remain correct as worked judgments. The locations do not.
 | 5 | `cmd/web/backup.go` `// archive format version, not schema` | trailing | Delete | Ambiguous. It disambiguates from the next field but names no cause. §4.2 breaks the tie. |
 | 6 | `cmd/web/addressscopecensus.go#addressScopeSharedEdges` (swept by #1217, PR #1375) | `docstring-unexported`, 9 lines | Delete, salvage one line | Paragraph 1 restates the return. Paragraph 2 names a cross-module rule. **Outcome on `main`:** the nine lines are gone and the file keeps two one-line survivors, at `:34` and `:40`. Read the row for the delete-and-salvage shape, not for the line number. |
 | 7 | `cmd/web/addresscap_test.go#TestAddressCapHasNoUpperBound` | test `docstring-exported-conventional` | Rewrite | Cites ADR-0127, so §4.6 keeps it. It opens with the identifier, which §4.4 forbids. |
-| 8 | `cmd/web/addressscopecensus_test.go#TestAddressScopeCensusRowAbsentWhereTheScopeIsUnmeasured` | `docstring-exported-other` | Delete | Uncited. The test name already states the assertion. |
+| 8 | `cmd/web/addressscopecensus_test.go` | `docstring-exported-other` | Delete | Uncited. The test name already states the assertion. |
 | 9 | `cmd/web/addresscap_test.go#TestAddressCapPersistsAndGovernsDeclaration` | `step-narration` | Delete | Uncited. Restates the two lines below it. |
 | 10 | `cmd/web/addresscap_test.go#TestAddressCapPersistsAndGovernsDeclaration` | test `citation` | Rewrite | Cites ADR-0127. Drop the leading step narration. |
-| 11 | `internal/queue/withdrawal.go#membershipInputs.hasAddressExclusion` | `prose-other` | Keep, compressed | Explains why the read sits below the guard. Moving it above is a plausible wrong edit. Opens no issue. |
-| 12 | `cmd/web/inbox_test.go#TestInboxSelectMarksReadAndShowsDetail` | test `prose-other` | Delete | Uncited. Restates the assertion below. |
+| 11 | `internal/queue/withdrawal.go` | `prose-other` | Keep, compressed | Explains why the read sits below the guard. Moving it above is a plausible wrong edit. Opens no issue. |
+| 12 | `cmd/web/inbox_test.go` | test `prose-other` | Delete | Uncited. Restates the assertion below. |
 | 13 | `cmd/web/devfixtures.go` | `change-narration` plus two reasons | Rewrite to two lines | Drop the history. Keep both constraints, one per line. Opens a follow-up issue. |
 | 14 | `cmd/web/asset_test.go` `// ports census` | trailing `short-label` | Delete | A label with no cause. Agent-judged under §3.4, not mechanical. |
 | 15 | `design-system/components/display/Sparkline.d.ts` | `dts-field-prose` | Keep | §4.3 carve-out. The default is unrecoverable from `color?: string`. |
