@@ -220,6 +220,12 @@
             ]
           },
           {
+            "key": "198.51.100.31",
+            "type": "Address",
+            "link": "",
+            "facets": []
+          },
+          {
             "key": "104.18.22.90",
             "type": "Address",
             "link": "",
@@ -235,7 +241,7 @@
           }
         ],
         "total": 41,
-        "more": 38,
+        "more": 37,
         "show_all_href": "/inventory?all=address"
       }
     ]

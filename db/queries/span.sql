@@ -248,7 +248,8 @@ WITH cited AS (
       AND n.facet = 'resolution'
       AND n.subject_key = ANY(sqlc.arg(names)::text[])
 )
-SELECT s.id, s.subject_key,
+-- An Address holds no facet, so no span carries it and citation alone is the read (#2033).
+SELECT c.addr::text AS subject_key,
        COALESCE((
            SELECT array_agg(DISTINCT r.subject_key)
            FROM span r
@@ -257,13 +258,10 @@ SELECT s.id, s.subject_key,
              AND r.facet = 'resolution'
              AND r.is_gap = FALSE
              AND jsonb_typeof(r.value -> 'addresses') = 'array'
-             AND r.value -> 'addresses' @> to_jsonb(s.subject_key)
+             AND r.value -> 'addresses' @> to_jsonb(c.addr)
        ), '{}'::text[])::text[] AS citers
-FROM span s
-JOIN cited c ON c.addr = s.subject_key
-WHERE s.closed_at IS NULL
-  AND s.subject_kind = 'address'
-ORDER BY s.subject_key, s.id;
+FROM cited c
+ORDER BY c.addr;
 
 -- name: ListOpenSpansBeneathAddresses :many
 -- LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).

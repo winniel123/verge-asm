@@ -153,7 +153,7 @@ a.inv-subject { color: var(--link); }
 {{else if .Summary}}<span class="inv-tag">{{.Summary}}</span>{{else}}<span class="inv-none">none</span>{{end}}
 </div>{{end}}
 </div></td>
-<td data-col="since" class="inv-since">{{with index .Facets 0}}{{.Since}}{{end}}</td>
+<td data-col="since" class="inv-since">{{if .Facets}}{{with index .Facets 0}}{{.Since}}{{end}}{{end}}</td>
 </tr>{{end}}
 </tbody>
 </table>

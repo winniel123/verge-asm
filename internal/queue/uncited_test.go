@@ -44,7 +44,7 @@ func TestCloseUncitedAddressesSoleCiterTakesAddressAndServices(t *testing.T) {
 	// `a.example.com` was the only Name citing 203.0.113.9,
 	// and its spans have already closed (#1689).
 	store := &uncitedStore{
-		rows: []db.ListCitedAddressSpansForNamesRow{{ID: 10, SubjectKey: "203.0.113.9"}},
+		rows: []db.ListCitedAddressSpansForNamesRow{{SubjectKey: "203.0.113.9"}},
 		beneath: []db.ListOpenSpansBeneathAddressesRow{
 			{ID: 20, SubjectKind: "service", SubjectKey: "203.0.113.9:443/tcp"},
 			{ID: 21, SubjectKind: "endpoint", SubjectKey: "www.example.com@203.0.113.9:443/tcp"},
@@ -62,7 +62,7 @@ func TestCloseUncitedAddressesSoleCiterTakesAddressAndServices(t *testing.T) {
 	if len(store.askedAddrs) != 1 || store.askedAddrs[0] != "203.0.113.9" {
 		t.Fatalf("descent asked for %v, want [203.0.113.9]", store.askedAddrs)
 	}
-	for _, id := range []int64{10, 20, 21} {
+	for _, id := range []int64{20, 21} {
 		if got := store.closed[id]; got != string(drift.ReasonUncited) {
 			t.Errorf("span %d closed %q, want %q", id, got, drift.ReasonUncited)
 		}
@@ -73,14 +73,20 @@ func TestCloseUncitedAddressesSoleCiterTakesAddressAndServices(t *testing.T) {
 	if len(deps) != 3 {
 		t.Fatalf("departures = %+v, want the Address, the Service and the Endpoint", deps)
 	}
-	if deps[0].SubjectKind != subjectKindAddress || deps[0].SubjectKey != "203.0.113.9" || deps[0].Reason != string(drift.ReasonUncited) || deps[0].Timelines != 1 {
+	if deps[0].SubjectKind != subjectKindAddress || deps[0].SubjectKey != "203.0.113.9" || deps[0].Reason != string(drift.ReasonUncited) {
 		t.Errorf("address departure = %+v", deps[0])
+	}
+	if deps[0].Timelines != 0 {
+		t.Errorf("address departure took %d timelines, want 0: an Address holds no facet of its own", deps[0].Timelines)
+	}
+	if deps[1].Timelines != 1 || deps[2].Timelines != 1 {
+		t.Errorf("the Service and Endpoint departures = %+v / %+v, want one timeline each", deps[1], deps[2])
 	}
 }
 
 func TestCloseUncitedAddressesSharedCiterStaysOpen(t *testing.T) {
 	store := &uncitedStore{
-		rows: []db.ListCitedAddressSpansForNamesRow{{ID: 11, SubjectKey: "203.0.113.10", Citers: []string{"c.example.com"}}},
+		rows: []db.ListCitedAddressSpansForNamesRow{{SubjectKey: "203.0.113.10", Citers: []string{"c.example.com"}}},
 		beneath: []db.ListOpenSpansBeneathAddressesRow{
 			{ID: 30, SubjectKind: "service", SubjectKey: "203.0.113.10:443/tcp"},
 		},
@@ -103,7 +109,7 @@ func TestCloseUncitedAddressesSharedCiterStaysOpen(t *testing.T) {
 func TestCloseUncitedAddressesSeedCoveredStaysOpen(t *testing.T) {
 	// Presence is citation OR Seed cover, so a declared address outlives its last citer (ADR-0047).
 	store := &uncitedStore{
-		rows: []db.ListCitedAddressSpansForNamesRow{{ID: 12, SubjectKey: "198.51.100.7"}},
+		rows: []db.ListCitedAddressSpansForNamesRow{{SubjectKey: "198.51.100.7"}},
 	}
 	in := membershipInputs{seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24")}}
 	if err := closeUncitedAddresses(context.Background(), store, 7, time.Now(), []string{"a.example.com"}, in, nil); err != nil {
@@ -115,7 +121,7 @@ func TestCloseUncitedAddressesSeedCoveredStaysOpen(t *testing.T) {
 }
 
 func TestCloseUncitedAddressesNoDepartureReadsNothing(t *testing.T) {
-	store := &uncitedStore{rows: []db.ListCitedAddressSpansForNamesRow{{ID: 13, SubjectKey: "203.0.113.9"}}}
+	store := &uncitedStore{rows: []db.ListCitedAddressSpansForNamesRow{{SubjectKey: "203.0.113.9"}}}
 	if err := closeUncitedAddresses(context.Background(), store, 7, time.Now(), nil, membershipInputs{}, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -129,8 +135,8 @@ func TestCloseUncitedAddressesReResolvedNameLeavesItsOldAddress(t *testing.T) {
 	// candidate read returns its pre-move Address with no live citer (#1706).
 	store := &uncitedStore{
 		rows: []db.ListCitedAddressSpansForNamesRow{
-			{ID: 40, SubjectKey: "203.0.113.10", Citers: []string{"a.example.com"}},
-			{ID: 41, SubjectKey: "203.0.113.9"},
+			{SubjectKey: "203.0.113.10", Citers: []string{"a.example.com"}},
+			{SubjectKey: "203.0.113.9"},
 		},
 		beneath: []db.ListOpenSpansBeneathAddressesRow{
 			{ID: 50, SubjectKind: "service", SubjectKey: "203.0.113.9:443/tcp"},
@@ -143,13 +149,11 @@ func TestCloseUncitedAddressesReResolvedNameLeavesItsOldAddress(t *testing.T) {
 	if len(store.askedAddrs) != 1 || store.askedAddrs[0] != "203.0.113.9" {
 		t.Fatalf("descent asked for %v, want the pre-move Address alone", store.askedAddrs)
 	}
-	for _, id := range []int64{41, 50} {
-		if got := store.closed[id]; got != string(drift.ReasonUncited) {
-			t.Errorf("span %d closed %q, want %q", id, got, drift.ReasonUncited)
-		}
+	if got := store.closed[50]; got != string(drift.ReasonUncited) {
+		t.Errorf("span 50 closed %q, want %q", got, drift.ReasonUncited)
 	}
-	if _, closed := store.closed[40]; closed {
-		t.Error("the Address the Name now resolves to is still cited and must stay open")
+	if len(store.closed) != 1 {
+		t.Errorf("closed %v, want span 50 alone: the Address itself holds no span to close", store.closed)
 	}
 	if len(deps) != 2 {
 		t.Fatalf("departures = %+v, want the old Address and the Service beneath it", deps)

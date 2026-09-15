@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"sort"
 	"strconv"
@@ -149,6 +150,8 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 		})
 	}
 
+	groups = projectAddressSubjects(groups, groupIdx, subjectIdx)
+
 	// Stable sorts keep ties in read order, which is what pins an Address's two vantages.
 	for gi := range groups {
 		for si := range groups[gi].Subjects {
@@ -176,6 +179,59 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 		return inventoryKindRank(groups[a].Kind) < inventoryKindRank(groups[b].Kind)
 	})
 	return groups
+}
+
+// An Address holds no facet, so no producer writes its kind and the row is projected (#2033).
+
+func projectAddressSubjects(groups []inventoryGroup, groupIdx, subjectIdx map[string]int) []inventoryGroup {
+	var keys []string
+	for _, g := range groups {
+		if g.Kind != "service" && g.Kind != "endpoint" {
+			continue
+		}
+		for _, sub := range g.Subjects {
+			addr := inventorySubjectAddress(sub.Kind, sub.Key)
+			if addr == "" {
+				continue
+			}
+			keys = append(keys, addr)
+		}
+	}
+	if len(keys) == 0 {
+		return groups
+	}
+	gi, ok := groupIdx["address"]
+	if !ok {
+		gi = len(groups)
+		groupIdx["address"] = gi
+		groups = append(groups, inventoryGroup{Kind: "address", Label: inventoryKindLabel("address")})
+	}
+	for _, key := range keys {
+		skey := "address\x00" + key
+		if _, seen := subjectIdx[skey]; seen {
+			continue
+		}
+		subjectIdx[skey] = len(groups[gi].Subjects)
+		groups[gi].Subjects = append(groups[gi].Subjects, inventorySubject{
+			Kind: "address",
+			Key:  key,
+			Type: inventoryTypeLabel("address"),
+			Link: inventoryRowHref("address", key),
+		})
+	}
+	return groups
+}
+
+func inventorySubjectAddress(kind, key string) string {
+	if kind == "endpoint" {
+		// An Endpoint key prefixes its Service key with `<name>@` (connectoutcome.EndpointKey).
+		key = key[strings.LastIndex(key, "@")+1:]
+	}
+	addr, err := netip.ParseAddr(inventoryServiceAddress(key))
+	if err != nil {
+		return ""
+	}
+	return addr.String()
 }
 
 func propagateProxyEdgeToAddresses(groups []inventoryGroup) {

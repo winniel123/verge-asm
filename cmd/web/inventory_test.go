@@ -32,8 +32,8 @@ func TestBuildInventoryGroupsOpenSpansBySubject(t *testing.T) {
 
 	groups := buildInventory(rows)
 
-	if len(groups) != 3 {
-		t.Fatalf("groups = %d, want 3 (name, service, endpoint); %#v", len(groups), groups)
+	if len(groups) != 4 {
+		t.Fatalf("groups = %d, want 4 (name, service, endpoint, the projected address); %#v", len(groups), groups)
 	}
 	if groups[0].Kind != "name" || groups[0].Label != "Names" {
 		t.Fatalf("first group = %q/%q, want name/Names", groups[0].Kind, groups[0].Label)
@@ -351,6 +351,59 @@ func TestBuildInventoryPropagatesServiceProxyEdgeToAddress(t *testing.T) {
 	}
 	if proxyAddr["198.51.100.7"] {
 		t.Errorf("address 198.51.100.7 ProxyEdge = true, want false (no proxy-edge Service)")
+	}
+}
+
+func TestBuildInventoryProjectsAddressesFromServicesAndEndpoints(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("name", "a.example.com", "resolution", "", `{"rrtype":"A","addresses":["203.0.113.1"]}`, false),
+		openSpanRow("service", "203.0.113.1:443/tcp", "reachability", "", `{"outcome":"reached","ports":["443/tcp"]}`, false),
+		openSpanRow("service", "203.0.113.1:22/tcp", "reachability", "", `{"outcome":"reached","ports":["22/tcp"]}`, false),
+		openSpanRow("service", "[2001:db8::1]:443/tcp", "reachability", "", `{"outcome":"reached","ports":["443/tcp"]}`, false),
+		openSpanRow("endpoint", "a.example.com@198.51.100.9:443/tcp", "http-identity", "", `{"server":"nginx","status":200}`, false),
+	}
+
+	var addresses []inventorySubject
+	for _, g := range buildInventory(rows) {
+		if g.Kind == "address" {
+			addresses = g.Subjects
+		}
+	}
+
+	var keys []string
+	for _, sub := range addresses {
+		keys = append(keys, sub.Key)
+	}
+	if len(keys) != 3 {
+		t.Fatalf("projected addresses = %v, want one per distinct host beneath a Service or Endpoint", keys)
+	}
+	got := map[string]bool{}
+	for _, k := range keys {
+		got[k] = true
+	}
+	for _, k := range []string{"203.0.113.1", "2001:db8::1", "198.51.100.9"} {
+		if !got[k] {
+			t.Errorf("projected addresses = %v, want %q among them", keys, k)
+		}
+	}
+	for _, sub := range addresses {
+		if len(sub.Facets) != 0 {
+			t.Errorf("address %q carries %d facets, want none: no producer writes an address facet", sub.Key, len(sub.Facets))
+		}
+		if sub.Type != "Address" || sub.Link != "" {
+			t.Errorf("address %q = type %q link %q, want Address and no link", sub.Key, sub.Type, sub.Link)
+		}
+	}
+}
+
+func TestBuildInventoryProjectsNoAddressGroupWithoutServices(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("name", "a.example.com", "resolution", "", `{}`, true),
+	}
+	for _, g := range buildInventory(rows) {
+		if g.Kind == "address" {
+			t.Fatalf("a Name-only estate projected an Addresses group: %#v", g)
+		}
 	}
 }
 

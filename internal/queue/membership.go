@@ -150,12 +150,7 @@ func closeUncitedAddresses(ctx context.Context, q uncitedClosureStore, batchID i
 
 func uncitedAddresses(rows []db.ListCitedAddressSpansForNamesRow, seeds []db.ListSeedsRow) []uncitedSubject {
 	var out []uncitedSubject
-	index := map[string]int{}
 	for _, row := range rows {
-		if i, seen := index[row.SubjectKey]; seen {
-			out[i].spanIDs = append(out[i].spanIDs, row.ID)
-			continue
-		}
 		addr, err := netip.ParseAddr(row.SubjectKey)
 		if err != nil {
 			continue
@@ -164,8 +159,8 @@ func uncitedAddresses(rows []db.ListCitedAddressSpansForNamesRow, seeds []db.Lis
 		if _, left := estate.AddressClosure(len(row.Citers) > 0, addressSeedCovered(addr, seeds), false); !left {
 			continue
 		}
-		index[row.SubjectKey] = len(out)
-		out = append(out, uncitedSubject{kind: subjectKindAddress, key: row.SubjectKey, spanIDs: []int64{row.ID}})
+		// The Address holds no timeline, so the cascade beneath it carries every closure (#2033).
+		out = append(out, uncitedSubject{kind: subjectKindAddress, key: row.SubjectKey})
 	}
 	return out
 }
