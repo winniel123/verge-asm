@@ -74,6 +74,7 @@ type store interface {
 	restoreStore
 	scanTriggerStore
 	scansStore
+	scopeActStore
 	searchStore
 	seedsStore
 	sessionStore
@@ -137,6 +138,7 @@ type server struct {
 	restoreStore           restoreStore
 	scanTriggerStore       scanTriggerStore
 	scansStore             scansStore
+	scopeActStore          scopeActStore
 	searchStore            searchStore
 	seedsStore             seedsStore
 	sessionStore           sessionStore
@@ -261,6 +263,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		restoreStore:           s,
 		scanTriggerStore:       s,
 		scansStore:             s,
+		scopeActStore:          s,
 		searchStore:            s,
 		seedsStore:             s,
 		sessionStore:           s,

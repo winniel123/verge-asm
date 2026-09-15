@@ -16,3 +16,12 @@ LIMIT sqlc.arg(max_acts);
 -- name: AnyActRecorded :one
 -- The period's empty state and the corpus's are different facts, and E.3 claims the second.
 SELECT EXISTS (SELECT 1 FROM act);
+
+-- name: ListActsOfClassSince :many
+-- The panel beside a figure is a pointer at the audit trail, not a second one (ADR-1946 §3).
+SELECT id, created_at, actor_kind, actor, action, subject
+FROM act
+WHERE action = @action
+  AND created_at >= @from_time
+ORDER BY created_at DESC, id DESC
+LIMIT sqlc.arg(max_acts);

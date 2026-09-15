@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -414,6 +415,15 @@ var devExposureRows = []devExposureRow{
 	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "never-looked", since: "—"},
 }
 
+func devScopeActs() []scopeActRow {
+	// The fixture panel renders through the live formatter, so it cannot drift off it.
+	actor := act.ActorCell(act.Account{AccountID: 1, UsernameSnapshot: "dana.ops"})
+	return []scopeActRow{
+		{Scope: "198.51.100.0/24", Actor: actor, When: "2h", ISO: "2026-09-15T08:12:00Z"},
+		{Scope: "10.42.0.0/16", Actor: actor, When: "3d", ISO: "2026-09-12T15:41:00Z"},
+	}
+}
+
 func devLegInfo(state string) legInfo {
 	switch state {
 	case "gap":
@@ -450,6 +460,10 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 	}
 	data["Withheld"] = false
 	data["Rows"] = rows
+	if acct.Role == roleAdmin {
+		data["ScopeActPanel"] = true
+		data["ScopeActs"] = devScopeActs()
+	}
 	data["Exposed"] = devExposureExposed
 	data["Firewalled"] = devExposureFirewalled
 	data["NotReached"] = devExposureNotReached

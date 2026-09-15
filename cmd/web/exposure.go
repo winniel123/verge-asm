@@ -69,9 +69,12 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		}
 	}
 	if !internetVantage {
-		s.render(w, r, "exposure", pageData(acct, "Exposure", "exposure", map[string]any{
+		withheld := pageData(acct, "Exposure", "exposure", map[string]any{
 			"Withheld": true,
-		}))
+		})
+		// A scope over the only internet prober's address withholds the board (ADR-1895 §6).
+		s.fillScopeActPanel(ctx, acct, withheld)
+		s.render(w, r, "exposure", withheld)
 		return
 	}
 
@@ -90,6 +93,7 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"NotReached":   stats.notReached,
 		"SinceUnknown": stats.sinceUnknown,
 	})
+	s.fillScopeActPanel(ctx, acct, data)
 	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
 		log.Printf("web: exposure: previous batch instant: %v", err)
 	} else if ok {
