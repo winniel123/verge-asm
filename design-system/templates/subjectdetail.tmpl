@@ -39,6 +39,8 @@
 .sd-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
 .sd-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .sd-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.sd-kv .v.leg { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sd-legdate { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
 .sd-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .sd-badge.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 .sd-badge.stale { background: var(--stale-bg); border-color: var(--stale-border); color: var(--stale-fg); }
@@ -235,9 +237,8 @@
 <div class="sd-kv">
 <div class="cell"><span class="sd-micro">Address</span><span class="v">{{.Address}}</span></div>
 <div class="cell"><span class="sd-micro">Port</span><span class="v">{{.Port}}/{{.Transport}}</span></div>
-{{with .InternalLeg}}<div class="cell"><span class="sd-micro">Internal leg</span><span class="v">{{template "legchip" .}}</span></div>{{end}}
-{{with .InternetLeg}}<div class="cell"><span class="sd-micro">Internet leg</span><span class="v">{{template "legchip" .}}</span></div>{{end}}
-<div class="cell"><span class="sd-micro">Since</span><span class="v">{{if .Since}}{{.Since}}{{else}}—{{end}}</span></div>
+{{with .InternalLeg}}<div class="cell"><span class="sd-micro">Internal leg</span><span class="v leg">{{template "legchip" .}}{{with .Date}}<span class="sd-legdate">since {{.}}</span>{{end}}</span></div>{{end}}
+{{with .InternetLeg}}<div class="cell"><span class="sd-micro">Internet leg</span><span class="v leg">{{template "legchip" .}}{{with .Date}}<span class="sd-legdate">since {{.}}</span>{{end}}</span></div>{{end}}
 </div>
 {{with .GapNote}}
 <div class="sd-banner" style="margin-top:12px">

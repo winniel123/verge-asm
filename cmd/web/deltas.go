@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/netip"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -187,26 +188,44 @@ func severityIsCritical(rule string) bool {
 	return sev == signal.SevCritical
 }
 
-func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exposed, firewalled, notReached drift.Delta, ok bool) {
+type exposureLegs struct {
+	covered func(netip.Addr) bool
+	cur     []reachLegRow
+	prev    []reachLegRow
+}
+
+func (s *server) readExposureLegs(ctx context.Context, prevAt time.Time) (exposureLegs, bool) {
 	current, err := s.deltasStore.ListServiceReachabilitySpansByClass(ctx)
 	if err != nil {
 		log.Printf("web: exposure delta: list reachability by class: %v", err)
-		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
+		return exposureLegs{}, false
 	}
 	past, err := s.deltasStore.ListServiceReachabilitySpansByClassAt(ctx, pgtypeTimestamptz(prevAt))
 	if err != nil {
 		log.Printf("web: exposure delta: list reachability by class at: %v", err)
-		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
+		return exposureLegs{}, false
 	}
-	// One covered binding for both snapshots, so they classify alike (CONTEXT.md Vantage class).
+	// One binding holds both snapshots, so a scope edit moves both legs (ADR-1895 §4, ADR-1945 §2).
 	covered, err := s.addressScopeCovered(ctx)
 	if err != nil {
 		log.Printf("web: exposure delta: address scope coverage: %v", err)
+		return exposureLegs{}, false
+	}
+	return exposureLegs{
+		covered: covered,
+		cur:     reachRowsFromCurrent(current),
+		prev:    reachRowsFromAt(past),
+	}, true
+}
+
+func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exposed, firewalled, notReached drift.Delta, ok bool) {
+	legs, ok := s.readExposureLegs(ctx, prevAt)
+	if !ok {
 		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
 	}
 
-	cur := projectStatsFromLegs(collapseReachLegs(reachRowsFromCurrent(current), covered))
-	prev := projectStatsFromLegs(collapseReachLegs(reachRowsFromAt(past), covered))
+	cur := projectStatsFromLegs(collapseReachLegs(legs.cur, legs.covered))
+	prev := projectStatsFromLegs(collapseReachLegs(legs.prev, legs.covered))
 	return drift.Delta{Current: cur.exposed, Previous: prev.exposed},
 		drift.Delta{Current: cur.firewalled, Previous: prev.firewalled},
 		drift.Delta{Current: cur.notReached, Previous: prev.notReached},
