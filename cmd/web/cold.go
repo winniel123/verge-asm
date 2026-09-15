@@ -411,7 +411,7 @@ func blanketGapsAndMessages(keys []string) ([]coverageGapView, []coverageMessage
 		gaps = append(gaps, coverageGapView{
 			Subject:  addr,
 			Gap:      "no origin",
-			Expected: "origin behind the edge",
+			Expected: "origin behind the proxy edge",
 			Since:    "—",
 		})
 		msgs = append(msgs, coverageMessageView{
