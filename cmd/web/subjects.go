@@ -908,6 +908,7 @@ type assetPageData struct {
 	ProvenanceFailed bool
 	PortsFailed      bool
 	ScopeDateFailed  bool
+	DriftFailed      bool
 }
 
 type assetPort struct {
@@ -1003,8 +1004,12 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(data.Ports)
-	tls, _ := s.buildTimelines(r, "name", key)
-	data.Drift = assetDrift(tls)
+	tls, tlErr := s.buildTimelines(r, "name", key)
+	if tlErr != nil {
+		// The card's note names neither the read nor its error, so the fault logs (ADR-0168 §1).
+		log.Printf("web: asset: subject spans: %v", tlErr)
+	}
+	data.Drift, data.DriftFailed = assetDrift(tls), tlErr != nil
 
 	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
 		"Asset": data,
@@ -1045,8 +1050,11 @@ func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, ac
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(nil)
-	tls, _ := s.buildTimelines(r, "name", key)
-	data.Drift = assetDrift(tls)
+	tls, tlErr := s.buildTimelines(r, "name", key)
+	if tlErr != nil {
+		log.Printf("web: withdrawn asset: subject spans: %v", tlErr)
+	}
+	data.Drift, data.DriftFailed = assetDrift(tls), tlErr != nil
 
 	s.render(w, r, "asset", pageData(acct, key, "inventory", map[string]any{
 		"Asset": data,

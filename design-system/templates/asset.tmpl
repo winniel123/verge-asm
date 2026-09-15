@@ -233,7 +233,9 @@
 <section class="as-card">
 <div class="as-cardhead"><span class="as-micro">History</span><h3>Drift trail</h3></div>
 <div class="as-body" style="padding-top:12px">
-{{if .Drift}}
+{{if .DriftFailed}}
+<div class="as-empty" style="padding:24px 12px"><span class="msg">Drift did not resolve</span><span class="det">The span read did not resolve on this load. No transition is traced rather than a guessed one, and whether this asset holds a folded span is unknown. Reload to read it again.</span></div>
+{{else if .Drift}}
 <div>
 <button type="button" class="as-ghead" aria-expanded="true">
 <svg class="chev" viewBox="0 0 16 16" width="13" height="13"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg>
