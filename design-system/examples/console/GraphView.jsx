@@ -35,10 +35,10 @@ SERVICES.forEach(([label, ip, sev], i) => {
 });
 
 const DETAILS = {
-  "edge-gw-03.acmecorp.io": { signals: [["critical", "VNC exposed to internet"]], ports: ":443 :5900", first: "2026-08-12T09:14:33Z" },
-  "vpn.acmecorp.io": { signals: [["critical", "TLS certificate expired"]], ports: ":443 :1194", first: "2026-06-02T11:40:00Z" },
-  "api.acmecorp.io": { signals: [["high", "Outdated nginx"]], ports: ":443", first: "2026-05-19T08:00:12Z" },
-  "acmecorp.io": { signals: [["medium", "SPF record missing"]], ports: ":80 :443", first: "2026-05-19T07:58:41Z" },
+  "edge-gw-03.acmecorp.io": { signals: [["critical", "VNC exposed to internet"]], ports: ":443 :5900", since: "2026-08-12T09:14:33Z" },
+  "vpn.acmecorp.io": { signals: [["critical", "TLS certificate expired"]], ports: ":443 :1194", since: "2026-06-02T11:40:00Z" },
+  "api.acmecorp.io": { signals: [["high", "Outdated nginx"]], ports: ":443", since: "2026-05-19T08:00:12Z" },
+  "acmecorp.io": { signals: [["medium", "SPF record missing"]], ports: ":80 :443", since: "2026-05-19T07:58:41Z" },
 };
 
 export function GraphView() {
@@ -73,7 +73,7 @@ export function GraphView() {
               { k: "Node", v: sel.id },
               { k: "Type", v: sel.type, mono: false },
               { k: "Open ports", v: (d && d.ports) || "\u2014" },
-              { k: "Since", v: (d && d.first) || "2026-08-19T02:12:33Z" },
+              { k: "Since", v: (d && d.since) || "2026-08-19T02:12:33Z" },
             ]} />
             <div>
               <div style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>Open signals</div>

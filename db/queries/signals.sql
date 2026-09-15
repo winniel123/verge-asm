@@ -147,14 +147,15 @@ SELECT subject_key, value
 FROM latest
 ORDER BY subject_key;
 
--- name: ListBlanketedReachServices :many
-SELECT DISTINCT sp.subject_key AS subject_key
+-- name: ListOpenReachGapServices :many
+SELECT sp.subject_key AS subject_key,
+       sp.value       AS value
 FROM span sp
 WHERE sp.subject_kind = 'service'
   AND sp.facet = 'reachability'
   AND sp.closed_at IS NULL
   AND sp.is_gap = TRUE
-ORDER BY sp.subject_key;
+ORDER BY sp.subject_key, sp.id;
 
 -- name: ListEndpointCertificates :many
 WITH cover AS (

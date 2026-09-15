@@ -1765,6 +1765,26 @@ the licence to compare. See
 [ADR-0014](./docs/adr/0014-only-revealed-generalises.md).
 _Avoid_: outage, downtime, missing, unknown, stale
 
+**Gap cause**:
+The tag a `Gap` carries to say **why** we could not value the facet — one of the six absence
+registers the `Gap` entry names. The `Derivation` leaf that failed to decide writes it into the
+span's value, beside the operator-facing **reason**, which is prose and never a key. It is the
+model's own closed word and the operator cannot rename it. A surface **reads** the cause to
+choose what it says, and prose keyed on one renders for that cause alone: an unrecognised tag
+renders **less** prose, never the wrong prose
+([ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).
+So a surface may never **assert** a cause from the shape of its query. Two open `reachability`
+`Gap`s sit side by side under one filter and carry different causes, and a **blanket responder**'s
+proxy-edge explanation on a gap that was never blanketed is a fabricated finding
+([#2070](https://github.com/winniel123/verge-asm/issues/2070)).
+**Not `Message`'s `cause`**, which is a different field on a different thing: that one is the
+closed union of **four** carried on every message, it names **what moved** rather than why a value
+is absent, and
+[ADR-0091](./docs/adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md)
+refuses it as a routing key. Neither is read where the other is meant, and nothing maps one onto
+the other.
+_Avoid_: cause (bare), reason, gap type, gap kind, error code, failure mode
+
 **Drift**:
 What a `Transition` between two `Span`s *is*. It is the product's subject and deliberately
 **not a modelled thing** — there is no `Drift` object, no drift table and nothing that

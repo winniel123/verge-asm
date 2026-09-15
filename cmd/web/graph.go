@@ -99,6 +99,7 @@ type graphView struct {
 	CutEdges                   int
 	CutSignals                 int
 	SignalsFailed              bool
+	ScopesFailed               bool
 	members                    graphMembers
 	held                       map[string]struct{}
 }
@@ -551,6 +552,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	seeds, err := s.graphStore.ListSeeds(r.Context())
+	scopesFailed := err != nil
 	if err != nil {
 		log.Printf("web: graph: list seeds: %v", err)
 	}
@@ -566,6 +568,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	g.Scopes = scopes
 	g.Scope = selected.Token
 	g.ScopeLabel = selected.Label
+	g.ScopesFailed = scopesFailed
 	if !g.Empty {
 		corpus, err := s.buildSignalCorpus(r)
 		if err != nil {

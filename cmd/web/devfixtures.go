@@ -2470,7 +2470,10 @@ type searchFixture struct {
 		Query string `json:"query"`
 		Total int    `json:"total"`
 	} `json:"empty_variant"`
+	NotResolvedVariant string `json:"not_resolved_variant"`
 }
+
+const devSearchNotResolvedVariant = "reads-not-resolved"
 
 func loadSearchFixture() searchFixture {
 	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
@@ -2495,11 +2498,26 @@ func joinFixtureSegs(segs []searchSeg) string {
 	return b.String()
 }
 
+func searchFixtureDocs(fx searchFixture, q string) []searchDoc {
+	docs := make([]searchDoc, 0, len(fx.Docs))
+	for _, d := range fx.Docs {
+		docs = append(docs, searchDoc{
+			TitleSegs: searchSegs(joinFixtureSegs(d.TitleSegs), q),
+			SnipSegs:  searchSegs(joinFixtureSegs(d.SnipSegs), q),
+		})
+	}
+	return docs
+}
+
 func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]any {
 	fx := loadSearchFixture()
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if r.URL.Query().Get("variant") == devSearchNotResolvedVariant {
+		// The guide index is read in-process and never fails, so Docs survives (#2067).
+		return searchRenderMap(acct, q, 0, searchFailedReads{Signals: true, Assets: true, Batches: true}, nil, nil, nil, searchFixtureDocs(fx, q))
+	}
 	if q != fx.Query {
-		return searchRenderMap(acct, q, 0, false, nil, nil, nil, nil)
+		return searchRenderMap(acct, q, 0, searchFailedReads{}, nil, nil, nil, nil)
 	}
 
 	assets := make([]searchAsset, 0, len(fx.Assets))
@@ -2530,14 +2548,8 @@ func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]
 			Href:      b.Href,
 		})
 	}
-	docs := make([]searchDoc, 0, len(fx.Docs))
-	for _, d := range fx.Docs {
-		docs = append(docs, searchDoc{
-			TitleSegs: searchSegs(joinFixtureSegs(d.TitleSegs), q),
-			SnipSegs:  searchSegs(joinFixtureSegs(d.SnipSegs), q),
-		})
-	}
+	docs := searchFixtureDocs(fx, q)
 
 	total := len(assets) + len(signals) + len(batches) + len(docs)
-	return searchRenderMap(acct, q, total, false, assets, signals, batches, docs)
+	return searchRenderMap(acct, q, total, searchFailedReads{}, assets, signals, batches, docs)
 }

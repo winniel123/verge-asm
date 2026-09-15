@@ -46,19 +46,20 @@ a.se-row:hover { background: var(--surface-sunken); }
 <form method="get" action="/search" style="margin:0">
 <span class="se-q"><input type="text" name="q" value="{{.Query}}" placeholder="Assets, signals, batches, docs" autofocus spellcheck="false" autocomplete="off" aria-label="Search"></span>
 </form>
-<span class="se-count">{{if .SignalsFailed}}Results not totalled{{if .Query}} for “{{.Query}}”{{end}} · the signal read did not resolve{{else}}{{.Total}} results{{if .Query}} for “{{.Query}}”{{end}}{{end}}</span>
+<span class="se-count">{{if .TotalWithheld}}Results not totalled{{if .Query}} for “{{.Query}}”{{end}} · {{.WithheldNote}}{{else}}{{.Total}} results{{if .Query}} for “{{.Query}}”{{end}}{{end}}</span>
 </header>
-{{if not .SignalsFailed}}{{if eq .Total 0}}
+{{if not .TotalWithheld}}{{if eq .Total 0}}
 <div class="se-empty">
 <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
 <span class="msg">Nothing matches.</span>
 <span class="det">Try a hostname fragment, a signal phrase, or a batch timestamp.</span>
 </div>
 {{end}}{{end}}
-{{if .Assets}}
+{{if or .Assets .AssetsFailed}}
 <section class="se-card">
-<div class="se-cardhead"><span class="se-micro">{{len .Assets}} match{{if ne (len .Assets) 1}}es{{end}}</span><h3>Assets</h3></div>
+<div class="se-cardhead"><span class="se-micro">{{if .AssetsFailed}}not resolved{{else}}{{len .Assets}} match{{if ne (len .Assets) 1}}es{{end}}{{end}}</span><h3>Assets</h3></div>
 <div class="se-body">
+{{if .AssetsFailed}}<div class="se-empty" style="padding:24px 12px"><span class="msg">Assets did not resolve</span><span class="det">The asset read did not resolve on this load. Any row below is a real match, but the list is not the whole set, and nothing is guessed in its place. Reload to read it again.</span></div>{{end}}
 {{range .Assets}}<a class="se-row" href="{{.Href}}">
 <span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect><rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect><line x1="6" x2="6.01" y1="6" y2="6"></line><line x1="6" x2="6.01" y1="18" y2="18"></line></svg></span>
 <span class="name">{{template "hisegs" .NameSegs}}</span>
@@ -86,10 +87,11 @@ a.se-row:hover { background: var(--surface-sunken); }
 </div>
 </section>
 {{end}}
-{{if .Batches}}
+{{if or .Batches .BatchesFailed}}
 <section class="se-card">
-<div class="se-cardhead"><span class="se-micro">{{len .Batches}} recent</span><h3>Batches</h3></div>
+<div class="se-cardhead"><span class="se-micro">{{if .BatchesFailed}}not resolved{{else}}{{len .Batches}} recent{{end}}</span><h3>Batches</h3></div>
 <div class="se-body">
+{{if .BatchesFailed}}<div class="se-empty" style="padding:24px 12px"><span class="msg">Batches did not resolve</span><span class="det">The batch read did not resolve on this load. Nothing is listed rather than a guessed run history. Reload to read it again.</span></div>{{end}}
 {{range .Batches}}<a class="se-row" href="{{.Href}}">
 <span class="se-batch {{.Status}}"><span class="dot"></span>{{.Status}}<span class="scope">· {{template "hisegs" .LabelSegs}}</span></span>
 <span class="chev"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>

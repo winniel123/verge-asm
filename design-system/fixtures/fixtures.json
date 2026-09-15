@@ -1800,7 +1800,7 @@
         "halo_b": 20.5,
         "label_dx": 25,
         "ports": ":80 :443",
-        "first": "2026-05-19T07:58:41Z",
+        "since": "2026-05-19T07:58:41Z",
         "open_signals": [
           {
             "severity": "medium",
@@ -1823,7 +1823,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -1839,7 +1839,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": ":443",
-        "first": "2026-05-19T08:00:12Z",
+        "since": "2026-05-19T08:00:12Z",
         "open_signals": [
           {
             "severity": "high",
@@ -1862,7 +1862,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": ":443 :1194",
-        "first": "2026-06-02T11:40:00Z",
+        "since": "2026-06-02T11:40:00Z",
         "open_signals": [
           {
             "severity": "critical",
@@ -1885,7 +1885,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -1901,7 +1901,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -1917,7 +1917,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": ":443 :5900",
-        "first": "2026-08-12T09:14:33Z",
+        "since": "2026-08-12T09:14:33Z",
         "open_signals": [
           {
             "severity": "critical",
@@ -1940,7 +1940,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -1956,7 +1956,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -1972,7 +1972,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -1988,7 +1988,7 @@
         "halo_b": 14.5,
         "label_dx": 19,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2004,7 +2004,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2020,7 +2020,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2036,7 +2036,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2052,7 +2052,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2068,7 +2068,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2084,7 +2084,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2100,7 +2100,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2116,7 +2116,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2132,7 +2132,7 @@
         "halo_b": 13.5,
         "label_dx": 18,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2148,7 +2148,7 @@
         "halo_b": 10.5,
         "label_dx": 15,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2164,7 +2164,7 @@
         "halo_b": 10.5,
         "label_dx": 15,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2180,7 +2180,7 @@
         "halo_b": 10.5,
         "label_dx": 15,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2196,7 +2196,7 @@
         "halo_b": 10.5,
         "label_dx": 15,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2212,7 +2212,7 @@
         "halo_b": 10.5,
         "label_dx": 15,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2228,7 +2228,7 @@
         "halo_b": 10.5,
         "label_dx": 15,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       },
       {
@@ -2244,7 +2244,7 @@
         "halo_b": 10.5,
         "label_dx": 15,
         "ports": "",
-        "first": "",
+        "since": "",
         "open_signals": []
       }
     ],
@@ -3607,7 +3607,8 @@
     "empty_variant": {
       "query": "zzz-none",
       "total": 0
-    }
+    },
+    "not_resolved_variant": "reads-not-resolved"
   },
   "onboarding": {
     "steps": [

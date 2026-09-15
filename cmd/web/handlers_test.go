@@ -141,12 +141,16 @@ type fakeStore struct {
 	subjectSpansErr error
 	pendingPropsErr error
 
+	nameSubjectsErr     error
+	dispatchProgressErr error
+
 	subjectSpansEmpty bool
 
 	nameResolutionsErr  error
 	dnsRecordsErr       error
 	zoneDeclarationsErr error
 	tlsAcceptanceErr    error
+	seedsErr            error
 	endpointCertsErr    error
 	endpointSubjectsErr error
 	signalInstancesErr  error
@@ -278,6 +282,9 @@ func newFakeStore() *fakeStore {
 }
 
 func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.ListDispatchProgressRow, error) {
+	if f.dispatchProgressErr != nil {
+		return nil, f.dispatchProgressErr
+	}
 	rows := f.dispatchProgress
 	if int(limit) < len(rows) {
 		rows = rows[:limit]
@@ -355,6 +362,9 @@ func (f *fakeStore) CreateAddressSeed(_ context.Context, arg db.CreateAddressSee
 }
 
 func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
+	if f.seedsErr != nil {
+		return nil, f.seedsErr
+	}
 	rows := make([]db.ListSeedsRow, 0, len(f.seeds))
 	for i := len(f.seeds) - 1; i >= 0; i-- {
 		s := f.seeds[i]
@@ -755,6 +765,9 @@ func fakeResolutionOutcome(value []byte) string {
 }
 
 func (f *fakeStore) ListCurrentNameSubjects(_ context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error) {
+	if f.nameSubjectsErr != nil {
+		return nil, f.nameSubjectsErr
+	}
 	search := arg.Search
 	latest := f.latestResolutionByName(f.liveObservations(arg.AsOf.Time))
 	keys := make([]string, 0, len(latest))

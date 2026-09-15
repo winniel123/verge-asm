@@ -91,6 +91,7 @@ type servicePageData struct {
 	Transport          string
 	Withdrawn          bool
 	MembershipUnknown  bool
+	SeedFailed         bool
 	Citation           []citationHop
 	CitationTerminated bool
 	Timelines          []timelineView
@@ -116,6 +117,7 @@ type endpointPageData struct {
 	Port               string
 	Withdrawn          bool
 	MembershipUnknown  bool
+	SeedFailed         bool
 	Outcome            string
 	Status             string
 	Server             string
@@ -264,13 +266,13 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		HasIdentity:      id.Outcome != "",
 	}
 	var seedScope string
-	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
+	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, data.SeedFailed, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
 	tls, tlErr := s.buildTimelines(r, "endpoint", subject.SubjectKey)
 	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
-	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines), data.TimelinesFailed)
+	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines), data.SeedFailed, data.TimelinesFailed)
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
 	s.render(w, r, "endpoint", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
@@ -288,7 +290,7 @@ func endpointStatusLabel(v httpIdentityValue) string {
 	return strconv.Itoa(v.Status)
 }
 
-func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn, unresolved bool, seedScope, inScopeSince string) {
+func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn, unresolved, seedFailed bool, seedScope, inScopeSince string) {
 	hops = []citationHop{{Label: "Subject · Endpoint", Value: r.FormValue("key")}}
 	if name != "" {
 		hops = append(hops, citationHop{Label: "Named · Name", Value: name})
@@ -318,7 +320,8 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 		seed, seedErr := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed)
 		if err := readFailure(seedErr); err != nil {
 			log.Printf("web: endpoint detail: covering address seed: %v", err)
-			readFailed = true
+			// Chip, card and chain line all read this Seed, and outlive the verdict (#2061).
+			readFailed, seedFailed = true, true
 		}
 		if seedErr == nil {
 			scope := ""
@@ -340,7 +343,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	if withdrawn && readFailed {
 		withdrawn, unresolved = false, true
 	}
-	return hops, terminated, withdrawn, unresolved, seedScope, inScopeSince
+	return hops, terminated, withdrawn, unresolved, seedFailed, seedScope, inScopeSince
 }
 
 func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -376,7 +379,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		Transport: transport,
 	}
 	var seedScope string
-	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
+	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, data.SeedFailed, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
 	tls, tlErr := s.buildTimelines(r, "service", subject.SubjectKey)
 	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
@@ -398,7 +401,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
 		}
 	}
-	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines), data.TimelinesFailed)
+	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines), data.SeedFailed, data.TimelinesFailed)
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	signals, sigErr := s.assetSignals(r, subject.SubjectKey)
 	if sigErr != nil {
@@ -447,7 +450,7 @@ func splitServiceKey(key string) (addr, port, transport string) {
 	return addr, port, transport
 }
 
-func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn, unresolved bool, seedScope, inScopeSince string) {
+func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn, unresolved, seedFailed bool, seedScope, inScopeSince string) {
 	hops = []citationHop{
 		{Label: "Subject · Service", Value: r.FormValue("key")},
 		{Label: "On address · Address", Value: addr},
@@ -478,7 +481,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 		seed, seedErr := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed)
 		if err := readFailure(seedErr); err != nil {
 			log.Printf("web: service detail: covering address seed: %v", err)
-			readFailed = true
+			readFailed, seedFailed = true, true
 		}
 		if seedErr == nil {
 			scope := ""
@@ -505,17 +508,20 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	if withdrawn && readFailed {
 		withdrawn, unresolved = false, true
 	}
-	return hops, terminated, withdrawn, unresolved, seedScope, inScopeSince
+	return hops, terminated, withdrawn, unresolved, seedFailed, seedScope, inScopeSince
 }
 
 func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.assetPage(w, r, acct)
 }
 
-func subjectProvenance(kind, seedScope, firstSeen string, firstSeenFailed bool) []assetKV {
+func subjectProvenance(kind, seedScope, firstSeen string, seedFailed, firstSeenFailed bool) []assetKV {
 	var items []assetKV
 	if seedScope != "" {
 		items = append(items, assetKV{K: "Seed", V: seedScope})
+	} else if seedFailed {
+		// A dropped row reads as no covering Seed beside the rows that survive (ADR-0168 §2).
+		items = append(items, assetKV{K: "Seed", V: "the Seed read did not resolve"})
 	}
 	// The derivation path is structural to the subject class, never a measured per-subject value.
 	via := "dns sweep → hot scan"
@@ -908,6 +914,7 @@ type assetPageData struct {
 	ProvenanceFailed bool
 	PortsFailed      bool
 	ScopeDateFailed  bool
+	DriftFailed      bool
 }
 
 type assetPort struct {
@@ -1003,8 +1010,12 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(data.Ports)
-	tls, _ := s.buildTimelines(r, "name", key)
-	data.Drift = assetDrift(tls)
+	tls, tlErr := s.buildTimelines(r, "name", key)
+	if tlErr != nil {
+		// The card's note names neither the read nor its error, so the fault logs (ADR-0168 §1).
+		log.Printf("web: asset: subject spans: %v", tlErr)
+	}
+	data.Drift, data.DriftFailed = assetDrift(tls), tlErr != nil
 
 	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
 		"Asset": data,
@@ -1045,8 +1056,11 @@ func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, ac
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(nil)
-	tls, _ := s.buildTimelines(r, "name", key)
-	data.Drift = assetDrift(tls)
+	tls, tlErr := s.buildTimelines(r, "name", key)
+	if tlErr != nil {
+		log.Printf("web: withdrawn asset: subject spans: %v", tlErr)
+	}
+	data.Drift, data.DriftFailed = assetDrift(tls), tlErr != nil
 
 	s.render(w, r, "asset", pageData(acct, key, "inventory", map[string]any{
 		"Asset": data,
