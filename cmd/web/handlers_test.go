@@ -140,6 +140,12 @@ type fakeStore struct {
 	openSpansErr    error
 	pendingPropsErr error
 
+	endpointCertsErr    error
+	nameDNSErr          error
+	nameCitationErr     error
+	nameSeedByIDErr     error
+	coveringNameSeedErr error
+
 	channels       []fakeChannel
 	chanNextID     int64
 	retention      db.GetRetentionSettingsRow
@@ -1180,6 +1186,9 @@ func (f *fakeStore) addCertificate(t *testing.T, endpointKey string, at time.Tim
 }
 
 func (f *fakeStore) ListEndpointCertificates(_ context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error) {
+	if f.endpointCertsErr != nil {
+		return nil, f.endpointCertsErr
+	}
 	latest := map[string]db.Observation{}
 	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "endpoint" || o.Facet != "certificate" {
@@ -1298,6 +1307,9 @@ func (f *fakeStore) vantageForClass(class string) int64 {
 }
 
 func (f *fakeStore) ListNameDNSRecords(_ context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error) {
+	if f.nameDNSErr != nil {
+		return nil, f.nameDNSErr
+	}
 	type key struct{ name, disc string }
 	latest := map[key]db.Observation{}
 	for _, o := range f.liveObservations(arg.AsOf.Time) {

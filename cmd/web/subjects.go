@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"net/netip"
 	"slices"
@@ -582,20 +583,28 @@ type nameSeedTerm struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
-func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetNameCitationRow, citErr error) (nameSeedTerm, bool) {
+func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetNameCitationRow, citErr error) (nameSeedTerm, bool, error) {
 	// An admission's Seed is read by id, never by a longer-suffix scope (ADR-0107, #256).
 	if citErr == nil && cit.HopKind == hopKindAdmission && cit.SeedID.Valid {
 		seed, err := s.subjectsStore.FindNameSeedByID(r.Context(), cit.SeedID.Int64)
 		if err != nil {
-			return nameSeedTerm{}, false
+			return nameSeedTerm{}, false, readFailure(err)
 		}
-		return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt}, true
+		return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt}, true, nil
 	}
 	seed, err := s.subjectsStore.FindCoveringNameSeed(r.Context(), key)
 	if err != nil {
-		return nameSeedTerm{}, false
+		return nameSeedTerm{}, false, readFailure(err)
 	}
-	return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt}, true
+	return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt}, true, nil
+}
+
+func readFailure(err error) error {
+	// No row and a failed read are different facts, so only the second degrades (ADR-0168 §4).
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	return err
 }
 
 const spanTimeFmt = "2006-01-02 15:04 UTC"
@@ -853,6 +862,26 @@ type assetPageData struct {
 	Provenance   []assetKV
 	Signals      []assetSignal
 	Drift        []assetDriftEvent
+
+	DNSFailed        bool
+	CertFailed       bool
+	ProvenanceFailed bool
+}
+
+func (d *assetPageData) setProvenance(items []assetKV, inScopeSince string, err error) {
+	d.Provenance, d.InScopeSince, d.ProvenanceFailed = items, inScopeSince, err != nil
+	if err != nil {
+		// A dropped citation hides evidence beside the surviving rows, so it logs (ADR-0168 §1).
+		log.Printf("web: asset: name citation: %v", err)
+	}
+}
+
+func (d *assetPageData) setDNS(rows []assetDNSRow, err error) {
+	d.DNS, d.DNSFailed = rows, err != nil
+	if err != nil {
+		// A dropped record hides evidence beside the address rows, so it logs (ADR-0168 §1).
+		log.Printf("web: asset: name dns records: %v", err)
+	}
 }
 
 type assetPort struct {
@@ -932,8 +961,8 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
-	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
-	data.DNS = s.assetDNS(r, key, res)
+	data.setProvenance(s.assetProvenance(r, key))
+	data.setDNS(s.assetDNS(r, key, res))
 	ports, err := s.assetPorts(r, res.Addresses)
 	if err != nil {
 		// An empty list is the honest no-ports answer, so a swallow erases the verdict (#1948).
@@ -941,7 +970,9 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	data.Ports = ports
-	data.Cert = s.assetCertificate(r, key, res.Addresses)
+	cert, certErr := s.assetCertificate(r, key, res.Addresses)
+	// A note belongs in the region that failed, never a page-wide banner (ADR-0168 §2).
+	data.Cert, data.CertFailed = cert, certErr != nil
 	data.Signals = s.assetSignals(r, key)
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
@@ -978,7 +1009,7 @@ func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
 func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, acct db.Account, key string) {
 	// A withdrawn Name has no current value, so only closed timelines render (ADR-0072).
 	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
-	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
+	data.setProvenance(s.assetProvenance(r, key))
 	data.Signals = s.assetSignals(r, key)
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
@@ -990,11 +1021,17 @@ func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, ac
 	}))
 }
 
-func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string) {
+func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string, readErr error) {
 	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
-	if seed, ok := s.terminatingNameSeed(r, key, cit, citErr); ok {
+	readErr = readFailure(citErr)
+	seed, ok, seedErr := s.terminatingNameSeed(r, key, cit, citErr)
+	// The Seed row and the citation rows feed one card, so one flag covers both reads (#2029).
+	if readErr == nil {
+		readErr = seedErr
+	}
+	if ok {
 		if seed.NameDomain.Valid {
 			items = append(items, assetKV{K: "Seed", V: seed.NameDomain.String})
 		}
@@ -1018,10 +1055,10 @@ func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, 
 			items = append(items, assetKV{K: "First seen", V: cit.ObservedAt.Time.UTC().Format("2006-01-02")})
 		}
 	}
-	return items, inScopeSince
+	return items, inScopeSince, readErr
 }
 
-func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) []assetDNSRow {
+func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) ([]assetDNSRow, error) {
 	var rows []assetDNSRow
 	for _, a := range res.Addresses {
 		t := "A"
@@ -1033,21 +1070,23 @@ func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) []as
 	dnsRows, err := s.subjectsStore.ListNameDNSRecords(r.Context(), db.ListNameDNSRecordsParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
-	if err == nil {
-		for _, row := range dnsRows {
-			if row.SubjectKey != key {
+	if err != nil {
+		// The address rows come from the subject read, so they still render (#2029).
+		return rows, err
+	}
+	for _, row := range dnsRows {
+		if row.SubjectKey != key {
+			continue
+		}
+		for _, rr := range decodeDNSRecord(row.Value).RRs {
+			switch strings.ToUpper(rr.Type) {
+			case "A", "AAAA":
 				continue
 			}
-			for _, rr := range decodeDNSRecord(row.Value).RRs {
-				switch strings.ToUpper(rr.Type) {
-				case "A", "AAAA":
-					continue
-				}
-				rows = append(rows, assetDNSRow{Type: rr.Type, Value: rr.Data})
-			}
+			rows = append(rows, assetDNSRow{Type: rr.Type, Value: rr.Data})
 		}
 	}
-	return rows
+	return rows, nil
 }
 
 func (s *server) assetPorts(r *http.Request, addresses []string) ([]assetPort, error) {
@@ -1216,12 +1255,12 @@ type certificateLeafValue struct {
 	Algorithm string   `json:"algorithm"`
 }
 
-func (s *server) assetCertificate(r *http.Request, key string, addresses []string) *assetCert {
+func (s *server) assetCertificate(r *http.Request, key string, addresses []string) (*assetCert, error) {
 	rows, err := s.subjectsStore.ListEndpointCertificates(r.Context(), db.ListEndpointCertificatesParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	addrSet := make(map[string]bool, len(addresses))
 	for _, a := range addresses {
@@ -1252,8 +1291,9 @@ func (s *server) assetCertificate(r *http.Request, key string, addresses []strin
 			chosen = &vv
 		}
 	}
+	// A Name with no chain, and a row whose JSON fails to parse, both stay the empty state.
 	if chosen == nil {
-		return nil
+		return nil, nil
 	}
 	cert := &assetCert{
 		Name:        key,
@@ -1267,7 +1307,7 @@ func (s *server) assetCertificate(r *http.Request, key string, addresses []strin
 			cert.Label, cert.Tone = certValidity(na, s.now().UTC())
 		}
 	}
-	return cert
+	return cert, nil
 }
 
 func certValidity(notAfter, now time.Time) (label, tone string) {

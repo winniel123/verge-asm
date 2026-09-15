@@ -90,6 +90,9 @@
 .as-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
 .as-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
 .as-notice { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 12px; font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+.as-degrade { margin: 12px 20px 20px; }
+.as-body > .as-degrade { margin: 0; }
+.as-body > .as-degrade:not(:first-child) { margin-top: 12px; }
 </style>
 <main class="as-main" data-screen-label="Asset detail">
 {{with .Asset}}
@@ -155,11 +158,19 @@
 </tr>{{end}}
 </tbody>
 </table>
-{{else}}
+{{end}}
+{{if .DNSFailed}}
+<div class="as-notice as-degrade">The dns-record read did not resolve on this load. Nothing is listed rather than a guessed record. Reload to read it again.</div>
+{{else if not .DNS}}
 <div class="as-empty"><span class="msg">No records resolved</span><span class="det">This name holds no current resolution or dns-record value. A record appears here once the dns scan folds one for it.</span></div>
 {{end}}
 </section>
-{{with .Cert}}
+{{if .CertFailed}}
+<section class="as-card">
+<div class="as-cardhead"><span class="as-micro">Transport</span><h3>TLS certificate</h3></div>
+<div class="as-body"><div class="as-notice as-degrade">The certificate read did not resolve on this load. Nothing is listed rather than a guessed chain. Reload to read it again.</div></div>
+</section>
+{{else}}{{with .Cert}}
 <section class="as-cert{{if eq .Tone "danger"}} danger{{end}}">
 <div class="row1">
 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted)"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M4.7 19.3 9 15"></path><path d="m9 10-4.3 4.3c-.94.94-.94 2.46 0 3.4l1.6 1.6c.94.94 2.46.94 3.4 0L14 15"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"></path><circle cx="10" cy="14" r="2"></circle></svg>
@@ -179,7 +190,7 @@
 <div class="as-cardhead"><span class="as-micro">Transport</span><h3>TLS certificate</h3></div>
 <div class="as-body"><div class="as-empty" style="padding:24px 12px"><span class="msg">No certificate detail to show</span><span class="det">No certificate-chain leaf holds a parsed value for this asset yet. Its identity — issuer, algorithm, validity — appears once a scan folds one.</span></div></div>
 </section>
-{{end}}
+{{end}}{{end}}
 </div>
 <div style="display:flex;flex-direction:column;gap:24px">
 <section class="as-card">
@@ -189,7 +200,10 @@
 <div class="as-kv">
 {{range .Provenance}}<div class="cell"><span class="as-micro">{{.K}}</span><span class="v">{{.V}}</span></div>{{end}}
 </div>
-{{else}}
+{{end}}
+{{if .ProvenanceFailed}}
+<div class="as-notice as-degrade">The citation read did not resolve on this load. Nothing is listed rather than a guessed hop. Reload to read it again.</div>
+{{else if not .Provenance}}
 <div class="as-empty" style="padding:24px 12px"><span class="msg">No provenance to trace</span><span class="det">Nothing has cited this name into the estate yet. Its "why is this here" chain fills in as a scan measures it against a scope you declared.</span></div>
 {{end}}
 </div>
