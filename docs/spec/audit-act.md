@@ -15,8 +15,8 @@ An **`Act`** is one recorded act by one principal on this instance. It is the **
 corpus, beside `Dispatch`, `Message`, `Delivery` and `Transcript`.
 
 Today the admin `audit` tab renders an empty state and says so in shipped copy:
-*"This build keeps no separate queryable log of admin acts"* (`design-system/templates/settings.tmpl#settings-sessions`).
-`fillAuditSection` returns nil (`cmd/web/settings.go#server.fillAPISection`). `docs/guides/accounts.md#accounts-invites--roles` states
+*"This build keeps no separate queryable log of admin acts"* (`design-system/templates/settings.tmpl`).
+`fillAuditSection` returns nil (`cmd/web/settings.go`). `docs/guides/accounts.md#accounts-invites--roles` states
 it more baldly still — *"the **Audit** tab is honestly empty"*.
 
 This effort ends that. It adds one append-only corpus, one recorder, one CI gate, one admin reader,
@@ -285,7 +285,7 @@ stored `action` token. `Subject` shows the rendered cell with sample values.
   one of ADR-0113's three named audited acts. `transcript.disclosed` is a `GET` pair. A sweep of the
   81 POST registrations misses both. §7.2 turns on this.
 - **`restore.applied` is written after `applyRestore` returns.** `applyRestore` truncates every backup
-  table, the `act` corpus included (`cmd/web/restore.go#server.restoreApply`), so a row written before the apply is
+  table, the `act` corpus included (`cmd/web/restore.go`), so a row written before the apply is
   erased by the apply. Its actor is `Account` — the restoring admin, whose username snapshot survives
   the `TRUNCATE` because §3 captures a value and not a join.
 - **Six classes share the Action label `Dial moved`, and that is correct.** The Subject cell carries
@@ -337,7 +337,7 @@ session only.
 |---|---|
 | `POST /onboarding` | Wizard step navigation; writes nothing (`cmd/web/onboarding.go#server.onboardingStep`) |
 | `POST /seeds/preview` | Renders a withdrawal receipt into a flash and writes nothing (`cmd/web/seeds.go`) |
-| `POST /exclusions/preview` | Read-only preview (`cmd/web/exclusions.go#server.declareExclusion`) |
+| `POST /exclusions/preview` | Read-only preview (`cmd/web/exclusions.go`) |
 | `POST /messages/read`, `/read-all`, `/unread` | Per-account read state; already legible to its own reader |
 
 **Two acts exempt on a measurement, not on convenience.**
@@ -433,7 +433,7 @@ exactly when a second `Act` names the same grant.* `Invite` carries one. `POST /
 audited, so the id joins the mint to the acceptance. And `21600_invite.sql:19-21` uses
 `ON DELETE SET NULL` on both FKs *"so an invite outlives either account's deletion as a record."*
 `PasswordReset` carries none, because `POST /forgot` is exempt and a consumed reset row is deleted by
-**every** `POST /forgot` (`db/queries/password_reset.sql#DeleteSpentPasswordResets`, fired at `cmd/web/auth.go#server.forgotForm`).
+**every** `POST /forgot` (`db/queries/password_reset.sql#DeleteSpentPasswordResets`, fired at `cmd/web/auth.go`).
 `SetupToken` carries none, because **no row exists** — it is an in-memory string compared by
 `auth.TokensEqual` (`cmd/web/auth.go`). That is a meaning, not a `NULL`. The rule is stated rather
 than the three cases, so a fourth grant answers it on arrival.
@@ -718,7 +718,7 @@ twice: `design-system/templates/drift.tmpl#drift` and `reports.tmpl:109-111` bot
 server-rendered `?period=` preset panel with an apply form.
 
 **ADR-0173's rider does not bite.** *"A tab that grows a control loses the carve-out"* governs `api`.
-`audit` holds no carve-out to lose. And `validTab` reads `Get("tab")` only (`cmd/web/auth.go#dashboardStore`,
+`audit` holds no carve-out to lose. And `validTab` reads `Get("tab")` only (`cmd/web/auth.go`,
 `settings.go:279`), so a second query key changes no gate and ADR-0173 §1's *one identifier admits one
 section* property is untouched.
 
@@ -873,7 +873,7 @@ loops over N proposals, does two unrelated writes per iteration, and **bails mid
 5. **The recorder call uses a context detached from request cancellation**, with its own short
    timeout. On `r.Context()` the record dies when the operator navigates away, so *an act with no
    `Act`* would fire on ordinary use rather than on a database fault. **Without this the failure mode
-   is mispriced by an order of magnitude.** `cmd/web/auth.go#server.render` already reaches for
+   is mispriced by an order of magnitude.** `cmd/web/auth.go` already reaches for
    `context.Background()` in the chrome render for the same reason. **A tx-bound recorder detaches
    nothing**, because a detached insert would outlive the rollback tearing its own transaction down. A
    cancelled act under rulings 4 or 10 therefore leaves neither a mutation nor a row, which is the
@@ -1013,11 +1013,11 @@ Final strings are in §8 · E. The sites:
 
 | Site | Verbatim (abridged) | Call |
 | --- | --- | --- |
-| `design-system/templates/settings.tmpl#settings-sessions` | the audit tab lede | *"Who did what, when."* survives verbatim and becomes the whole lede |
+| `design-system/templates/settings.tmpl` | the audit tab lede | *"Who did what, when."* survives verbatim and becomes the whole lede |
 | `settings.tmpl:882-883` | *"No audit log"* + the two substitute links | Becomes a genuine #47 empty state — *no acts recorded yet* — never a statement that the facility is absent |
 | `settings.tmpl:898` | the Sources callout — *"it keeps no log line of its own; it is dated by the batch…"* | A toggle is limb 1 and writes an `Act`. **#1787's bare strike is not sufficient** — see §8 · E.4 |
 | `design-system/examples/console/Sources.jsx` | the same sentence in the React example | Same replacement. ADR-0110 makes the examples the console's IA spec |
-| `cmd/web/settings.go#server.fillAPISection` | `// No queryable log exists, so this ships an empty state, never fabricated data (ADR-0110).` | **Deleted** when `fillAuditSection` reads the corpus |
+| `cmd/web/settings.go` | `// No queryable log exists, so this ships an empty state, never fabricated data (ADR-0110).` | **Deleted** when `fillAuditSection` reads the corpus |
 | `cmd/web/annotations.go#server.declareAnnotation` | `// An operator dial carries no author, so neither act records who declared it (ADR-0073).` | Half stays true, half becomes false. Replacement, within the comment gates: `// The row carries no author; the act does (ADR-0073, #1786).` |
 | `db/migrations/18500_source_state.sql` | *"ADR-0073 rules that no operator act is written down with an actor on it"* | *"carries NO actor and NO instant of its own"* **confirmed**. The gloss becomes: ADR-0073 rules that no **Declared term** carries an actor |
 
@@ -1298,7 +1298,7 @@ widen from `NOT NULL`.
 the object vanish from the result set.** Two consequences are behavioural, not cosmetic:
 
 - **`verge_core`.** `ListVergeCoreFrequencyEditsWithAuthor` feeds `shipped.WithFrequencyEdits(edits)`
-  (`cmd/web/settings.go#server.fillVantagesSection`). A dropped row **silently reverts that port's frequency action** —
+  (`cmd/web/settings.go`). A dropped row **silently reverts that port's frequency action** —
   *"a port you can hide is a signal you can silence"* (`docs/spec/v1-spec.md` §3.5).
 - **`subjects`.** `FindCoveringAddressSeed` is `:one`. A dropped row returns `ErrNoRows`, so the subject
   **loses its `Declared · Seed` hop** and its citation chain reads unterminated
@@ -1306,7 +1306,7 @@ the object vanish from the result set.** Two consequences are behavioural, not c
 
 **The FK widening and the `JOIN` sweep land in one change.** The sweep has three limbs.
 
-1. **Delete six dead JOINs** — `db/queries/exclusions.sql#CreateDeclinedProposalExclusion`, `vantages.sql:24`, `zone.sql:21`,
+1. **Delete six dead JOINs** — `db/queries/exclusions.sql`, `vantages.sql:24`, `zone.sql:21`,
    `verge_core.sql:12`, `proposals.sql:16` **and `seeds.sql:15`**. Each JOINs `account` only to select a
    username that Go then discards. Deleting beats widening.
    **`seed` keeps its JOIN on the subject-detail path and loses it on the scope path — say this
