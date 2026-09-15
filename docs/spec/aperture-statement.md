@@ -405,7 +405,7 @@ computation. An HTML-only statement moves #1854's silence rather than ending it.
 
 ### 5.1 The home
 
-`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`, the shipped precedent for exactly this shape. Build a
+`cmd/web/cold.go` holds `apertureMeters`, the shipped precedent for exactly this shape. Build a
 sibling of it that returns the seven rows as a typed slice.
 
 One function feeds both renderers today. `cmd/web/cold.go#server.coveragePage` renders the meters into the
@@ -546,7 +546,7 @@ micro-label is the part that overreaches.
 ### 7.5 The `Rules` card is retitled — **specified**
 
 `design-system/templates/coverage.tmpl#coverage` titles a card *"Unevaluable this batch"*. Its rows read
-*"N subjects in its domain could not be read this batch"* (`cmd/web/cold.go#sortCoverageMessages`), and its empty
+*"N subjects in its domain could not be read this batch"* (`cmd/web/cold.go`), and its empty
 state reads *"Every rule could evaluate"* (`:190`). That is a per-subject count wearing a per-rule
 name, which ADR-0095 refuses by name at `docs/adr/0095-…md:347`. It sits one card from figure 3.
 
