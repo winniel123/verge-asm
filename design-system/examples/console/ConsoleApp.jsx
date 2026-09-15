@@ -116,7 +116,7 @@ export function ConsoleApp() {
         {screen === "profile" && <Profile onToast={setToast} />}
         {screen === "error" && <ErrorPage kind={errKind} onHome={() => setScreen("dashboard")} />}
         {screen === "exposure" && <Exposure onOpenVantages={() => { setSettingsSection("vantages"); setScreen("settings"); }} />}
-        {screen === "coverage" && <Coverage onOpenScope={() => setScreen("scope")} />}
+        {screen === "coverage" && <Coverage onOpenScope={() => setScreen("scope")} onOpenSources={() => { setSettingsSection("sources"); setScreen("settings"); }} />}
       </div>
       <Footer />
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
