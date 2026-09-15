@@ -147,6 +147,7 @@ type fakeStore struct {
 	dnsRecordsErr       error
 	zoneDeclarationsErr error
 	tlsAcceptanceErr    error
+	seedsErr            error
 	endpointCertsErr    error
 	endpointSubjectsErr error
 	signalInstancesErr  error
@@ -355,6 +356,9 @@ func (f *fakeStore) CreateAddressSeed(_ context.Context, arg db.CreateAddressSee
 }
 
 func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
+	if f.seedsErr != nil {
+		return nil, f.seedsErr
+	}
 	rows := make([]db.ListSeedsRow, 0, len(f.seeds))
 	for i := len(f.seeds) - 1; i >= 0; i-- {
 		s := f.seeds[i]
