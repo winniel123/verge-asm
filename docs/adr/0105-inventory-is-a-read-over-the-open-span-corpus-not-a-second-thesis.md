@@ -46,6 +46,8 @@ instead of diffed over time.** That is the whole idea, and everything below foll
 
 ### 1. Inventory is a **read**, not a second corpus — the same `span` rows, projected differently
 
+> **Amended** by [ADR-2033: An Address holds no facet, so its membership projects from the Services beneath it](./2033-an-address-holds-no-facet-so-its-membership-projects-from-the-services-beneath-it.md), 2026-09-15. <!-- adr-marker amends 2033 -->
+
 Change reads a subject's spans **down a timeline** and derives the `Break`s between them. Inventory
 reads the **open** span **across subjects** and renders the value it holds. Same rows, two
 projections. There is **no** new table, no new observation, no new `Derivation` leaf, and no new
