@@ -113,7 +113,7 @@ func TestAssetScopeDateReadFailureNotesTheHeaderChip(t *testing.T) {
 
 	page := assetRegionPage(t, f, base, "api.example.com")
 
-	wantIn(t, page, "in scope since — the Seed read did not resolve", "failed scope-date read")
+	wantIn(t, page, "covered since — the Seed read did not resolve", "failed scope-date read")
 }
 
 func TestAssetOutsideEveryScopeLeavesTheHeaderChipAbsent(t *testing.T) {
@@ -123,5 +123,5 @@ func TestAssetOutsideEveryScopeLeavesTheHeaderChipAbsent(t *testing.T) {
 	page := assetRegionPage(t, f, base, "api.example.org")
 
 	wantNotIn(t, page, "the Seed read did not resolve", "name outside every scope")
-	wantNotIn(t, page, "in scope since", "name outside every scope")
+	wantNotIn(t, page, "covered since", "name outside every scope")
 }

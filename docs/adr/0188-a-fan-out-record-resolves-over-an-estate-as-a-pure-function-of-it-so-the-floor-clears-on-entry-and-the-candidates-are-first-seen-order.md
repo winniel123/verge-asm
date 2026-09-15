@@ -73,8 +73,8 @@ assemble an `Estate`, and the same store rows resolve to two different floors ac
 
 | Site | Candidate set | Record read | Floor `overExtension` resolves |
 | --- | --- | --- | --- |
-| `internal/queue/hot.go#CitedResolutions` | The in-zone direct-A targets | `EdgeFanoutUnbounded()` | May be **true**: an in-force `Scan`, a completed `Batch`, and no measured candidate |
-| `cmd/web/custodycensus.go#toCustodyCensusView` | The same in-zone targets | `EdgeFanoutOver(estate.ExtensionCandidates())`, so `Partial` is true | The same verdict on the same rows |
+| `internal/queue/hot.go` | The in-zone direct-A targets | `EdgeFanoutUnbounded()` | May be **true**: an in-force `Scan`, a completed `Batch`, and no measured candidate |
+| `cmd/web/custodycensus.go` | The same in-zone targets | `EdgeFanoutOver(estate.ExtensionCandidates())`, so `Partial` is true | The same verdict on the same rows |
 | `cmd/web/addressscopecensus.go#addressScopeSharedEdges` | **Empty.** The `Estate` carries `AddressScopes` alone, with no `Resolutions` and no `ExtendedZones` | `EdgeFanoutUnbounded()` | Always **false**, on `overExtension`'s `len(candidates) == 0` arm |
 | `internal/custody/corpus/harness.go#Step.Estate` | The corpus row's own resolutions | A record built from the row | Whatever that row's candidates resolve |
 

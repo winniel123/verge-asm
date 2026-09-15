@@ -36,10 +36,29 @@ function normalise(text) {
     .trim();
 }
 
+const ATTRIBUTION_LINE = /^\s*\u{1F916} Generated with \[Claude Code\]\(\S+\)\s*$/u;
+const SESSION_LINE = /^\s*https:\/\/claude\.ai\/code\/session_\S+\s*$/;
+
+function withoutAttribution(prBody) {
+  const lines = prBody.split(/\r?\n/);
+  const skipBlank = (i) => {
+    while (i > 0 && lines[i - 1].trim() === "") i--;
+    return i;
+  };
+  let end = skipBlank(lines.length);
+  // The session link sits below the attribution line, so the trailer is a block and not one line
+  if (end > 0 && SESSION_LINE.test(lines[end - 1])) end = skipBlank(end - 1);
+  if (end === 0 || !ATTRIBUTION_LINE.test(lines[end - 1])) return prBody;
+  return lines.slice(0, skipBlank(end - 1)).join("\n");
+}
+
 export function bodyDecision(prBody) {
   if (typeof prBody !== "string") return null;
-  const has = headings(prBody).some((h) => h.level === 2 && h.title === "Decision");
-  return has ? normalise(decisionBlock(prBody).text) : null;
+  // The harness ends every PR body with an attribution trailer, and a last-position ## Decision
+  // would otherwise absorb it and never match the file (#2101).
+  const body = withoutAttribution(prBody);
+  const has = headings(body).some((h) => h.level === 2 && h.title === "Decision");
+  return has ? normalise(decisionBlock(body).text) : null;
 }
 
 function firstDifference(want, have) {

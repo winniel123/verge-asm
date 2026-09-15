@@ -23,7 +23,7 @@ relations:
 
 ## Context
 
-`cmd/web/devfixtures.go#reportsWizardMap` carries the surviving statement of this rule, uncited:
+`cmd/web/devfixtures.go` carries the surviving statement of this rule, uncited:
 
 > `// The message detail carries no prose body: the form is the census plus the delivery receipts.`
 
@@ -142,7 +142,7 @@ because it is not about the same object.** The package name is the whole of the 
   ruled the opposite and `inbox.tmpl:127` implements it. Under
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) the
   correction belongs at that site.
-- **The two off-model records of this rule stay put.** `cmd/web/devfixtures.go#reportsWizardMap` and
+- **The two off-model records of this rule stay put.** `cmd/web/devfixtures.go` and
   `design-system/fixtures/fixtures.json` now have a document to cite.
 
 ## Alternatives rejected

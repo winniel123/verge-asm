@@ -1310,7 +1310,7 @@ type fixtureAssetPackage struct {
 		SevLabel     string `json:"sev_label"`
 		InternetLeg  string `json:"internet_leg"`
 		Seen         string `json:"seen"`
-		InScopeSince string `json:"in_scope_since"`
+		CoveredSince string `json:"covered_since"`
 		Withdrawn    bool   `json:"withdrawn"`
 		Ports        []struct {
 			Port         string `json:"port"`
@@ -1371,7 +1371,7 @@ func TestAssetFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("key drift: fixtures.json = %q, pinned = %q/%q", a.Key, d.Key, devAssetKey)
 	}
 	if a.Type != d.Type || a.Severity != d.Severity || a.SevLabel != d.SevLabel ||
-		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.Withdrawn != d.Withdrawn {
+		a.Seen != d.Seen || a.CoveredSince != d.CoveredSince || a.Withdrawn != d.Withdrawn {
 		t.Errorf("header drift:\n fixtures.json = %+v\n pinned        = %+v", a, d)
 	}
 	wantLeg := reachLegChip(custody.ClassInternet, legFrom(devLegInfo(a.InternetLeg)))
@@ -1474,7 +1474,7 @@ type fixtureSubjectService struct {
 	InternetLeg     string `json:"internet_leg"`
 	InternetLegDate string `json:"internet_leg_date"`
 	Seen            string `json:"seen"`
-	InScopeSince    string `json:"in_scope_since"`
+	CoveredSince    string `json:"covered_since"`
 	Citation        []struct {
 		Label  string `json:"label"`
 		Value  string `json:"value"`
@@ -1511,7 +1511,7 @@ type fixtureSubjectEndpoint struct {
 	Nameless     bool   `json:"nameless"`
 	Withdrawn    bool   `json:"withdrawn"`
 	Seen         string `json:"seen"`
-	InScopeSince string `json:"in_scope_since"`
+	CoveredSince string `json:"covered_since"`
 	Citation     []struct {
 		Label  string `json:"label"`
 		Value  string `json:"value"`
@@ -1567,7 +1567,7 @@ func assertServiceLegChip(t *testing.T, name string, class custody.VantageClass,
 func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d servicePageData) {
 	t.Helper()
 	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Withdrawn != d.Withdrawn ||
-		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
+		a.Seen != d.Seen || a.CoveredSince != d.CoveredSince || a.CitationTerminated != d.CitationTerminated ||
 		a.Address != d.Address || a.Port != d.Port || a.Transport != d.Transport {
 		t.Errorf("%s: service header drift:\n fixtures.json = %+v\n pinned        = %+v", name, a, d)
 	}
@@ -1673,7 +1673,7 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 
 	a, d := f.SubjectDetail.Endpoint, devEndpointData()
 	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Nameless != d.Nameless || a.Withdrawn != d.Withdrawn ||
-		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
+		a.Seen != d.Seen || a.CoveredSince != d.CoveredSince || a.CitationTerminated != d.CitationTerminated ||
 		a.Name != d.Name || a.Service != d.Service || a.HasIdentity != d.HasIdentity || a.Status != d.Status ||
 		a.Server != d.Server || a.Title != d.Title || a.RedirectLocation != d.RedirectLocation || a.WWWAuthenticate != d.WWWAuthenticate {
 		t.Errorf("endpoint header drift:\n fixtures.json = %+v\n pinned        = %+v", a, d)

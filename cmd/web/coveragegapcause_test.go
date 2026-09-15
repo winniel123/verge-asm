@@ -25,13 +25,12 @@ func TestCoverageGapExpectedNamesTheProxyEdge(t *testing.T) {
 	}
 }
 
-func TestBlanketGapsAndMessagesReadTheGapCause(t *testing.T) {
+func TestReachGapsAndMessagesReadTheGapCause(t *testing.T) {
 	rows := []db.ListOpenReachGapServicesRow{
 		{SubjectKey: "104.21.61.6:443/tcp", Value: []byte(`{"outcome":"gap","cause":"` + blanketdiscrim.GapCause + `"}`)},
 		{SubjectKey: "198.51.100.9:443/tcp", Value: []byte(`{"outcome":"gap","cause":"vantage-unavailable"}`)},
-		{SubjectKey: "198.51.100.10:443/tcp", Value: []byte(`{"outcome":"gap"}`)},
 	}
-	gaps, msgs := blanketGapsAndMessages(rows)
+	gaps, msgs := reachGapsAndMessages(rows)
 	if len(gaps) != 1 || len(msgs) != 1 {
 		t.Fatalf("one blanket-responder row must yield one gap and one message, got %d and %d", len(gaps), len(msgs))
 	}
@@ -57,5 +56,34 @@ func TestCoverageOmitsProxyEdgeProseForAnotherGapCause(t *testing.T) {
 	}
 	if strings.Contains(page, "198.51.100.9") {
 		t.Errorf("a reach Gap of another cause must not reach the blanket-responder rows; body: %s", page)
+	}
+}
+
+func TestOneServicesGapMessageIsTheSameWhateverOrderTheRowsArrive(t *testing.T) {
+	const svc = "198.51.100.9:443/tcp"
+	// Two vantages can hold an open Gap on one service and record different reasons. The page
+	// states one message per service, so the row that survives the dedupe must be settled by
+	// the rows themselves and never by the order the database happened to return them.
+	gap := func(reason string) db.ListOpenReachGapServicesRow {
+		return db.ListOpenReachGapServicesRow{
+			SubjectKey: svc,
+			Value:      []byte(`{"outcome":"gap","cause":"probe-timeout","reason":"` + reason + `"}`),
+		}
+	}
+	first, second := gap("a resolver answered no query"), gap("z the dial never completed")
+
+	forward, back := []db.ListOpenReachGapServicesRow{first, second}, []db.ListOpenReachGapServicesRow{second, first}
+	gapsA, msgsA := reachGapsAndMessages(forward)
+	gapsB, msgsB := reachGapsAndMessages(back)
+
+	if len(gapsA) != 1 || len(msgsA) != 1 || len(gapsB) != 1 || len(msgsB) != 1 {
+		t.Fatalf("one service must state one gap and one message, got %d/%d and %d/%d",
+			len(gapsA), len(msgsA), len(gapsB), len(msgsB))
+	}
+	if msgsA[0].Text != msgsB[0].Text {
+		t.Errorf("the message text varies with the row order: %q then %q", msgsA[0].Text, msgsB[0].Text)
+	}
+	if !strings.Contains(msgsA[0].Text, "a resolver answered no query") {
+		t.Errorf("the surviving row is the one whose recorded value sorts first; got %q", msgsA[0].Text)
 	}
 }

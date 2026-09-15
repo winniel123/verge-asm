@@ -39,7 +39,7 @@ The old "engineered paper" datasheet look has been retired to `prototypes/design
 | `design-system/components/` | `forms/` · `display/` · `feedback/` · `navigation/` · `media/` — each component ships `.jsx` + `.d.ts` contract + `.prompt.md` usage note |
 | `design-system/components/media/Icon.jsx` | The single Lucide wrapper every consumer routes through (one-file swap to `lucide-react`) |
 | `design-system/examples/` | The original design reference: `console/` (screens + `ConsoleApp.jsx` shell), `Homepage.jsx` (marketing), `DocsPage.jsx` (docs) — read for a screen's original intent. They bind no template (ADR-1988) |
-| `design-system/examples/console/` | Dashboard · Scope · Inventory · Drift · Signals · GraphView · Reports · Settings · SignIn · Integrations |
+| `design-system/examples/console/` | The `ConsoleApp.jsx` shell, `SignalData.jsx` fixtures, and 24 screen and section components — the shell routes 19 screens. `README.md` there enumerates them |
 | `design-system/docs/AGENT-GUIDE.md` | Compact usage guide for agents (good human quick-start) |
 | `design-system/docs/DESIGN-NOTES.md` | Full rationale: palette math, severity contrast tables, component history, production notes |
 

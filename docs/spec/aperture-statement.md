@@ -532,27 +532,34 @@ never defined *unevaluable*, which is how one word came to do two jobs. Figure 3
 > `not-evaluable` is a value about one **subject**. The two counts are not comparable and never
 > fuse.
 
-### 7.4 The `Aperture` micro-label moves to the statement — **specified**
+### 7.4 The `Aperture` micro-label moves to the statement — **landed**
 
-`design-system/templates/coverage.tmpl#coverage` carries the micro-label `Aperture` over the title
-*"What the last batch walked"*, rendering the ADR-0120 meters. After §5.3 the two elements read
-different sources and move at different rates. The card's title already says what it is, so the
-micro-label is the part that overreaches.
+At authoring, `design-system/templates/coverage.tmpl#coverage` carried the micro-label `Aperture`
+over the title *"What the last batch walked"*, rendering the ADR-0120 meters. After §5.3 the two
+elements read different sources and move at different rates. The card's title already says what it
+is, so the micro-label was the part that overreached.
 
 - The **statement** takes the micro-label `Aperture`.
 - The **meters card** takes `Address scopes`, which names the denominator its meters actually have
   under ADR-0120. Its title is unchanged.
 
-### 7.5 The `Rules` card is retitled — **specified**
+Both landed. `design-system/templates/coverage.tmpl#coverage` now carries `Aperture` over the
+statement's title *"What this install is configured to look at"*, and `Address scopes` over
+*"What the last batch walked"*.
 
-`design-system/templates/coverage.tmpl#coverage` titles a card *"Unevaluable this batch"*. Its rows read
-*"N subjects in its domain could not be read this batch"* (`cmd/web/cold.go`), and its empty
-state reads *"Every rule could evaluate"* (`:190`). That is a per-subject count wearing a per-rule
-name, which ADR-0095 refuses by name at `docs/adr/0095-…md:347`. It sits one card from figure 3.
+### 7.5 The `Rules` card is retitled — **landed**
+
+At authoring, `design-system/templates/coverage.tmpl#coverage` titled a card *"Unevaluable this
+batch"*. Its rows read *"N subjects in its domain could not be read this batch"*
+(`cmd/web/cold.go`), and its empty state read *"Every rule could evaluate"*. That was a per-subject
+count wearing a per-rule name, which ADR-0095 refuses by name at `docs/adr/0095-…md:347`. It sits
+one card from figure 3.
 
 - Title: **"Rules waiting on a reading"**.
 - Empty state: **"Every rule read every subject in its domain."**
 - The rows are unchanged. Figure 3 is unchanged and ships verbatim.
+
+Both strings landed. `design-system/templates/coverage.tmpl#coverage` now carries them verbatim.
 
 *Unevaluable* then carries one meaning on the page, and it is the statement's.
 

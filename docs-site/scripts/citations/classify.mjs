@@ -61,6 +61,17 @@ export function topLevelEntries(tracked) {
   return roots;
 }
 
+// The slashless citation form names a file and no directory, so the tree resolves it (#2120).
+export function trackedBasenames(tracked) {
+  const out = new Map();
+  for (const f of tracked.files) {
+    const base = f.slice(f.lastIndexOf("/") + 1);
+    if (!out.has(base)) out.set(base, []);
+    out.get(base).push(f);
+  }
+  return out;
+}
+
 export function trackedExtensions(tracked) {
   const exts = new Set();
   for (const f of tracked.files) {

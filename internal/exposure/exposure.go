@@ -233,3 +233,35 @@ func reasonFor(absent LegStatus) OneLeggedReason {
 	}
 	return NeverLooked
 }
+
+// A one-legged reading is no Exposure and gets no name, so it counts apart (ADR-0017).
+
+type Census struct {
+	Exposed     int
+	EdgeOnly    int
+	Firewalled  int
+	Unreachable int
+	OneLegged   int
+}
+
+func (c *Census) Count(internet, internal Leg) {
+	ev, ok := Project(internet, internal)
+	if !ok {
+		c.OneLegged++
+		return
+	}
+	switch ev {
+	case Exposed:
+		c.Exposed++
+	case EdgeOnly:
+		c.EdgeOnly++
+	case Firewalled:
+		c.Firewalled++
+	case Unreachable:
+		c.Unreachable++
+	}
+}
+
+func (c Census) Total() int {
+	return c.Exposed + c.EdgeOnly + c.Firewalled + c.Unreachable + c.OneLegged
+}
