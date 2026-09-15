@@ -41,7 +41,7 @@ code twice.
 `internal/release/fetcher.go` declares `Doer` with a single `Do` method. That is "behind an
 interface" on its face. `NewHTTPFetcher` at `internal/release/fetcher.go` then takes a URL and no
 client. It writes `&http.Client{Timeout: feedTimeout}` into the unexported field at
-`internal/release/fetcher.go#NewHTTPDoer`. The interface is declared and never opened. Its only caller,
+`internal/release/fetcher.go`. The interface is declared and never opened. Its only caller,
 `cmd/worker/main.go#main`, has nothing to pass. So `HTTPFetcher.Latest` has no test, and the non-200
 refusal, the `maxFeedBytes` cap over a hostile feed and the empty-`tag_name` refusal are all
 unpinned. **The declaration that exists to make those testable is the thing that
