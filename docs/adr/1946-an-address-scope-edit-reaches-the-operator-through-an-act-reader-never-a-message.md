@@ -78,6 +78,8 @@ outside the fold.
 
 ## 3. The carrier is a bounded `Act` reader
 
+> **Amended** by [ADR-2114: The address-scope act reader covers every act class that moves the covered predicate](./2114-the-address-scope-act-reader-covers-every-act-class-that-moves-the-covered-predicate.md), 2026-09-15. <!-- adr-marker amends 2114 -->
+
 The act is already recorded. `seed.declared` is an `Act` class
 ([ADR-1891](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md),
 limb 1), written one row per scope under

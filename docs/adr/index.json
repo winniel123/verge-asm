@@ -5987,6 +5987,11 @@
           "kind": "rests-on",
           "from": 1945,
           "clause": "4"
+        },
+        {
+          "kind": "rests-on",
+          "from": 2114,
+          "clause": null
         }
       ],
       "sections": [
@@ -11291,7 +11296,13 @@
           "adr": 58
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 2114,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11782,6 +11793,11 @@
           "kind": "amends",
           "from": 1946,
           "clause": "9"
+        },
+        {
+          "kind": "rests-on",
+          "from": 2114,
+          "clause": null
         }
       ],
       "sections": [
@@ -12068,7 +12084,7 @@
       "date": "2026-09-14",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -12097,7 +12113,13 @@
           "adr": 1902
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 2114,
+          "clause": "3"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -12110,7 +12132,13 @@
         "9",
         "10"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2114,
+          "clause": "3"
+        }
+      ],
       "decision": {
         "words": 148,
         "text": "**An address-scope edit mints no `Message`. The act reaches the operator through a bounded,\ndisplay-only `Act` reader beside the `Exposure` figure: `seed.declared` acts over seven days, five\nrows, newest first, linked to the audit tab.**\n\nA reader asks why, because the flagship figure moves between two page loads and nothing announces\nit. ADR-0092 rules that the system announces what it found, never what the operator did, and no\n`Message` constructor is reached outside `internal/queue`, so none can fire on the act.\n\nThe reader asserts no causal tie. None exists: the class is stored nowhere and the figure is\nrecomputed per read.\n\nRejected: a `Kind` field on the seed-scope act subject, as the exclusion reference already carries.\nThe `Act` corpus is never deleted, so historic rows would lack it and the fallback would survive.\n\nReversal reopens the four-cause enumeration and owes a message to every dial ADR-0092 left silent."
@@ -12421,6 +12449,61 @@
       "decision": {
         "words": 141,
         "text": "**An Address holds no facet of its own. No producer writes an address-kind span, and its\nmembership projects from the Services and Endpoints beneath it.**\n\nEvery read that needs the estate's Addresses derives them from those subject keys. The\ninventory renders one facet-less Address row per distinct host beneath a Service or an\nEndpoint. A withdrawal closes the timelines beneath an Address and counts the Address as a\nsubject that left, holding none of its own.\n\nA reader asks why a listed subject carries no row. Nothing at the connect layer separates\nan Address from the Services on it, which ADR-0104 settled when it made a blanket\nresponder a gap cause on the Service rather than a value about the Address.\n\nRejected: an address-scoped facet, which needs a measurement that does not exist.\n\nReversal returns five reads that silently answer nothing."
+      }
+    },
+    {
+      "number": 2114,
+      "file": "docs/adr/2114-the-address-scope-act-reader-covers-every-act-class-that-moves-the-covered-predicate.md",
+      "title": "The address-scope act reader covers every act class that moves the covered predicate",
+      "slug": "the-address-scope-act-reader-covers-every-act-class-that-moves-the-covered-predicate",
+      "date": "2026-09-15",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2072
+      },
+      "ticket": 2114,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1946,
+          "clause": "3"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1895
+        },
+        {
+          "kind": "rests-on",
+          "adr": 133
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1644
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 109,
+        "text": "> **The `Exposure` screen's address-scope act reader covers every act class that moves\n> `addressScopeCovered`**: `seed.declared`, `seed.withdrawn`, `proposal.confirmed`, and the\n> address-kind `exclusion.declared` and `exclusion.lifted`. The seven-day window, the five-row cap\n> and the newest-first order are unchanged.\n>\n> A reader asks why a panel beside the `Exposure` figure lists one of the five classes that move it.\n> The panel's empty state is a statement, and a withdrawal or a confirmed proposal makes it false.\n>\n> Rejected: narrowing the panel's copy instead, which leaves it honest and useless.\n>\n> Reversal returns a panel that reports no address-scope edit while one has just moved the figure."
       }
     }
   ]
