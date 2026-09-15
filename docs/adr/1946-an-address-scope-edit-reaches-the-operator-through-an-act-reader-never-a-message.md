@@ -141,6 +141,12 @@ This ADR carries that refinement under an `amends` relation scoped to ADR-1895 �
 is not edited: an ADR never amends itself in place
 (`docs/spec/adr-governance.md` §3). The marker is tool-written.
 
+[ADR-1945](./1945-one-address-scope-binding-per-comparison-held-by-a-seam-and-fenced-by-an-ast-gate.md)
+amends the same §9, and the two refinements do not overlap. §9 states four thin places. ADR-1945
+takes the fourth — *"nothing stops an eleventh call site, and no check counts them"* — and answers it
+with a seam and an AST gate. This ADR takes the second — the widening message does not step in — and
+corrects its suppressor count. So §9 now carries two markers, and each names a different paragraph.
+
 ## 7. The rejected alternative
 
 **A `Kind` field on `act.SeedScope`, as `act.ExclusionRef` already carries.** `ExclusionRef` in
@@ -168,8 +174,9 @@ function the declare path already uses to decide the same question about the sam
 
 - **No migration, no `Message` class, no cause.** The causes stay at four. Nothing is stored that
   was not stored before.
-- **ADR-1895 §9 gains a tool-written marker** and its text is unchanged. The tree cites ADR-1895
-  twice, both as `ADR-1895 §4`, and neither citation names a line, so the marker moves no citation.
+- **ADR-1895 §9 gains a second tool-written marker** and its text is unchanged. ADR-1945 wrote the
+  first on the same day. Outside `docs/adr/`, the tree cites ADR-1895 twice, both as `ADR-1895 §4`,
+  and neither citation names a line, so neither marker moves a citation.
 - **The `Exposure` page gains one bounded reader.**
   [#1939](https://github.com/winniel123/verge-asm/issues/1939) owns the panel, the filtered query and
   the fold test. This ADR owns none of them.

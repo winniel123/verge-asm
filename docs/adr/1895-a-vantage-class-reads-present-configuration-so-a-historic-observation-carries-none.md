@@ -192,6 +192,8 @@ narrower and provable: **a comparison never straddles two boundaries.** §4's te
 
 ## 9. Where this is thin, stated rather than smoothed
 
+> **Amended** by [ADR-1945: One address-scope binding per comparison, held by a seam and fenced by an AST gate](./1945-one-address-scope-binding-per-comparison-held-by-a-seam-and-fenced-by-an-ast-gate.md), 2026-09-14. <!-- adr-marker amends 1945 -->
+
 > **Amended** by [ADR-1946: An address-scope edit reaches the operator through an Act reader, never a Message](./1946-an-address-scope-edit-reaches-the-operator-through-an-act-reader-never-a-message.md), 2026-09-14. <!-- adr-marker amends 1946 -->
 
 **The frequency is unmeasured.** The ticket says so, and nothing here changes it. Nobody has counted
