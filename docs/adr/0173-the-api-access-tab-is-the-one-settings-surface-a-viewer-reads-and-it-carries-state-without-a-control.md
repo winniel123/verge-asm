@@ -67,7 +67,7 @@ ordinary case, and without the carve-out the product hands that viewer a link th
 bookmarked pre-V3 link and folds everything else it does not know — including an absent `?tab=` — to
 `scans`.
 
-The gate and the renderer call **the same function on the same query key**: `cmd/web/auth.go#dashboardStore`
+The gate and the renderer call **the same function on the same query key**: `cmd/web/auth.go`
 and `cmd/web/settings.go` both read `validTab(q.Get("tab"))`, and the `devMode` fixture path does
 the same at `cmd/web/settings_fixtures.go#server.settingsFixtureData`. The tab the gate admits is exactly the tab
 `renderSettings` fills. There is no looser test — no prefix match, no `Contains`, no raw query value
@@ -82,13 +82,13 @@ That is the whole safety of the carve-out: `renderSettings` fills exactly one se
 
 `fillAPISection` (`cmd/web/settings.go`) puts three things on the page: `Enabled`, and — only
 when enabled — `By`, the username that flipped it, and `At`, the UTC minute. The template renders the
-badge, then branches: `design-system/templates/settings.tmpl#settings-instance` puts the toggle form under
+badge, then branches: `design-system/templates/settings.tmpl` puts the toggle form under
 `{{if $.IsAdmin}}` and gives a viewer *"You have read access. Enabling or disabling the API is
-admin-only."* instead. `IsAdmin` is set once, from the live account row, at `cmd/web/settings.go#server.updateChannel`.
+admin-only."* instead. `IsAdmin` is set once, from the live account row, at `cmd/web/settings.go`.
 
 **No token value is on this tab.** Tokens are minted, shown once and revoked on Profile
 (`cmd/web/handlers.go#server.handler`). The only writer of the flag is `apiToggle`
-(`cmd/web/settings.go#server.fillInstanceSection`), mounted `requireAdmin` at `cmd/web/handlers.go#server.handler`.
+(`cmd/web/settings.go`), mounted `requireAdmin` at `cmd/web/handlers.go#server.handler`.
 
 The bound is therefore: **the carved-out tab may carry the state, the provenance of that state, and
 prose. It may carry no operator dial and no secret.** Provenance is admitted because it is a fact
@@ -129,12 +129,12 @@ test rather than to code.
   `requireSettingsAdmin`, and the screen is not admin-only as a whole. Its route table (`:180-186`)
   gains a `/settings?tab=api | GET | viewer` row. The claim the sentence supports — *"a viewer cannot
   even open the Team tab"* — is true and stays.
-- **`docs/guides/backup-and-restore.md#the-two-state-volumes`** carries the same over-broad parenthetical while ruling
+- **`docs/guides/backup-and-restore.md`** carries the same over-broad parenthetical while ruling
   the delivery tab. It narrows to that tab.
 - **A viewer on the `api` tab sees a full Settings nav whose other thirteen links 403**
   (`design-system/templates/settings.tmpl#settings`). The cost is real and small; role-filtering the
   nav would state the matrix a second time, where it can drift from the gate.
-- **The line at `cmd/web/auth.go#dashboardStore` gains a citation** and stays. The declaration position on
+- **The line at `cmd/web/auth.go` gains a citation** and stays. The declaration position on
   `requireSettingsAdmin` stays empty.
 - **A test is owed**, iterating `settingsTabs` and asserting 403 for a viewer on every identifier but
   `api`. Written that way it fails the day a fifteenth tab arrives and nobody decides its role.
@@ -145,6 +145,6 @@ test rather than to code.
 | --- | --- |
 | **Admin-only with no carve-out** — delete the `!= "api"` limb, collapsing `requireSettingsAdmin` into `requireAdmin` | It breaks a link the product renders to viewers itself (`profile.tmpl:206`), and any account can reach the state that renders it by minting a token (`cmd/web/handlers.go#server.handler`). A viewer would get the settings-forbidden page for asking whether their own credential is live, then ask an admin, who reads back one boolean that grants nothing (§3). It also makes the Profile card's warning unverifiable by the only person it addresses |
 | **A viewer-visible tab with a disabled control** | It moves reach from the route into the markup: the gate then admits the tab unconditionally and relies on every present and future control in `settings-api` remembering `disabled` — a property no test states once and no reviewer checks by reading the gate. `disabled` is client-side besides, so the control's `POST /settings/api` is still refused at `cmd/web/handlers.go#server.handler`, and its whole contribution is a button that lies about being reachable |
-| **A separate viewer-facing page outside Settings**, the pattern `/coverage`, `/scans`, `/sources` and `/verge-core` already follow — `cmd/web/handlers.go#server.handler` states its reason: *"Folding a viewer-readable read into admin Settings would downgrade a viewer's access (#281)"* | It buys a nav destination and a second render path for one boolean. That pattern earns its cost where a screenful of estate data is viewer-readable; here the payload is `Enabled`, `By` and `At`. It also splits the fact from its operator context, and the four guide references to **Settings → API access** (`docs/guides/api.md#enabling-the-api`, `:106`, `:252`, `:260`) would each have to name whichever page matches the reader's role. The half of this worth having is already built: `/profile` carries `APIEnabled` (`cmd/web/auth.go#profileState`) as a warning on the token card, not as a second home for the setting |
-| **Role-filter the settings nav** so a viewer sees only the tab they may open | It states the role matrix a second time, in a template, with nothing keeping it equal to `cmd/web/auth.go#dashboardStore`. The two drift silently in the safe direction and as a 403 in the other. The refusal page is where a wrong click is answered |
+| **A separate viewer-facing page outside Settings**, the pattern `/coverage`, `/scans`, `/sources` and `/verge-core` already follow — `cmd/web/handlers.go#server.handler` states its reason: *"Folding a viewer-readable read into admin Settings would downgrade a viewer's access (#281)"* | It buys a nav destination and a second render path for one boolean. That pattern earns its cost where a screenful of estate data is viewer-readable; here the payload is `Enabled`, `By` and `At`. It also splits the fact from its operator context, and the four guide references to **Settings → API access** (`docs/guides/api.md#enabling-the-api`, `:106`, `:252`, `:260`) would each have to name whichever page matches the reader's role. The half of this worth having is already built: `/profile` carries `APIEnabled` (`cmd/web/auth.go`) as a warning on the token card, not as a second home for the setting |
+| **Role-filter the settings nav** so a viewer sees only the tab they may open | It states the role matrix a second time, in a template, with nothing keeping it equal to `cmd/web/auth.go`. The two drift silently in the safe direction and as a 403 in the other. The refusal page is where a wrong click is answered |
 | **Gate on the raw `Get("tab")` rather than on `validTab`'s output** | The gate would admit strings the renderer folds elsewhere and refuse strings it folds to `api`. Normalizing at both sites is what makes "the tab the gate admitted" and "the section the page filled" one object |

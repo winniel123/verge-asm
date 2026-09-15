@@ -34,7 +34,7 @@ it:
 // with the confirm dialog's ?stop= or ?terminate= dropped (dialogParams).
 ```
 
-The sweep kept one uncited line of it, now at `cmd/web/settings.go#tabForSection`:
+The sweep kept one uncited line of it, now at `cmd/web/settings.go`:
 
 ```go
 // A toast spelled on the URL fires again on every meta-refresh the in-flight Scans page runs.
@@ -49,7 +49,7 @@ JSON, encodes them base64, and appends the result to the destination as `?toast=
 ([`cmd/web/chrome.go#decodeToasts`](../../cmd/web/chrome.go)) reads that parameter on every GET.
 `s.flashRedirect` (`shell.go:107`) instead writes the same value to the process-local `flashStore`
 ([`cmd/web/flash.go`](../../cmd/web/flash.go)) under the account id, and redirects to a clean URL.
-The chrome fill at [`cmd/web/auth.go#profileRelTime`](../../cmd/web/auth.go) takes the flash once per render
+The chrome fill at [`cmd/web/auth.go`](../../cmd/web/auth.go) takes the flash once per render
 and deletes it.
 
 **The Scans landings re-render themselves while a dispatch is in flight.**
@@ -59,7 +59,7 @@ page data carries a truthy `Refresh`. `fillScansSection`
 `/scans` and `/settings?tab=scans` render through it — `scansPage` and `settingsPage` share
 `renderSettings` ([`cmd/web/settings.go`](../../cmd/web/settings.go)). Run detail sets the same
 flag from `runRefresh(view.Status)`, which answers `5` only while the status word is the literal
-`running` ([`cmd/web/scans.go#server.runStream`](../../cmd/web/scans.go)).
+`running` ([`cmd/web/scans.go`](../../cmd/web/scans.go)).
 
 **Run detail stops refreshing the moment a disposition is recorded, and that does not weaken the
 rule.** A stop writes `stopped` over `fanned-out`, so `runStatusLabel` returns `stopped` and
@@ -141,13 +141,13 @@ the query. A toast may ride the server-side flash, and on a self-refreshing land
 - **Three call sites already comply, and this ADR changes no Go behaviour.**
   `s.toastBackToSection` (`settings.go:261`) serves the stop, terminate and already-concluded
   receipts in `cmd/web/scans.go`. `triggerScan`
-  ([`cmd/web/scantrigger.go#server.runTrigger`](../../cmd/web/scantrigger.go)) sets the flash and then redirects
+  ([`cmd/web/scantrigger.go`](../../cmd/web/scantrigger.go)) sets the flash and then redirects
   back. `finishOnboarding` (`scantrigger.go:104`) uses `flashRedirect` to `/scans`.
 - **The `toastRedirectBack` callers stay on the query.** Their landings are `/scope`,
   `/settings?tab=channels`, `/settings?tab=integrations` and `/settings?tab=api`, and none of the
   four sets `Refresh`. `cmd/web/seeds.go`, `cmd/web/integrations.go`, `cmd/web/channels_sendtest.go`
   and `cmd/web/settings.go` are unaffected.
-- **One comment gains a citation.** `cmd/web/settings.go#tabForSection` keeps its reason and names this ADR.
+- **One comment gains a citation.** `cmd/web/settings.go` keeps its reason and names this ADR.
   `cmd/web/flash.go`'s courtesy line names §4.
 - **[ADR-0130](./0130-scroll-restore-is-hardened-by-a-same-url-prg-plus-full-url-key-contract.md) §1
   gains a bounding sentence at its own site**, per
