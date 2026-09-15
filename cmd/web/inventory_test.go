@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -393,6 +395,19 @@ func TestBuildInventoryProjectsAddressesFromServicesAndEndpoints(t *testing.T) {
 		if sub.Type != "Address" || sub.Link != "" {
 			t.Errorf("address %q = type %q link %q, want Address and no link", sub.Key, sub.Type, sub.Link)
 		}
+	}
+}
+
+func TestInventoryExportCarriesFacetlessAddresses(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("service", "203.0.113.1:443/tcp", "reachability", "", `{"outcome":"reached","ports":["443/tcp"]}`, false),
+	}
+	rec := httptest.NewRecorder()
+	(&server{now: func() time.Time { return obsClock }}).writeInventoryExportCSV(rec, buildInventory(rows))
+
+	got := rec.Body.String()
+	if !strings.Contains(got, "Address,203.0.113.1,,,") {
+		t.Errorf("export = %q, want the projected Address as a row: the page lists it", got)
 	}
 }
 

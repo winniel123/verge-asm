@@ -247,6 +247,8 @@ WITH cited AS (
     WHERE n.subject_kind = 'name'
       AND n.facet = 'resolution'
       AND n.subject_key = ANY(sqlc.arg(names)::text[])
+      -- A JSON null element reaches Go as a NULL key the row type cannot scan (#2033).
+      AND a.addr IS NOT NULL
 )
 -- An Address holds no facet, so no span carries it and citation alone is the read (#2033).
 SELECT c.addr::text AS subject_key,
@@ -261,6 +263,16 @@ SELECT c.addr::text AS subject_key,
              AND r.value -> 'addresses' @> to_jsonb(c.addr)
        ), '{}'::text[])::text[] AS citers
 FROM cited c
+-- The estate bound the dropped address-span join carried: a candidate holds something (#2033).
+WHERE EXISTS (
+    SELECT 1 FROM span s
+    WHERE s.closed_at IS NULL
+      AND s.subject_kind IN ('service', 'endpoint')
+      AND (s.subject_key LIKE c.addr || ':%'
+        OR s.subject_key LIKE '[' || c.addr || ']:%'
+        OR s.subject_key LIKE '%@' || c.addr || ':%'
+        OR s.subject_key LIKE '%@[' || c.addr || ']:%')
+)
 ORDER BY c.addr;
 
 -- name: ListOpenSpansBeneathAddresses :many

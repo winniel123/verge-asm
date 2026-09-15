@@ -41,7 +41,7 @@ func TestSeedWithdrawalPreviewDoesNotWithdraw(t *testing.T) {
 	declare(t, ac, base, "address", "198.51.100.0/24").Body.Close()
 	id := f.seeds[0].ID
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
-		candidateSpan(1, "address", "198.51.100.200"),
+		candidateSpan(1, "service", "198.51.100.200:443/tcp"),
 	}
 
 	page := previewChip(t, ac, base, id)
@@ -92,14 +92,14 @@ func TestSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 	declare(t, ac, base, "address", "198.51.100.0/24").Body.Close()
 	id := f.seeds[0].ID
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
-		candidateSpan(1, "address", "198.51.100.200"),
-		candidateSpan(2, "address", "198.51.100.200"),
-		candidateSpan(3, "service", "198.51.100.201:443"),
+		candidateSpan(1, "service", "198.51.100.200:443/tcp"),
+		candidateSpan(2, "service", "198.51.100.200:8443/tcp"),
+		candidateSpan(3, "service", "198.51.100.201:443/tcp"),
 	}
 
 	page := previewChip(t, ac, base, id)
 
-	want := message.PreviewSeedWithdrawal("198.51.100.0/24", 2, 3)
+	want := message.PreviewSeedWithdrawal("198.51.100.0/24", 5, 3)
 	if !strings.Contains(page, want.Headline) {
 		t.Errorf("headline %q missing; body: %s", want.Headline, page)
 	}
@@ -123,13 +123,13 @@ func TestSeedWithdrawalPreviewSparesASecondLiveSeed(t *testing.T) {
 		}
 	}
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
-		candidateSpan(1, "address", "198.51.100.200"),
-		candidateSpan(2, "address", "198.51.100.10"),
+		candidateSpan(1, "service", "198.51.100.200:443/tcp"),
+		candidateSpan(2, "service", "198.51.100.10:443/tcp"),
 	}
 
 	page := previewChip(t, ac, base, id)
 
-	want := message.PreviewSeedWithdrawal("198.51.100.0/24", 1, 1)
+	want := message.PreviewSeedWithdrawal("198.51.100.0/24", 2, 1)
 	if !strings.Contains(page, want.Headline) {
 		t.Errorf("headline %q missing — the second Seed's ground must not be counted; body: %s",
 			want.Headline, page)
@@ -157,13 +157,13 @@ func TestSeedWithdrawalPreviewSparesACustodyExtendedAddress(t *testing.T) {
 	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), edgeDER(t, 1))
 
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
-		candidateSpan(1, "address", "93.184.216.10"),
-		candidateSpan(2, "address", "93.184.216.20"),
+		candidateSpan(1, "service", "93.184.216.10:443/tcp"),
+		candidateSpan(2, "service", "93.184.216.20:443/tcp"),
 	}
 
 	page := previewChip(t, ac, base, id)
 
-	want := message.PreviewSeedWithdrawal("93.184.216.0/24", 1, 1)
+	want := message.PreviewSeedWithdrawal("93.184.216.0/24", 2, 1)
 	if !strings.Contains(page, want.Headline) {
 		t.Errorf("headline %q missing — the extended address must not be counted; body: %s",
 			want.Headline, page)
@@ -209,7 +209,7 @@ func TestNameSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 	}
 	// A name Seed reads its own limb, so these address rows are the negative control.
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
-		candidateSpan(9, "address", "198.51.100.200"),
+		candidateSpan(9, "service", "198.51.100.200:443/tcp"),
 	}
 
 	page := previewChip(t, ac, base, id)

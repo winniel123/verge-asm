@@ -124,7 +124,7 @@ export function Inventory({ onToast, onOpenAsset, onOpenSubject, onOpenScope }) 
         })}
       </div>
     ) },
-    { key: "since", label: "Since", mono: true, align: "right", width: 112, clip: false, render: (r) => <span style={{ color: "var(--text-muted)", verticalAlign: "top", whiteSpace: "nowrap" }}>{r.facets[0].since}</span> },
+    { key: "since", label: "Since", mono: true, align: "right", width: 112, clip: false, render: (r) => <span style={{ color: "var(--text-muted)", verticalAlign: "top", whiteSpace: "nowrap" }}>{r.facets.length ? r.facets[0].since : ""}</span> },
   ].filter((c) => c.key === "key" || visCols.indexOf(c.key) !== -1);
   return (
     <main data-screen-label="Inventory" style={{ maxWidth: 1440, margin: "0 auto", padding: 32, display: "flex", flexDirection: "column", gap: 20 }}>

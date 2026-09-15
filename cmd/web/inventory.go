@@ -242,8 +242,9 @@ func propagateProxyEdgeToAddresses(groups []inventoryGroup) {
 			continue
 		}
 		for _, sub := range groups[gi].Subjects {
-			if sub.ProxyEdge {
-				proxyAddrs[inventoryServiceAddress(sub.Key)] = true
+			// The projected row is keyed canonically, so a raw host spelling would miss it (#2033).
+			if addr := inventorySubjectAddress(sub.Kind, sub.Key); sub.ProxyEdge && addr != "" {
+				proxyAddrs[addr] = true
 			}
 		}
 	}
@@ -602,6 +603,11 @@ func (s *server) writeInventoryExportCSV(w http.ResponseWriter, groups []invento
 
 	for _, g := range groups {
 		for _, sub := range g.Subjects {
+			if len(sub.Facets) == 0 {
+				// A projected Address holds no facet, and no row reads as an absence (#2033).
+				_ = cw.Write([]string{csvSafe(sub.Type), csvSafe(sub.Key), "", "", ""})
+				continue
+			}
 			for _, f := range sub.Facets {
 				// A blank cell reads as a missing export, so a Gap is named (ADR-0072).
 				value := f.Summary

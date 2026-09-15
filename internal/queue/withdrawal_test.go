@@ -61,11 +61,12 @@ func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
 		exclusions: []db.Exclusion{addressExclusion("198.51.100.128/25")},
 	}
+	// No producer writes an address-kind span, so the read returns the ground beneath (#2033).
 	rows := []db.ListAddressExclusionWithdrawalsRow{
-		withdrawalRow(1, "address", "198.51.100.200"),
-		withdrawalRow(2, "address", "198.51.100.200"),
-		withdrawalRow(3, "service", "198.51.100.200:443"),
-		withdrawalRow(4, "address", "198.51.100.201"),
+		withdrawalRow(1, "service", "198.51.100.200:443/tcp"),
+		withdrawalRow(2, "service", "198.51.100.200:8443/tcp"),
+		withdrawalRow(3, "endpoint", "www.example.com@198.51.100.200:443/tcp"),
+		withdrawalRow(4, "service", "198.51.100.201:443/tcp"),
 	}
 
 	spanIDs, receipts := composeAddressWithdrawals(rows, in, thirdParty)
@@ -83,8 +84,8 @@ func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 	if r.Removed != "198.51.100.128/25" {
 		t.Errorf("the removed value is the declared exclusion, got %q", r.Removed)
 	}
-	if r.SubjectsWithdrawn != 3 {
-		t.Errorf("three distinct subjects left, got %d", r.SubjectsWithdrawn)
+	if r.SubjectsWithdrawn != 6 {
+		t.Errorf("four Services and Endpoints plus the two Addresses they sit on left, got %d", r.SubjectsWithdrawn)
 	}
 	if r.TimelinesRemoved != 4 {
 		t.Errorf("four timelines closed, got %d", r.TimelinesRemoved)

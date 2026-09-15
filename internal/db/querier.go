@@ -171,6 +171,7 @@ type Querier interface {
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
 	// The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
 	// An Address holds no facet, so no span carries it and citation alone is the read (#2033).
+	// The estate bound the dropped address-span join carried: a candidate holds something (#2033).
 	ListCitedAddressSpansForNames(ctx context.Context, names []string) ([]ListCitedAddressSpansForNamesRow, error)
 	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
