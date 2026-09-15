@@ -86,7 +86,7 @@ corpus. ADR-0108 is live and on topic and states the positive limb alone.
 
 ### The nearest neighbour rules coverage, not `Availability`
 
-`docs/adr/0005-scan-execution-model.md#one-job-is-one-batch-sized-by-enumerability` is the closest sentence on disk: *"A port attempted
+`docs/adr/0005-scan-execution-model.md` is the closest sentence on disk: *"A port attempted
 and timed out is completed (a timeout* is *a measurement). A port whose worker died before recording
 a result is not."* That rules what a `Batch`'s **recorded scope** may claim — the extent over which
 its silence is evidence. It is about coverage. It says nothing about the `Vantage`'s `Availability`,
@@ -156,8 +156,8 @@ the distinction each ADR exists to hold.
 
 ### 5. The attempt increment is the only coupling, and it moves nothing by itself
 
-The reap spends an attempt (`db/queries/measurement.sql#ClaimJob`), and `exhaustedRetries`
-(`internal/queue/pure.go`) reads `attempt >= max_attempts` at `internal/queue/worker.go#Worker.drain`.
+The reap spends an attempt (`db/queries/measurement.sql`), and `exhaustedRetries`
+(`internal/queue/pure.go`) reads `attempt >= max_attempts` at `internal/queue/worker.go`.
 So repeated worker crashes shorten the retry budget a later genuine probe failure spends before it
 dead-letters.
 
@@ -175,12 +175,12 @@ crash-looping worker retry one job forever, so the bounded budget is the safer f
   nothing there*; this is its mirror image, *our worker died* reading as *the resolver is down*, and
   it is equally a false report.
 - **No production behaviour changes.** The tree already obeys this. `applyAvailability`'s two call
-  sites (`internal/queue/worker.go#markDead`, `:479`) both carry a batch outcome, and
+  sites (`internal/queue/worker.go`, `:479`) both carry a batch outcome, and
   `internal/queue/reaper.go` reaches one query.
-- **The surviving line at `db/queries/measurement.sql#ClaimJob` gains this ADR's citation** and stops being
+- **The surviving line at `db/queries/measurement.sql` gains this ADR's citation** and stops being
   the only statement of the rule.
 - **A reaped `dead` job is still labelled `dead-lettered` on the run page**
-  (`cmd/web/scans.go#applyJobFilter`). The count is right and the word is wrong. The fix is a
+  (`cmd/web/scans.go`). The count is right and the word is wrong. The fix is a
   `batch_id IS NULL` read in the dispatch job projection, carried as follow-up; this ADR records the
   defect rather than smuggling a display change into a document.
 - **ADR-0108 is amended nowhere.** Limb 4 is written as a rule about batch outcomes and licenses
@@ -202,7 +202,7 @@ crash-looping worker retry one job forever, so the bounded budget is the safer f
 | **Mark the vantage `unavailable` on a reap**, treating a dead worker as evidence the position cannot observe | Attributes our own process failure to the vantage. The worker runs on our host and reaches every vantage, so a crash is uncorrelated with any one position and this marks whichever vantage the crashed job happened to name. It is ADR-0108 limb 1's rejected shape in a new place: a signal inferred from an absence of results rather than proved at the socket. The cost is a `Gap` on `Reach` and an absent `Exposure` for a resolver that answered fine |
 | **Write a `Batch` for the reaped job with outcome `dead-lettered`** and let the existing path move availability | Manufactures evidence. A `Batch` records what the batch **completed** (ADR-0005:129-135), and a job whose worker died completed nothing. It also makes the reap a writer of the drift-engine record from outside a job transaction, and a dead-lettered `dns` batch marks the vantage `unavailable` under ADR-0108 limb 4 — so it is the first row's cost by a longer route |
 | **Add a third `Batch` outcome, `reaped` or `abandoned`**, with an availability rule of `unchanged` | Buys the correct behaviour by minting an object with no reader, which ADR-0108 rejected once already for `failed` / `vantage-unavailable`: *"a third terminal outcome would split the failure population without a reader for the split"*. The record for a died-mid-flight job already exists — `queue_job.state` with a `NULL` `batch_id` — and costs no row in the evidential store |
-| **Forbid the reap from ever setting `state = 'dead'`**, so a reaped job is always `ready` | Removes the state whose ambiguity §2 resolves and buys an unbounded one: a job that deterministically crashes its worker requeues forever, spinning the queue against a poison payload with no terminal state and no `Dispatch` ever completing. The `attempt >= max_attempts` cap at `db/queries/measurement.sql#ClaimJob` is what bounds that |
+| **Forbid the reap from ever setting `state = 'dead'`**, so a reaped job is always `ready` | Removes the state whose ambiguity §2 resolves and buys an unbounded one: a job that deterministically crashes its worker requeues forever, spinning the queue against a poison payload with no terminal state and no `Dispatch` ever completing. The `attempt >= max_attempts` cap at `db/queries/measurement.sql` is what bounds that |
 | **Rule this inside ADR-0108 as an amendment to limb 4** | Under ADR-0058's split an amendment carries a claim about the world that has changed. Nothing changed: limb 4 was always exclusive and the reaper was always outside it. This is a rule about a subject ADR-0108 never named, so it takes its own record and cites limb 4 as its ground |
 | **Leave it as the uncited line in the SQL** | The statement then lives in the file least likely to be read by someone changing `internal/queue`, and dies at the next sweep that judges it recoverable. It also binds `worker.go`, `availability.go` and `vantages.sql`, which is `comment-policy.md` §8.2's gate B and is what makes it an ADR rather than a comment |
 | **Have the reaper move availability only for `dns` jobs**, mirroring ADR-0108 limb 4's kind scoping | Copies limb 4's scoping without limb 4's premise. The kind gate exists because a **port probe** says nothing about resolver health; it does not license a **`dns` job that never ran** saying something about it. A job the resolver was never asked is not weaker evidence about the resolver — it is no evidence |
