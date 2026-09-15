@@ -98,6 +98,7 @@ type graphView struct {
 	Capped                     []graphColumnCount
 	CutEdges                   int
 	CutSignals                 int
+	SignalsFailed              bool
 	members                    graphMembers
 	held                       map[string]struct{}
 }
@@ -569,6 +570,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		corpus, err := s.buildSignalCorpus(r)
 		if err != nil {
 			log.Printf("web: graph: build signal corpus: %v", err)
+			g.SignalsFailed = true
 		} else {
 			g = joinSignals(g, signal.EvaluateCorpus(corpus))
 		}
