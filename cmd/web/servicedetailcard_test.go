@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -24,9 +25,14 @@ func reachCard(t *testing.T, page string) string {
 func reachCardCell(t *testing.T, page, label string) string {
 	t.Helper()
 	card := reachCard(t, page)
-	_, rest, ok := strings.Cut(card, `<span class="sd-micro">`+label+`</span><span class="v">`)
+	_, rest, ok := strings.Cut(card, `<span class="sd-micro">`+label+`</span><span class="v`)
 	if !ok {
 		t.Fatalf("the Reachability card carries no %q cell; card: %s", label, card)
+	}
+	// A leg cell qualifies the value span's class, so the scrape reads past the open tag.
+	_, rest, ok = strings.Cut(rest, `">`)
+	if !ok {
+		t.Fatalf("the %q cell does not open; card: %s", label, card)
 	}
 	value, _, ok := strings.Cut(rest, `</span></div>`)
 	if !ok {
@@ -42,6 +48,24 @@ func reachCardLeg(t *testing.T, page, label string) legChip {
 		t.Fatalf("the %q cell holds %d chips, want 1; card: %s", label, len(chips), reachCard(t, page))
 	}
 	return chips[0]
+}
+
+var legDateCell = regexp.MustCompile(`<span class="sd-legdate">since ([^<]*)</span>`)
+
+func reachCardLegDate(t *testing.T, page, label string) string {
+	t.Helper()
+	m := legDateCell.FindStringSubmatch(reachCardCell(t, page, label))
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+func assertReachCardLegDate(t *testing.T, page, label string, want time.Time) {
+	t.Helper()
+	if got := reachCardLegDate(t, page, label); got != want.UTC().Format(spanTimeFmt) {
+		t.Errorf("%s date = %q, want %q; card: %s", label, got, want.UTC().Format(spanTimeFmt), reachCard(t, page))
+	}
 }
 
 func assertReachCardLegs(t *testing.T, page string, internal, internet legChip) {
@@ -95,31 +119,82 @@ func TestServiceReachCardRanksAnInternetReachedAsDanger(t *testing.T) {
 		legChip{Tone: "danger", Label: "reached"})
 }
 
-func TestServiceReachCardSinceReadsTheEarliestOpenLeg(t *testing.T) {
-	early := obsClock
-	late := obsClock.Add(48 * time.Hour)
-	want := early.UTC().Format(spanTimeFmt)
+func TestServiceReachCardEachLegStatesItsOwnDate(t *testing.T) {
+	early := obsClock.Add(-180 * 24 * time.Hour)
+
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internal", early, `{"outcome":"reached","result":"open"}`)
+	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"reached","result":"open"}`)
+
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	// A date belongs to the value it sits beside, so a stale leg cannot age the other one (#2017).
+	assertReachCardLegDate(t, page, "Internal leg", early)
+	assertReachCardLegDate(t, page, "Internet leg", obsClock)
+}
+
+func TestServiceReachCardLegDateDoesNotMoveWithTheSeedingOrder(t *testing.T) {
+	early := obsClock.Add(-48 * time.Hour)
 
 	for _, c := range []struct {
-		name  string
-		first string
-		last  string
+		name         string
+		firstAt, atB time.Time
 	}{
-		{"internal first", "internal", "internet"},
-		{"internet first", "internet", "internal"},
+		{"earlier vantage first", early, obsClock},
+		{"later vantage first", obsClock, early},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			f := legProbeStore(t)
-			f.addClassReachability(t, legProbeService, c.first, early, `{"outcome":"not-reached"}`)
-			f.addClassReachability(t, legProbeService, c.last, late, `{"outcome":"reached","result":"open"}`)
+			a := f.addVantagePresenting("internal-a", "10.200.0.11")
+			b := f.addVantagePresenting("internal-b", "10.200.0.12")
+			f.addReachabilityAtVantage(t, legProbeService, a, c.firstAt, `{"outcome":"reached","result":"open"}`)
+			f.addReachabilityAtVantage(t, legProbeService, b, c.atB, `{"outcome":"reached","result":"open"}`)
 
 			page := serviceDetailBody(t, f, http.StatusOK)
 
-			// Since is the earliest open reachability span, so the seeding order cannot move it.
-			if got := reachCardCell(t, page, "Since"); got != want {
-				t.Errorf("Since = %q, want %q", got, want)
-			}
+			// The leg holds one value since the earliest span that carries it (#2005).
+			assertReachCardLegDate(t, page, "Internal leg", early)
 		})
+	}
+}
+
+func TestServiceReachCardLegDateSkipsASpanOfAnotherValue(t *testing.T) {
+	f := legProbeStore(t)
+	a := f.addVantagePresenting("internal-a", "10.200.0.11")
+	b := f.addVantagePresenting("internal-b", "10.200.0.12")
+	f.addReachabilityAtVantage(t, legProbeService, a, obsClock.Add(-48*time.Hour), `{"outcome":"not-reached"}`)
+	f.addReachabilityAtVantage(t, legProbeService, b, obsClock, `{"outcome":"reached","result":"open"}`)
+
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	if got := reachCardLeg(t, page, "Internal leg").Label; got != "reached" {
+		t.Fatalf("internal leg = %q, want reached", got)
+	}
+	assertReachCardLegDate(t, page, "Internal leg", obsClock)
+}
+
+func TestServiceReachCardGappedLegCarriesItsDate(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"gap","reason":"the control probe did not complete"}`)
+
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	// A Gap is inventory, so its span dates the leg that renders it (ADR-0014).
+	assertReachCardLegDate(t, page, "Internal leg", obsClock)
+	if got := reachCardLegDate(t, page, "Internet leg"); got != "" {
+		t.Errorf("a never-configured leg carried the date %q; card: %s", got, reachCard(t, page))
+	}
+}
+
+func TestServiceReachCardCarriesNoSinceCell(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"reached","result":"open"}`)
+
+	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
+
+	// One class-blind date beside two class-scoped legs reads as a date for both (#2017).
+	if strings.Contains(card, `<span class="sd-micro">Since</span>`) {
+		t.Errorf("the card still carries the class-blind Since cell; card: %s", card)
 	}
 }
 
@@ -200,7 +275,11 @@ func TestServiceReachCardRendersNoLegWhenNoSpanNamesAVantage(t *testing.T) {
 			t.Errorf("the card still carries a %q cell; card: %s", label, card)
 		}
 	}
-	if !strings.Contains(card, `<span class="sd-micro">Since</span>`) {
+	// A card that renders no leg renders no date, so the whole statement goes together (#2017).
+	if legDateCell.MatchString(card) {
+		t.Errorf("a service no class-aware span reaches rendered a leg date; card: %s", card)
+	}
+	if !strings.Contains(card, `<span class="sd-micro">Address</span>`) {
 		t.Errorf("the card withheld more than its leg cells; card: %s", card)
 	}
 }

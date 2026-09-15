@@ -16,6 +16,15 @@ import { Button } from "../../components/forms/Button.jsx";
 import { DropdownMenu } from "../../components/feedback/DropdownMenu.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 
+function LegWithDate({ state, legClass, date }) {
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <ReachLegBadge state={state} legClass={legClass} />
+      <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>since {date}</span>
+    </span>
+  );
+}
+
 const CHAIN = {
   service: [
     { label: "Service", value: "203.0.113.7:5900/tcp", detail: "an (address, port, transport) triple" },
@@ -118,10 +127,9 @@ export function SubjectDetail({ kind = "service", withdrawn = false, onBack, onO
                 { k: "Address", v: "203.0.113.7" },
                 { k: "Port", v: "5900/tcp" },
                 ...(withdrawn ? [] : [
-                  { k: "Internal leg", v: <ReachLegBadge state="reached" legClass="internal" /> },
-                  { k: "Internet leg", v: <ReachLegBadge state="reached" legClass="internet" /> },
+                  { k: "Internal leg", v: <LegWithDate state="reached" legClass="internal" date="2026-07-14 06:00 UTC" /> },
+                  { k: "Internet leg", v: <LegWithDate state="reached" legClass="internet" date="2026-08-22 14:00 UTC" /> },
                 ]),
-                { k: "Since", v: "2026-08-22T14:00Z" },
               ]} />
             ) : (
               <KeyValueList items={[

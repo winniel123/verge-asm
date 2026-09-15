@@ -59,11 +59,11 @@ type fixtureSpan struct {
 
 var inventoryFixtureSpans = []fixtureSpan{
 	{kind: "name", key: "www.acmecorp.io", facet: "resolution", vantage: fixtureVantageInternal, value: `{"rrtype":"A","addresses":["198.51.100.7","198.51.100.8"]}`, since: "2026-07-14"},
-	{kind: "name", key: "www.acmecorp.io", facet: "dns-record", vantage: fixtureVantageInternal, value: `{"rrs":[{"type":"CNAME","data":"edge.acmecorp.io"},{"type":"TXT","data":"verge-custody=vg1:9f3k…"}]}`, since: "2026-07-14"},
+	{kind: "name", key: "www.acmecorp.io", facet: "dns-record", discriminator: "TXT", vantage: fixtureVantageInternal, value: `{"rrs":[{"type":"CNAME","data":"edge.acmecorp.io"},{"type":"TXT","data":"verge-custody=vg1:9f3k…"}]}`, since: "2026-07-14"},
 	{kind: "name", key: "api.acmecorp.io", facet: "resolution", vantage: fixtureVantageInternal, value: `{"rrtype":"A","addresses":["203.0.113.44"]}`, since: "2026-06-02"},
-	{kind: "name", key: "api.acmecorp.io", facet: "dns-record", vantage: fixtureVantageInternal, value: `{"rrs":[{"type":"CAA","data":"0 issue “letsencrypt.org”"}]}`, since: "2026-06-02"},
+	{kind: "name", key: "api.acmecorp.io", facet: "dns-record", discriminator: "TXT", vantage: fixtureVantageInternal, value: `{"rrs":[{"type":"TXT","data":"v=spf1 -all"}]}`, since: "2026-06-02"},
 	{kind: "name", key: "mail.acmecorp.io", facet: "resolution", vantage: fixtureVantageInternal, value: `{"rrtype":"A","addresses":["203.0.113.25"]}`, since: "2026-05-19"},
-	{kind: "name", key: "mail.acmecorp.io", facet: "dns-record", vantage: fixtureVantageInternal, value: `{}`, isGap: true, since: "2026-08-21"},
+	{kind: "name", key: "mail.acmecorp.io", facet: "dns-record", discriminator: "MX", vantage: fixtureVantageInternal, value: `{}`, isGap: true, since: "2026-08-21"},
 
 	{kind: "service", key: "198.51.100.7:443/tcp", facet: "tls-acceptance", vantage: fixtureVantageInternet, value: `{"outcome":"enumerated","versions":["1.2","1.3"]}`, since: "2026-07-14"},
 	{kind: "service", key: "198.51.100.7:443/tcp", facet: "certificate", vantage: fixtureVantageInternet, value: `{"chain":[{"cn":"www.acmecorp.io","not_after":"2026-11-02"},{"cn":"R11","issuer_org":"Let’s Encrypt"}]}`, since: "2026-08-03"},
@@ -75,12 +75,6 @@ var inventoryFixtureSpans = []fixtureSpan{
 
 	{kind: "endpoint", key: "www.acmecorp.io · :443 https", facet: "http-identity", vantage: fixtureVantageInternet, value: `{"server":"nginx","status":200,"title":"Acme — sign in"}`, since: "2026-07-14"},
 	{kind: "endpoint", key: "grafana.acmecorp.io · :443 https", facet: "http-identity", vantage: fixtureVantageInternet, value: `{"server":"Grafana","status":302,"redirect_location":"/login"}`, since: "2026-06-27"},
-
-	{kind: "address", key: "198.51.100.7", facet: "reachability", discriminator: "vantage 1", vantage: fixtureVantageInternal, value: `{"outcome":"answers","ports":["443/tcp"]}`, since: "2026-07-14"},
-	{kind: "address", key: "198.51.100.7", facet: "reachability", discriminator: "vantage 3", vantage: fixtureVantageInternet, value: `{"outcome":"answers","ports":["443/tcp","8443/tcp"]}`, since: "2026-08-02"},
-	{kind: "address", key: "203.0.113.44", facet: "reachability", discriminator: "prober", vantage: fixtureVantageInternet, value: `{"outcome":"answers","ports":["22/tcp"]}`, since: "2026-04-30"},
-
-	{kind: "address", key: "104.18.22.90", facet: "reachability", discriminator: "vantage 1", vantage: fixtureVantageInternal, value: `{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`, isGap: true, since: "2026-08-19"},
 }
 
 func (fs fixtureSpan) openedAt() (time.Time, error) {

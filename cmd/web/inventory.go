@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -13,12 +14,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
 
 type inventoryStore interface {
 	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListVantagesForDispatch(ctx context.Context) ([]db.ListVantagesForDispatchRow, error)
 }
 
 // An open span is a current member by construction, so no membership is re-derived (ADR-0082).
@@ -108,10 +111,11 @@ func inventoryRowHref(kind, key string) string {
 	return subjectHref(kind, key)
 }
 
-func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
+func buildInventory(rows []db.ListAllOpenSpansRow, vantages map[int64]inventoryVantage) []inventoryGroup {
 	var groups []inventoryGroup
 	groupIdx := map[string]int{}
 	subjectIdx := map[string]int{}
+	ties := inventoryClassTies(rows, vantages)
 
 	// The listing states no denominator: the estate can never honestly have one (ADR-0072).
 	for _, row := range rows {
@@ -135,9 +139,14 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 			})
 		}
 
+		class, vantage := inventoryRowClass(row, vantages)
+		if class != "" && ties[inventoryClassKey(row, class)] < 2 {
+			vantage = ""
+		}
+
 		s := &groups[gi].Subjects[si]
 		s.Facets = append(s.Facets, inventoryFacet{
-			Label:     inventoryFacetLabel(row.Facet, row.Discriminator),
+			Label:     inventoryFacetLabel(row.Facet, row.Discriminator, class, vantage),
 			Summary:   inventoryValueLabel(row.Facet, row.Value, row.IsGap),
 			IsGap:     row.IsGap,
 			ProxyEdge: inventoryProxyEdge(row.Facet, row.Value, row.IsGap),
@@ -152,7 +161,7 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 
 	groups = projectAddressSubjects(groups, groupIdx, subjectIdx)
 
-	// Stable sorts keep ties in read order, which is what pins an Address's two vantages.
+	// Stable sorts keep ties in read order, which is what pins a service's two vantage rows.
 	for gi := range groups {
 		for si := range groups[gi].Subjects {
 			facets := groups[gi].Subjects[si].Facets
@@ -342,7 +351,7 @@ func leadingFacet(s inventorySubject) inventoryFacet {
 	return s.Facets[0]
 }
 
-func inventoryFacetLabel(dbFacet, discriminator string) string {
+func inventoryFacetLabel(dbFacet, discriminator, class, vantage string) string {
 	displayFacet := dbFacet
 	switch dbFacet {
 	case "dns-record":
@@ -353,7 +362,56 @@ func inventoryFacetLabel(dbFacet, discriminator string) string {
 	if discriminator != "" {
 		return displayFacet + " · " + discriminator
 	}
-	return displayFacet
+	if class == "" {
+		return displayFacet
+	}
+	if vantage != "" {
+		return displayFacet + " · " + class + " · " + vantage
+	}
+	return displayFacet + " · " + class
+}
+
+type inventoryVantage struct {
+	class custody.VantageClass
+	name  string
+}
+
+func inventoryVantageFacts(rows []db.ListVantagesForDispatchRow, covered func(netip.Addr) bool) map[int64]inventoryVantage {
+	out := make(map[int64]inventoryVantage, len(rows))
+	for _, v := range rows {
+		// The stored class column is vestigial, so every site derives per read (#709).
+		out[v.ID] = inventoryVantage{class: vantageFactsClass(v.DialledAddr, v.Egress, covered), name: v.Name}
+	}
+	return out
+}
+
+func inventoryRowClass(row db.ListAllOpenSpansRow, vantages map[int64]inventoryVantage) (class, vantage string) {
+	// A vantage-less row has no class to name, and ADR-1985 exempts two shapes (ADR-2027 §4).
+	if row.Discriminator != "" || !row.VantageID.Valid {
+		return "", ""
+	}
+	v, ok := vantages[row.VantageID.Int64]
+	if !ok || v.class == "" {
+		return "", ""
+	}
+	return string(v.class), v.name
+}
+
+func inventoryClassKey(row db.ListAllOpenSpansRow, class string) string {
+	return row.SubjectKind + "\x00" + row.SubjectKey + "\x00" + row.Facet + "\x00" + class
+}
+
+func inventoryClassTies(rows []db.ListAllOpenSpansRow, vantages map[int64]inventoryVantage) map[string]int {
+	// A class is coarser than a vantage, so a counting pass precedes the labelling one (ADR-2027).
+	ties := map[string]int{}
+	for _, row := range rows {
+		class, _ := inventoryRowClass(row, vantages)
+		if class == "" {
+			continue
+		}
+		ties[inventoryClassKey(row, class)]++
+	}
+	return ties
 }
 
 type invResolutionValue struct {
@@ -536,9 +594,9 @@ func windowInventoryGroups(groups []inventoryGroup, expand string) {
 	}
 }
 
-var devInventoryGroupTotals = map[string]int{
-	"address": 41,
-}
+// Empty since the address kind left the corpus: no producer writes one (ADR-2027, #2033).
+
+var devInventoryGroupTotals = map[string]int{}
 
 func applyInventoryFixtureCounts(groups []inventoryGroup, expand string) {
 	for i := range groups {
@@ -556,13 +614,30 @@ func applyInventoryFixtureCounts(groups []inventoryGroup, expand string) {
 	}
 }
 
+func (s *server) inventoryVantages(ctx context.Context, list func(context.Context) ([]db.ListVantagesForDispatchRow, error)) (map[int64]inventoryVantage, error) {
+	rows, err := list(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list vantages: %w", err)
+	}
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("address scope coverage: %w", err)
+	}
+	return inventoryVantageFacts(rows, covered), nil
+}
+
 func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	rows, err := s.inventoryStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
 		return
 	}
-	groups := buildInventory(rows)
+	vantages, err := s.inventoryVantages(r.Context(), s.inventoryStore.ListVantagesForDispatch)
+	if err != nil {
+		s.serverError(w, "inventory vantage classes", err)
+		return
+	}
+	groups := buildInventory(rows, vantages)
 	// The toolbar scopes rendered rows, so this window bounds what "Gaps only" finds (ADR-0158 §4).
 	windowInventoryGroups(groups, r.URL.Query().Get("all"))
 	if s.devMode {
@@ -589,7 +664,12 @@ func (s *server) inventoryExport(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "inventory export: list all open spans", err)
 		return
 	}
-	s.writeInventoryExportCSV(w, buildInventory(rows))
+	vantages, err := s.inventoryVantages(r.Context(), s.inventoryStore.ListVantagesForDispatch)
+	if err != nil {
+		s.serverError(w, "inventory export: vantage classes", err)
+		return
+	}
+	s.writeInventoryExportCSV(w, buildInventory(rows, vantages))
 }
 
 func (s *server) writeInventoryExportCSV(w http.ResponseWriter, groups []inventoryGroup) {
