@@ -7899,7 +7899,7 @@
       "date": "2026-09-05",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "sweep",
       "proof": {
@@ -7927,14 +7927,26 @@
           "clause": "5"
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 2030,
+          "clause": "1"
+        }
+      ],
       "sections": [
         "1",
         "2",
         "3",
         "4"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2030,
+          "clause": "1"
+        }
+      ],
       "decision": {
         "words": 88,
         "text": "> **A console page prefers a partial honest page to a failed one. Where a read that feeds ONE region\n> fails, the handler renders that region as an honest absence, serves the rest of the page, and\n> never returns a 500. It never substitutes a value for the read it did not get. Where the failed\n> read is an advisory figure on a confirm step, the step still offers the act. The page's own\n> SUBJECT read is not a region read: it fails loudly.**"
@@ -12233,6 +12245,48 @@
       "decision": {
         "words": 143,
         "text": "**An exception arm on the per-vantage `CHECK` names a writer in this tree, and the comment\nat the arm names the test that proves that writer exists. An arm that names neither is\ndropped.**\n\nThree of the four arms name neither. `OR facet = 'certificate'` leaves `span` and\n`observation`, and `OR source = 'zone'` leaves `span`. The `observation` zone arm stays,\nand its comment gains its test.\n\nA reader asks why, because ADR-1985 §4 read the certificate arm off the edge fan-out. That\nfan-out declares no facet. The arm therefore admits one row only: a `certificate` line an\nuntrusted prober injects onto a vantage-less job, which is #1985 reopened on that facet.\n\nRejected: narrowing the arm by source, which keeps an exception no writer needs. Rejected:\nclosing the recording-side gate instead, which leaves the constraint overstated.\n\nReversal re-admits that row on both tables."
+      }
+    },
+    {
+      "number": 2030,
+      "file": "docs/adr/2030-a-region-read-is-best-effort-only-where-its-failure-stays-inside-that-region.md",
+      "title": "A region read is best-effort only where its failure stays inside that region",
+      "slug": "a-region-read-is-best-effort-only-where-its-failure-stays-inside-that-region",
+      "date": "2026-09-15",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2030
+      },
+      "ticket": 2030,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 168,
+          "clause": "1"
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "2.1",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 144,
+        "text": "**A region's read is best-effort only where its failure stays inside that region. Where a\nsecond rendered value derives from a region's read, that read is not a region read, and\nADR-0168 §1's best-effort licence does not reach it.**\n\nThe remedy is an honest absence at both ends. The region states that the read did not\nresolve. The derived value renders nothing. It is never a 500, and never a substituted\nvalue.\n\nADR-0168 §4 is unchanged. A subject read, a keyed subject read and the act stay loud.\n\nA reader asks why, because §1 reads as a list of card shapes and the clause after it reads\nas decoration.\n\nRejected: making every leaky read loud, which breaks `dashboardData`, ADR-0168 §4's own\nlimiting case.\n\nReversal returns two rules one line apart in one handler, over a header that hides the\nverdict a failed read erased."
       }
     }
   ]

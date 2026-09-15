@@ -70,6 +70,8 @@ rule nothing cites. That records the gap as open; it does not close it.
 
 ### 1. A region read is best-effort, and its failure empties the region
 
+> **Amended** by [ADR-2030: A region read is best-effort only where its failure stays inside that region](./2030-a-region-read-is-best-effort-only-where-its-failure-stays-inside-that-region.md), 2026-09-15. <!-- adr-marker amends 2030 -->
+
 A **region** is a card, a list, a meter row or a callout the page composes beside others and that no
 other region derives from. Its read is adopted only on a nil error; a failure leaves the region's
 zero value and the page serves.
