@@ -146,15 +146,20 @@ func searchMatch(text, q string) bool {
 	return q == "" || strings.Contains(strings.ToLower(text), strings.ToLower(q))
 }
 
-func searchRenderMap(acct db.Account, q string, total int, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
-	return pageData(acct, "Search results", "", map[string]any{
-		"Query":   q,
-		"Total":   total,
-		"Assets":  assets,
-		"Signals": signals,
-		"Batches": batches,
-		"Docs":    docs,
-	})
+func searchRenderMap(acct db.Account, q string, total int, signalsFailed bool, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
+	rest := map[string]any{
+		"Query":         q,
+		"Assets":        assets,
+		"Signals":       signals,
+		"Batches":       batches,
+		"Docs":          docs,
+		"SignalsFailed": signalsFailed,
+	}
+	if !signalsFailed {
+		// A total counted without the unread group is a measured figure the read never produced (ADR-2030).
+		rest["Total"] = total
+	}
+	return pageData(acct, "Search results", "", rest)
 }
 
 func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -169,8 +174,10 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	var signals []searchSignal
 	assetSev := map[string]string{}
 	openSignals := 0
+	signalsFailed := false
 	if corpus, err := s.buildSignalCorpus(r); err != nil {
 		log.Printf("web: search: build signal corpus: %v", err)
+		signalsFailed = true
 	} else {
 		for _, c := range signal.EvaluateCorpus(corpus) {
 			openSignals += len(c.Fired)
@@ -267,7 +274,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 
 	total := len(assets) + len(signals) + len(batches) + len(docsHits)
 
-	data := searchRenderMap(acct, q, total, assets, signals, batches, docsHits)
+	data := searchRenderMap(acct, q, total, signalsFailed, assets, signals, batches, docsHits)
 	if openSignals > 0 {
 		data["SignalCount"] = openSignals
 	}
