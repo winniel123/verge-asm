@@ -5931,6 +5931,11 @@
           "kind": "rests-on",
           "from": 218,
           "clause": "8.1"
+        },
+        {
+          "kind": "rests-on",
+          "from": 1945,
+          "clause": "4"
         }
       ],
       "sections": [
@@ -11933,6 +11938,11 @@
         },
         {
           "kind": "rests-on",
+          "adr": 133,
+          "clause": "4"
+        },
+        {
+          "kind": "rests-on",
           "adr": 161
         }
       ],
@@ -11947,8 +11957,8 @@
       ],
       "markers": [],
       "decision": {
-        "words": 138,
-        "text": "**Every leg of one comparison classifies under one address-scope binding.** The comparison takes\nthat binding from a struct it builds once. `internal/queue` holds the shape already, in\n`batchLegs.covered`. `cmd/web` gains the mirror at `exposureCountDeltas`. An AST call-graph test in\neach package fails when a comparison's graph reaches a binding producer twice.\n\nRejected: count `vantageclass.Derive` call sites and fail on a new one. It is cheaper, it blocks\ncorrect additions, and it names no legs. Rejected: one seam for every caller. On a coverage error\ntwo callers use a predicate that covers nothing. A shared seam either drops that fallback or\ncarries it for eleven callers that never reach it.\n\nA reader asks why, because\n[ADR-1895](./1895-a-vantage-class-reads-present-configuration-so-a-historic-observation-carries-none.md)\n§4 already states the rule. Two tests already hold it, and neither counts acquisitions.\n\nReversal deletes two test files and inlines one field."
+        "words": 143,
+        "text": "**Every leg of one comparison classifies under one address-scope binding.** The comparison takes\nthat binding from a struct it builds once. The `internal/queue` package holds the shape already, in\n`batchLegs.covered`. `cmd/web` gains the mirror at `exposureCountDeltas`. An AST call-graph test in\neach package fails when a comparison's graph reaches a binding producer twice.\n\nRejected: count `vantageclass.Derive` call sites and fail on a new one. It is cheaper and it is\nblind — the three acquisitions added on 2026-09-14 reuse derivation points that already existed.\nRejected: one seam for every caller. Three callers hold three different coverage-error fallbacks, so\na shared seam either drops them or carries all three to ten callers that reach none.\n\nA reader asks why, because\n[ADR-1895](./1895-a-vantage-class-reads-present-configuration-so-a-historic-observation-carries-none.md)\n§4 already states the rule and two tests already hold it. Neither counts acquisitions.\n\nReversal deletes two test files and inlines one field."
       }
     },
     {
