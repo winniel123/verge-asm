@@ -996,7 +996,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	cert, certErr := s.assetCertificate(r, key, res.Addresses)
 	// A note belongs in the region that failed, never a page-wide banner (ADR-0168 §2).
 	data.Cert, data.CertFailed = cert, certErr != nil
-	// The corpus is not this page's subject, so its failure empties one card (ADR-0168 §1, #1951).
+	// The corpus is not this page's subject, so a failed read renders an absence (ADR-2030 §2.1).
 	signals, sigErr := s.assetSignals(r, key)
 	data.Signals, data.SignalsFailed = signals, sigErr != nil
 	data.Severity = assetHeaderSeverity(data.Signals)
