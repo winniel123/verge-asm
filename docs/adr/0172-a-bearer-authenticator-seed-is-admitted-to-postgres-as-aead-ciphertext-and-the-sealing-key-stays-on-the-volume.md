@@ -53,7 +53,7 @@ a corpus.
 `CLOSED`, title *"Secrets: totp_secret stored cleartext in Postgres (vs ADR-0053)"*. That issue
 moved the column from cleartext to ciphertext and wrote the reasoning into four comments in
 `cmd/web/auth.go`. The #1337 sweep compressed them to one line — *"The sealing key never enters
-Postgres, so a table leak discloses ciphertext (ADR-0053)"* (`cmd/web/auth.go#firstRunChecklist`) — which cites
+Postgres, so a table leak discloses ciphertext (ADR-0053)"* (`cmd/web/auth.go`) — which cites
 ADR-0053 for the half ADR-0053 does state and leaves the admission unruled. Nothing under
 `docs/spec/`, `docs/guides/` or `CONTEXT.md` states it either.
 
@@ -126,7 +126,7 @@ compares the presented code against the stored hashes (`cmd/web/auth.go`). Nothi
 code back.
 
 A TOTP seed cannot be hashed, because RFC 6238 verification **recomputes** HMAC over the seed and
-the current step (`auth.VerifyTOTPStep`, called at `cmd/web/auth.go#server.loginProviders`). So the rule is: **hash
+the current step (`auth.VerifyTOTPStep`, called at `cmd/web/auth.go`). So the rule is: **hash
 where verification is a comparison, seal where the act needs the value back, and admit nothing that
 needs neither.** Sealing is the weaker protection and is spent only where hashing cannot do the job.
 
@@ -137,24 +137,24 @@ The cleartext exists in `beginTOTPEnroll` between `auth.NewTOTPSecret` and the w
 and `totpConfirm` while the verifier consumes it.
 
 It reaches a **template** by design: `totpEnrollData` puts it in `Secret` and in the `otpauth://`
-URI (`cmd/web/auth.go`), and `design-system/templates/signin.tmpl#totp-enroll-confirm` renders the QR
+URI (`cmd/web/auth.go`), and `design-system/templates/signin.tmpl` renders the QR
 and the manual-entry string. That is the enrolment act itself, and the QR is encoded in-process, so
 the seed reaches no third party.
 
 It reaches **no log**: no `log.Printf` in `cmd/web/auth.go` carries the seed or the ciphertext. It
 reaches **no error string**: every failure path calls `s.serverError` with a fixed label
-(`cmd/web/auth.go#statTone`, `:911`, `:947`, `:309`), which logs the error and returns the constant body
+(`cmd/web/auth.go`, `:911`, `:947`, `:309`), which logs the error and returns the constant body
 `internal error` (`:1887-1890`), and no error in `internal/auth/totpsecret.go` interpolates a secret
 or a key.
 
-The dev build pins the seed to a fixture (`cmd/web/auth.go#firstRunChecklist`) and **still seals it** before the
+The dev build pins the seed to a fixture (`cmd/web/auth.go`) and **still seals it** before the
 write (`:909`). There is no dev exemption from the admission rule.
 
 ### 5. A decrypt failure is a fault, never a wrong code
 
 `DecryptTOTPSecret` fails on a bad base64, a short input or a failed `Open`
 (`internal/auth/totpsecret.go#DecryptTOTPSecret`), and every caller returns HTTP 500 rather than treating the
-error as a verification miss (`cmd/web/auth.go#server.loginProviders`, `:945-949`). No caller falls back to
+error as a verification miss (`cmd/web/auth.go`, `:945-949`). No caller falls back to
 reading the column as cleartext, so a legacy pre-#337 row is a hard fault and the account re-enrols;
 it is never quietly accepted as a seed. `TestTOTPSecretEncryptedAtRest`
 (`cmd/web/hardening_test.go#TestTOTPSecretEncryptedAtRest`) pins both halves: the stored value neither equals nor contains
@@ -175,7 +175,7 @@ the seed (`:210-212`), and it decrypts back to it (`:213-219`).
   cheaper write path appear.
 - **A lost `web-state` volume is a lost second factor for every account, and #1419 is that failure
   today.** The sub-key derives from the session signing key, so whatever rotates that key rotates it.
-  A restore does exactly that (`cmd/web/restore.go#server.restorePreflight`, `:395-398`), and the restored ciphertext was
+  A restore does exactly that (`cmd/web/restore.go`, `:395-398`), and the restored ciphertext was
   sealed under the old key, so every enrolled account fails `loginTOTP` with a 500 and redeems no
   recovery code at that step. **That lockout is a live consequence of deriving from the session key
   rather than holding an independent `totp.key`**; it is filed as
