@@ -160,7 +160,7 @@
 </table>
 {{end}}
 {{if .DNSFailed}}
-<div class="as-notice as-degrade">The dns-record read did not resolve on this load. Nothing is listed rather than a guessed record. Reload to read it again.</div>
+<div class="as-notice as-degrade">The dns-record read did not resolve on this load. Records are missing rather than guessed. The addresses come from the name's resolution, not from this read. Reload to read it again.</div>
 {{else if not .DNS}}
 <div class="as-empty"><span class="msg">No records resolved</span><span class="det">This name holds no current resolution or dns-record value. A record appears here once the dns scan folds one for it.</span></div>
 {{end}}
@@ -202,7 +202,7 @@
 </div>
 {{end}}
 {{if .ProvenanceFailed}}
-<div class="as-notice as-degrade">The citation read did not resolve on this load. Nothing is listed rather than a guessed hop. Reload to read it again.</div>
+<div class="as-notice as-degrade">The citation read did not resolve on this load. Rows are missing rather than guessed. Any row shown came from a read that succeeded. Reload to read it again.</div>
 {{else if not .Provenance}}
 <div class="as-empty" style="padding:24px 12px"><span class="msg">No provenance to trace</span><span class="det">Nothing has cited this name into the estate yet. Its "why is this here" chain fills in as a scan measures it against a scope you declared.</span></div>
 {{end}}

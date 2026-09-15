@@ -20,6 +20,9 @@ const (
 
 	kvCellSeed = `<span class="as-micro">Seed</span>`
 	kvCellVia  = `<span class="as-micro">Via</span>`
+
+	guessedRecord = "a guessed record"
+	guessedHop    = "a guessed hop"
 )
 
 func assetRegionFixture(t *testing.T, name string) (*fakeStore, string) {
@@ -90,6 +93,8 @@ func TestAssetCitationReadFailureWithCoveringSeedKeepsTheSeedRow(t *testing.T) {
 	wantIn(t, page, "example.com", "failed citation read, covering seed")
 	wantIn(t, page, citDidNotResolve, "failed citation read, covering seed")
 	wantNotIn(t, page, citEmptyState, "failed citation read, covering seed")
+	// A note that claims nothing is listed states a falsehood beside a row (ADR-0168 §2).
+	wantNotIn(t, page, guessedHop, "failed citation read, covering seed")
 }
 
 func TestAssetCoveringSeedReadFailureRendersTheProvenanceNote(t *testing.T) {
@@ -126,6 +131,8 @@ func TestAssetDNSReadFailureWithAddressesKeepsTheAddressRows(t *testing.T) {
 	wantIn(t, page, "198.51.100.1", "failed dns read, addresses present")
 	wantIn(t, page, dnsDidNotResolve, "failed dns read, addresses present")
 	wantNotIn(t, page, dnsEmptyState, "failed dns read, addresses present")
+	// A note that claims nothing is listed states a falsehood beside a row (ADR-0168 §2).
+	wantNotIn(t, page, guessedRecord, "failed dns read, addresses present")
 }
 
 func TestAssetDNSReadFailureWithNoAddressesRendersDidNotResolve(t *testing.T) {

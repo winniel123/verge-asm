@@ -880,22 +880,6 @@ type assetPageData struct {
 	ProvenanceFailed bool
 }
 
-func (d *assetPageData) setProvenance(items []assetKV, inScopeSince string, err error) {
-	d.Provenance, d.InScopeSince, d.ProvenanceFailed = items, inScopeSince, err != nil
-	if err != nil {
-		// A dropped citation hides evidence beside the surviving rows, so it logs (ADR-0168 §1).
-		log.Printf("web: asset: name citation: %v", err)
-	}
-}
-
-func (d *assetPageData) setDNS(rows []assetDNSRow, err error) {
-	d.DNS, d.DNSFailed = rows, err != nil
-	if err != nil {
-		// A dropped record hides evidence beside the address rows, so it logs (ADR-0168 §1).
-		log.Printf("web: asset: name dns records: %v", err)
-	}
-}
-
 type assetPort struct {
 	Port     string
 	Service  string
@@ -973,8 +957,10 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
-	data.setProvenance(s.assetProvenance(r, key))
-	data.setDNS(s.assetDNS(r, key, res))
+	prov, inScopeSince, provErr := s.assetProvenance(r, key)
+	data.Provenance, data.InScopeSince, data.ProvenanceFailed = prov, inScopeSince, provErr != nil
+	dns, dnsErr := s.assetDNS(r, key, res)
+	data.DNS, data.DNSFailed = dns, dnsErr != nil
 	ports, err := s.assetPorts(r, res.Addresses)
 	if err != nil {
 		// An empty list is the honest no-ports answer, so a swallow erases the verdict (#1948).
@@ -1023,7 +1009,8 @@ func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
 func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, acct db.Account, key string) {
 	// A withdrawn Name has no current value, so only closed timelines render (ADR-0072).
 	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
-	data.setProvenance(s.assetProvenance(r, key))
+	prov, inScopeSince, provErr := s.assetProvenance(r, key)
+	data.Provenance, data.InScopeSince, data.ProvenanceFailed = prov, inScopeSince, provErr != nil
 	// An empty list is expected here, so a failed read still needs its own flag.
 	signals, sigErr := s.assetSignals(r, key)
 	data.Signals, data.SignalsFailed = signals, sigErr != nil
@@ -1041,11 +1028,18 @@ func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, 
 	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
-	readErr = readFailure(citErr)
+	if readErr = readFailure(citErr); readErr != nil {
+		// A dropped row hides evidence beside the rows that survive, so it logs (ADR-0168 §1).
+		log.Printf("web: asset: name citation: %v", readErr)
+	}
 	seed, ok, seedErr := s.terminatingNameSeed(r, key, cit, citErr)
-	// The Seed row and the citation rows feed one card, so one flag covers both reads (#2029).
-	if readErr == nil {
-		readErr = seedErr
+	if seedErr != nil {
+		// Each read logs under its own name, so a failure of both leaves two traces.
+		log.Printf("web: asset: terminating name seed: %v", seedErr)
+		// The Seed row and the citation rows feed one card, so one flag covers both (#2029).
+		if readErr == nil {
+			readErr = seedErr
+		}
 	}
 	if ok {
 		if seed.NameDomain.Valid {
@@ -1087,6 +1081,8 @@ func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) ([]a
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
+		// A dropped record hides evidence beside the address rows, so it logs (ADR-0168 §1).
+		log.Printf("web: asset: name dns records: %v", err)
 		// The address rows come from the subject read, so they still render (#2029).
 		return rows, err
 	}
