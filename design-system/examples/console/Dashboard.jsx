@@ -35,7 +35,7 @@ const VANTAGES = [
   { region: "ap-south-1", avail: "unavailable", note: "12m" },
 ];
 
-export function Dashboard({ onRunScan, onAddTarget, onOpenSignals, scanning }) {
+export function Dashboard({ onRunScan, onAddSeed, onOpenSignals, scanning }) {
   const [probeBanner, setProbeBanner] = React.useState(true);
   return (
     <main data-screen-label="Dashboard" style={{ maxWidth: 1440, margin: "0 auto", padding: 32, display: "flex", flexDirection: "column", gap: 24 }}>
@@ -45,7 +45,7 @@ export function Dashboard({ onRunScan, onAddTarget, onOpenSignals, scanning }) {
           <span style={{ font: "400 12.5px var(--font-ui)", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Last full scan <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-secondary)" }}>38m</span> ago · next in <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-secondary)" }}>5h 22m</span></span>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <Button variant="secondary" icon={<Icon name="plus" size={14} />} onClick={onAddTarget}>Add seed</Button>
+          <Button variant="secondary" icon={<Icon name="plus" size={14} />} onClick={onAddSeed}>Add seed</Button>
           <Button icon={<Icon name="play" size={14} />} onClick={onRunScan} disabled={scanning}>{scanning ? "Scan running" : "Run scan"}</Button>
         </div>
       </header>
