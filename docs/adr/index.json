@@ -2116,6 +2116,11 @@
           "kind": "rests-on",
           "from": 216,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2033,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4480,6 +4485,11 @@
           "kind": "sibling",
           "from": 142,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2033,
+          "clause": null
         }
       ],
       "sections": [
@@ -4503,7 +4513,7 @@
       "date": "2026-08-16",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -4539,6 +4549,11 @@
           "kind": "rests-on",
           "from": 1895,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2033,
+          "clause": "1"
         }
       ],
       "sections": [
@@ -4549,7 +4564,13 @@
         "5",
         "6"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2033,
+          "clause": "1"
+        }
+      ],
       "decision": {
         "words": 0,
         "text": ""
@@ -12182,7 +12203,13 @@
           "adr": 1985
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 2033,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -12287,6 +12314,57 @@
       "decision": {
         "words": 144,
         "text": "**A region's read is best-effort only where its failure stays inside that region. Where a\nsecond rendered value derives from a region's read, that read is not a region read, and\nADR-0168 §1's best-effort licence does not reach it.**\n\nThe remedy is an honest absence at both ends. The region states that the read did not\nresolve. The derived value renders nothing. It is never a 500, and never a substituted\nvalue.\n\nADR-0168 §4 is unchanged. A subject read, a keyed subject read and the act stay loud.\n\nA reader asks why, because §1 reads as a list of card shapes and the clause after it reads\nas decoration.\n\nRejected: making every leaky read loud, which breaks `dashboardData`, ADR-0168 §4's own\nlimiting case.\n\nReversal returns two rules one line apart in one handler, over a header that hides the\nverdict a failed read erased."
+      }
+    },
+    {
+      "number": 2033,
+      "file": "docs/adr/2033-an-address-holds-no-facet-so-its-membership-projects-from-the-services-beneath-it.md",
+      "title": "An Address holds no facet, so its membership projects from the Services beneath it",
+      "slug": "an-address-holds-no-facet-so-its-membership-projects-from-the-services-beneath-it",
+      "date": "2026-09-15",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "cmd/web/inventory_test.go::TestBuildInventoryProjectsAddressesFromServicesAndEndpoints"
+      },
+      "ticket": 2033,
+      "map": null,
+      "pr": 2049,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 105,
+          "clause": "1"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 47
+        },
+        {
+          "kind": "rests-on",
+          "adr": 104
+        },
+        {
+          "kind": "rests-on",
+          "adr": 2027
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 141,
+        "text": "**An Address holds no facet of its own. No producer writes an address-kind span, and its\nmembership projects from the Services and Endpoints beneath it.**\n\nEvery read that needs the estate's Addresses derives them from those subject keys. The\ninventory renders one facet-less Address row per distinct host beneath a Service or an\nEndpoint. A withdrawal closes the timelines beneath an Address and counts the Address as a\nsubject that left, holding none of its own.\n\nA reader asks why a listed subject carries no row. Nothing at the connect layer separates\nan Address from the Services on it, which ADR-0104 settled when it made a blanket\nresponder a gap cause on the Service rather than a value about the Address.\n\nRejected: an address-scoped facet, which needs a measurement that does not exist.\n\nReversal returns five reads that silently answer nothing."
       }
     }
   ]
