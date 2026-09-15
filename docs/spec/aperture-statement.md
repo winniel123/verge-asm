@@ -546,7 +546,7 @@ micro-label is the part that overreaches.
 ### 7.5 The `Rules` card is retitled — **specified**
 
 `design-system/templates/coverage.tmpl#coverage` titles a card *"Unevaluable this batch"*. Its rows read
-*"N subjects in its domain could not be read this batch"* (`cmd/web/cold.go#sortCoverageMessages`), and its empty
+*"N subjects in its domain could not be read this batch"* (`cmd/web/cold.go`), and its empty
 state reads *"Every rule could evaluate"* (`:190`). That is a per-subject count wearing a per-rule
 name, which ADR-0095 refuses by name at `docs/adr/0095-…md:347`. It sits one card from figure 3.
 
