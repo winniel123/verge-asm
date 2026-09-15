@@ -11296,7 +11296,13 @@
           "adr": 58
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 2114,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -12135,7 +12141,7 @@
       ],
       "decision": {
         "words": 148,
-        "text": "**An address-scope edit mints no `Message`. The act reaches the operator through a bounded,\ndisplay-only `Act` reader beside the `Exposure` figure: ~~`seed.declared` acts~~ over seven days, five\nrows, newest first, linked to the audit tab.**\n\nA reader asks why, because the flagship figure moves between two page loads and nothing announces\nit. ADR-0092 rules that the system announces what it found, never what the operator did, and no\n`Message` constructor is reached outside `internal/queue`, so none can fire on the act.\n\nThe reader asserts no causal tie. None exists: the class is stored nowhere and the figure is\nrecomputed per read.\n\nRejected: a `Kind` field on the seed-scope act subject, as the exclusion reference already carries.\nThe `Act` corpus is never deleted, so historic rows would lack it and the fallback would survive.\n\nReversal reopens the four-cause enumeration and owes a message to every dial ADR-0092 left silent."
+        "text": "**An address-scope edit mints no `Message`. The act reaches the operator through a bounded,\ndisplay-only `Act` reader beside the `Exposure` figure: `seed.declared` acts over seven days, five\nrows, newest first, linked to the audit tab.**\n\nA reader asks why, because the flagship figure moves between two page loads and nothing announces\nit. ADR-0092 rules that the system announces what it found, never what the operator did, and no\n`Message` constructor is reached outside `internal/queue`, so none can fire on the act.\n\nThe reader asserts no causal tie. None exists: the class is stored nowhere and the figure is\nrecomputed per read.\n\nRejected: a `Kind` field on the seed-scope act subject, as the exclusion reference already carries.\nThe `Act` corpus is never deleted, so historic rows would lack it and the fallback would survive.\n\nReversal reopens the four-cause enumeration and owes a message to every dial ADR-0092 left silent."
       }
     },
     {
@@ -12476,6 +12482,10 @@
         {
           "kind": "rests-on",
           "adr": 133
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1644
         }
       ],
       "incoming": [],
@@ -12486,12 +12496,14 @@
         "4",
         "5",
         "6",
-        "7"
+        "7",
+        "8",
+        "9"
       ],
       "markers": [],
       "decision": {
-        "words": 124,
-        "text": "> **The `Exposure` screen's address-scope act reader covers every act class that moves\n> `addressScopeCovered`**: `seed.declared`, `seed.withdrawn`, `proposal.confirmed`, and the\n> address-kind `exclusion.declared` and `exclusion.lifted`. The seven-day window, the five-row cap\n> and the newest-first order are unchanged.\n>\n> Each class renders its own verb. A withdrawal and a declaration are different facts, and\n> `ProposalConfirmed` and `SeedWithdrawn` both carry a `SeedScope`, so one shared row would flatten\n> them.\n>\n> A reader asks why a panel beside the `Exposure` figure lists one of the four causes that move it.\n> The panel's empty state is a statement, and a withdrawal or a confirmed proposal makes it false.\n>\n> Rejected: narrowing the panel's copy instead, which leaves it honest and useless."
+        "words": 109,
+        "text": "> **The `Exposure` screen's address-scope act reader covers every act class that moves\n> `addressScopeCovered`**: `seed.declared`, `seed.withdrawn`, `proposal.confirmed`, and the\n> address-kind `exclusion.declared` and `exclusion.lifted`. The seven-day window, the five-row cap\n> and the newest-first order are unchanged.\n>\n> A reader asks why a panel beside the `Exposure` figure lists one of the five classes that move it.\n> The panel's empty state is a statement, and a withdrawal or a confirmed proposal makes it false.\n>\n> Rejected: narrowing the panel's copy instead, which leaves it honest and useless.\n>\n> Reversal returns a panel that reports no address-scope edit while one has just moved the figure."
       }
     }
   ]
