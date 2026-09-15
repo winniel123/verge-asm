@@ -154,7 +154,7 @@ func legFromClassGroup(group []reachLegRow) legInfo {
 		}
 	}
 	rv := decodeReachability(cur.value)
-	info := legInfo{outcome: rv.Outcome, reason: rv.Reason, since: cur.openedAt, isGap: cur.isGap, present: true}
+	info := legInfo{outcome: rv.Outcome, reason: rv.Reason, cause: rv.Cause, since: cur.openedAt, isGap: cur.isGap, present: true}
 	held := legFrom(info)
 	for _, row := range group {
 		other := decodeReachability(row.value)
