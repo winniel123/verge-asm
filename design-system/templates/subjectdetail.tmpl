@@ -240,6 +240,12 @@
 {{with .InternalLeg}}<div class="cell"><span class="sd-micro">Internal leg</span><span class="v leg">{{template "legchip" .}}{{with .Date}}<span class="sd-legdate">since {{.}}</span>{{end}}</span></div>{{end}}
 {{with .InternetLeg}}<div class="cell"><span class="sd-micro">Internet leg</span><span class="v leg">{{template "legchip" .}}{{with .Date}}<span class="sd-legdate">since {{.}}</span>{{end}}</span></div>{{end}}
 </div>
+{{if .ReachFailed}}
+<div class="sd-banner" style="margin-top:12px">
+<span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="bd"><span>The reachability read did not resolve on this load. No leg is shown rather than a guessed reach. Reload to read it again.</span></span>
+</div>
+{{end}}
 {{with .GapNote}}
 <div class="sd-banner" style="margin-top:12px">
 <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>

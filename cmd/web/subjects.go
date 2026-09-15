@@ -100,6 +100,7 @@ type servicePageData struct {
 	Provenance         []assetKV
 	Rules              subjectRulesView
 	Signals            []assetSignal
+	ReachFailed        bool
 }
 
 type endpointPageData struct {
@@ -362,13 +363,15 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if !data.Withdrawn {
 		legs, err := s.serviceReachLegs(r.Context(), subject.SubjectKey)
 		if err != nil {
-			s.serverError(w, "service reach legs", err)
-			return
+			log.Printf("web: service detail: service reach legs: %v", err)
+			// The header chip derives from this read, so the absence is stated, never a 500 (ADR-2030 §2).
+			data.ReachFailed = true
 		}
 		if legs != nil {
 			data.InternalLeg, data.InternetLeg, data.GapNote = legs.Internal, legs.Internet, legs.Gap
 		}
-		if data.GapNote == nil {
+		// A failed read knows of no leg, so it cannot say a Gap carries none (ADR-2030 §2).
+		if data.GapNote == nil && !data.ReachFailed {
 			// A Gap no leg carries names no class, and it still owes its cause (#1985).
 			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
 		}
