@@ -138,7 +138,10 @@ type fakeStore struct {
 	driftEventsErr  error
 	reachSpansErr   error
 	openSpansErr    error
+	subjectSpansErr error
 	pendingPropsErr error
+
+	subjectSpansEmpty bool
 
 	nameResolutionsErr  error
 	dnsRecordsErr       error

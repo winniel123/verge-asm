@@ -122,8 +122,10 @@
 
 {{define "subjecttimelines"}}<section class="sd-card flush">
 <div class="sd-cardhead" style="padding-bottom:0"><span class="sd-micro">Timelines</span><h3>Current and closed timelines</h3></div>
-{{if .}}
-{{range .}}
+{{if .TimelinesFailed}}
+<div class="sd-body"><span class="sd-mutedline">The span read did not resolve on this load. No timeline is listed rather than a guessed history. Reload to read it again.</span></div>
+{{else if .Timelines}}
+{{range .Timelines}}
 <div style="padding:16px 20px 12px;display:flex;flex-direction:column;gap:10px">
 <span class="sd-micro" style="letter-spacing:0.06em">{{.Label}}</span>
 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -254,7 +256,7 @@
 {{end}}
 </div>
 </section>
-{{template "subjecttimelines" .Timelines}}
+{{template "subjecttimelines" .}}
 {{template "subjectrules" .Rules}}
 </div>
 <div style="display:flex;flex-direction:column;gap:24px">
@@ -336,7 +338,7 @@
 {{end}}
 </div>
 </section>
-{{template "subjecttimelines" .Timelines}}
+{{template "subjecttimelines" .}}
 {{template "subjectrules" .Rules}}
 </div>
 <div style="display:flex;flex-direction:column;gap:24px">
