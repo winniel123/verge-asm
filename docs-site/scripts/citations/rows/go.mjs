@@ -2,9 +2,10 @@ import { execFileSync } from "node:child_process";
 import { readSource, splitLines } from "./source.mjs";
 
 // A column-0 regex fails in both directions here, so the row parses instead (SPEC §7.3).
-export function goInventory(repoRoot, paths) {
-  const out = execFileSync("go", ["run", "./cmd/godecls", "--root", repoRoot], {
-    cwd: repoRoot,
+export function goInventory(root, paths, { cwd = root } = {}) {
+  // `go run` needs the module, and the history arm parses a tree that is not it (#2015).
+  const out = execFileSync("go", ["run", "./cmd/godecls", "--root", root], {
+    cwd,
     input: `${paths.join("\n")}\n`,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
@@ -19,7 +20,7 @@ export function goInventory(repoRoot, paths) {
       continue;
     }
     // godecls reports the region, and the source a snippet matches is read here (SPEC §3.4).
-    const { source, error } = readSource(repoRoot, path);
+    const { source, error } = readSource(root, path);
     if (error) {
       inventory.set(path, { error });
       continue;

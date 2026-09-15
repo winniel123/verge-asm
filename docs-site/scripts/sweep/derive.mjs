@@ -18,7 +18,7 @@ export function splitToken(token) {
 }
 
 // The sweep proposes what the gate accepts, so it resolves the path the gate's own way (#1970).
-function resolvePath(env, docFile, value) {
+export function resolvePath(env, docFile, value) {
   const [result] = classify(env, docFile, [
     { raw: value, kind: "code", line: 1, withdrawn: false, prose: "", refs: [], snippet: null },
   ]);
@@ -27,7 +27,7 @@ function resolvePath(env, docFile, value) {
 }
 
 // The innermost region wins, because a heading nests and a citation names the nearest one.
-function enclosing(spans, start, end) {
+export function enclosing(spans, start, end) {
   let best = null;
   let tied = false;
   for (const [name, regions] of spans) {

@@ -30,7 +30,7 @@
     "check:adr-review": "node scripts/check-adr-review.mjs",
     "test:adr-review": "node --test scripts/check-adr-review.test.mjs",
     "sweep:line-anchors": "node scripts/sweep-line-anchors.mjs",
-    "test:sweep": "node --test scripts/sweep-line-anchors.test.mjs",
+    "test:sweep": "node --test scripts/sweep-line-anchors.test.mjs && node --test scripts/sweep-history.test.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
