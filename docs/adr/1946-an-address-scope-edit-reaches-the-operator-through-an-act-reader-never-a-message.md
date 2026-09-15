@@ -19,7 +19,7 @@ relations:
 ## Decision
 
 **An address-scope edit mints no `Message`. The act reaches the operator through a bounded,
-display-only `Act` reader beside the `Exposure` figure: `seed.declared` acts over seven days, five
+display-only `Act` reader beside the `Exposure` figure: ~~`seed.declared` acts~~ over seven days, five
 rows, newest first, linked to the audit tab.**
 
 A reader asks why, because the flagship figure moves between two page loads and nothing announces
@@ -78,6 +78,8 @@ outside the fold.
 
 ## 3. The carrier is a bounded `Act` reader
 
+> **Amended** by [ADR-2114: The address-scope act reader covers every act class that moves the covered predicate](./2114-the-address-scope-act-reader-covers-every-act-class-that-moves-the-covered-predicate.md), 2026-09-15. <!-- adr-marker amends 2114 -->
+
 The act is already recorded. `seed.declared` is an `Act` class
 ([ADR-1891](./1891-an-operator-act-is-recorded-as-a-fifth-operational-corpus-under-a-four-limb-predicate.md),
 limb 1), written one row per scope under
@@ -85,9 +87,21 @@ limb 1), written one row per scope under
 
 What is added is a reader, beside the figure the act moved:
 
-- `seed.declared` acts, over seven days
+- ~~`seed.declared` acts~~, over seven days
 - five rows, newest first
 - a link to the audit tab, which holds the unbounded list
+
+> **The `seed.declared` class list is AMENDED at the site that specifies it, 2026-09-15
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> [ADR-2114](./2114-the-address-scope-act-reader-covers-every-act-class-that-moves-the-covered-predicate.md)
+> rules that the reader covers every act class that moves `addressScopeCovered`: `seed.declared`,
+> `seed.withdrawn`, `proposal.confirmed`, and the address-kind `exclusion.declared` and
+> `exclusion.lifted`. Three of those four moved the `Exposure` figure while being absent from the
+> panel, so the panel's empty state could be false.
+>
+> **Only the class list moves.** The no-`Message` ruling, the seven-day and five-row bound, the
+> newest-first order, the audit-tab link and the reasoning for each all stand as written. The bound
+> below is unchanged.
 
 The bound is deliberate. The panel is a pointer at the audit trail, not a second audit trail. Seven
 days and five rows keep it a glance, and the link carries any reader who wants more.
