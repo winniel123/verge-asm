@@ -6,7 +6,7 @@ date: 2026-09-15
 status: accepted
 source: grilling
 ticket: 1988
-proof: {ticket: 1988}
+proof: {none: "a ruling about the status of a document, which no test and no measurement can prove"}
 relations:
   - {kind: amends, adr: 110}
   - {kind: rests-on, adr: 145}
@@ -39,10 +39,14 @@ between an example and its template reads as a defect against the example.
 
 ## 2. What the measurement showed
 
-**Nothing consumes the examples.** `design-system/designfs.go` embeds `templates/`, `tokens/` and
-`fixtures/`. It names no `examples/` path, so the web app cannot read one. The docs-site resolves
-`@ds/*` into `components/` and `tokens/` alone. A search for an import of any examples path across
-the tree returns nothing.
+**No served surface consumes the examples.** `design-system/designfs.go` embeds `templates/`,
+`tokens/` and `fixtures/`. It names no `examples/` path, so the web app cannot read one. The
+docs-site resolves `@ds/*` into `components/` and `tokens/` alone. A search for an import of any
+examples path across the tree returns nothing.
+
+One reader remains, and it is not a parity check. `design-system/console_tokens_test.go` reads
+`examples/console/Settings.jsx` for the `--console-surface` invariant, which asserts one shared
+token value and says nothing about a screen's composition. The Decision names that exception.
 
 **The drift is systemic.** Twelve console screens carry it. Example commits and lines against
 template commits and lines:
@@ -70,8 +74,11 @@ remainder.
 
 ## 3. What this changes
 
-The verbatim-port clause of ADR-0110 is withdrawn at the site that specifies it, under
-[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). Four
+ADR-0110's Decision is withdrawn at the site that specifies it, under
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). Its `org
+switcher` and `screenshots/` clauses were already struck, and the verbatim-port ruling is the
+remainder, so nothing in that Decision survives this withdrawal. ADR-0110's Context and
+Consequences stand as a record of what was decided in 2026-08. Four
 documents restate that clause and move with it: `docs/agents/design-system.md`,
 `.claude/skills/verge-asm-design/SKILL.md`, `design-system/README.md` and
 `design-system/docs/DESIGN-NOTES.md`.
