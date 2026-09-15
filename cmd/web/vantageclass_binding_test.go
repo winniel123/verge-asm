@@ -30,9 +30,9 @@ import (
 //  4. Two handlers pair a figure and its change under two bindings, and neither is a root.
 //     dashboardData reads the Exposed-services tile's Value through currentExposedCount and its
 //     Change through exposureCountDeltas. exposurePage reads its stats through foldExposure and
-//     its changes through the same deltas. Rooting either here fails today. ADR-1895 §1 counts
-//     both readers as present-state and rules that neither compares, so moving them is a
-//     decision rather than an edit, and #1940 did not own it.
+//     its changes through the same deltas. Rooting either here fails today, at five sites and
+//     three. ADR-1895 §1 counts both readers as present-state and rules that neither compares,
+//     so moving them is a decision rather than an edit. #2046 owes it.
 //
 // This gate carries no exemption list. internal/queue's twin does, for rulesOpenedByGapClose.
 //
