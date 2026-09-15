@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/custody"
+	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/queue"
 )
 
@@ -22,6 +23,16 @@ func fixtureVantageByName(t *testing.T, name string) fixtureVantage {
 	}
 	t.Fatalf("no fixture vantage named %q", name)
 	return fixtureVantage{}
+}
+
+func fixtureInventoryVantages(t *testing.T) map[int64]inventoryVantage {
+	t.Helper()
+	covered := fixtureCovered(t)
+	out := make(map[int64]inventoryVantage, len(inventoryFixtureVantages))
+	for i, fv := range inventoryFixtureVantages {
+		out[int64(i+1)] = inventoryVantage{class: deriveFixtureClass(t, fv, covered), name: fv.name}
+	}
+	return out
 }
 
 func fixtureVantageID(t *testing.T, name string) pgtype.Int8 {
@@ -138,4 +149,117 @@ func fixtureReachLegRows(t *testing.T) []reachLegRow {
 		})
 	}
 	return out
+}
+
+func TestSeededTwoVantageServiceNamesBothClasses(t *testing.T) {
+	const key = "203.0.113.44:22/tcp"
+	var facets []inventoryFacet
+	for _, g := range buildInventory(fixtureSpanRows(t), fixtureInventoryVantages(t)) {
+		for _, sub := range g.Subjects {
+			if sub.Key == key {
+				facets = sub.Facets
+			}
+		}
+	}
+	if facets == nil {
+		t.Fatalf("no fixture subject %q", key)
+	}
+
+	var reach []inventoryFacet
+	for _, f := range facets {
+		if f.facet == "reachability" {
+			reach = append(reach, f)
+		}
+	}
+	if len(reach) != 2 {
+		t.Fatalf("reachability rows = %d, want 2", len(reach))
+	}
+	// Before ADR-2027 this card read `reachability` twice over contradictory summaries.
+	if reach[0].Label == reach[1].Label {
+		t.Fatalf("both reachability rows read %q", reach[0].Label)
+	}
+	want := map[string]string{
+		"reachability · internal": "reached",
+		"reachability · internet": "not-reached",
+	}
+	for _, f := range reach {
+		summary, ok := want[f.Label]
+		if !ok {
+			t.Errorf("reachability label = %q, want one of internal / internet", f.Label)
+			continue
+		}
+		if f.Summary != summary {
+			t.Errorf("%s summary = %q, want %q", f.Label, f.Summary, summary)
+		}
+	}
+}
+
+func TestSeededWithinClassTieNamesBothVantages(t *testing.T) {
+	// The corpus holds one vantage per class, so the tie is modelled on top of it.
+	vantages := fixtureInventoryVantages(t)
+	rival := int64(len(inventoryFixtureVantages) + 1)
+	vantages[rival] = inventoryVantage{class: custody.ClassInternet, name: "fixture-internet-2"}
+
+	rows := fixtureSpanRows(t)
+	for _, row := range rows {
+		if row.SubjectKey == "203.0.113.44:22/tcp" && row.Facet == "reachability" &&
+			row.VantageID == fixtureVantageID(t, fixtureVantageInternet) {
+			row.VantageID = pgtype.Int8{Int64: rival, Valid: true}
+			row.Value = []byte(`{"outcome":"reached"}`)
+			rows = append(rows, row)
+		}
+	}
+
+	var got []string
+	for _, g := range buildInventory(rows, vantages) {
+		for _, sub := range g.Subjects {
+			if sub.Key != "203.0.113.44:22/tcp" {
+				continue
+			}
+			for _, f := range sub.Facets {
+				if f.facet == "reachability" {
+					got = append(got, f.Label)
+				}
+			}
+		}
+	}
+	want := []string{
+		"reachability · internal",
+		"reachability · internet · fixture-internet",
+		"reachability · internet · fixture-internet-2",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("reachability labels = %v, want %v", got, want)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("reachability label[%d] = %q, want %q", i, got[i], w)
+		}
+	}
+}
+
+func TestFixtureCorpusHoldsNoAddressSubject(t *testing.T) {
+	// subjectKindFor returns no address kind, so the fold writes no such span (ADR-2027 §5, #2033).
+	for _, fs := range inventoryFixtureSpans {
+		if fs.kind == "address" {
+			t.Errorf("fixture span %s/%s/%s models an unproducible address subject", fs.kind, fs.key, fs.facet)
+		}
+	}
+}
+
+func TestEveryFixtureDNSRecordNamesAQtype(t *testing.T) {
+	// dns-record is the one facet a producer discriminates, and it carries the qtype.
+	offers := map[string]bool{}
+	for _, qt := range resolutionwalk.DefaultOffers().Qtypes {
+		offers[string(qt)] = true
+	}
+	for _, fs := range inventoryFixtureSpans {
+		if fs.facet != "dns-record" {
+			continue
+		}
+		if !offers[fs.discriminator] {
+			t.Errorf("fixture span %s/%s dns-record discriminator = %q, want an offered qtype",
+				fs.kind, fs.key, fs.discriminator)
+		}
+	}
 }
