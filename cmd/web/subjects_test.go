@@ -502,6 +502,12 @@ func TestSubjectsRequiresLogin(t *testing.T) {
 }
 
 func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
+	if f.subjectSpansErr != nil {
+		return nil, f.subjectSpansErr
+	}
+	if f.subjectSpansEmpty {
+		return nil, nil
+	}
 	type tlkey struct {
 		facet, discriminator, source string
 		vantage                      pgtype.Int8

@@ -437,7 +437,7 @@ func (s *server) signalDrift(r *http.Request, kind, key string) *sigDiff {
 	if kind == "" || key == "" {
 		return nil
 	}
-	tls := s.buildTimelines(r, kind, key)
+	tls, _ := s.buildTimelines(r, kind, key)
 	var best *sigDiff
 	var bestAt string
 	for _, tv := range tls {

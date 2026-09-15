@@ -92,6 +92,7 @@ type servicePageData struct {
 	Citation           []citationHop
 	CitationTerminated bool
 	Timelines          []timelineView
+	TimelinesFailed    bool
 	Seen               string
 	InScopeSince       string
 	InternalLeg        *legChip
@@ -121,6 +122,7 @@ type endpointPageData struct {
 	Citation           []citationHop
 	CitationTerminated bool
 	Timelines          []timelineView
+	TimelinesFailed    bool
 	Seen               string
 	InScopeSince       string
 	Provenance         []assetKV
@@ -258,11 +260,12 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 	var seedScope string
 	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
-	data.Timelines = s.buildTimelines(r, "endpoint", subject.SubjectKey)
+	tls, tlErr := s.buildTimelines(r, "endpoint", subject.SubjectKey)
+	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
-	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines), data.TimelinesFailed)
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
 	s.render(w, r, "endpoint", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
@@ -355,7 +358,8 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	var seedScope string
 	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
-	data.Timelines = s.buildTimelines(r, "service", subject.SubjectKey)
+	tls, tlErr := s.buildTimelines(r, "service", subject.SubjectKey)
+	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
@@ -373,7 +377,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
 		}
 	}
-	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines), data.TimelinesFailed)
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	signals, sigErr := s.assetSignals(r, subject.SubjectKey)
 	if sigErr != nil {
@@ -473,7 +477,7 @@ func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	s.assetPage(w, r, acct)
 }
 
-func subjectProvenance(kind, seedScope, firstSeen string) []assetKV {
+func subjectProvenance(kind, seedScope, firstSeen string, firstSeenFailed bool) []assetKV {
 	var items []assetKV
 	if seedScope != "" {
 		items = append(items, assetKV{K: "Seed", V: seedScope})
@@ -484,7 +488,10 @@ func subjectProvenance(kind, seedScope, firstSeen string) []assetKV {
 		via = "resolution × service join"
 	}
 	items = append(items, assetKV{K: "Via", V: via})
-	if firstSeen != "" {
+	if firstSeenFailed {
+		// First seen derives from the span read, so the derived end says so too (ADR-2030 §2).
+		items = append(items, assetKV{K: "First seen", V: "the span read did not resolve"})
+	} else if firstSeen != "" {
 		items = append(items, assetKV{K: "First seen", V: firstSeen})
 	}
 	return items
@@ -605,12 +612,15 @@ const spanTimeFmt = "2006-01-02 15:04 UTC"
 
 const spanFullFmt = "2006-01-02T15:04Z07:00"
 
-func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineView {
+func (s *server) buildTimelines(r *http.Request, kind, key string) ([]timelineView, error) {
 	rows, err := s.subjectsStore.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
 		SubjectKind: kind, SubjectKey: key,
 	})
-	if err != nil || len(rows) == 0 {
-		return nil
+	if err != nil {
+		return nil, readFailure(err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
 	}
 
 	type tlkey struct {
@@ -632,7 +642,7 @@ func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineVie
 	for _, k := range order {
 		views = append(views, buildTimeline(k.facet, k.discriminator, byKey[k]))
 	}
-	return views
+	return views, nil
 }
 
 func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow) timelineView {
@@ -960,7 +970,8 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(data.Ports)
-	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
+	tls, _ := s.buildTimelines(r, "name", key)
+	data.Drift = assetDrift(tls)
 
 	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
 		"Asset": data,
@@ -1000,7 +1011,8 @@ func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, ac
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(nil)
-	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
+	tls, _ := s.buildTimelines(r, "name", key)
+	data.Drift = assetDrift(tls)
 
 	s.render(w, r, "asset", pageData(acct, key, "inventory", map[string]any{
 		"Asset": data,
