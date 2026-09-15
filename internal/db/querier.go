@@ -168,7 +168,6 @@ type Querier interface {
 	ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, error)
 	// A dial is not ranked: no staleness sort and no per-rule count (ADR-0073 §3, §4).
 	ListAnnotations(ctx context.Context) ([]Annotation, error)
-	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
 	// The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
@@ -218,6 +217,7 @@ type Querier interface {
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
 	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
 	ListOpenEndpointCertificateSpans(ctx context.Context) ([]ListOpenEndpointCertificateSpansRow, error)
+	ListOpenReachGapServices(ctx context.Context) ([]ListOpenReachGapServicesRow, error)
 	// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
 	ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error)
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)

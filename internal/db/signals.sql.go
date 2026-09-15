@@ -11,36 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const listBlanketedReachServices = `-- name: ListBlanketedReachServices :many
-SELECT DISTINCT sp.subject_key AS subject_key
-FROM span sp
-WHERE sp.subject_kind = 'service'
-  AND sp.facet = 'reachability'
-  AND sp.closed_at IS NULL
-  AND sp.is_gap = TRUE
-ORDER BY sp.subject_key
-`
-
-func (q *Queries) ListBlanketedReachServices(ctx context.Context) ([]string, error) {
-	rows, err := q.db.Query(ctx, listBlanketedReachServices)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []string{}
-	for rows.Next() {
-		var subject_key string
-		if err := rows.Scan(&subject_key); err != nil {
-			return nil, err
-		}
-		items = append(items, subject_key)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listEndpointCertificates = `-- name: ListEndpointCertificates :many
 WITH cover AS (
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
@@ -252,6 +222,42 @@ func (q *Queries) ListNameResolutionsByClass(ctx context.Context, arg ListNameRe
 			&i.Egress,
 			&i.DialledAddr,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOpenReachGapServices = `-- name: ListOpenReachGapServices :many
+SELECT sp.subject_key AS subject_key,
+       sp.value       AS value
+FROM span sp
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+  AND sp.is_gap = TRUE
+ORDER BY sp.subject_key, sp.id
+`
+
+type ListOpenReachGapServicesRow struct {
+	SubjectKey string `json:"subject_key"`
+	Value      []byte `json:"value"`
+}
+
+func (q *Queries) ListOpenReachGapServices(ctx context.Context) ([]ListOpenReachGapServicesRow, error) {
+	rows, err := q.db.Query(ctx, listOpenReachGapServices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenReachGapServicesRow{}
+	for rows.Next() {
+		var i ListOpenReachGapServicesRow
+		if err := rows.Scan(&i.SubjectKey, &i.Value); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
