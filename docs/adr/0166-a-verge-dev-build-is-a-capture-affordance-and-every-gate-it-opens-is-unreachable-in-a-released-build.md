@@ -32,14 +32,14 @@ returns no `run.sh` in the tree. So the four decisions below were argued entirel
 that no longer exists, and each survives uncited under [`comment-policy.md`](../spec/comment-policy.md) §4.7.
 
 **The flag's topology, counted.** `cmd/web` reads `VERGE_DEV` twice.
-`cmd/web/main.go` sets the server field (`cmd/web/handlers.go#newServer`, wired at
+`cmd/web/main.go` sets the server field (`cmd/web/handlers.go`, wired at
 `cmd/web/main.go#main`). `cmd/web/main.go` reads it again to refuse `-seed-fixtures` outside a dev
 build — a separate gate because that path seeds and exits at `cmd/web/main.go#main`, before any
 `server` exists to hold a flag. One variable, two gates, and the second guards a process that never
 listens.
 
 Downstream there are **36 guard sites** in `cmd/web`: 32 of the form `if s.devMode {` (including one
-`else if` at `cmd/web/auth.go#server.lookupInvite`) and four compound — `cmd/web/auth.go#server.setupSubmit`, `:301`, `:944`, and
+`else if` at `cmd/web/auth.go`) and four compound — `cmd/web/auth.go`, `:301`, `:944`, and
 `cmd/web/subjects.go#server.assetPage`. **No affordance sits outside one.** The six `/dev` routes are registered
 inside a single `if s.devMode` block (`cmd/web/handlers.go#server.handler`), so a released build refuses
 them at the mux rather than inside a handler.
@@ -50,8 +50,8 @@ dev-mode branch is reached by configuration, never by an operator refusing a for
 plain `if` form only, so the four compound guards are invisible to it.
 
 The worker's `devMode` (`cmd/worker/main.go#main`) is a different thing and out of scope: it
-**suppresses** output — transcript capture at `internal/queue/worker.go#Worker.WithStaleJobThreshold`, message production at
-`internal/queue/produce.go#spanChange` — rather than opening a gate.
+**suppresses** output — transcript capture at `internal/queue/worker.go`, message production at
+`internal/queue/produce.go` — rather than opening a gate.
 
 ## Decision
 
@@ -71,7 +71,7 @@ no rate limiter. `seedProfileFixtures` then seeds that same account
 
 The two halves are one decision, and stated together they are not the contradiction the deleted
 comment made them look like. The fixture account **has no second factor to satisfy**: the normal
-path would reach `auth.DecryptTOTPSecret` at `cmd/web/auth.go#server.loginProviders` against a `NULL` column and fail.
+path would reach `auth.DecryptTOTPSecret` at `cmd/web/auth.go` against a `NULL` column and fail.
 The mint does not walk around a live gate; it is the only door the account has. `totp_enabled` is a
 **render input** on that account — the Profile capture is internally consistent only at TOTP-on —
 not a credential check.
@@ -82,31 +82,31 @@ written to, and its session is minted rather than authenticated.
 
 ### 2. A pinned credential value is not a secret
 
-Five pins ride the flag: the TOTP code at login (`cmd/web/auth.go#server.loginProviders`), the enrolment secret and
-the enrolment reset (`cmd/web/auth.go#firstRunChecklist`), the confirm code
-(`cmd/web/auth.go#firstSeedName`), the minted personal-token plaintext
+Five pins ride the flag: the TOTP code at login (`cmd/web/auth.go`), the enrolment secret and
+the enrolment reset (`cmd/web/auth.go`), the confirm code
+(`cmd/web/auth.go`), the minted personal-token plaintext
 (`cmd/web/auth.go`, `fixtureMintedToken` at `:1663`), and the build version
-(`cmd/web/auth.go#server.requireAdmin`).
+(`cmd/web/auth.go`).
 
 ADR-0053's test is *where is the act it authorises performed*. **A pinned value authorises nothing
 outside the fixture database**, so it is not a secret under that test and its presence in the source
 is not a placement violation. That is why each carries a `#nosec G101` rather than a rotation
-procedure (`cmd/web/devfixtures.go#seedDevFixtureAccounts`, `:266`, `:268-269`, `:128`).
+procedure (`cmd/web/devfixtures.go`, `:266`, `:268-269`, `:128`).
 
-The pins are additive at the gate they cross, never subtractive: `cmd/web/auth.go#firstSeedName` reads
+The pins are additive at the gate they cross, never subtractive: `cmd/web/auth.go` reads
 `if !(s.devMode && code == devFixtureTOTPCode)`, so a live build runs the full RFC 6238 verification
 and a dev build runs it for every code but one.
 
 ### 3. The tension ADR-0160 §5 exposes, stated and not resolved here
 
 [ADR-0160 §5](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md)
-records that a restore rotates the session key (`cmd/web/restore.go#server.restorePreflight`) and re-derives the TOTP key
-from it (`cmd/web/restore.go#replayArchive`), so a restored `account.totp_secret` cannot be opened. An account
-carrying `totp_enabled = true` across that restore reaches `cmd/web/auth.go#server.loginProviders`, fails to decrypt,
+records that a restore rotates the session key (`cmd/web/restore.go`) and re-derives the TOTP key
+from it (`cmd/web/restore.go`), so a restored `account.totp_secret` cannot be opened. An account
+carrying `totp_enabled = true` across that restore reaches `cmd/web/auth.go`, fails to decrypt,
 and gets a 500. The operator cannot log in.
 
 `devResetTOTPEnroll` (`cmd/web/devfixtures.go`) is **the only TOTP reset in the tree**, and
-the pinned code at `cmd/web/auth.go#server.loginProviders` fires *before* the decrypt at `:305`. So the recovery
+the pinned code at `cmd/web/auth.go` fires *before* the decrypt at `:305`. So the recovery
 today is: restart `web` with `VERGE_DEV=1`, type `482913`, then open the enrolment form to clear the
 column. **An affordance that must never ship is currently the only escape from a live lockout.**
 
@@ -138,7 +138,7 @@ handler, and no check restores it.
 
 The dev run ids are **three**, not two. `devRunDetailID = "1407"` (`cmd/web/devfixtures.go`) is
 the concluded run detail; `1408` is the error screen's missing-run demo; `devRunningRunID = "1409"`
-(`cmd/web/devfixtures.go#devRetentionPanel`) is the Settings active dispatch's drill-in.
+(`cmd/web/devfixtures.go`) is the Settings active dispatch's drill-in.
 
 `1408` is **not a Go constant**. It lives in `design-system/fixtures/fixtures.json` and
 `design-system/examples/console/ErrorPage.jsx`, and it works only because `runPage`'s dev branch
@@ -158,7 +158,7 @@ reason the reservation is worth a rule. The reservation binds the dev id space o
 - **The residual risk is total and it is stated plainly.** A build shipped with `VERGE_DEV` set is a
   full authentication bypass. `GET /dev/session/admin` mints an admin session against a
   fixture account with no credential (`cmd/web/handlers.go#server.handler`); the pinned code passes the second
-  factor for **every** account (`cmd/web/auth.go#server.loginProviders`); and `GET /dev/seed/empty` empties `account`
+  factor for **every** account (`cmd/web/auth.go`); and `GET /dev/seed/empty` empties `account`
   and reopens first-run under a published token. **Nothing but the flag prevents any of it.**
 - **What does mitigate, today.** `docker-compose.yml` names `VERGE_DEV` on neither service
   (`:13-21`, `:59-63`), so it is not merely unset but has no passthrough — a bare
@@ -179,6 +179,6 @@ reason the reservation is worth a rule. The reservation binds the dev id space o
 | **Keep the `run.sh` capture-ordering bound for `/dev/seed/empty`** | The script is not in this repo and was retired with the handoff workflow on 2026-08-28. A reader cannot check the ordering, cannot restore it, and cannot tell whether a new capture was inserted after Setup. It reads as a safety argument and functions as none, which is worse than an honest precondition |
 | **Split `devMode` into per-affordance flags** — one for the mint, one for the pins, one for the destructive seeds | It multiplies the number of switches that must all be off in a released build from one to several, and it makes "is this build safe?" a conjunction instead of a lookup. It also breaks `adr0130_contract_test.go:133`, which recognises exactly one flag when deciding what is outside the product surface. The cost lands on every future reader for a separation no consumer asked for |
 | **Refuse to start when `VERGE_DEV` is set against a non-empty `account` table** | It reads as a guard and is not one. The capture flow itself boots against a seeded database and `/dev/seed/empty` deliberately empties it, so the check would have to permit the exact state it exists to catch. It also gives a false all-clear on a fresh deployment, which is the case where the bypass is most valuable to an attacker |
-| **Gate the affordances behind a Go build tag instead of an environment variable** | It is the stronger containment and it costs the capture flow its single-image property: two binaries, two images, two CI matrices, and a dev build that no longer proves the released code paths render. The pinned-fixture branches sit inside live handlers (`cmd/web/auth.go#server.redeemRecoveryCode`, `cmd/web/scans.go#runVantage`, and 30 more), so a tag split would fork those functions rather than isolate a package |
+| **Gate the affordances behind a Go build tag instead of an environment variable** | It is the stronger containment and it costs the capture flow its single-image property: two binaries, two images, two CI matrices, and a dev build that no longer proves the released code paths render. The pinned-fixture branches sit inside live handlers (`cmd/web/auth.go`, `cmd/web/scans.go`, and 30 more), so a tag split would fork those functions rather than isolate a package |
 | **Drive the capture with a real generated TOTP code instead of a pinned one** | The capture would then depend on a wall clock inside a flow whose whole point is a pinned clock (`cmd/web/main.go#main`), reintroducing the non-determinism the fixture clock exists to remove. It also leaves the mint, which is the larger affordance |
-| **Give `1408` a Go constant beside 1407 and 1409** | The id is consumed only by the design package and by `runPage`'s catch-all, so the constant would be declared and never read. The repair that pays is a drift test pinning all three against `fixtures.json`, matching `cmd/web/devfixtures_test.go#fixtureRunDetailPackage`, which pins `1407` alone |
+| **Give `1408` a Go constant beside 1407 and 1409** | The id is consumed only by the design package and by `runPage`'s catch-all, so the constant would be declared and never read. The repair that pays is a drift test pinning all three against `fixtures.json`, matching `cmd/web/devfixtures_test.go`, which pins `1407` alone |

@@ -38,7 +38,7 @@ same row. The push rule is
 `prober-linux-amd64` and `prober-linux-arm64` in the **same builder stage** as `web` and `worker`,
 and `Dockerfile:68` copies them into the worker image at `/app/probers`.
 
-**The code's trust boundary points the other way.** `internal/remoteexec/probe.go#proberOutcome` names the
+**The code's trust boundary points the other way.** `internal/remoteexec/probe.go` names the
 prober untrusted and caps its stdout, and `internal/remoteexec/conn.go` pins the host key on first
 use. Verge distrusts the host, and that half is built.
 
