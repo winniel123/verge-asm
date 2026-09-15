@@ -30,10 +30,12 @@ func assetHeaderOf(t *testing.T, page string) string {
 		t.Fatalf("asset page carries no breadcrumb, so its header cannot be isolated; body: %s", page)
 	}
 	hdr := page[from:]
-	if end := strings.Index(hdr, "</header>"); end >= 0 {
-		hdr = hdr[:end]
+	end := strings.Index(hdr, "</header>")
+	if end < 0 {
+		// An unclosed slice runs into the signals card, whose rows carry their own sevbadge.
+		t.Fatalf("asset page header is not closed, so the header cannot be isolated; body: %s", page)
 	}
-	return hdr
+	return hdr[:end]
 }
 
 func TestAssetDetailNamesAFailedSignalRead(t *testing.T) {
