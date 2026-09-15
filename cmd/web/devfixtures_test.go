@@ -1431,14 +1431,16 @@ type fixtureSubjectTimeline struct {
 }
 
 type fixtureSubjectService struct {
-	Key          string `json:"key"`
-	CopyKey      string `json:"copy_key"`
-	Withdrawn    bool   `json:"withdrawn"`
-	InternalLeg  string `json:"internal_leg"`
-	InternetLeg  string `json:"internet_leg"`
-	Seen         string `json:"seen"`
-	InScopeSince string `json:"in_scope_since"`
-	Citation     []struct {
+	Key             string `json:"key"`
+	CopyKey         string `json:"copy_key"`
+	Withdrawn       bool   `json:"withdrawn"`
+	InternalLeg     string `json:"internal_leg"`
+	InternalLegDate string `json:"internal_leg_date"`
+	InternetLeg     string `json:"internet_leg"`
+	InternetLegDate string `json:"internet_leg_date"`
+	Seen            string `json:"seen"`
+	InScopeSince    string `json:"in_scope_since"`
+	Citation        []struct {
 		Label  string `json:"label"`
 		Value  string `json:"value"`
 		Detail string `json:"detail"`
@@ -1447,7 +1449,6 @@ type fixtureSubjectService struct {
 	Address            string                   `json:"address"`
 	Port               string                   `json:"port"`
 	Transport          string                   `json:"transport"`
-	Since              string                   `json:"since"`
 	Timelines          []fixtureSubjectTimeline `json:"timelines"`
 	Rules              []struct {
 		Rule     string `json:"rule"`
@@ -1512,7 +1513,7 @@ type fixtureSubjectPackage struct {
 	} `json:"subjectdetail"`
 }
 
-func assertServiceLegChip(t *testing.T, name string, class custody.VantageClass, fixture string, pinned *legChip) {
+func assertServiceLegChip(t *testing.T, name string, class custody.VantageClass, fixture, date string, pinned *legChip) {
 	t.Helper()
 	// An empty word is the withdrawn fixture, which carries no leg chip at all.
 	if fixture == "" {
@@ -1522,8 +1523,9 @@ func assertServiceLegChip(t *testing.T, name string, class custody.VantageClass,
 		return
 	}
 	want := reachLegChip(class, legFrom(devLegInfo(fixture)))
+	want.Date = date
 	if pinned == nil || *pinned != want {
-		t.Errorf("%s: %s-leg chip drift: fixtures.json = %q, pinned = %+v", name, class, fixture, pinned)
+		t.Errorf("%s: %s-leg chip drift: fixtures.json = %q since %q, pinned = %+v", name, class, fixture, date, pinned)
 	}
 }
 
@@ -1531,11 +1533,11 @@ func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d 
 	t.Helper()
 	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Withdrawn != d.Withdrawn ||
 		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
-		a.Address != d.Address || a.Port != d.Port || a.Transport != d.Transport || a.Since != d.Since {
+		a.Address != d.Address || a.Port != d.Port || a.Transport != d.Transport {
 		t.Errorf("%s: service header drift:\n fixtures.json = %+v\n pinned        = %+v", name, a, d)
 	}
-	assertServiceLegChip(t, name, custody.ClassInternal, a.InternalLeg, d.InternalLeg)
-	assertServiceLegChip(t, name, custody.ClassInternet, a.InternetLeg, d.InternetLeg)
+	assertServiceLegChip(t, name, custody.ClassInternal, a.InternalLeg, a.InternalLegDate, d.InternalLeg)
+	assertServiceLegChip(t, name, custody.ClassInternet, a.InternetLeg, a.InternetLegDate, d.InternetLeg)
 	if len(a.Citation) != len(d.Citation) {
 		t.Fatalf("%s: citation length drift: %d vs %d", name, len(a.Citation), len(d.Citation))
 	}
@@ -1546,11 +1548,11 @@ func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d 
 		}
 	}
 	assertSubjectTimelines(t, name, a.Timelines, d.Timelines)
-	if len(a.Rules) != len(d.Rules) {
-		t.Fatalf("%s: rules length drift: %d vs %d", name, len(a.Rules), len(d.Rules))
+	if len(a.Rules) != len(d.Rules.Rows) {
+		t.Fatalf("%s: rules length drift: %d vs %d", name, len(a.Rules), len(d.Rules.Rows))
 	}
 	for i, r := range a.Rules {
-		q := d.Rules[i]
+		q := d.Rules.Rows[i]
 		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Verdict != string(q.Verdict) {
 			t.Errorf("%s: rules[%d] drift: %+v vs %+v", name, i, r, q)
 		}
@@ -1651,11 +1653,11 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 	assertSubjectTimelines(t, "endpoint", a.Timelines, d.Timelines)
-	if len(a.Rules) != len(d.Rules) {
-		t.Fatalf("endpoint rules length drift: %d vs %d", len(a.Rules), len(d.Rules))
+	if len(a.Rules) != len(d.Rules.Rows) {
+		t.Fatalf("endpoint rules length drift: %d vs %d", len(a.Rules), len(d.Rules.Rows))
 	}
 	for i, r := range a.Rules {
-		q := d.Rules[i]
+		q := d.Rules.Rows[i]
 		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Verdict != string(q.Verdict) {
 			t.Errorf("endpoint rules[%d] drift: %+v vs %+v", i, r, q)
 		}

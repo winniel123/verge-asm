@@ -521,6 +521,9 @@ func (f *fakeStore) ListAnnotations(context.Context) ([]db.Annotation, error) {
 }
 
 func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInstancesParams) error {
+	if f.mintInstancesErr != nil {
+		return f.mintInstancesErr
+	}
 	if f.signalInstNextID == 0 {
 		f.signalInstNextID = 1000
 	}
@@ -544,6 +547,9 @@ func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInst
 }
 
 func (f *fakeStore) ListServiceTLSAcceptance(_ context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error) {
+	if f.tlsAcceptanceErr != nil {
+		return nil, f.tlsAcceptanceErr
+	}
 	latest := map[string]db.Observation{}
 	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "service" || o.Facet != "tls-acceptance" {
@@ -564,6 +570,9 @@ func (f *fakeStore) ListServiceTLSAcceptance(_ context.Context, arg db.ListServi
 }
 
 func (f *fakeStore) ListNameResolutionsByClass(_ context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error) {
+	if f.nameResolutionsErr != nil {
+		return nil, f.nameResolutionsErr
+	}
 	known := map[int64]bool{}
 	for _, v := range f.vantages {
 		known[v.ID] = true
