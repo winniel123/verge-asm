@@ -1728,7 +1728,7 @@ type fixtureGraphPackage struct {
 			HaloB       float64 `json:"halo_b"`
 			LabelDX     int     `json:"label_dx"`
 			Ports       string  `json:"ports"`
-			Since       string  `json:"first"`
+			Since       string
 			OpenSignals []struct {
 				Severity string `json:"severity"`
 				SevLabel string `json:"sev_label"`
@@ -1744,6 +1744,33 @@ type fixtureGraphPackage struct {
 			ToService bool `json:"to_service"`
 		} `json:"edges"`
 	} `json:"graph"`
+}
+
+func TestGraphNodeFixtureKeysTheOpenSpanMinimumSince(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f struct {
+		Graph struct {
+			Nodes []map[string]json.RawMessage `json:"nodes"`
+		} `json:"graph"`
+	}
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	if len(f.Graph.Nodes) == 0 {
+		t.Fatal("graph fixture carries no nodes")
+	}
+	for i, n := range f.Graph.Nodes {
+		if _, ok := n["first"]; ok {
+			// buildScopedGraph reads open spans only, so the minimum is a held-since, not a first sighting (#2036).
+			t.Errorf("graph.nodes[%d] still keys the open-span minimum %q", i, "first")
+		}
+		if _, ok := n["since"]; !ok {
+			t.Errorf("graph.nodes[%d] carries no %q key", i, "since")
+		}
+	}
 }
 
 func TestGraphFixtureMatchesPackage(t *testing.T) {
