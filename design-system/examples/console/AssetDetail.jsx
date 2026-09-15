@@ -57,7 +57,7 @@ export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSi
               { key: "svc", label: "Service", mono: true },
               { key: "internal", label: "Internal leg", width: 130, render: (r) => <ReachLegBadge state={r.internal} legClass="internal" /> },
               { key: "internet", label: "Internet leg", width: 130, render: (r) => <ReachLegBadge state={r.internet} legClass="internet" /> },
-              { key: "seen", label: "First seen", mono: true, align: "right", width: 110 },
+              { key: "seen", label: "Since", mono: true, align: "right", width: 110 },
             ]} rows={[
               { port: ":443", svc: "https · nginx/1.25.0", internal: "reached", internet: "reached", seen: "2026-06-14" },
               { port: ":5900", svc: "vnc — no transport encryption", internal: "reached", internet: "reached", seen: "2026-08-22" },
