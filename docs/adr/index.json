@@ -4025,6 +4025,11 @@
           "kind": "amends",
           "from": 1902,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
         }
       ],
       "sections": [],
@@ -11585,6 +11590,11 @@
           "kind": "rests-on",
           "from": 1909,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
         }
       ],
       "sections": [
@@ -11694,6 +11704,11 @@
           "kind": "amends",
           "from": 1945,
           "clause": "9"
+        },
+        {
+          "kind": "amends",
+          "from": 1946,
+          "clause": "9"
         }
       ],
       "sections": [
@@ -11712,6 +11727,11 @@
         {
           "kind": "amends",
           "from": 1945,
+          "clause": "9"
+        },
+        {
+          "kind": "amends",
+          "from": 1946,
           "clause": "9"
         }
       ],
@@ -11748,7 +11768,13 @@
           "adr": 1891
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11959,6 +11985,62 @@
       "decision": {
         "words": 143,
         "text": "**Every leg of one comparison classifies under one address-scope binding.** The comparison takes\nthat binding from a struct it builds once. The `internal/queue` package holds the shape already, in\n`batchLegs.covered`. `cmd/web` gains the mirror at `exposureCountDeltas`. An AST call-graph test in\neach package fails when a comparison's graph reaches a binding producer twice.\n\nRejected: count `vantageclass.Derive` call sites and fail on a new one. It is cheaper and it is\nblind — the three acquisitions added on 2026-09-14 reuse derivation points that already existed.\nRejected: one seam for every caller. Three callers hold three different coverage-error fallbacks, so\na shared seam either drops them or carries all three to ten callers that reach none.\n\nA reader asks why, because\n[ADR-1895](./1895-a-vantage-class-reads-present-configuration-so-a-historic-observation-carries-none.md)\n§4 already states the rule and two tests already hold it. Neither counts acquisitions.\n\nReversal deletes two test files and inlines one field."
+      }
+    },
+    {
+      "number": 1946,
+      "file": "docs/adr/1946-an-address-scope-edit-reaches-the-operator-through-an-act-reader-never-a-message.md",
+      "title": "An address-scope edit reaches the operator through an Act reader, never a Message",
+      "slug": "an-address-scope-edit-reaches-the-operator-through-an-act-reader-never-a-message",
+      "date": "2026-09-14",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1939
+      },
+      "ticket": 1946,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1895,
+          "clause": "9"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 92
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1891
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1902
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 148,
+        "text": "**An address-scope edit mints no `Message`. The act reaches the operator through a bounded,\ndisplay-only `Act` reader beside the `Exposure` figure: `seed.declared` acts over seven days, five\nrows, newest first, linked to the audit tab.**\n\nA reader asks why, because the flagship figure moves between two page loads and nothing announces\nit. ADR-0092 rules that the system announces what it found, never what the operator did, and no\n`Message` constructor is reached outside `internal/queue`, so none can fire on the act.\n\nThe reader asserts no causal tie. None exists: the class is stored nowhere and the figure is\nrecomputed per read.\n\nRejected: a `Kind` field on the seed-scope act subject, as the exclusion reference already carries.\nThe `Act` corpus is never deleted, so historic rows would lack it and the fallback would survive.\n\nReversal reopens the four-cause enumeration and owes a message to every dial ADR-0092 left silent."
       }
     },
     {
