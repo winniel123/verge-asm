@@ -207,7 +207,7 @@
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="sd-tag">service</span>
 {{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{else}}{{with .InternetLeg}}<span class="sd-hleg"><span class="sd-micro">Internet leg</span>{{template "legchip" .}}</span>{{end}}{{end}}
-{{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
+{{if or .Seen .InScopeSince .SeedFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen (or .InScopeSince .SeedFailed)}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{else if .SeedFailed}}in scope since — the Seed read did not resolve{{end}}</span>{{end}}
 </div>
 </div>
 <div style="margin-left:auto;display:flex;gap:8px">
@@ -234,7 +234,7 @@
 <div style="display:flex;flex-direction:column;gap:16px">
 <span class="sd-hint">Following citations backwards always terminates at a Seed you declared — that is what makes "why is this here" answerable for everything in the estate.</span>
 {{template "subjectcitation" .Citation}}
-{{if .MembershipUnknown}}<span class="sd-mutedline">The citation read did not resolve on this load. No hop past the address is shown rather than a guessed hop, and whether the chain reaches a declared Seed is unknown. Reload to read it again.</span>{{else if not .CitationTerminated}}<span class="sd-mutedline">The chain does not reach a declared Seed. For a service whose address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</span>{{end}}
+{{if .MembershipUnknown}}<span class="sd-mutedline">The citation read did not resolve on this load. No hop past the address is shown rather than a guessed hop, and whether the chain reaches a declared Seed is unknown. Reload to read it again.</span>{{else if .SeedFailed}}<span class="sd-mutedline">The covering-Seed read did not resolve on this load. The Seed hop is absent rather than guessed, and whether the chain reaches a declared Seed is unknown. Reload to read it again.</span>{{else if not .CitationTerminated}}<span class="sd-mutedline">The chain does not reach a declared Seed. For a service whose address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</span>{{end}}
 </div>
 </div>
 </section>
@@ -301,7 +301,7 @@
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="sd-tag">endpoint</span>
 {{if .Withdrawn}}<span class="sd-wmark"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" aria-hidden="true"><path d="M1.6 5h6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>withdrawn</span>{{end}}
-{{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
+{{if or .Seen .InScopeSince .SeedFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}{{if .Withdrawn}}last seen{{else}}seen{{end}} {{.Seen}}{{end}}{{if and .Seen (or .InScopeSince .SeedFailed)}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{else if .SeedFailed}}in scope since — the Seed read did not resolve{{end}}</span>{{end}}
 </div>
 </div>
 <div style="margin-left:auto;display:flex;gap:8px">
@@ -328,7 +328,7 @@
 <div style="display:flex;flex-direction:column;gap:16px">
 <span class="sd-hint">Following citations backwards always terminates at a Seed you declared — that is what makes "why is this here" answerable for everything in the estate.</span>
 {{template "subjectcitation" .Citation}}
-{{if .MembershipUnknown}}<span class="sd-mutedline">The citation read did not resolve on this load. No hop past the address is shown rather than a guessed hop, and whether the chain reaches a declared Seed is unknown. Reload to read it again.</span>{{else if not .CitationTerminated}}<span class="sd-mutedline">The chain does not reach a declared Seed. For an endpoint whose service address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</span>{{end}}
+{{if .MembershipUnknown}}<span class="sd-mutedline">The citation read did not resolve on this load. No hop past the address is shown rather than a guessed hop, and whether the chain reaches a declared Seed is unknown. Reload to read it again.</span>{{else if .SeedFailed}}<span class="sd-mutedline">The covering-Seed read did not resolve on this load. The Seed hop is absent rather than guessed, and whether the chain reaches a declared Seed is unknown. Reload to read it again.</span>{{else if not .CitationTerminated}}<span class="sd-mutedline">The chain does not reach a declared Seed. For an endpoint whose service address a resolution cites, that is the address's name-scope Seed, one hop past the citing name; for one only a Seed covers, it is the address scope directly.</span>{{end}}
 </div>
 </div>
 </section>
