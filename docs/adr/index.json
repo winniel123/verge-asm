@@ -5931,6 +5931,11 @@
           "kind": "rests-on",
           "from": 218,
           "clause": "8.1"
+        },
+        {
+          "kind": "rests-on",
+          "from": 1945,
+          "clause": "4"
         }
       ],
       "sections": [
@@ -7528,6 +7533,11 @@
         {
           "kind": "rests-on",
           "from": 174,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1945,
           "clause": null
         }
       ],
@@ -11655,7 +11665,7 @@
       "date": "2026-09-13",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -11679,7 +11689,13 @@
           "adr": 14
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 1945,
+          "clause": "9"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11692,7 +11708,13 @@
         "9",
         "10"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1945,
+          "clause": "9"
+        }
+      ],
       "decision": {
         "words": 147,
         "text": "**A `Vantage class` is a reading of present configuration, so a historic observation carries none.**\nEvery leg of one comparison classifies under one binding, so a scope edit moves the whole history at\nonce and the exposure delta reports no drift the measurements did not carry.\n\nRejected: pin the class at the instant it was recorded, on the `Batch` or on the span row.\n\nA reader asks why, because a class that re-reads the past looks like a defect. The class verifies\ndeclared intent against the scopes the operator holds **now**, and a live read under `now` beside a\nhistoric read under `then` manufactures drift in the flagship value.\n\nReversal costs two corpora that do not exist — a per-instant scope set, and a per-observation\npresented address — and a backfill with no source, so every row before the change reads under a class\nnothing ever wrote."
@@ -11888,6 +11910,55 @@
       "decision": {
         "words": 134,
         "text": "**The observation currency dial is written by an `UPDATE` that derives its floor in the same\nstatement, and the clamped value comes back through `RETURNING`.**\n\nThe dial lock is on `retention_settings` and holds no `scan` row. Under READ COMMITTED a write to\n`scan` that commits between a floor read and the `UPDATE` leaves a value below the floor then in\nforce.\n\nRejected: `FOR SHARE` over the enabled scans. It cannot lock a row that is still `FALSE`, and it\ntouches no `batch` or `observation` row, so the worker moves the floor straight through it.\nRejected: re-read and re-clamp before the write, which makes the window smaller and leaves it open.\n\nThe price is one derivation expressed twice, in Go and in SQL.\n\nReversal puts the window back and returns the floor to one home."
+      }
+    },
+    {
+      "number": 1945,
+      "file": "docs/adr/1945-one-address-scope-binding-per-comparison-held-by-a-seam-and-fenced-by-an-ast-gate.md",
+      "title": "One address-scope binding per comparison, held by a seam and fenced by an AST gate",
+      "slug": "one-address-scope-binding-per-comparison-held-by-a-seam-and-fenced-by-an-ast-gate",
+      "date": "2026-09-14",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1940
+      },
+      "ticket": 1945,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1895,
+          "clause": "9"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 133,
+          "clause": "4"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 161
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 143,
+        "text": "**Every leg of one comparison classifies under one address-scope binding.** The comparison takes\nthat binding from a struct it builds once. The `internal/queue` package holds the shape already, in\n`batchLegs.covered`. `cmd/web` gains the mirror at `exposureCountDeltas`. An AST call-graph test in\neach package fails when a comparison's graph reaches a binding producer twice.\n\nRejected: count `vantageclass.Derive` call sites and fail on a new one. It is cheaper and it is\nblind — the three acquisitions added on 2026-09-14 reuse derivation points that already existed.\nRejected: one seam for every caller. Three callers hold three different coverage-error fallbacks, so\na shared seam either drops them or carries all three to ten callers that reach none.\n\nA reader asks why, because\n[ADR-1895](./1895-a-vantage-class-reads-present-configuration-so-a-historic-observation-carries-none.md)\n§4 already states the rule and two tests already hold it. Neither counts acquisitions.\n\nReversal deletes two test files and inlines one field."
       }
     },
     {
