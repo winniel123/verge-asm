@@ -26,6 +26,8 @@
 .as-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
 .as-table tbody tr:first-child td { border-top: none; }
 .as-table td.mono { font: 400 12.5px var(--font-mono); }
+.as-legcell { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.as-legdate { font: 400 11px var(--font-mono); color: var(--text-muted); }
 .as-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
 .as-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .as-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
@@ -130,14 +132,13 @@
 <div class="as-cardhead"><span class="as-micro">Census</span><h3>Open ports</h3></div>
 {{if .Ports}}
 <table class="as-table">
-<thead><tr><th style="width:90px">Port</th><th>Service</th><th style="width:130px">Internal leg</th><th style="width:130px">Internet leg</th><th style="width:110px;text-align:right">First seen</th></tr></thead>
+<thead><tr><th style="width:90px">Port</th><th>Service</th><th style="width:210px">Internal leg</th><th style="width:210px">Internet leg</th></tr></thead>
 <tbody>
 {{range .Ports}}<tr>
 <td class="mono">{{.Port}}</td>
 <td class="mono">{{.Service}}</td>
-<td>{{template "legchip" .Internal}}</td>
-<td>{{template "legchip" .Internet}}</td>
-<td class="mono" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
+<td><span class="as-legcell">{{template "legchip" .Internal}}{{with .Internal.Date}}<span class="as-legdate">since {{.}}</span>{{end}}</span></td>
+<td><span class="as-legcell">{{template "legchip" .Internet}}{{with .Internet.Date}}<span class="as-legdate">since {{.}}</span>{{end}}</span></td>
 </tr>{{end}}
 </tbody>
 </table>
