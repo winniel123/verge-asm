@@ -578,6 +578,11 @@
           "kind": "rests-on",
           "from": 205,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2027,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4432,6 +4437,11 @@
           "kind": "rests-on",
           "from": 202,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2027,
+          "clause": null
         }
       ],
       "sections": [],
@@ -7856,6 +7866,11 @@
           "kind": "rests-on",
           "from": 181,
           "clause": "3"
+        },
+        {
+          "kind": "rests-on",
+          "from": 2027,
+          "clause": null
         }
       ],
       "sections": [
@@ -12075,7 +12090,13 @@
           "adr": 129
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 2027,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -12090,6 +12111,57 @@
       "decision": {
         "words": 141,
         "text": "**A `span` or `observation` row on a per-vantage facet cannot be stored without a\n`vantage_id`. A `CHECK` on both tables refuses it.**\n\nThe predicate is a deny-list. A row needs a vantage unless its `source` is `zone`, or its\nfacet is `certificate`. A facet added later is covered by default, and it must argue its\nway out.\n\nA reader asks why, because no production writer emits the row. The answer is that a render\nalready lied about one. The asset page read `never looked` over a measured service, because\nthe class read inner-joins `vantage` and the census read carries no vantage predicate.\n\nRejected: a fifth `LegStatus` word for an unattributable reading, which is vocabulary ahead\nof reality. Rejected: a left outer join, which under this `CHECK` admits nothing.\n\nReversal drops two constraints, and restores a representable state that no fold writes."
+      }
+    },
+    {
+      "number": 2027,
+      "file": "docs/adr/2027-an-inventory-row-counts-a-reading-and-a-per-vantage-facet-names-its-derived-class.md",
+      "title": "An inventory row counts a reading, and a per-vantage facet names its derived class",
+      "slug": "an-inventory-row-counts-a-reading-and-a-per-vantage-facet-names-its-derived-class",
+      "date": "2026-09-15",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2027
+      },
+      "ticket": 2027,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 11
+        },
+        {
+          "kind": "rests-on",
+          "adr": 103
+        },
+        {
+          "kind": "rests-on",
+          "adr": 167
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1985
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 145,
+        "text": "**An inventory facet row counts a reading, never a subject. The listing renders one row\nper open span, and it collapses nothing.**\n\nWhere the discriminator is empty and the row carries a vantage, the label names the\nderived vantage class. Where two rows of one subject and facet share a class, both also\nname their vantage. Where the row carries no vantage, the label stays bare. The rule holds\nfor every facet with an empty discriminator, not for `reachability` alone.\n\nA reader asks why the label names a class where the span key names a vantage. A person\nreads the label, and ADR-0103 derives a provisioned prober's name from its endpoint.\n\nRejected: collapsing the per-vantage rows, an arbitration the span key refuses. Rejected:\nthe vantage name as the label, which leaks that endpoint.\n\nReversal restores a listing that renders two identical labels over contradictory\nsummaries."
       }
     }
   ]

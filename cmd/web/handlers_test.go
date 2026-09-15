@@ -140,8 +140,15 @@ type fakeStore struct {
 	openSpansErr    error
 	pendingPropsErr error
 
+	nameResolutionsErr  error
+	dnsRecordsErr       error
+	zoneDeclarationsErr error
+	tlsAcceptanceErr    error
 	endpointCertsErr    error
-	nameDNSErr          error
+	endpointSubjectsErr error
+	signalInstancesErr  error
+	mintInstancesErr    error
+
 	nameCitationErr     error
 	nameSeedByIDErr     error
 	coveringNameSeedErr error
@@ -510,6 +517,9 @@ func (f *fakeStore) ListUnavailableVantages(context.Context) ([]db.ListUnavailab
 }
 
 func (f *fakeStore) ListSignalInstances(context.Context) ([]db.SignalInstance, error) {
+	if f.signalInstancesErr != nil {
+		return nil, f.signalInstancesErr
+	}
 	rows := append([]db.SignalInstance(nil), f.signalInstances...)
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SignalName != rows[j].SignalName {
@@ -1063,6 +1073,9 @@ func (f *fakeStore) latestHTTPIdentityByEndpoint(obs []db.Observation) map[strin
 }
 
 func (f *fakeStore) ListCurrentEndpointSubjects(_ context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error) {
+	if f.endpointSubjectsErr != nil {
+		return nil, f.endpointSubjectsErr
+	}
 	search := arg.Search
 	latest := f.latestHTTPIdentityByEndpoint(f.liveObservations(arg.AsOf.Time))
 	keys := make([]string, 0, len(latest))
@@ -1307,8 +1320,8 @@ func (f *fakeStore) vantageForClass(class string) int64 {
 }
 
 func (f *fakeStore) ListNameDNSRecords(_ context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error) {
-	if f.nameDNSErr != nil {
-		return nil, f.nameDNSErr
+	if f.dnsRecordsErr != nil {
+		return nil, f.dnsRecordsErr
 	}
 	type key struct{ name, disc string }
 	latest := map[key]db.Observation{}
@@ -1337,6 +1350,9 @@ func (f *fakeStore) ListNameDNSRecords(_ context.Context, arg db.ListNameDNSReco
 }
 
 func (f *fakeStore) ListZoneDeclarations(context.Context) ([]db.ListZoneDeclarationsRow, error) {
+	if f.zoneDeclarationsErr != nil {
+		return nil, f.zoneDeclarationsErr
+	}
 	latest := map[int64]fakeZoneFile{}
 	for _, z := range f.zoneFiles {
 		cur, ok := latest[z.seedID]

@@ -118,7 +118,7 @@ func TestAssetSeedByIDReadFailureRendersTheProvenanceNote(t *testing.T) {
 
 func TestAssetDNSReadFailureWithAddressesKeepsTheAddressRows(t *testing.T) {
 	f, base := assetRegionFixture(t, "api.example.com")
-	f.nameDNSErr = errors.New("list name dns records failed")
+	f.dnsRecordsErr = errors.New("list name dns records failed")
 
 	page := assetRegionPage(t, f, base, "api.example.com")
 
@@ -135,7 +135,7 @@ func TestAssetDNSReadFailureWithNoAddressesRendersDidNotResolve(t *testing.T) {
 	// An empty address list leaves the panel with no row of its own, so it read as empty (#2029).
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":[]}`)
 	base := start(t, f, "")
-	f.nameDNSErr = errors.New("list name dns records failed")
+	f.dnsRecordsErr = errors.New("list name dns records failed")
 
 	page := assetRegionPage(t, f, base, "api.example.com")
 

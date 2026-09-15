@@ -66,7 +66,7 @@ func TestSubjectRulesTableNeverRendersNotEvaluableAsDidNotFire(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "subjectrules", rows); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "subjectrules", subjectRulesView{Rows: rows}); err != nil {
 		t.Fatalf("execute subjectrules template: %v", err)
 	}
 	page := buf.String()
@@ -86,7 +86,7 @@ func TestSubjectRulesTableKeepsTheOtherTwoVerdicts(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "subjectrules", rows); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "subjectrules", subjectRulesView{Rows: rows}); err != nil {
 		t.Fatalf("execute subjectrules template: %v", err)
 	}
 	page := buf.String()
@@ -118,9 +118,9 @@ func TestSubjectDetailFixturePinsANotEvaluableVerdict(t *testing.T) {
 		name string
 		rows []subjectRule
 	}{
-		{"service", devServiceData().Rules},
-		{"service_withdrawn", devServiceWithdrawnData().Rules},
-		{"endpoint", devEndpointData().Rules},
+		{"service", devServiceData().Rules.Rows},
+		{"service_withdrawn", devServiceWithdrawnData().Rules.Rows},
+		{"endpoint", devEndpointData().Rules.Rows},
 	} {
 		if len(c.rows) == 0 {
 			t.Fatalf("%s: the fixture carries no rules row, so the table pins nothing", c.name)
@@ -134,7 +134,7 @@ func TestSubjectDetailFixturePinsANotEvaluableVerdict(t *testing.T) {
 		}
 	}
 
-	rows := devServiceData().Rules
+	rows := devServiceData().Rules.Rows
 	var unread []subjectRule
 	for _, row := range rows {
 		if row.Verdict == signal.NotEvaluable {
@@ -146,7 +146,7 @@ func TestSubjectDetailFixturePinsANotEvaluableVerdict(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "subjectrules", rows); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "subjectrules", subjectRulesView{Rows: rows}); err != nil {
 		t.Fatalf("execute subjectrules template: %v", err)
 	}
 	page := buf.String()
