@@ -125,28 +125,48 @@ func moreRecent(openedAt time.Time, id int64, cur reachLegRow) bool {
 }
 
 func collapseReachLegs(rows []reachLegRow, covered func(netip.Addr) bool) map[string]map[string]legInfo {
-	best := map[string]map[string]reachLegRow{}
+	grouped := map[string]map[string][]reachLegRow{}
 	for _, row := range rows {
 		class := string(vantageclass.Derive(row.dialled, row.egress, covered))
-		m := best[row.subject]
+		m := grouped[row.subject]
 		if m == nil {
-			m = map[string]reachLegRow{}
-			best[row.subject] = m
+			m = map[string][]reachLegRow{}
+			grouped[row.subject] = m
 		}
-		if cur, ok := m[class]; !ok || moreRecent(row.openedAt, row.id, cur) {
-			m[class] = row
-		}
+		m[class] = append(m[class], row)
 	}
-	out := make(map[string]map[string]legInfo, len(best))
-	for subj, byClass := range best {
+	out := make(map[string]map[string]legInfo, len(grouped))
+	for subj, byClass := range grouped {
 		cm := make(map[string]legInfo, len(byClass))
-		for class, row := range byClass {
-			rv := decodeReachability(row.value)
-			cm[class] = legInfo{outcome: rv.Outcome, reason: rv.Reason, isGap: row.isGap, present: true}
+		for class, group := range byClass {
+			cm[class] = legFromClassGroup(group)
 		}
 		out[subj] = cm
 	}
 	return out
+}
+
+func legFromClassGroup(group []reachLegRow) legInfo {
+	cur := group[0]
+	for _, row := range group[1:] {
+		if moreRecent(row.openedAt, row.id, cur) {
+			cur = row
+		}
+	}
+	rv := decodeReachability(cur.value)
+	info := legInfo{outcome: rv.Outcome, reason: rv.Reason, since: cur.openedAt, isGap: cur.isGap, present: true}
+	held := legFrom(info)
+	for _, row := range group {
+		other := decodeReachability(row.value)
+		// The leg holds one value, and a span of another value never dates it (#2017).
+		if legFrom(legInfo{outcome: other.Outcome, isGap: row.isGap, present: true}) != held {
+			continue
+		}
+		if row.openedAt.Before(info.since) {
+			info.since = row.openedAt
+		}
+	}
+	return info
 }
 
 func collapseNameResolutions(rows []db.ListNameResolutionsByClassRow, covered func(netip.Addr) bool) map[string]map[string]resolutionValue {

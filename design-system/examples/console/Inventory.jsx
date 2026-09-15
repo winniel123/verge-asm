@@ -14,49 +14,38 @@ import { Icon } from "../../components/media/Icon.jsx";
 const GROUPS = [
   { kind: "name", label: "Names", type: "Name", subjects: [
     { key: "www.acmecorp.io", facets: [
-      { label: "resolution", summary: "A \u00b7 2 addresses", since: "2026-07-14", records: [{ type: "A", data: "198.51.100.7" }, { type: "A", data: "198.51.100.8" }] },
-      { label: "dns-records", summary: "CNAME \u00b7 TXT", since: "2026-07-14", records: [{ type: "CNAME", data: "edge.acmecorp.io" }, { type: "TXT", data: "verge-custody=vg1:9f3k\u2026" }] },
+      { label: "resolution \u00b7 internal", summary: "A \u00b7 2 addresses", since: "2026-07-14", records: [{ type: "A", data: "198.51.100.7" }, { type: "A", data: "198.51.100.8" }] },
+      { label: "dns-records \u00b7 TXT", summary: "CNAME \u00b7 TXT", since: "2026-07-14", records: [{ type: "CNAME", data: "edge.acmecorp.io" }, { type: "TXT", data: "verge-custody=vg1:9f3k\u2026" }] },
     ] },
     { key: "api.acmecorp.io", facets: [
-      { label: "resolution", summary: "A \u00b7 203.0.113.44", since: "2026-06-02" },
-      { label: "dns-records", summary: "CAA \u00b7 1 record", since: "2026-06-02", records: [{ type: "CAA", data: "0 issue \u201cletsencrypt.org\u201d" }] },
+      { label: "resolution \u00b7 internal", summary: "A \u00b7 203.0.113.44", since: "2026-06-02" },
+      { label: "dns-records \u00b7 TXT", summary: "TXT \u00b7 1 record", since: "2026-06-02", records: [{ type: "TXT", data: "v=spf1 -all" }] },
     ] },
     { key: "mail.acmecorp.io", facets: [
-      { label: "resolution", summary: "A \u00b7 203.0.113.25", since: "2026-05-19" },
-      { label: "dns-records", gap: true, since: "2026-08-21" },
+      { label: "resolution \u00b7 internal", summary: "A \u00b7 203.0.113.25", since: "2026-05-19" },
+      { label: "dns-records \u00b7 MX", gap: true, since: "2026-08-21" },
     ] },
   ] },
   { kind: "service", label: "Services", type: "Service", subjects: [
     { key: "198.51.100.7:443/tcp", facets: [
-      { label: "tls-acceptance", summary: "TLS 1.2 \u00b7 1.3", since: "2026-07-14" },
-      { label: "certificate-chain", summary: "leaf www.acmecorp.io \u00b7 exp 2026-11-02", since: "2026-08-03", records: [{ type: "leaf", data: "CN=www.acmecorp.io \u00b7 not_after 2026-11-02" }, { type: "int", data: "CN=R11 \u00b7 Let\u2019s Encrypt" }] },
+      { label: "tls-acceptance \u00b7 internet", summary: "TLS 1.2 \u00b7 1.3", since: "2026-07-14" },
+      { label: "certificate-chain \u00b7 internet", summary: "leaf www.acmecorp.io \u00b7 exp 2026-11-02", since: "2026-08-03", records: [{ type: "leaf", data: "CN=www.acmecorp.io \u00b7 not_after 2026-11-02" }, { type: "int", data: "CN=R11 \u00b7 Let\u2019s Encrypt" }] },
     ] },
     { key: "203.0.113.44:22/tcp", facets: [
-      { label: "reachability", summary: "answers \u00b7 22/tcp", since: "2026-04-30" },
-      { label: "tls-acceptance", summary: "none \u00b7 plaintext ssh", since: "2026-04-30" },
+      { label: "reachability \u00b7 internal", summary: "reached", since: "2026-04-30" },
+      { label: "reachability \u00b7 internet", summary: "not-reached", since: "2026-04-30" },
+      { label: "tls-acceptance \u00b7 internet", summary: "none \u00b7 plaintext ssh", since: "2026-04-30" },
     ] },
     { key: "198.51.100.31:8443/tcp", facets: [
-      { label: "certificate-chain", gap: true, since: "2026-08-19" },
+      { label: "certificate-chain \u00b7 internet", gap: true, since: "2026-08-19" },
     ] },
   ] },
   { kind: "endpoint", label: "Endpoints", type: "Endpoint", subjects: [
     { key: "www.acmecorp.io \u00b7 :443 https", facets: [
-      { label: "http-identity", summary: "nginx \u00b7 200 \u00b7 \u201cAcme \u2014 sign in\u201d", since: "2026-07-14" },
+      { label: "http-identity \u00b7 internet", summary: "nginx \u00b7 200 \u00b7 \u201cAcme \u2014 sign in\u201d", since: "2026-07-14" },
     ] },
     { key: "grafana.acmecorp.io \u00b7 :443 https", facets: [
-      { label: "http-identity", summary: "Grafana \u00b7 302 \u2192 /login", since: "2026-06-27" },
-    ] },
-  ] },
-  { kind: "address", label: "Addresses", type: "Address", subjects: [
-    { key: "198.51.100.7", facets: [
-      { label: "reachability \u00b7 vantage 1", summary: "answers \u00b7 443/tcp", since: "2026-07-14" },
-      { label: "reachability \u00b7 vantage 3", summary: "answers \u00b7 443/tcp \u00b7 8443/tcp", since: "2026-08-02" },
-    ] },
-    { key: "203.0.113.44", facets: [
-      { label: "reachability \u00b7 prober", summary: "answers \u00b7 22/tcp", since: "2026-04-30" },
-    ] },
-    { key: "104.18.22.90", proxy: true, facets: [
-      { label: "reachability \u00b7 vantage 1", gap: true, proxy: true, since: "2026-08-19" },
+      { label: "http-identity \u00b7 internet", summary: "Grafana \u00b7 302 \u2192 /login", since: "2026-06-27" },
     ] },
   ] },
 ];

@@ -5731,6 +5731,11 @@
           "kind": "rests-on",
           "from": 1985,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2028,
+          "clause": null
         }
       ],
       "sections": [
@@ -10592,6 +10597,11 @@
           "kind": "rests-on",
           "from": 201,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2028,
+          "clause": null
         }
       ],
       "sections": [
@@ -12078,7 +12088,7 @@
       "date": "2026-09-14",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -12107,6 +12117,11 @@
           "kind": "rests-on",
           "from": 2027,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2028,
+          "clause": "4"
         }
       ],
       "sections": [
@@ -12119,7 +12134,13 @@
         "7",
         "8"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2028,
+          "clause": "4"
+        }
+      ],
       "decision": {
         "words": 141,
         "text": "**A `span` or `observation` row on a per-vantage facet cannot be stored without a\n`vantage_id`. A `CHECK` on both tables refuses it.**\n\nThe predicate is a deny-list. A row needs a vantage unless its `source` is `zone`, or its\nfacet is `certificate`. A facet added later is covered by default, and it must argue its\nway out.\n\nA reader asks why, because no production writer emits the row. The answer is that a render\nalready lied about one. The asset page read `never looked` over a measured service, because\nthe class read inner-joins `vantage` and the census read carries no vantage predicate.\n\nRejected: a fifth `LegStatus` word for an unattributable reading, which is vocabulary ahead\nof reality. Rejected: a left outer join, which under this `CHECK` admits nothing.\n\nReversal drops two constraints, and restores a representable state that no fold writes."
@@ -12174,6 +12195,56 @@
       "decision": {
         "words": 145,
         "text": "**An inventory facet row counts a reading, never a subject. The listing renders one row\nper open span, and it collapses nothing.**\n\nWhere the discriminator is empty and the row carries a vantage, the label names the\nderived vantage class. Where two rows of one subject and facet share a class, both also\nname their vantage. Where the row carries no vantage, the label stays bare. The rule holds\nfor every facet with an empty discriminator, not for `reachability` alone.\n\nA reader asks why the label names a class where the span key names a vantage. A person\nreads the label, and ADR-0103 derives a provisioned prober's name from its endpoint.\n\nRejected: collapsing the per-vantage rows, an arbitration the span key refuses. Rejected:\nthe vantage name as the label, which leaks that endpoint.\n\nReversal restores a listing that renders two identical labels over contradictory\nsummaries."
+      }
+    },
+    {
+      "number": 2028,
+      "file": "docs/adr/2028-an-exception-on-the-per-vantage-check-names-a-writer-that-a-test-proves-exists.md",
+      "title": "An exception on the per-vantage CHECK names a writer that a test proves exists",
+      "slug": "an-exception-on-the-per-vantage-check-names-a-writer-that-a-test-proves-exists",
+      "date": "2026-09-15",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "internal/measure/edgefanout/leaf_test.go::TestEmitDeclaresNoFacet"
+      },
+      "ticket": 2028,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1985,
+          "clause": "4"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 217
+        },
+        {
+          "kind": "rests-on",
+          "adr": 129
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 143,
+        "text": "**An exception arm on the per-vantage `CHECK` names a writer in this tree, and the comment\nat the arm names the test that proves that writer exists. An arm that names neither is\ndropped.**\n\nThree of the four arms name neither. `OR facet = 'certificate'` leaves `span` and\n`observation`, and `OR source = 'zone'` leaves `span`. The `observation` zone arm stays,\nand its comment gains its test.\n\nA reader asks why, because ADR-1985 §4 read the certificate arm off the edge fan-out. That\nfan-out declares no facet. The arm therefore admits one row only: a `certificate` line an\nuntrusted prober injects onto a vantage-less job, which is #1985 reopened on that facet.\n\nRejected: narrowing the arm by source, which keeps an exception no writer needs. Rejected:\nclosing the recording-side gate instead, which leaves the constraint overstated.\n\nReversal re-admits that row on both tables."
       }
     },
     {
