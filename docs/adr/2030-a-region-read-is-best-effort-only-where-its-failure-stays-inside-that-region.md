@@ -41,8 +41,8 @@ two ways and landed opposite answers one line apart in the Name asset handler.
 
 [#1948](https://github.com/winniel123/verge-asm/issues/1948) made a failed open-spans read return a
 500 from `cmd/web/subjects.go#server.assetPage`. [#1951](https://github.com/winniel123/verge-asm/issues/1951)
-rules that the neighbouring failed corpus read renders an honest absence. The two calls sit in
-consecutive statements of one function.
+made the neighbouring failed corpus read render an honest absence, and it has since landed. The two
+calls sit in consecutive statements of one function, and the two answers are both shipped.
 
 [#2030](https://github.com/winniel123/verge-asm/issues/2030) framed the conflict as ADR-0168 §4's
 test disagreeing with §4's three classes. §4's test asks whether *the page's claim about the world
@@ -73,6 +73,30 @@ saying the read did not resolve. The chip carries nothing, and it reads as a ver
 **Two sibling regions fed by one read are not a derivation.** Neither derives from the other, and a
 failure empties both where a reader can see it. §1 already governs that case, and this ADR does not
 move it.
+
+### 2.1 The half-remedy the asset page ships today
+
+[#1951](https://github.com/winniel123/verge-asm/issues/1951) and
+[#2029](https://github.com/winniel123/verge-asm/issues/2029) landed while this ADR was open. Both
+read ADR-0168 §1 correctly and both remedied the region end alone, so the asset page now
+demonstrates the gap this ADR closes rather than arguing it.
+
+`cmd/web/subjects.go#server.assetSignals` returns its error, and `server.assetPage` carries it into
+a `SignalsFailed` flag. `design-system/templates/asset.tmpl` renders *"Signals did not
+resolve"* against that flag, in a branch distinct from the branch that states no rule is firing.
+That is §1 and §2 satisfied, and it is correct.
+
+The statement after it is unchanged. `assetHeaderSeverity` still derives the header badge from the
+same empty list, and the header still guards that badge with `{{if .Severity}}`. So a failed corpus
+read on an asset carrying a critical signal renders one page that says both things at once: a card
+reporting that the read did not resolve, and a header reporting no severity at all. The second is
+the claim an operator reads first.
+
+The covering-seed lookup on the same page took the same half. `server.assetProvenance` returns its
+error and the provenance card renders a citation note, while the header's `in scope since` line
+derives from the same read and vanishes with nothing said.
+
+The region end is not the whole remedy. That is the rule.
 
 ## 3. `dashboardData` is the shipped proof, and `coveragePage` is neutral
 
@@ -124,24 +148,33 @@ hidden badge is a claim about the estate produced by a database fault.
 ADR-0168 set this precedent itself. It named shipped sites as *"defects, not ratified"* and it fixed
 none of them. This ADR does the same. Each site below needs its own ticket.
 
-A survey of `cmd/web` counted **13 call sites across 7 helpers and handlers**, excluding
-`dashboardData`. The count is of call sites, not of helpers, so one helper called from three pages
-counts three.
+A survey of `cmd/web` counted **12 call sites across 7 helpers and handlers**, excluding
+`dashboardData`. The count is of call sites, not of helpers, so one helper called from two pages
+counts two. It was taken after #1951, #2017 and #2029 landed.
 
-| Helper or handler | Sites | Region | What escapes it |
-| --- | --- | --- | --- |
-| `cmd/web/subjects.go#server.assetPorts` | 1 | the ports table | the header's internet-leg chip |
-| `cmd/web/subjects.go#server.serviceReachLegs` | 1 | the Reachability card | the header's internet-leg chip |
-| `cmd/web/subjects.go#server.assetSignals` | 3 | the signals card | the header's severity badge |
-| `cmd/web/subjects.go#server.buildTimelines` | 2 | the timelines card | the provenance first-seen line, and on the service page a reachability cell |
-| `cmd/web/subjects.go#server.terminatingNameSeed` and the two covering-seed lookups beside it | 4 | the provenance card's Seed row | the header's `in scope since` line |
-| `cmd/web/search.go#server.searchPage` | 1 | the signals results | a per-asset severity, the result total, the nav badge |
-| `cmd/web/graph.go#server.graphPage` | 1 | the graph | the per-node severity badges |
+| Helper or handler | Sites | Region | What escapes it | Region end |
+| --- | --- | --- | --- | --- |
+| `cmd/web/subjects.go#server.assetPorts` | 1 | the ports table | the header's internet-leg chip | loud, so neither end |
+| `cmd/web/subjects.go#server.serviceReachLegs` | 1 | the Reachability card | the header's internet-leg chip | loud, so neither end |
+| `cmd/web/subjects.go#server.assetSignals` | 2 | the signals card | the header's severity badge | remedied |
+| `cmd/web/subjects.go#server.assetProvenance` | 2 | the provenance card's Seed row | the header's `in scope since` line | remedied |
+| `cmd/web/subjects.go#server.buildEndpointCitation` and `#server.buildServiceCitation` | 2 | the citation hops and the provenance card | the header's `in scope since` line | not remedied |
+| `cmd/web/subjects.go#server.buildTimelines` | 2 | the timelines card | the provenance card's first-seen line | not remedied |
+| `cmd/web/search.go#server.searchPage` | 1 | the signals results | a per-asset severity, the result total, the nav badge | not remedied |
+| `cmd/web/graph.go#server.graphPage` | 1 | the graph | the per-node severity badges | not remedied |
 
-`assetPorts` and `serviceReachLegs` are loud today. Both are the exact mirror of each other, and
-both are defects under this ruling rather than models of it. The rest swallow. `assetSignals` is
-tracked by [#1951](https://github.com/winniel123/verge-asm/issues/1951), whose brief already matches
-this ruling.
+Four sites carry a remedied region end and an unremedied derived end. Those are the half-remedies of
+§2.1, and they are the cheapest to finish: the failure already reaches the handler, and only the
+derived value still needs to say so.
+
+`assetPorts` and `serviceReachLegs` are loud today. They are the exact mirror of each other, and
+both are defects under this ruling rather than models of it.
+
+Three sites this ADR does **not** name, because nothing derives from them:
+`cmd/web/subjects.go#server.assetDNS` and `#server.assetCertificate` each feed one panel, and
+`server.assetSignals` on the service page feeds a card that `design-system/templates/subjectdetail.tmpl`
+omits, over a page whose header carries no severity badge. Each is an ADR-0168 §1 question about
+logging a degradation the operator cannot see. None is a containment question.
 
 ## 6. Alternatives rejected
 
