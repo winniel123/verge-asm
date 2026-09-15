@@ -320,7 +320,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 		seed, seedErr := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed)
 		if err := readFailure(seedErr); err != nil {
 			log.Printf("web: endpoint detail: covering address seed: %v", err)
-			// The chip, the card and the chain line all read this Seed, and outlive the verdict (#2061).
+			// Chip, card and chain line all read this Seed, and outlive the verdict (#2061).
 			readFailed, seedFailed = true, true
 		}
 		if seedErr == nil {

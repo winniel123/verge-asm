@@ -156,7 +156,7 @@ func legFromClassGroup(group []reachLegRow) legInfo {
 		info.isGap, info.reasons, info.causes = classGap(group, values)
 	}
 	held := legFrom(info)
-	// One vantage establishes reached, so the earliest span dates it; a residual reading needed every vantage, so the latest does (ADR-0080, #2059).
+	// Reached needs one vantage. A residual reading needed them all (ADR-0080, #2059).
 	earliest := held.Valued() && held.Value == exposure.Reached
 	for i, row := range group {
 		// The leg holds one value, and a span of another value never dates it (#2017).

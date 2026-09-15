@@ -2513,7 +2513,7 @@ func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]
 	fx := loadSearchFixture()
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if r.URL.Query().Get("variant") == devSearchNotResolvedVariant {
-		// The guide index is read in-process and never fails, so the Docs group survives all three (#2067).
+		// The guide index is read in-process and never fails, so Docs survives (#2067).
 		return searchRenderMap(acct, q, 0, searchFailedReads{Signals: true, Assets: true, Batches: true}, nil, nil, nil, searchFixtureDocs(fx, q))
 	}
 	if q != fx.Query {

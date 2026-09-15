@@ -1764,7 +1764,7 @@ func TestGraphNodeFixtureKeysTheOpenSpanMinimumSince(t *testing.T) {
 	}
 	for i, n := range f.Graph.Nodes {
 		if _, ok := n["first"]; ok {
-			// buildScopedGraph reads open spans only, so the minimum is a held-since, not a first sighting (#2036).
+			// buildScopedGraph reads open spans only, so the minimum is a held-since (#2036).
 			t.Errorf("graph.nodes[%d] still keys the open-span minimum %q", i, "first")
 		}
 		if _, ok := n["since"]; !ok {
