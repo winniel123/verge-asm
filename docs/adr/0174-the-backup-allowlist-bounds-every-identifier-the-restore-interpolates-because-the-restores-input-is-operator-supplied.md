@@ -36,8 +36,8 @@ parameter.** `$1` names a value, and PostgreSQL resolves a relation before any p
 restore has no protocol-level defence available, so the bound must be a list.
 
 The reason was written once, in a block comment on `applyRestore`, and the §8 sweep deleted it
-(#1365), leaving two lines that state the mechanism without the rule (`cmd/web/restore.go#openArchive`,
-`cmd/web/backup.go#server.backupDownload`) and no citation, because there was nothing to cite. Nothing under
+(#1365), leaving two lines that state the mechanism without the rule (`cmd/web/restore.go`,
+`cmd/web/backup.go`) and no citation, because there was nothing to cite. Nothing under
 `docs/adr/`, `docs/spec/`, `docs/guides/`, `docs/research/` or `CONTEXT.md` rules SQL identifier
 interpolation. `docs/guides/backup-and-restore.md#what-the-backup-is--the-estate-and-config-below-pgdatas-leak-posture` states the allowlist as an **export**
 invariant with leakage as its reason. ADR-0161 rules the list's membership and order. Neither says
@@ -99,11 +99,11 @@ That duplication is the ruling, not redundancy to tidy away. `applyRestore` comp
 ### 4. `jsonb_populate_record` forces the interpolation, and quoting is not the bound
 
 The issue describes this correctly. `INSERT INTO "t" [OVERRIDING SYSTEM VALUE] SELECT * FROM
-jsonb_populate_record(NULL::"t", $1::jsonb)` (`cmd/web/restore.go#openArchive`) passes the whole row as
+jsonb_populate_record(NULL::"t", $1::jsonb)` (`cmd/web/restore.go`) passes the whole row as
 one `jsonb` **value** in `$1`, and `NULL::"t"` names the live rowtype that decodes it. The restore
 therefore writes no per-column decoder: timestamps, arrays, `bytea` and nested `jsonb` round-trip
 through the type Postgres already holds, and `redactBackupRow`'s key reordering
-(`cmd/web/backup.go#backupRedactedColumns`) is immaterial. The price is that the rowtype is named by identifier, and
+(`cmd/web/backup.go`) is immaterial. The price is that the rowtype is named by identifier, and
 an identifier cannot be a parameter. **What removes 32 hand-written decoders is what forces the
 interpolation.**
 
@@ -151,7 +151,7 @@ line with `"table":"session"`, asserting `errRestoreUnknownTbl`. Not applied her
 - **The two surviving mechanism comments gain citations**, and the reason moves here.
 - **Adding a table costs nothing extra.** Append to the literal, in FK-parent order (ADR-0161 §4).
 - **A forged manifest is refused, not partially applied.** The replay runs in one transaction
-  (`cmd/web/restore.go#server.restoreApply`, committed `:330`), so a foreign row line rolls back everything.
+  (`cmd/web/restore.go`, committed `:330`), so a foreign row line rolls back everything.
 - **The restore stays deliberately schema-specific.** Letting the archive describe its own
   destination re-opens this surface.
 
