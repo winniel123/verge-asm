@@ -4025,6 +4025,11 @@
           "kind": "amends",
           "from": 1902,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
         }
       ],
       "sections": [],
@@ -11575,6 +11580,11 @@
           "kind": "rests-on",
           "from": 1909,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
         }
       ],
       "sections": [
@@ -11655,7 +11665,7 @@
       "date": "2026-09-13",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -11679,7 +11689,13 @@
           "adr": 14
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 1946,
+          "clause": "9"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11692,7 +11708,13 @@
         "9",
         "10"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 1946,
+          "clause": "9"
+        }
+      ],
       "decision": {
         "words": 147,
         "text": "**A `Vantage class` is a reading of present configuration, so a historic observation carries none.**\nEvery leg of one comparison classifies under one binding, so a scope edit moves the whole history at\nonce and the exposure delta reports no drift the measurements did not carry.\n\nRejected: pin the class at the instant it was recorded, on the `Batch` or on the span row.\n\nA reader asks why, because a class that re-reads the past looks like a defect. The class verifies\ndeclared intent against the scopes the operator holds **now**, and a live read under `now` beside a\nhistoric read under `then` manufactures drift in the flagship value.\n\nReversal costs two corpora that do not exist — a per-instant scope set, and a per-observation\npresented address — and a backfill with no source, so every row before the change reads under a class\nnothing ever wrote."
@@ -11726,7 +11748,13 @@
           "adr": 1891
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "rests-on",
+          "from": 1946,
+          "clause": null
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -11888,6 +11916,62 @@
       "decision": {
         "words": 134,
         "text": "**The observation currency dial is written by an `UPDATE` that derives its floor in the same\nstatement, and the clamped value comes back through `RETURNING`.**\n\nThe dial lock is on `retention_settings` and holds no `scan` row. Under READ COMMITTED a write to\n`scan` that commits between a floor read and the `UPDATE` leaves a value below the floor then in\nforce.\n\nRejected: `FOR SHARE` over the enabled scans. It cannot lock a row that is still `FALSE`, and it\ntouches no `batch` or `observation` row, so the worker moves the floor straight through it.\nRejected: re-read and re-clamp before the write, which makes the window smaller and leaves it open.\n\nThe price is one derivation expressed twice, in Go and in SQL.\n\nReversal puts the window back and returns the floor to one home."
+      }
+    },
+    {
+      "number": 1946,
+      "file": "docs/adr/1946-an-address-scope-edit-reaches-the-operator-through-an-act-reader-never-a-message.md",
+      "title": "An address-scope edit reaches the operator through an Act reader, never a Message",
+      "slug": "an-address-scope-edit-reaches-the-operator-through-an-act-reader-never-a-message",
+      "date": "2026-09-14",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 1939
+      },
+      "ticket": 1946,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1895,
+          "clause": "9"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 92
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1891
+        },
+        {
+          "kind": "rests-on",
+          "adr": 1902
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 148,
+        "text": "**An address-scope edit mints no `Message`. The act reaches the operator through a bounded,\ndisplay-only `Act` reader beside the `Exposure` figure: `seed.declared` acts over seven days, five\nrows, newest first, linked to the audit tab.**\n\nA reader asks why, because the flagship figure moves between two page loads and nothing announces\nit. ADR-0092 rules that the system announces what it found, never what the operator did, and no\n`Message` constructor is reached outside `internal/queue`, so none can fire on the act.\n\nThe reader asserts no causal tie. None exists: the class is stored nowhere and the figure is\nrecomputed per read.\n\nRejected: a `Kind` field on the seed-scope act subject, as the exclusion reference already carries.\nThe `Act` corpus is never deleted, so historic rows would lack it and the fallback would survive.\n\nReversal reopens the four-cause enumeration and owes a message to every dial ADR-0092 left silent."
       }
     },
     {
