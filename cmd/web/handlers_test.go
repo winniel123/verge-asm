@@ -141,6 +141,9 @@ type fakeStore struct {
 	subjectSpansErr error
 	pendingPropsErr error
 
+	nameSubjectsErr     error
+	dispatchProgressErr error
+
 	subjectSpansEmpty bool
 
 	nameResolutionsErr  error
@@ -279,6 +282,9 @@ func newFakeStore() *fakeStore {
 }
 
 func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.ListDispatchProgressRow, error) {
+	if f.dispatchProgressErr != nil {
+		return nil, f.dispatchProgressErr
+	}
 	rows := f.dispatchProgress
 	if int(limit) < len(rows) {
 		rows = rows[:limit]
@@ -759,6 +765,9 @@ func fakeResolutionOutcome(value []byte) string {
 }
 
 func (f *fakeStore) ListCurrentNameSubjects(_ context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error) {
+	if f.nameSubjectsErr != nil {
+		return nil, f.nameSubjectsErr
+	}
 	search := arg.Search
 	latest := f.latestResolutionByName(f.liveObservations(arg.AsOf.Time))
 	keys := make([]string, 0, len(latest))
