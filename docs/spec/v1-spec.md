@@ -285,7 +285,7 @@ in the release, and none is ever operator-configurable, because moving one would
 >
 > **The rest of the sentence survives unchanged.** The frequency half alone is operator-editable, and
 > the operator moves it by **layering** `verge_core_frequency_edit` deltas over the shipped base
-> (`internal/queue/hot.go#hotCore`, `cmd/web/settings.go#server.renderSettings`) — never by supplying a body. A replaceable
+> (`internal/queue/hot.go#hotCore`, `cmd/web/settings.go`) — never by supplying a body. A replaceable
 > body would let the operator author the `half` column, and so move the sensitive half, which is the
 > very thing this sentence goes on to forbid.
 
