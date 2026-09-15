@@ -59,6 +59,20 @@ This rule holds even when the next ticket looks small or looks blocked on nothin
 
 At the end of a wayfinder or implementation session, open a PR and make sure the branch is up-to-date with `main`. A human squashes and merges the PR.
 
+### Filing a surfaced issue
+
+Work surfaces problems that sit outside the current task. A bug, a gap, a stale doc, a missing test, a wrong comment. File each one as a GitHub issue in the same turn that surfaces it. Do not ask the user first. An unfiled finding dies with the session.
+
+Every issue you file this way carries the `needs-triage` label.
+
+```sh
+gh issue create --label needs-triage --title "<title>" --body "<body>"
+```
+
+Add the other triage labels from `docs/agents/triage-labels.md` when the role is clear. Name the issue number in your response. Then continue the original task. Do not widen the current branch to fix what you filed.
+
+One exception. A decision that belongs in an ADR gets no issue from you. Only a human opens that issue, because its number becomes the ADR number. Read "Writing an ADR" below.
+
 ### Writing an ADR
 
 An ADR records one decision that passes three tests. It is hard to reverse. A reader without context would ask why. The session chose it over a named alternative. When one fails, write no ADR. Keep the reason in code, and put the rest in the PR body.
