@@ -55,7 +55,7 @@ take the **most specific** covering `Seed`.
   comment says it must mirror `FindCoveringAddressSeed`.
 
 **#1326 named a fourth site for that contrast and it is wrong.** The ticket cites `coveringSeedKey`
-(`internal/queue/produce.go#membershipMessages`) as a longest match over the live `Seed` corpus. It is not. It
+(`internal/queue/produce.go`) as a longest match over the live `Seed` corpus. It is not. It
 returns the first covering `Seed` in `ListSeeds` order, which is `created_at DESC, id DESC`, so it
 answers with the newest covering `Seed` rather than the most specific one. The contrast this ADR
 rests on is the three reads above. `coveringSeedKey` is an unruled disagreement on the declaration

@@ -157,7 +157,7 @@ the design pairs with that choice, and for the default the design states the pai
 are: the label and the week count are rendered side by side at `reports.tmpl:217` and `:221`.
 
 `/drift` gives the same four tokens literal windows — `7d` is `7 * 24 * time.Hour`
-(`cmd/web/drift.go#periodPreset`). That divergence is real and it stays: a transition feed lists events inside
+(`cmd/web/drift.go`). That divergence is real and it stays: a transition feed lists events inside
 a window, while an activity heatmap needs enough columns to read a trend off. One token vocabulary,
 two screens, two span rules, and each screen resolves its own.
 
