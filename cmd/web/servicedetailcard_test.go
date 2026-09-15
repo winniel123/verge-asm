@@ -175,7 +175,7 @@ func TestServiceReachCardLegDateSkipsASpanOfAnotherValue(t *testing.T) {
 
 func TestServiceReachCardGappedLegCarriesItsDate(t *testing.T) {
 	f := legProbeStore(t)
-	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"gap","reason":"the control probe did not complete"}`)
+	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"gap","cause":"blanket-responder","reason":"the control probe did not complete"}`)
 
 	page := serviceDetailBody(t, f, http.StatusOK)
 
@@ -200,7 +200,7 @@ func TestServiceReachCardCarriesNoSinceCell(t *testing.T) {
 
 func TestServiceReachCardAbsentLegsKeepTheirTwoWords(t *testing.T) {
 	f := legProbeStore(t)
-	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"gap","reason":"the control probe did not complete"}`)
+	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"gap","cause":"blanket-responder","reason":"the control probe did not complete"}`)
 
 	page := serviceDetailBody(t, f, http.StatusOK)
 
@@ -216,7 +216,7 @@ func TestServiceReachCardAbsentLegsKeepTheirTwoWords(t *testing.T) {
 func TestServiceReachCardGapBannerNamesTheClassThatHoldsIt(t *testing.T) {
 	f := legProbeStore(t)
 	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"reached","result":"open"}`)
-	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap","reason":"an edge answers for the origin"}`)
+	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap","cause":"blanket-responder","reason":"an edge answers for the origin"}`)
 
 	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
 
@@ -236,8 +236,8 @@ func TestServiceReachCardGapBannerNamesTheClassThatHoldsIt(t *testing.T) {
 
 func TestServiceReachCardGapOnBothLegsStatesOneBanner(t *testing.T) {
 	f := legProbeStore(t)
-	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"gap","reason":"the control probe did not complete"}`)
-	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap","reason":"an edge answers for the origin"}`)
+	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"gap","cause":"blanket-responder","reason":"the control probe did not complete"}`)
+	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap","cause":"blanket-responder","reason":"an edge answers for the origin"}`)
 
 	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
 
@@ -249,6 +249,7 @@ func TestServiceReachCardGapOnBothLegsStatesOneBanner(t *testing.T) {
 		"the internal or internet class",
 		"the control probe did not complete",
 		"an edge answers for the origin",
+		"behind the proxy edge",
 	} {
 		if !strings.Contains(card, want) {
 			t.Errorf("the Gap banner is missing %q; card: %s", want, card)
@@ -256,6 +257,86 @@ func TestServiceReachCardGapOnBothLegsStatesOneBanner(t *testing.T) {
 	}
 	want := legChip{Tone: "warn", Label: "stopped looking"}
 	assertReachCardLegs(t, serviceDetailBody(t, f, http.StatusOK), want, want)
+}
+
+func TestServiceReachCardUnrecognisedGapCauseStatesTheReasonAlone(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internet", obsClock,
+		`{"outcome":"gap","cause":"tarpit","reason":"the dial hung past the deadline"}`)
+
+	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
+
+	if !strings.Contains(card, "the dial hung past the deadline") {
+		t.Errorf("a Gap of an unrecognised cause lost the operator's reason; card: %s", card)
+	}
+	// The card states a cause only where the leaf that owns the tag names it (ADR-0104).
+	for _, unwanted := range []string{"address scope to measure the real surface", "No vantage"} {
+		if strings.Contains(card, unwanted) {
+			t.Errorf("a Gap of an unrecognised cause asserted %q; card: %s", unwanted, card)
+		}
+	}
+}
+
+func TestServiceReachCardTwoGapCausesStateNoRemedy(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internal", obsClock,
+		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
+	f.addClassReachability(t, legProbeService, "internet", obsClock,
+		`{"outcome":"gap","cause":"tarpit","reason":"the dial hung past the deadline"}`)
+
+	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
+
+	for _, want := range []string{"it is a proxy edge, not your origin", "the dial hung past the deadline"} {
+		if !strings.Contains(card, want) {
+			t.Errorf("the Gap banner is missing %q; card: %s", want, card)
+		}
+	}
+	// One banner carries two gapped legs, and it cannot attribute two causes (#2005 decision 9).
+	for _, unwanted := range []string{"address scope to measure the real surface", "No vantage"} {
+		if strings.Contains(card, unwanted) {
+			t.Errorf("two causes under one banner asserted %q; card: %s", unwanted, card)
+		}
+	}
+}
+
+func TestServiceReachCardGapWithNothingToSayRendersNoBanner(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap"}`)
+
+	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
+
+	if strings.Contains(card, "sd-banner") {
+		t.Errorf("a Gap that states neither reason nor cause still rendered a banner; card: %s", card)
+	}
+}
+
+func TestServiceReachCardSilentGappedLegKeepsTheClassBlindNoteOff(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internal", obsClock, `{"outcome":"reached","result":"open"}`)
+	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap"}`)
+	f.addClassReachability(t, legProbeService, "unverified", obsClock,
+		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
+
+	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
+
+	// A leg carries this Gap, so the note that names no class must not speak for it (#1985).
+	if strings.Contains(card, "No vantage can tell") {
+		t.Errorf("a class-blind note spoke over a leg that reads reached; card: %s", card)
+	}
+}
+
+func TestServiceReachCardGapWithNoReasonStillStatesAKnownCause(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"gap","cause":"blanket-responder"}`)
+
+	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
+
+	// Turning a reach into a Gap must not be quiet where we can say why (ADR-0104 §4).
+	for _, want := range []string{"the internet class", "address scope to measure the real surface"} {
+		if !strings.Contains(card, want) {
+			t.Errorf("a Gap of a known cause and no reason is missing %q; card: %s", want, card)
+		}
+	}
 }
 
 func TestServiceReachCardRendersNoLegWhenNoSpanNamesAVantage(t *testing.T) {
@@ -288,7 +369,7 @@ func TestServiceReachCardStatesAGapNoLegCarries(t *testing.T) {
 	f := legProbeStore(t)
 	// A vantage presenting no address derives the unverified class, which fills neither leg.
 	f.addClassReachability(t, legProbeService, "unverified", obsClock,
-		`{"outcome":"gap","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
+		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
 
 	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
 

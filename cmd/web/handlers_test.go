@@ -138,7 +138,10 @@ type fakeStore struct {
 	driftEventsErr  error
 	reachSpansErr   error
 	openSpansErr    error
+	subjectSpansErr error
 	pendingPropsErr error
+
+	subjectSpansEmpty bool
 
 	nameResolutionsErr  error
 	dnsRecordsErr       error
@@ -152,6 +155,9 @@ type fakeStore struct {
 	nameCitationErr     error
 	nameSeedByIDErr     error
 	coveringNameSeedErr error
+
+	nameCitingAddressErr   error
+	coveringAddressSeedErr error
 
 	channels       []fakeChannel
 	chanNextID     int64
@@ -1233,6 +1239,9 @@ func (f *fakeStore) addTLSAcceptance(t *testing.T, serviceKey string, at time.Ti
 }
 
 func (f *fakeStore) FindCoveringAddressSeed(_ context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error) {
+	if f.coveringAddressSeedErr != nil {
+		return db.FindCoveringAddressSeedRow{}, f.coveringAddressSeedErr
+	}
 	var best *db.FindCoveringAddressSeedRow
 	var bestBits int
 	for _, s := range f.seeds {

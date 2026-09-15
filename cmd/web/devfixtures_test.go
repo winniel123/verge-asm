@@ -456,9 +456,22 @@ func TestAssetFixturePortsCarryKnownLegStates(t *testing.T) {
 	// An unrecognised state reaches the page as `never looked`, which is a false claim.
 	known := []string{"reached", "not-reached", "gap", "never-looked"}
 	for i, p := range devAssetPorts {
-		for class, state := range map[string]string{"internal": p.internal, "internet": p.internet} {
-			if !slices.Contains(known, state) {
-				t.Errorf("port %d %s leg = %q, want one of %q", i, class, state, known)
+		for class, leg := range map[string]struct{ state, date string }{
+			"internal": {p.internal, p.internalDate},
+			"internet": {p.internet, p.internetDate},
+		} {
+			if !slices.Contains(known, leg.state) {
+				t.Errorf("port %d %s leg = %q, want one of %q", i, class, leg.state, known)
+			}
+			if leg.state == "never-looked" {
+				if leg.date != "" {
+					t.Errorf("port %d %s leg reads never looked and carries the date %q", i, class, leg.date)
+				}
+				continue
+			}
+			// devLegChip skips legSince, so no live code holds this date to its shape (#2035).
+			if _, err := time.Parse(spanTimeFmt, leg.date); err != nil {
+				t.Errorf("port %d %s leg holds %q and dates it %q, want a %q date", i, class, leg.state, leg.date, spanTimeFmt)
 			}
 		}
 	}
@@ -1280,11 +1293,12 @@ type fixtureAssetPackage struct {
 		InScopeSince string `json:"in_scope_since"`
 		Withdrawn    bool   `json:"withdrawn"`
 		Ports        []struct {
-			Port     string `json:"port"`
-			Service  string `json:"service"`
-			Internal string `json:"internal"`
-			Internet string `json:"internet"`
-			Since    string `json:"since"`
+			Port         string `json:"port"`
+			Service      string `json:"service"`
+			Internal     string `json:"internal"`
+			InternalDate string `json:"internal_date"`
+			Internet     string `json:"internet"`
+			InternetDate string `json:"internet_date"`
 		} `json:"ports"`
 		DNS []struct {
 			Type  string `json:"type"`
@@ -1350,8 +1364,9 @@ func TestAssetFixtureMatchesPackage(t *testing.T) {
 	}
 	for i, p := range a.Ports {
 		q := devAssetPorts[i]
-		if p.Port != q.port || p.Service != q.service || p.Internal != q.internal ||
-			p.Internet != q.internet || p.Since != q.since {
+		if p.Port != q.port || p.Service != q.service ||
+			p.Internal != q.internal || p.InternalDate != q.internalDate ||
+			p.Internet != q.internet || p.InternetDate != q.internetDate {
 			t.Errorf("ports[%d] drift: fixtures.json = %+v, pinned = %+v", i, p, q)
 		}
 	}
@@ -1693,7 +1708,7 @@ type fixtureGraphPackage struct {
 			HaloB       float64 `json:"halo_b"`
 			LabelDX     int     `json:"label_dx"`
 			Ports       string  `json:"ports"`
-			First       string  `json:"first"`
+			Since       string  `json:"first"`
 			OpenSignals []struct {
 				Severity string `json:"severity"`
 				SevLabel string `json:"sev_label"`
@@ -1735,7 +1750,7 @@ func TestGraphFixtureMatchesPackage(t *testing.T) {
 		q := d.Nodes[i]
 		if n.ID != q.ID || n.Label != q.Label || n.Type != q.Type || n.X != q.X || n.Y != q.Y ||
 			n.Mx != q.Mx || n.My != q.My || n.Sev != q.Sev || n.HaloA != q.HaloA || n.HaloB != q.HaloB ||
-			n.LabelDX != q.LabelDX || n.Ports != q.Ports || n.First != q.First {
+			n.LabelDX != q.LabelDX || n.Ports != q.Ports || n.Since != q.Since {
 			t.Errorf("nodes[%d] drift:\n fixtures.json = %+v\n pinned        = %+v", i, n, q)
 		}
 		if len(n.OpenSignals) != len(q.OpenSignals) {

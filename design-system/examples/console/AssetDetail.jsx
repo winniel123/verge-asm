@@ -14,6 +14,15 @@ import { Button } from "../../components/forms/Button.jsx";
 import { DropdownMenu } from "../../components/feedback/DropdownMenu.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 
+function LegWithDate({ state, legClass, date }) {
+  return (
+    <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
+      <ReachLegBadge state={state} legClass={legClass} />
+      {date && <span style={{ font: "400 11px var(--font-mono)", color: "var(--text-muted)" }}>since {date}</span>}
+    </span>
+  );
+}
+
 const ev = (change, subject, detail, time) => ({ change, time, mono: true,
   title: (
     <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
@@ -55,13 +64,12 @@ export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSi
             <Table framed={false} dense columns={[
               { key: "port", label: "Port", mono: true, width: 90 },
               { key: "svc", label: "Service", mono: true },
-              { key: "internal", label: "Internal leg", width: 130, render: (r) => <ReachLegBadge state={r.internal} legClass="internal" /> },
-              { key: "internet", label: "Internet leg", width: 130, render: (r) => <ReachLegBadge state={r.internet} legClass="internet" /> },
-              { key: "seen", label: "First seen", mono: true, align: "right", width: 110 },
+              { key: "internal", label: "Internal leg", width: 210, render: (r) => <LegWithDate state={r.internal} legClass="internal" date={r.internalDate} /> },
+              { key: "internet", label: "Internet leg", width: 210, render: (r) => <LegWithDate state={r.internet} legClass="internet" date={r.internetDate} /> },
             ]} rows={[
-              { port: ":443", svc: "https · nginx/1.25.0", internal: "reached", internet: "reached", seen: "2026-06-14" },
-              { port: ":5900", svc: "vnc — no transport encryption", internal: "reached", internet: "reached", seen: "2026-08-22" },
-              { port: ":22", svc: "ssh · OpenSSH 9.6", internal: "reached", internet: "not-reached", seen: "2026-06-14" },
+              { port: ":443", svc: "https · nginx/1.25.0", internal: "reached", internalDate: "2026-06-14 09:00 UTC", internet: "reached", internetDate: "2026-06-14 09:00 UTC" },
+              { port: ":5900", svc: "vnc — no transport encryption", internal: "reached", internalDate: "2026-08-22 14:00 UTC", internet: "reached", internetDate: "2026-09-02 08:30 UTC" },
+              { port: ":22", svc: "ssh · OpenSSH 9.6", internal: "reached", internalDate: "2026-06-14 09:00 UTC", internet: "not-reached", internetDate: "2026-07-18 11:20 UTC" },
             ]} rowKey="port" />
           </Card>
           <Card microLabel="Resolution" title="DNS records" pad={0}>

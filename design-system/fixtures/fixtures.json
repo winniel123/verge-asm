@@ -1385,22 +1385,25 @@
         "port": ":443",
         "service": "https · nginx/1.25.0",
         "internal": "reached",
+        "internal_date": "2026-06-14 09:00 UTC",
         "internet": "reached",
-        "since": "2026-06-14"
+        "internet_date": "2026-06-14 09:00 UTC"
       },
       {
         "port": ":5900",
         "service": "vnc — no transport encryption",
         "internal": "reached",
+        "internal_date": "2026-08-22 14:00 UTC",
         "internet": "reached",
-        "since": "2026-08-22"
+        "internet_date": "2026-09-02 08:30 UTC"
       },
       {
         "port": ":22",
         "service": "ssh · OpenSSH 9.6",
         "internal": "reached",
+        "internal_date": "2026-06-14 09:00 UTC",
         "internet": "not-reached",
-        "since": "2026-06-14"
+        "internet_date": "2026-07-18 11:20 UTC"
       }
     ],
     "dns": [

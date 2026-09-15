@@ -9,6 +9,29 @@
 
 {{define "legchip"}}<span class="vg-leg {{.Tone}}">{{.Label}}</span>{{end}}
 
+{{define "exposurescopeacts"}}{{if .ScopeActPanel}}
+<section class="ex-card flush">
+<div class="ex-cardhead"><span class="ex-micro">Scope declared</span><h3>Recent address scopes</h3><span class="ex-sub">Exposure reads against the address scopes you hold now, so declaring one can move this board with no batch between two page loads. A declaration fires no message — it is recorded here and in the audit log.</span></div>
+{{if .ScopeActsUnread}}
+<div class="ex-scopenote">The address-scope act read did not resolve, so no scope is listed. The board above is unaffected.</div>
+{{else if .ScopeActs}}
+<table class="ex-table">
+<thead><tr><th>Scope</th><th style="width:200px">Declared by</th><th style="width:90px;text-align:right">When</th></tr></thead>
+<tbody>
+{{range .ScopeActs}}<tr>
+<td class="mono">{{.Scope}}</td>
+<td>{{.Actor}}</td>
+<td class="mono" style="text-align:right;color:var(--text-muted)"><span title="{{.ISO}}">{{.When}}</span></td>
+</tr>{{end}}
+</tbody>
+</table>
+<div class="ex-scopefoot">{{if .ScopeActsCapped}}<span class="ex-sub">This read stopped at the {{.ScopeActReadCap}} newest seed declarations, so an older one in the window is not listed. </span>{{end}}<a class="ex-btn-sm" href="/settings?tab=audit&amp;period=90d">Open the audit log</a></div>
+{{else}}
+<div class="ex-scopenote">{{if .ScopeActsCapped}}No address scope is among the {{.ScopeActReadCap}} newest seed declarations in the last 7 days.{{else}}No seed declaration in the last 7 days named an address scope.{{end}} <a href="/settings?tab=audit&amp;period=90d">Open the audit log</a> for every act.</div>
+{{end}}
+</section>
+{{end}}{{end}}
+
 {{define "exposure"}}{{template "head" .}}
 {{template "chrome" .}}
 {{template "legchipcss"}}
@@ -52,6 +75,9 @@
 .ex-btn:active { background: var(--accent-active); }
 .ex-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
 .ex-btn-sm:hover { background: var(--surface-sunken); }
+.ex-scopenote { padding: 0 20px 18px; font: 400 13px/1.55 var(--font-ui); color: var(--text-secondary); }
+.ex-scopenote a { color: var(--accent); }
+.ex-scopefoot { padding: 12px 20px; border-top: 1px solid var(--row-sep); }
 </style>
 <main class="ex-main" data-screen-label="Exposure">
 <header style="display:flex;align-items:center;gap:16px">
@@ -71,12 +97,14 @@
 </div>
 </div>
 </section>
+{{template "exposurescopeacts" .}}
 {{else}}
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
 <section class="ex-card"><div class="ex-stat"><span class="ex-micro">Exposed to internet</span><span class="val"><span class="num">{{.Exposed}}</span>{{if .HasDeltas}}{{$c := .ExposedDelta.Change}}<span class="ex-delta {{if gt $c 0}}bad{{else if lt $c 0}}good{{else}}neutral{{end}}">{{if ne $c 0}}<svg class="{{if lt $c 0}}down{{end}}" viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{end}}{{signDelta $c}}</span>{{end}}</span><span class="cap">services · both legs concluded</span></div></section>
 <section class="ex-card"><div class="ex-stat"><span class="ex-micro">Firewalled</span><span class="val"><span class="num">{{.Firewalled}}</span></span><span class="cap">reachable inside, filtered outside</span></div></section>
 <section class="ex-card"><div class="ex-stat"><span class="ex-micro">Not reached</span><span class="val"><span class="num">{{.NotReached}}</span></span><span class="cap">no leg concluded this batch</span></div></section>
 </div>
+{{template "exposurescopeacts" .}}
 <section class="ex-card flush">
 <div class="ex-cardhead"><span class="ex-micro">Both legs</span><h3>Service exposure</h3>{{if and .SinceUnknown .Rows}}<span class="ex-sub">Since is unknown — the open-spans read failed. Both legs are unaffected.</span>{{end}}</div>
 {{if .Rows}}

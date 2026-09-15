@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/act"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -414,6 +415,15 @@ var devExposureRows = []devExposureRow{
 	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "never-looked", since: "—"},
 }
 
+func devScopeActs() []scopeActRow {
+	// The fixture panel renders through the live formatter, so it cannot drift off it.
+	actor := act.ActorCell(act.Account{AccountID: 1, UsernameSnapshot: "dana.ops"})
+	return []scopeActRow{
+		{Scope: "198.51.100.0/24", Actor: actor, When: "2h", ISO: "2026-09-15T08:12:00Z"},
+		{Scope: "10.42.0.0/16", Actor: actor, When: "3d", ISO: "2026-09-12T15:41:00Z"},
+	}
+}
+
 func devLegInfo(state string) legInfo {
 	switch state {
 	case "gap":
@@ -450,6 +460,10 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 	}
 	data["Withheld"] = false
 	data["Rows"] = rows
+	if acct.Role == roleAdmin {
+		data["ScopeActPanel"] = true
+		data["ScopeActs"] = devScopeActs()
+	}
 	data["Exposed"] = devExposureExposed
 	data["Firewalled"] = devExposureFirewalled
 	data["NotReached"] = devExposureNotReached
@@ -1559,27 +1573,28 @@ const devAssetKey = "edge-gw-03.acmecorp.io"
 const devAssetCertFingerprint = "SHA256:2b:9e:44:a1:7c:03:d8:f2:61:5b:c9:10:8e:af:72:d4" // #nosec G101 -- a public TLS certificate fingerprint fixture, not a credential
 
 type devAssetPort struct {
-	port     string
-	service  string
-	internal string
-	internet string
-	since    string
+	port         string
+	service      string
+	internal     string
+	internalDate string
+	internet     string
+	internetDate string
 }
 
 var devAssetPorts = []devAssetPort{
-	{port: ":443", service: "https · nginx/1.25.0", internal: "reached", internet: "reached", since: "2026-06-14"},
-	{port: ":5900", service: "vnc — no transport encryption", internal: "reached", internet: "reached", since: "2026-08-22"},
-	{port: ":22", service: "ssh · OpenSSH 9.6", internal: "reached", internet: "not-reached", since: "2026-06-14"},
+	{port: ":443", service: "https · nginx/1.25.0", internal: "reached", internalDate: "2026-06-14 09:00 UTC", internet: "reached", internetDate: "2026-06-14 09:00 UTC"},
+	{port: ":5900", service: "vnc — no transport encryption", internal: "reached", internalDate: "2026-08-22 14:00 UTC", internet: "reached", internetDate: "2026-09-02 08:30 UTC"},
+	{port: ":22", service: "ssh · OpenSSH 9.6", internal: "reached", internalDate: "2026-06-14 09:00 UTC", internet: "not-reached", internetDate: "2026-07-18 11:20 UTC"},
 }
 
 func devAssetPortRows() []assetPort {
 	rows := make([]assetPort, 0, len(devAssetPorts))
 	for _, p := range devAssetPorts {
 		rows = append(rows, assetPort{
-			Port: p.port, Service: p.service, Since: p.since,
+			Port: p.port, Service: p.service,
 			// The fixture page renders through the live formatter, so it cannot drift off it.
-			Internal: reachLegChip(custody.ClassInternal, legFrom(devLegInfo(p.internal))),
-			Internet: reachLegChip(custody.ClassInternet, legFrom(devLegInfo(p.internet))),
+			Internal: *devLegChip(custody.ClassInternal, p.internal, p.internalDate),
+			Internet: *devLegChip(custody.ClassInternet, p.internet, p.internetDate),
 		})
 	}
 	return rows
@@ -1834,13 +1849,13 @@ func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]an
 
 func devGraphData() graphView {
 	nodes := []graphNode{
-		{ID: "acmecorp.io", Label: "acmecorp.io", Type: "domain", X: 90, Y: 320, Mx: 8.3, My: 29.3, Sev: "medium", HaloA: 23, HaloB: 20.5, LabelDX: 25, Ports: ":80 :443", First: "2026-05-19T07:58:41Z", OpenSignals: []graphSignal{{Severity: "medium", SevLabel: "Medium", Rule: "dns-mail-policy", Subject: "acmecorp.io"}}},
+		{ID: "acmecorp.io", Label: "acmecorp.io", Type: "domain", X: 90, Y: 320, Mx: 8.3, My: 29.3, Sev: "medium", HaloA: 23, HaloB: 20.5, LabelDX: 25, Ports: ":80 :443", Since: "2026-05-19T07:58:41Z", OpenSignals: []graphSignal{{Severity: "medium", SevLabel: "Medium", Rule: "dns-mail-policy", Subject: "acmecorp.io"}}},
 		{ID: "www.acmecorp.io", Label: "www", Type: "subdomain", X: 400, Y: 52, Mx: 36.7, My: 4.8, Sev: "low", HaloA: 17, HaloB: 14.5, LabelDX: 19},
-		{ID: "api.acmecorp.io", Label: "api", Type: "subdomain", X: 400, Y: 112, Mx: 36.7, My: 10.3, Sev: "high", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443", First: "2026-05-19T08:00:12Z", OpenSignals: []graphSignal{{Severity: "high", SevLabel: "High", Rule: "outdated-nginx", Subject: "api.acmecorp.io :443"}}},
-		{ID: "vpn.acmecorp.io", Label: "vpn", Type: "subdomain", X: 400, Y: 172, Mx: 36.7, My: 15.8, Sev: "critical", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443 :1194", First: "2026-06-02T11:40:00Z", OpenSignals: []graphSignal{{Severity: "critical", SevLabel: "Critical", Rule: "tls-cert-expired", Subject: "vpn.acmecorp.io :443"}}},
+		{ID: "api.acmecorp.io", Label: "api", Type: "subdomain", X: 400, Y: 112, Mx: 36.7, My: 10.3, Sev: "high", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443", Since: "2026-05-19T08:00:12Z", OpenSignals: []graphSignal{{Severity: "high", SevLabel: "High", Rule: "outdated-nginx", Subject: "api.acmecorp.io :443"}}},
+		{ID: "vpn.acmecorp.io", Label: "vpn", Type: "subdomain", X: 400, Y: 172, Mx: 36.7, My: 15.8, Sev: "critical", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443 :1194", Since: "2026-06-02T11:40:00Z", OpenSignals: []graphSignal{{Severity: "critical", SevLabel: "Critical", Rule: "tls-cert-expired", Subject: "vpn.acmecorp.io :443"}}},
 		{ID: "mail.acmecorp.io", Label: "mail", Type: "subdomain", X: 400, Y: 232, Mx: 36.7, My: 21.3, Sev: "", HaloA: 17, HaloB: 14.5, LabelDX: 19},
 		{ID: "grafana.acmecorp.io", Label: "grafana", Type: "subdomain", X: 400, Y: 292, Mx: 36.7, My: 26.8, Sev: "high", HaloA: 17, HaloB: 14.5, LabelDX: 19},
-		{ID: "edge-gw-03.acmecorp.io", Label: "edge-gw-03", Type: "subdomain", X: 400, Y: 352, Mx: 36.7, My: 32.3, Sev: "critical", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443 :5900", First: "2026-08-12T09:14:33Z", OpenSignals: []graphSignal{{Severity: "critical", SevLabel: "Critical", Rule: "vnc-exposure", Subject: ":5900 vnc"}}},
+		{ID: "edge-gw-03.acmecorp.io", Label: "edge-gw-03", Type: "subdomain", X: 400, Y: 352, Mx: 36.7, My: 32.3, Sev: "critical", HaloA: 17, HaloB: 14.5, LabelDX: 19, Ports: ":443 :5900", Since: "2026-08-12T09:14:33Z", OpenSignals: []graphSignal{{Severity: "critical", SevLabel: "Critical", Rule: "vnc-exposure", Subject: ":5900 vnc"}}},
 		{ID: "build-07.acmecorp.io", Label: "build-07", Type: "subdomain", X: 400, Y: 412, Mx: 36.7, My: 37.8, Sev: "high", HaloA: 17, HaloB: 14.5, LabelDX: 19},
 		{ID: "assets.acmecorp.io", Label: "assets", Type: "subdomain", X: 400, Y: 472, Mx: 36.7, My: 43.3, Sev: "medium", HaloA: 17, HaloB: 14.5, LabelDX: 19},
 		{ID: "old-blog.acmecorp.io", Label: "old-blog", Type: "subdomain", X: 400, Y: 532, Mx: 36.7, My: 48.8, Sev: "medium", HaloA: 17, HaloB: 14.5, LabelDX: 19},
@@ -2484,7 +2499,7 @@ func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]
 	fx := loadSearchFixture()
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if q != fx.Query {
-		return searchRenderMap(acct, q, 0, nil, nil, nil, nil)
+		return searchRenderMap(acct, q, 0, false, nil, nil, nil, nil)
 	}
 
 	assets := make([]searchAsset, 0, len(fx.Assets))
@@ -2524,5 +2539,5 @@ func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]
 	}
 
 	total := len(assets) + len(signals) + len(batches) + len(docs)
-	return searchRenderMap(acct, q, total, assets, signals, batches, docs)
+	return searchRenderMap(acct, q, total, false, assets, signals, batches, docs)
 }

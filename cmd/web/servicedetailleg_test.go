@@ -27,7 +27,7 @@ func serviceDetailBody(t *testing.T, f *fakeStore, status int) string {
 	return getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A5900%2Ftcp", status)
 }
 
-func headerLegChips(t *testing.T, page string) []legChip {
+func subjectHeader(t *testing.T, page string) string {
 	t.Helper()
 	// The card renders its own leg cells, so a whole-page scrape no longer reads the header alone.
 	_, main, ok := strings.Cut(page, `<main class="sd-main"`)
@@ -43,7 +43,19 @@ func headerLegChips(t *testing.T, page string) []legChip {
 	if !ok {
 		t.Fatalf("the page header does not close; body: %s", page)
 	}
-	return legChips(t, head)
+	return head
+}
+
+func headerLegChips(t *testing.T, page string) []legChip {
+	t.Helper()
+	return legChips(t, subjectHeader(t, page))
+}
+
+func assertNoHeaderLegChip(t *testing.T, page, what string) {
+	t.Helper()
+	if head := subjectHeader(t, page); strings.Contains(head, `<span class="vg-leg `) {
+		t.Errorf("%s rendered a header leg chip; header: %s", what, head)
+	}
 }
 
 func TestServiceDetailHeaderRanksAnInternetReached(t *testing.T) {
@@ -120,11 +132,96 @@ func TestServiceDetailWithdrawsTheChipWhenNoSpanNamesAVantage(t *testing.T) {
 	}
 }
 
-func TestServiceDetailFailsLoudlyWhenItsLegReadFails(t *testing.T) {
+const reachDidNotResolve = "The reachability read did not resolve on this load."
+
+func TestServiceDetailReachReadFailureRendersDidNotResolve(t *testing.T) {
 	f := legProbeStore(t)
 	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"reached","result":"open"}`)
 	f.reachSpansErr = errors.New("class-aware reach read failed")
 
-	// A swallowed leg read renders a header that states no reach at all, hiding it (#1948).
-	serviceDetailBody(t, f, http.StatusInternalServerError)
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	card := reachCard(t, page)
+	if !strings.Contains(card, reachDidNotResolve) {
+		t.Errorf("a failed reach read rendered no did-not-resolve note; card: %s", card)
+	}
+	for _, label := range []string{"Internal leg", "Internet leg"} {
+		if strings.Contains(card, `<span class="sd-micro">`+label+`</span>`) {
+			t.Errorf("a failed reach read rendered the %q cell; card: %s", label, card)
+		}
+	}
+	// The address and the port come from the subject key, so this read never withholds them.
+	if got := reachCardCell(t, page, "Address"); got != "198.51.100.1" {
+		t.Errorf("address cell = %q, want %q; card: %s", got, "198.51.100.1", card)
+	}
+	assertNoHeaderLegChip(t, page, "a failed reach read")
+	// never looked claims the estate did not look, so a fault may not produce it (ADR-2030).
+	if strings.Contains(page, "never looked") {
+		t.Errorf("a failed reach read substituted a leg word; body: %s", page)
+	}
+}
+
+func TestServiceDetailReachReadFailureKeepsEveryOtherRegion(t *testing.T) {
+	f := legProbeStore(t)
+	f.addClassReachability(t, legProbeService, "internet", obsClock, `{"outcome":"reached","result":"open"}`)
+	f.reachSpansErr = errors.New("class-aware reach read failed")
+
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	// A 500 removed every one of these before (#2051).
+	for _, want := range []string{
+		`<ol class="sd-chain">`,
+		"api.example.com",
+		"<h3>Current and closed timelines</h3>",
+		"<h3>How it got here</h3>",
+		"<h3>Rules over this subject</h3>",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("a failed reach read removed %q; body: %s", want, page)
+		}
+	}
+	if strings.Contains(page, "No timeline has been folded yet") {
+		t.Errorf("a failed reach read emptied the timelines card; body: %s", page)
+	}
+}
+
+func TestServiceDetailWithNoReachRowKeepsItsOriginalEmptyState(t *testing.T) {
+	f := legProbeStore(t)
+	// A vantage-less span leaves the join, so the card holds no leg and no failure (#1985).
+	f.addReachability(t, legProbeService, obsClock, `{"outcome":"reached","result":"open"}`)
+
+	page := serviceDetailBody(t, f, http.StatusOK)
+
+	if strings.Contains(page, reachDidNotResolve) {
+		t.Errorf("a service with no reach row rendered the did-not-resolve note; body: %s", page)
+	}
+	assertNoHeaderLegChip(t, page, "a service with no reach row")
+}
+
+const gapBannerCopy = "so this reach is undiscriminated"
+
+func TestServiceDetailReachReadFailureWithholdsTheSubjectGapNote(t *testing.T) {
+	// #2018 resolves the banner's prose from the cause, so a causeless Gap states the reason alone.
+	gapValue := `{"outcome":"gap","reason":"an edge answers for the origin","cause":"blanket-responder"}`
+
+	healthy := legProbeStore(t)
+	healthy.addReachability(t, legProbeService, obsClock, gapValue)
+	page := serviceDetailBody(t, healthy, http.StatusOK)
+	if !strings.Contains(page, gapBannerCopy) {
+		t.Fatalf("a Gap no leg carries rendered no gap note; body: %s", page)
+	}
+
+	failed := legProbeStore(t)
+	failed.addReachability(t, legProbeService, obsClock, gapValue)
+	failed.reachSpansErr = errors.New("class-aware reach read failed")
+	page = serviceDetailBody(t, failed, http.StatusOK)
+
+	card := reachCard(t, page)
+	if !strings.Contains(card, reachDidNotResolve) {
+		t.Errorf("a failed reach read rendered no did-not-resolve note; card: %s", card)
+	}
+	// One card states one thing, and a verdict beside the note would be the broader claim.
+	if strings.Contains(card, gapBannerCopy) {
+		t.Errorf("a failed reach read stated a reach verdict beside its note; card: %s", card)
+	}
 }

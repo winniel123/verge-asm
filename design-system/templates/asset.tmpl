@@ -18,6 +18,7 @@
 .as-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
 .as-body { padding: 20px; }
 .as-hleg { display: inline-flex; align-items: center; gap: 6px; }
+.as-hnote { font: 400 12px var(--font-ui); color: var(--text-muted); }
 .as-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
 .as-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
 .as-btn:hover { background: var(--surface-sunken); }
@@ -26,6 +27,8 @@
 .as-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
 .as-table tbody tr:first-child td { border-top: none; }
 .as-table td.mono { font: 400 12.5px var(--font-mono); }
+.as-legcell { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.as-legdate { font: 400 11px var(--font-mono); color: var(--text-muted); }
 .as-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); }
 .as-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .as-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
@@ -106,9 +109,9 @@
 <h1>{{.Key}}</h1>
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span class="as-tag">{{.Type}}</span>
-{{if .Severity}}{{template "sevbadge" .}}{{end}}
+{{if .SignalsFailed}}<span class="as-hnote">Severity did not resolve</span>{{else if .Severity}}{{template "sevbadge" .}}{{end}}
 {{with .InternetLeg}}<span class="as-hleg"><span class="as-micro">Internet leg</span>{{template "legchip" .}}</span>{{end}}
-{{if or .Seen .InScopeSince}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}seen {{.Seen}}{{end}}{{if and .Seen .InScopeSince}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{end}}</span>{{end}}
+{{if or .Seen .InScopeSince .ScopeDateFailed}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{if .Seen}}seen {{.Seen}}{{end}}{{if and .Seen (or .InScopeSince .ScopeDateFailed)}} · {{end}}{{if .InScopeSince}}in scope since {{.InScopeSince}}{{else if .ScopeDateFailed}}in scope since — the Seed read did not resolve{{end}}</span>{{end}}
 </div>
 </div>
 <div style="margin-left:auto;display:flex;gap:8px">
@@ -128,16 +131,17 @@
 <div style="display:flex;flex-direction:column;gap:24px">
 <section class="as-card flush">
 <div class="as-cardhead"><span class="as-micro">Census</span><h3>Open ports</h3></div>
-{{if .Ports}}
+{{if .PortsFailed}}
+<div class="as-notice as-degrade">The open-port read did not resolve on this load. Nothing is listed rather than a guessed port, and the header's internet leg is absent for the same reason. Reload to read it again.</div>
+{{else if .Ports}}
 <table class="as-table">
-<thead><tr><th style="width:90px">Port</th><th>Service</th><th style="width:130px">Internal leg</th><th style="width:130px">Internet leg</th><th style="width:110px;text-align:right">First seen</th></tr></thead>
+<thead><tr><th style="width:90px">Port</th><th>Service</th><th style="width:210px">Internal leg</th><th style="width:210px">Internet leg</th></tr></thead>
 <tbody>
 {{range .Ports}}<tr>
 <td class="mono">{{.Port}}</td>
 <td class="mono">{{.Service}}</td>
-<td>{{template "legchip" .Internal}}</td>
-<td>{{template "legchip" .Internet}}</td>
-<td class="mono" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
+<td><span class="as-legcell">{{template "legchip" .Internal}}{{with .Internal.Date}}<span class="as-legdate">since {{.}}</span>{{end}}</span></td>
+<td><span class="as-legcell">{{template "legchip" .Internet}}{{with .Internet.Date}}<span class="as-legdate">since {{.}}</span>{{end}}</span></td>
 </tr>{{end}}
 </tbody>
 </table>

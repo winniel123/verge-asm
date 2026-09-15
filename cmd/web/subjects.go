@@ -20,6 +20,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
@@ -89,9 +90,11 @@ type servicePageData struct {
 	Port               string
 	Transport          string
 	Withdrawn          bool
+	MembershipUnknown  bool
 	Citation           []citationHop
 	CitationTerminated bool
 	Timelines          []timelineView
+	TimelinesFailed    bool
 	Seen               string
 	InScopeSince       string
 	InternalLeg        *legChip
@@ -100,6 +103,7 @@ type servicePageData struct {
 	Provenance         []assetKV
 	Rules              subjectRulesView
 	Signals            []assetSignal
+	ReachFailed        bool
 }
 
 type endpointPageData struct {
@@ -111,6 +115,7 @@ type endpointPageData struct {
 	Address            string
 	Port               string
 	Withdrawn          bool
+	MembershipUnknown  bool
 	Outcome            string
 	Status             string
 	Server             string
@@ -121,6 +126,7 @@ type endpointPageData struct {
 	Citation           []citationHop
 	CitationTerminated bool
 	Timelines          []timelineView
+	TimelinesFailed    bool
 	Seen               string
 	InScopeSince       string
 	Provenance         []assetKV
@@ -178,6 +184,7 @@ type reachabilityValue struct {
 	Outcome string `json:"outcome"`
 	Result  string `json:"result"`
 	Reason  string `json:"reason"`
+	Cause   string `json:"cause"`
 }
 
 const reachOutcomeGap = "gap"
@@ -257,12 +264,13 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		HasIdentity:      id.Outcome != "",
 	}
 	var seedScope string
-	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
-	data.Timelines = s.buildTimelines(r, "endpoint", subject.SubjectKey)
+	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
+	tls, tlErr := s.buildTimelines(r, "endpoint", subject.SubjectKey)
+	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
-	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines), data.TimelinesFailed)
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
 	s.render(w, r, "endpoint", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
@@ -280,7 +288,7 @@ func endpointStatusLabel(v httpIdentityValue) string {
 	return strconv.Itoa(v.Status)
 }
 
-func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
+func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn, unresolved bool, seedScope, inScopeSince string) {
 	hops = []citationHop{{Label: "Subject · Endpoint", Value: r.FormValue("key")}}
 	if name != "" {
 		hops = append(hops, citationHop{Label: "Named · Name", Value: name})
@@ -289,20 +297,30 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	}
 	hops = append(hops, citationHop{Label: "On service · Service", Value: service})
 
-	cited := false
-	if citing, err := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+	cited, readFailed := false, false
+	citing, citErr := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
 		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	}); err == nil {
+	})
+	if citErr == nil {
 		detail := ""
 		if citing.ObservedAt.Valid {
 			detail = "cited since " + citing.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
 		}
 		hops = append(hops, citationHop{Label: "Cited by · resolution", Value: citing.SubjectKey, Detail: detail})
 		cited = true
+	} else if err := readFailure(citErr); err != nil {
+		// The note names neither the read nor its error, so the fault logs (ADR-0168 §1, #2050).
+		log.Printf("web: endpoint detail: name citing address: %v", err)
+		readFailed = true
 	}
 
 	if parsed, perr := netip.ParseAddr(addr); perr == nil {
-		if seed, err := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+		seed, seedErr := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed)
+		if err := readFailure(seedErr); err != nil {
+			log.Printf("web: endpoint detail: covering address seed: %v", err)
+			readFailed = true
+		}
+		if seedErr == nil {
 			scope := ""
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
@@ -318,7 +336,11 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	}
 
 	withdrawn = !cited && !terminated
-	return hops, terminated, withdrawn, seedScope, inScopeSince
+	// A read that never resolved cannot carry the withdrawal verdict (ADR-0168 §2, #2050).
+	if withdrawn && readFailed {
+		withdrawn, unresolved = false, true
+	}
+	return hops, terminated, withdrawn, unresolved, seedScope, inScopeSince
 }
 
 func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -354,26 +376,29 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		Transport: transport,
 	}
 	var seedScope string
-	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
-	data.Timelines = s.buildTimelines(r, "service", subject.SubjectKey)
+	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
+	tls, tlErr := s.buildTimelines(r, "service", subject.SubjectKey)
+	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
 	if !data.Withdrawn {
 		legs, err := s.serviceReachLegs(r.Context(), subject.SubjectKey)
 		if err != nil {
-			s.serverError(w, "service reach legs", err)
-			return
+			log.Printf("web: service detail: service reach legs: %v", err)
+			// The header chip derives from this read, so an absence is stated (ADR-2030 §2).
+			data.ReachFailed = true
 		}
 		if legs != nil {
 			data.InternalLeg, data.InternetLeg, data.GapNote = legs.Internal, legs.Internet, legs.Gap
 		}
-		if data.GapNote == nil {
+		// A failed read knows of no leg, so it cannot say a Gap carries none (ADR-2030 §2).
+		if data.GapNote == nil && !data.ReachFailed {
 			// A Gap no leg carries names no class, and it still owes its cause (#1985).
 			data.GapNote = subjectGapNote(decodeReachability(subject.Value))
 		}
 	}
-	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines), data.TimelinesFailed)
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	signals, sigErr := s.assetSignals(r, subject.SubjectKey)
 	if sigErr != nil {
@@ -422,16 +447,17 @@ func splitServiceKey(key string) (addr, port, transport string) {
 	return addr, port, transport
 }
 
-func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
+func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn, unresolved bool, seedScope, inScopeSince string) {
 	hops = []citationHop{
 		{Label: "Subject · Service", Value: r.FormValue("key")},
 		{Label: "On address · Address", Value: addr},
 	}
 
-	cited := false
-	if citing, err := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+	cited, readFailed := false, false
+	citing, citErr := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
 		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	}); err == nil {
+	})
+	if citErr == nil {
 		detail := ""
 		if citing.ObservedAt.Valid {
 			detail = "cited since " + citing.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -442,10 +468,19 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 			Detail: detail,
 		})
 		cited = true
+	} else if err := readFailure(citErr); err != nil {
+		// The note names neither the read nor its error, so the fault logs (ADR-0168 §1, #2050).
+		log.Printf("web: service detail: name citing address: %v", err)
+		readFailed = true
 	}
 
 	if parsed, perr := netip.ParseAddr(addr); perr == nil {
-		if seed, err := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+		seed, seedErr := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed)
+		if err := readFailure(seedErr); err != nil {
+			log.Printf("web: service detail: covering address seed: %v", err)
+			readFailed = true
+		}
+		if seedErr == nil {
 			scope := ""
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
@@ -466,14 +501,18 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 
 	// An Address is in the estate while a resolution cites it or a Seed covers it (CONTEXT.md).
 	withdrawn = !cited && !terminated
-	return hops, terminated, withdrawn, seedScope, inScopeSince
+	// A read that never resolved cannot carry the withdrawal verdict (ADR-0168 §2, #2050).
+	if withdrawn && readFailed {
+		withdrawn, unresolved = false, true
+	}
+	return hops, terminated, withdrawn, unresolved, seedScope, inScopeSince
 }
 
 func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.assetPage(w, r, acct)
 }
 
-func subjectProvenance(kind, seedScope, firstSeen string) []assetKV {
+func subjectProvenance(kind, seedScope, firstSeen string, firstSeenFailed bool) []assetKV {
 	var items []assetKV
 	if seedScope != "" {
 		items = append(items, assetKV{K: "Seed", V: seedScope})
@@ -484,7 +523,10 @@ func subjectProvenance(kind, seedScope, firstSeen string) []assetKV {
 		via = "resolution × service join"
 	}
 	items = append(items, assetKV{K: "Via", V: via})
-	if firstSeen != "" {
+	if firstSeenFailed {
+		// First seen derives from the span read, so the derived end says so too (ADR-2030 §2).
+		items = append(items, assetKV{K: "First seen", V: "the span read did not resolve"})
+	} else if firstSeen != "" {
 		items = append(items, assetKV{K: "First seen", V: firstSeen})
 	}
 	return items
@@ -605,12 +647,15 @@ const spanTimeFmt = "2006-01-02 15:04 UTC"
 
 const spanFullFmt = "2006-01-02T15:04Z07:00"
 
-func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineView {
+func (s *server) buildTimelines(r *http.Request, kind, key string) ([]timelineView, error) {
 	rows, err := s.subjectsStore.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
 		SubjectKind: kind, SubjectKey: key,
 	})
-	if err != nil || len(rows) == 0 {
-		return nil
+	if err != nil {
+		return nil, readFailure(err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
 	}
 
 	type tlkey struct {
@@ -632,7 +677,7 @@ func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineVie
 	for _, k := range order {
 		views = append(views, buildTimeline(k.facet, k.discriminator, byKey[k]))
 	}
-	return views
+	return views, nil
 }
 
 func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow) timelineView {
@@ -861,6 +906,8 @@ type assetPageData struct {
 	DNSFailed        bool
 	CertFailed       bool
 	ProvenanceFailed bool
+	PortsFailed      bool
+	ScopeDateFailed  bool
 }
 
 type assetPort struct {
@@ -868,7 +915,6 @@ type assetPort struct {
 	Service  string
 	Internal legChip
 	Internet legChip
-	Since    string
 }
 
 type assetCert struct {
@@ -940,27 +986,25 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
-	prov, inScopeSince, provErr := s.assetProvenance(r, key)
+	prov, inScopeSince, scopeFailed, provErr := s.assetProvenance(r, key)
 	data.Provenance, data.InScopeSince, data.ProvenanceFailed = prov, inScopeSince, provErr != nil
+	data.ScopeDateFailed = scopeFailed
 	dns, dnsErr := s.assetDNS(r, key, res)
 	data.DNS, data.DNSFailed = dns, dnsErr != nil
-	ports, err := s.assetPorts(r, res.Addresses)
-	if err != nil {
-		// An empty list is the honest no-ports answer, so a swallow erases the verdict (#1948).
-		s.serverError(w, "asset ports", err)
-		return
-	}
-	data.Ports = ports
+	// A failure escaping its region shows an absence at both ends, never a 500 (ADR-2030 §2).
+	ports, portsErr := s.assetPorts(r, res.Addresses)
+	data.Ports, data.PortsFailed = ports, portsErr != nil
 	cert, certErr := s.assetCertificate(r, key, res.Addresses)
 	// A note belongs in the region that failed, never a page-wide banner (ADR-0168 §2).
 	data.Cert, data.CertFailed = cert, certErr != nil
-	// The corpus is not this page's subject, so its failure empties one card (ADR-0168 §1, #1951).
+	// The corpus is not this page's subject, so a failed read renders an absence (ADR-2030 §2.1).
 	signals, sigErr := s.assetSignals(r, key)
 	data.Signals, data.SignalsFailed = signals, sigErr != nil
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(data.Ports)
-	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
+	tls, _ := s.buildTimelines(r, "name", key)
+	data.Drift = assetDrift(tls)
 
 	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
 		"Asset": data,
@@ -992,22 +1036,24 @@ func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
 func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, acct db.Account, key string) {
 	// A withdrawn Name has no current value, so only closed timelines render (ADR-0072).
 	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
-	prov, inScopeSince, provErr := s.assetProvenance(r, key)
+	prov, inScopeSince, scopeFailed, provErr := s.assetProvenance(r, key)
 	data.Provenance, data.InScopeSince, data.ProvenanceFailed = prov, inScopeSince, provErr != nil
+	data.ScopeDateFailed = scopeFailed
 	// An empty list is expected here, so a failed read still needs its own flag.
 	signals, sigErr := s.assetSignals(r, key)
 	data.Signals, data.SignalsFailed = signals, sigErr != nil
 	data.Severity = assetHeaderSeverity(data.Signals)
 	data.SevLabel = sevLabel(data.Severity)
 	data.InternetLeg = assetHeaderInternetLeg(nil)
-	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
+	tls, _ := s.buildTimelines(r, "name", key)
+	data.Drift = assetDrift(tls)
 
 	s.render(w, r, "asset", pageData(acct, key, "inventory", map[string]any{
 		"Asset": data,
 	}))
 }
 
-func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string, readErr error) {
+func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string, scopeFailed bool, readErr error) {
 	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
@@ -1023,6 +1069,8 @@ func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, 
 		if readErr == nil {
 			readErr = seedErr
 		}
+		// The scope date renders in the header, out of that card's reach (#2050).
+		scopeFailed = true
 	}
 	if ok {
 		if seed.NameDomain.Valid {
@@ -1048,7 +1096,7 @@ func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, 
 			items = append(items, assetKV{K: "First seen", V: cit.ObservedAt.Time.UTC().Format("2006-01-02")})
 		}
 	}
-	return items, inScopeSince, readErr
+	return items, inScopeSince, scopeFailed, readErr
 }
 
 func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) ([]assetDNSRow, error) {
@@ -1120,7 +1168,7 @@ func buildAssetPorts(rows []db.ListAllOpenSpansRow, legs map[string]map[string]l
 		}
 	}
 	var order []string
-	since := map[string]string{}
+	listed := map[string]bool{}
 	for _, row := range rows {
 		if row.SubjectKind != "service" || row.Facet != "reachability" {
 			continue
@@ -1130,24 +1178,25 @@ func buildAssetPorts(rows []db.ListAllOpenSpansRow, legs map[string]map[string]l
 			continue
 		}
 		// A reachability span is per vantage, so one port opens one span per prober (#1962).
-		d := row.OpenedAt.Time.UTC().Format(spanTimeFmt)
-		cur, seen := since[row.SubjectKey]
-		if !seen {
-			order = append(order, row.SubjectKey)
+		if listed[row.SubjectKey] {
+			continue
 		}
-		if !seen || d < cur {
-			since[row.SubjectKey] = d
-		}
+		listed[row.SubjectKey] = true
+		order = append(order, row.SubjectKey)
 	}
 	var ports []assetPort
 	for _, key := range order {
 		addr, port, transport := splitServiceKey(key)
+		internal, internet := legs[key]["internal"], legs[key]["internet"]
+		internalChip := reachLegChip(custody.ClassInternal, legFrom(internal))
+		internalChip.Date = legSince(internal)
+		internetChip := reachLegChip(custody.ClassInternet, legFrom(internet))
+		internetChip.Date = legSince(internet)
 		ports = append(ports, assetPort{
 			Port:     ":" + port,
 			Service:  assetPortService(transport, servers[addr+":"+port]),
-			Internal: reachLegChip(custody.ClassInternal, legFrom(legs[key]["internal"])),
-			Internet: reachLegChip(custody.ClassInternet, legFrom(legs[key]["internet"])),
-			Since:    since[key],
+			Internal: internalChip,
+			Internet: internetChip,
 		})
 	}
 	return ports
@@ -1181,8 +1230,9 @@ type serviceReachCard struct {
 }
 
 type reachGapNote struct {
-	Classes string
-	Reason  string
+	Reason      string
+	Explanation string
+	Remedy      string
 }
 
 func (s *server) serviceReachLegs(ctx context.Context, key string) (*serviceReachCard, error) {
@@ -1217,11 +1267,13 @@ func subjectGapNote(rv reachabilityValue) *reachGapNote {
 	if rv.Outcome != reachOutcomeGap {
 		return nil
 	}
-	return &reachGapNote{Reason: rv.Reason}
+	note := &reachGapNote{Reason: rv.Reason}
+	note.Explanation, note.Remedy = blanketdiscrim.GapProse(rv.Cause, nil)
+	return note
 }
 
 func reachGapNoteFor(internal, internet legInfo) *reachGapNote {
-	var classes, reasons []string
+	var classes, reasons, causes []string
 	for _, leg := range []struct {
 		class custody.VantageClass
 		info  legInfo
@@ -1231,15 +1283,27 @@ func reachGapNoteFor(internal, internet legInfo) *reachGapNote {
 		}
 		classes = append(classes, string(leg.class))
 		// A Gap is absence of reach, so the cause is stated in the operator's words (ADR-0104).
-		if leg.info.reason != "" && !slices.Contains(reasons, leg.info.reason) {
-			reasons = append(reasons, leg.info.reason)
+		for _, r := range leg.info.reasons {
+			if !slices.Contains(reasons, r) {
+				reasons = append(reasons, r)
+			}
+		}
+		for _, c := range leg.info.causes {
+			if !slices.Contains(causes, c) {
+				causes = append(causes, c)
+			}
 		}
 	}
+	// A gapped leg owns the banner, or the class-blind note speaks over a live leg (#1985).
 	if len(classes) == 0 {
 		return nil
 	}
-	// The advice is one action, so two gapped legs state it once under both class names.
-	return &reachGapNote{Classes: strings.Join(classes, " or "), Reason: strings.Join(reasons, ". ")}
+	note := &reachGapNote{Reason: strings.Join(reasons, ". ")}
+	if len(causes) == 1 {
+		// Two gapped legs state one banner, and one banner attributes one cause (#2005 decision 9).
+		note.Explanation, note.Remedy = blanketdiscrim.GapProse(causes[0], classes)
+	}
+	return note
 }
 
 // A pre-parse span stored only chain and not_after, so issuer and algorithm read empty.
@@ -1344,6 +1408,8 @@ func assetHeaderInternetLeg(ports []assetPort) *legChip {
 		return nil
 	}
 	chip := ports[best].Internet
+	// The header names the asset, and one port's leg date belongs beside that leg alone (#2035).
+	chip.Date = ""
 	return &chip
 }
 

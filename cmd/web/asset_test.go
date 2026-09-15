@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -204,9 +203,6 @@ func TestAssetPortsCollapseSpansToOneRowPerPort(t *testing.T) {
 	if len(ports) != 1 {
 		t.Fatalf("ports = %d rows, want 1; got %+v", len(ports), ports)
 	}
-	if ports[0].Since != "2026-06-14 09:00 UTC" {
-		t.Errorf("first seen = %q, want the earliest span of the two", ports[0].Since)
-	}
 	if ports[0].Internal.Label != "reached" || ports[0].Internal.Tone != "neutral" {
 		t.Errorf("internal leg = %+v, want a neutral reached", ports[0].Internal)
 	}
@@ -235,6 +231,78 @@ func TestAssetPortsSeparateTheTwoAbsences(t *testing.T) {
 	}
 	if ports[0].Internal.Label != "stopped looking" || ports[0].Internal.Tone != "warn" {
 		t.Errorf("gap leg = %+v, want a warn stopped looking", ports[0].Internal)
+	}
+}
+
+func TestAssetPortsDateEachLegFromItsOwnClass(t *testing.T) {
+	const key = "198.51.100.1:443/tcp"
+	early := time.Date(2026, 2, 15, 9, 0, 0, 0, time.UTC)
+	rows := []db.ListAllOpenSpansRow{{
+		SubjectKind: "service", SubjectKey: key, Facet: "reachability",
+		OpenedAt: pgtype.Timestamptz{Time: early, Valid: true},
+	}}
+	legs := map[string]map[string]legInfo{key: {
+		"internal": {outcome: "reached", since: early, present: true},
+		"internet": {outcome: "reached", since: obsClock, present: true},
+	}}
+
+	ports := buildAssetPorts(rows, legs, map[string]bool{"198.51.100.1": true})
+
+	if len(ports) != 1 {
+		t.Fatalf("ports = %d rows, want 1", len(ports))
+	}
+	if got, want := ports[0].Internal.Date, early.Format(spanTimeFmt); got != want {
+		t.Errorf("internal leg date = %q, want %q", got, want)
+	}
+	if got, want := ports[0].Internet.Date, obsClock.UTC().Format(spanTimeFmt); got != want {
+		t.Errorf("internet leg date = %q, want %q", got, want)
+	}
+	if ports[0].Internal.Date == ports[0].Internet.Date {
+		t.Errorf("both legs read the date %q", ports[0].Internal.Date)
+	}
+}
+
+func TestAssetPortsDateAGappedLegAndNotANeverConfiguredOne(t *testing.T) {
+	const key = "198.51.100.1:443/tcp"
+	at := time.Date(2026, 6, 14, 9, 0, 0, 0, time.UTC)
+	rows := []db.ListAllOpenSpansRow{{
+		SubjectKind: "service", SubjectKey: key, Facet: "reachability",
+		OpenedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	}}
+	legs := map[string]map[string]legInfo{key: {
+		"internal": {isGap: true, since: at, present: true},
+	}}
+
+	ports := buildAssetPorts(rows, legs, map[string]bool{"198.51.100.1": true})
+
+	if len(ports) != 1 {
+		t.Fatalf("ports = %d rows, want 1", len(ports))
+	}
+	// A Gap is inventory and its span has an opened_at (#2035).
+	if got, want := ports[0].Internal.Date, at.Format(spanTimeFmt); got != want {
+		t.Errorf("gapped leg date = %q, want %q", got, want)
+	}
+	if ports[0].Internet.Date != "" {
+		t.Errorf("never-configured leg date = %q, want none", ports[0].Internet.Date)
+	}
+}
+
+func TestAssetDetailPortsTableDatesEachLegInItsOwnCell(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.addClassReachability(t, "198.51.100.1:443/tcp", "internet", obsClock, `{"outcome":"reached","result":"open"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/asset/api.example.com", http.StatusOK)
+
+	if strings.Contains(page, "First seen</th>") {
+		t.Errorf("the ports table still carries a class-blind First seen column; body: %s", page)
+	}
+	if !strings.Contains(page, `<span class="as-legdate">since `+obsClock.UTC().Format(spanTimeFmt)+`</span>`) {
+		t.Errorf("no leg cell carries its own date; body: %s", page)
 	}
 }
 
@@ -348,31 +416,48 @@ func TestAssetDetailRequiresLogin(t *testing.T) {
 	}
 }
 
-func TestAssetDetailFailsLoudlyWhenItsPortsReadFails(t *testing.T) {
+func TestAssetPortsColumnIsSinceNotFirstSeen(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
-	// An address is what carries assetPorts past its early return and into the read (#1948).
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
-	f.openSpansErr = errors.New("open spans read failed")
+	f.addClassReachability(t, "198.51.100.1:443/tcp", "internet", obsClock, `{"outcome":"reached","result":"open"}`)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/asset/api.example.com", http.StatusOK)
 
-	// A 200 is the defect: the page renders, and its empty port list reads as no exposure (#1948).
-	getBody(t, ac, base+"/asset/api.example.com", http.StatusInternalServerError)
+	head, ok := portsTableHead(page)
+	if !ok {
+		t.Fatalf("asset detail rendered no Open ports table head; body: %s", page)
+	}
+	if strings.Contains(head, "First seen") {
+		t.Errorf("ports column names a first sighting over an open-span minimum; head: %s", head)
+	}
+	// #2035 moved the date into each leg cell, so the word rides beside the value it dates.
+	if !strings.Contains(page, `<span class="as-legdate">since `) {
+		t.Errorf("a leg cell names no open-span minimum under the Since word; body: %s", page)
+	}
 }
 
-func TestAssetDetailFailsLoudlyWhenItsLegReadFails(t *testing.T) {
-	f := newFakeStore()
-	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	addNameSeed(t, f, admin.ID, "example.com")
-	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
-	f.reachSpansErr = errors.New("class-aware reach read failed")
-
-	base := start(t, f, "")
-	ac := login(t, base, "admin", "hunter2hunter2")
-
-	// A swallowed leg read renders every leg as never looked, which is a false claim (#1948).
-	getBody(t, ac, base+"/asset/api.example.com", http.StatusInternalServerError)
+func portsTableHead(page string) (string, bool) {
+	i := strings.Index(page, "Open ports")
+	if i < 0 {
+		return "", false
+	}
+	rest := page[i:]
+	open := strings.Index(rest, "<thead>")
+	if open < 0 {
+		return "", false
+	}
+	// The heading sits outside the ports guard, so an empty state hands back the DNS head.
+	if empty := strings.Index(rest, "as-empty"); empty >= 0 && empty < open {
+		return "", false
+	}
+	rest = rest[open:]
+	j := strings.Index(rest, "</thead>")
+	if j < 0 {
+		return "", false
+	}
+	return rest[:j], true
 }

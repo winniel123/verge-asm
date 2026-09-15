@@ -7,8 +7,9 @@ import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
 import { environment } from "./check-citations.mjs";
 import { derive } from "./sweep/derive.mjs";
 import { rewriteDocument, trailingGlue } from "./sweep/rewrite.mjs";
-import { auditAnchors, reportAudit } from "./sweep/audit.mjs";
-import { inScopeFiles } from "./citations/scope.mjs";
+import { auditAnchors, reportAudit, writtenAnchors } from "./sweep/audit.mjs";
+import { judgeHistory, reportHistory } from "./sweep/history.mjs";
+import { familyOf, inScopeFiles } from "./citations/scope.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -18,6 +19,7 @@ const USAGE = `usage:
   sweep-line-anchors --write <path>...      # convert the line anchors in those documents
   sweep-line-anchors --report <file> ...    # also write the plan as JSON
   sweep-line-anchors --audit [<path>...]    # judge the anchors already written, and write nothing
+  sweep-line-anchors --history [<path>...]  # judge those anchors against the target's history
 
 A <path> is a document or a directory prefix, spelled from the repository root.
 Every arm reads the citations boundary, and a run with no path reads all of it.
@@ -34,6 +36,67 @@ export function selectFiles(repoRoot, files, prefixes) {
     const rel = repoPath(repoRoot, abs);
     return prefixes.some((p) => rel === p || rel.startsWith(`${p}/`));
   });
+}
+
+// The guard reads the citing line, and this arm reads the target's history (SPEC §7 consequence 2).
+export function historyCitations(repoRoot, env, files, rows) {
+  const cited = writtenAnchors(repoRoot, env, files).map((a) => ({
+    file: a.file,
+    line: a.line,
+    family: a.family,
+    path: a.path,
+    value: a.value,
+    anchor: a.anchor,
+    form: "region",
+  }));
+  // A retired line anchor names the declaration the conversion arm would write, so it judges too.
+  const relPaths = files.map((abs) => repoPath(repoRoot, abs));
+  for (const r of planFor(repoRoot, env, scanDocuments(repoRoot, relPaths), rows)) {
+    if (r.outcome !== "anchor") continue;
+    cited.push({
+      file: r.file,
+      line: r.line,
+      family: familyOf(r.file) ?? ".",
+      path: r.path,
+      value: r.value,
+      anchor: r.anchor,
+      form: "line",
+    });
+  }
+  return cited;
+}
+
+// A verdict rests on a commit and a line number, so the record carries both for a hand check.
+export function historyRecord(judged) {
+  return judged.map((c) => ({
+    file: c.file,
+    line: c.line,
+    family: c.family,
+    form: c.form,
+    target: `${c.value}#${c.anchor}`,
+    verdict: c.verdict,
+    ...(c.witness ? { witness: c.witness.commit, cited: `${c.citedValue}:${c.fromLine}` } : {}),
+    ...(c.cause ? { cause: c.cause } : {}),
+    ...(c.then !== undefined ? { enclosedThen: c.then, declaredThen: c.declaredThen } : {}),
+    ...(c.detail ? { detail: c.detail } : {}),
+  }));
+}
+
+function history(prefixes, reportFile) {
+  const env = environment(REPO_ROOT);
+  const files = selectFiles(REPO_ROOT, inScopeFiles(REPO_ROOT), prefixes);
+  const judged = judgeHistory(REPO_ROOT, env, historyCitations(REPO_ROOT, env, files));
+  const { drifted } = reportHistory(judged);
+  if (reportFile) {
+    writeFileSync(reportFile, `${JSON.stringify(historyRecord(judged), null, 2)}\n`);
+    console.log("");
+    console.log(`  wrote the history report to ${reportFile}`);
+  }
+  console.log("");
+  console.log(
+    `  the history arm writes nothing. ${drifted.length} anchor(s) are drift candidates, and ` +
+      "a human reads each one before it degrades (SPEC §6.3).",
+  );
 }
 
 function audit(prefixes, reportFile) {
@@ -214,12 +277,17 @@ function main() {
   // An absent --report puts `at` at -1, and the old guard then dropped the first path (#2007).
   const args = argv.filter((a, i) => !a.startsWith("--") && (at < 0 || i !== at + 1));
   const prefixes = args.map((p) => p.replace(/\/+$/, ""));
-  if (argv.includes("--audit")) {
+  if (argv.includes("--audit") && argv.includes("--history")) {
+    console.error("sweep: --audit and --history are two instruments, and one run reports one of them");
+    process.exit(2);
+  }
+  if (argv.includes("--audit") || argv.includes("--history")) {
     if (write) {
-      console.error("sweep: --audit reports, and a suspect anchor is repaired by a human (SPEC §6.3)");
+      console.error("sweep: a reporting arm decides nothing, and a human repairs an anchor (SPEC §6.3)");
       process.exit(2);
     }
-    audit(prefixes, reportFile);
+    if (argv.includes("--history")) history(prefixes, reportFile);
+    else audit(prefixes, reportFile);
     return;
   }
   if (write && prefixes.length === 0) {

@@ -41,7 +41,7 @@ implement effort builds both. This document follows STE-flavored mode, per the
 | The guard as it shipped, and its two false-positive classes | §4 |
 | The refinement: an ordering rule and a review queue | §5 |
 | The repair of `docs/spec`, and the audit that finds the work | §6 |
-| The bound on what any guard can prove | §7 |
+| The bound on each instrument | §7 |
 | Non-goals | §8 |
 | Established facts | §9 |
 
@@ -81,6 +81,9 @@ This matches [citation anchors](citation-anchors.md) §1.2. One boundary serves 
 | **Corroborated anchor** | A written anchor the citing line also spells by name. The line and the prose agree. |
 | **Unproven anchor** | A written anchor whose citing line names no declaration of the target. Nothing corroborates it and nothing contradicts it. |
 | **The guard** | `docs-site/scripts/sweep/corroborate.mjs`, which reports a rival. |
+| **The history arm** | `docs-site/scripts/sweep/history.mjs`, which reads the target's own history. |
+| **Witness commit** | The newest commit whose revision of the citing line still spelled a line number for the cited path. |
+| **Drift candidate** | An anchor whose cited line sat in another declaration at the witness commit. |
 
 ---
 
@@ -278,12 +281,38 @@ Three consequences follow.
 
 1. **A green `citations` run is not evidence that an anchor is right.** It is evidence that the name
    exists. §3.2 rule 3 is the whole of it.
-2. **The unproven population needs a different instrument.** A candidate is the target's own history:
-   a citation added in one commit, against a target changed later, is a drift candidate. This SPEC
-   does not rule that instrument. It records the gap.
+2. **The unproven population has a second instrument, and the instrument is not a proof.** The
+   history arm reads the target's own history.
+   [#2015](https://github.com/winniel123/verge-asm/issues/2015) built it. It asks three mechanical
+   questions per anchor. Which commit last wrote a line number on the citing line? Which
+   declaration enclosed that number in the target at that commit? Is it the declaration the anchor
+   names now? A different declaration is a drift candidate, and the citing line needs to name
+   nothing. §9 facts F9, F10 and F11 measure it. The arm reports and writes nothing, and §8 keeps
+   it out of the gate.
 3. **No count retires this effort.** [Citation anchors](citation-anchors.md) §8.2 proves the sweep
    complete with an empty burn-down list. No list proves the anchors correct, because the
    correctness question has no list.
+
+**The history arm has its own bound, and it is not the guard's.** The guard needs the citing
+document to spell the target. The history arm needs the citation to have carried a line number that
+a commit still holds. Five shapes defeat it.
+
+1. **A citation no revision of its line ever wrote with a number.** The arm reports `unwitnessed`
+   and judges nothing. F10 measures 75 of these.
+2. **A citing line whose citation count and witness count disagree.** One line can cite one path
+   twice, against a witness commit that spelled one number. No pairing follows from the counts, and
+   the arm guesses none. F10 measures 86 of these, so this shape is the larger of the two.
+3. **A citation that was wrong when it was written.** The arm measures change since the number was
+   asserted. A number that was wrong on the day it landed leaves no change to find.
+4. **A target the witness commit spells under another path.** The arm reads `<commit>:<path>` with
+   the path as it stands today, so a rename before the witness reads as an absent target.
+5. **A number that landed just outside the declaration the prose means.** The declaration then
+   encloses no such line, and the arm calls the anchor a drift candidate. F11 measures this class,
+   and it is the arm's one measured false positive.
+
+**A drift candidate is evidence, and a human still reads it.** §6.3 rules that a suspect anchor
+degrades and is never repointed. The same holds here, and for the same reason: the declaration the
+arm names is where the number pointed, not what the document asserts.
 
 ---
 
@@ -291,6 +320,11 @@ Three consequences follow.
 
 **No check refuses an unproven anchor.** A refusal would fail on the 301 anchors of fact F6, and
 almost all of them are sound. The guard runs at conversion time and in the audit. It is not a gate.
+
+**No check runs the history arm.** The arm reports 172 drift candidates on the boundary, per fact
+F10, and a hand read finds most of them real. A gate on that count would red every merge until a
+human had read all 172, and it would red again on the false-positive class of F11. The arm is an
+instrument for a repair effort, and the repair stays a human act under §6.3.
 
 **No check refuses a bare path.** [Citation anchors](citation-anchors.md) §7.2 asserts correctness,
 never presence. Every degrade this SPEC orders produces a bare path, so a presence rule would turn
@@ -343,3 +377,38 @@ per [citation anchors](citation-anchors.md) §7.6, so the sweep held both.
 **F8 — an independent audit found 32 wrong anchors in the unguarded pass and 0 in the guarded
 pass.** The audit's rule was written separately from the guard, and it reads the pre-conversion line
 rather than the written one.
+
+A run on 2026-09-15 produced facts F9, F10 and F11. F9 ran against `c196bed^`, and F10 and F11
+against `main` at `92f2db2`.
+
+**F9 — the history arm reproduces 17 of the 18 wrong anchors
+[#2011](https://github.com/winniel123/verge-asm/pull/2011) degraded.** The run reads `docs/adr` at
+`c196bed^`, the tree before that conversion. It judges 600 anchors there, and it calls 216 drift
+candidates. In each of the 17 the declaration it names is the declaration that pull request's human
+review named as the intended target: `server.declareSeed`, `ListRecentDriftEvents`,
+`settings-messages`, `MarkJobDone`, `subjectRulesFor`, `declaredNameTree`, `certDetailsFromValue`,
+`certExpiryWindow`, `NewHTTPDoer`, `TestHTTPDoerRefusesRedirects` and
+`TestRedirectIsRecordedButNotFollowed`. The 18th is ADR-0184 line 129. The arm never sees it. The
+refined guard of §5.2 degrades that token first, so no conversion writes an anchor there for the
+arm to judge. The two instruments together reach all 18.
+
+**F10 — the arm judges 599 written anchors on the boundary, and calls 172 of them drift
+candidates.** 427 are consistent. `docs/adr` holds 484 judged and 142 candidates. `docs/spec` holds
+115 judged and 30 candidates. The root documents hold 2 anchors, and the arm judges neither. Read
+against F6, this is a first rate on the unproven population, and it is not small.
+
+The same run leaves 161 more anchors unwitnessed, and 5 more unreadable. Shape 1 of §7 holds 75 of
+the unwitnessed, and shape 2 holds the other 86 of them. Four of the 5 unreadable sat on
+uncommitted lines of this document. `git log -L` reads committed history, and it never reads the
+working tree.
+
+**F11 — a hand read of 20 of the 172 candidates found 1 false positive.** The sample takes a fixed
+stride over the report in its own sort order, so no judgement of the reader chose the rows. The one
+is ADR-0198 line 23. Its number named line 68 of `internal/queue/membership.go`, which was the blank
+line immediately after `foldEstateTransitions`. That declaration is the one the prose means, and the
+anchor is right. The other 19 are real.
+
+Two of the 19 spell the intended declaration in the prose, and the guard reports neither. ADR-0157
+line 62 puts that name on the line above the citation. `docs/spec/audit-act.md` line 19 names
+`fillAuditSection`, and `cmd/web/settings.go` no longer declares it. The guard then reads the
+strongest drift evidence available as no evidence at all.

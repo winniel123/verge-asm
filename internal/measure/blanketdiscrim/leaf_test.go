@@ -1,6 +1,9 @@
 package blanketdiscrim
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDecideVerdicts(t *testing.T) {
 	all := func(r ControlResult, n int) []ControlResult {
@@ -83,5 +86,29 @@ func TestFixedPortsDeterministic(t *testing.T) {
 func TestParamsDigestStable(t *testing.T) {
 	if DefaultParams().Digest() != DefaultParams().Digest() {
 		t.Error("params digest is not stable")
+	}
+}
+
+func TestGapProseStatesOnlyTheCauseThisLeafNames(t *testing.T) {
+	explain, remedy := GapProse(GapCause, []string{"internal", "internet"})
+	if !strings.Contains(explain, "No vantage of the internal or internet class") {
+		t.Errorf("the explanation dropped the classes it was given: %q", explain)
+	}
+	if !strings.Contains(explain, "behind the proxy edge") {
+		t.Errorf("the explanation does not name the proxy edge: %q", explain)
+	}
+	if remedy == "" {
+		t.Error("the cause this leaf names carries no remedy")
+	}
+
+	classless, _ := GapProse(GapCause, nil)
+	if !strings.HasPrefix(classless, "No vantage can") {
+		t.Errorf("a Gap no class carries named a class: %q", classless)
+	}
+
+	// An unrecognised cause renders less prose, never wrong prose (#2018).
+	explain, remedy = GapProse("tarpit", []string{"internet"})
+	if explain != "" || remedy != "" {
+		t.Errorf("an unrecognised cause got prose: %q / %q", explain, remedy)
 	}
 }

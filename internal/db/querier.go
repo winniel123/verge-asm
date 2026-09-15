@@ -156,6 +156,8 @@ type Querier interface {
 	// A client-side scope reaches only the rows sent, and the corpus is unbounded (ADR-0158 limb 4).
 	// A 90d window on an unbounded corpus is itself unbounded, so the read caps (ADR-0178 §1).
 	ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error)
+	// The panel beside a figure is a pointer at the audit trail, not a second one (ADR-1946 §3).
+	ListActsOfClassSince(ctx context.Context, arg ListActsOfClassSinceParams) ([]Act, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)

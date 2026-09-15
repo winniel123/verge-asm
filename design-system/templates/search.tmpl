@@ -46,15 +46,15 @@ a.se-row:hover { background: var(--surface-sunken); }
 <form method="get" action="/search" style="margin:0">
 <span class="se-q"><input type="text" name="q" value="{{.Query}}" placeholder="Assets, signals, batches, docs" autofocus spellcheck="false" autocomplete="off" aria-label="Search"></span>
 </form>
-<span class="se-count">{{.Total}} results{{if .Query}} for “{{.Query}}”{{end}}</span>
+<span class="se-count">{{if .SignalsFailed}}Results not totalled{{if .Query}} for “{{.Query}}”{{end}} · the signal read did not resolve{{else}}{{.Total}} results{{if .Query}} for “{{.Query}}”{{end}}{{end}}</span>
 </header>
-{{if eq .Total 0}}
+{{if not .SignalsFailed}}{{if eq .Total 0}}
 <div class="se-empty">
 <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
 <span class="msg">Nothing matches.</span>
 <span class="det">Try a hostname fragment, a signal phrase, or a batch timestamp.</span>
 </div>
-{{end}}
+{{end}}{{end}}
 {{if .Assets}}
 <section class="se-card">
 <div class="se-cardhead"><span class="se-micro">{{len .Assets}} match{{if ne (len .Assets) 1}}es{{end}}</span><h3>Assets</h3></div>
@@ -69,7 +69,12 @@ a.se-row:hover { background: var(--surface-sunken); }
 </div>
 </section>
 {{end}}
-{{if .Signals}}
+{{if .SignalsFailed}}
+<section class="se-card">
+<div class="se-cardhead"><span class="se-micro">not resolved</span><h3>Signals</h3></div>
+<div class="se-body"><div class="se-empty" style="padding:24px 12px"><span class="msg">Signals did not resolve</span><span class="det">The signal read did not resolve on this load. Nothing is listed rather than a guessed verdict, and no asset row carries a severity. Reload to read it again.</span></div></div>
+</section>
+{{else if .Signals}}
 <section class="se-card">
 <div class="se-cardhead"><span class="se-micro">{{len .Signals}} open</span><h3>Signals</h3></div>
 <div class="se-body">
