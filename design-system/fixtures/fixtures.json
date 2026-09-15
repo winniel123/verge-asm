@@ -185,6 +185,31 @@
           }
         ],
         "total": 2
+      },
+      {
+        "kind": "address",
+        "label": "Addresses",
+        "subjects": [
+          {
+            "key": "198.51.100.31",
+            "type": "Address",
+            "link": "",
+            "facets": []
+          },
+          {
+            "key": "198.51.100.7",
+            "type": "Address",
+            "link": "",
+            "facets": []
+          },
+          {
+            "key": "203.0.113.44",
+            "type": "Address",
+            "link": "",
+            "facets": []
+          }
+        ],
+        "total": 3
       }
     ]
   },

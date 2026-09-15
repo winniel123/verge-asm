@@ -72,6 +72,8 @@ func composeAddressWithdrawals(rows []db.ListAddressExclusionWithdrawalsRow, in 
 		if !c.subjects[row.SubjectKey] {
 			c.subjects[row.SubjectKey] = true
 		}
+		// The Address leaves with its Services and holds no span (#2033).
+		c.subjects[addr.String()] = true
 	}
 
 	// One act writes one receipt; per-subject rows would be the census it replaces (ADR-0074).

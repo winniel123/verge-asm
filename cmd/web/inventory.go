@@ -159,6 +159,8 @@ func buildInventory(rows []db.ListAllOpenSpansRow, vantages map[int64]inventoryV
 		})
 	}
 
+	groups = projectAddressSubjects(groups, groupIdx, subjectIdx)
+
 	// Stable sorts keep ties in read order, which is what pins a service's two vantage rows.
 	for gi := range groups {
 		for si := range groups[gi].Subjects {
@@ -188,6 +190,59 @@ func buildInventory(rows []db.ListAllOpenSpansRow, vantages map[int64]inventoryV
 	return groups
 }
 
+// An Address holds no facet, so no producer writes its kind and the row is projected (#2033).
+
+func projectAddressSubjects(groups []inventoryGroup, groupIdx, subjectIdx map[string]int) []inventoryGroup {
+	var keys []string
+	for _, g := range groups {
+		if g.Kind != "service" && g.Kind != "endpoint" {
+			continue
+		}
+		for _, sub := range g.Subjects {
+			addr := inventorySubjectAddress(sub.Kind, sub.Key)
+			if addr == "" {
+				continue
+			}
+			keys = append(keys, addr)
+		}
+	}
+	if len(keys) == 0 {
+		return groups
+	}
+	gi, ok := groupIdx["address"]
+	if !ok {
+		gi = len(groups)
+		groupIdx["address"] = gi
+		groups = append(groups, inventoryGroup{Kind: "address", Label: inventoryKindLabel("address")})
+	}
+	for _, key := range keys {
+		skey := "address\x00" + key
+		if _, seen := subjectIdx[skey]; seen {
+			continue
+		}
+		subjectIdx[skey] = len(groups[gi].Subjects)
+		groups[gi].Subjects = append(groups[gi].Subjects, inventorySubject{
+			Kind: "address",
+			Key:  key,
+			Type: inventoryTypeLabel("address"),
+			Link: inventoryRowHref("address", key),
+		})
+	}
+	return groups
+}
+
+func inventorySubjectAddress(kind, key string) string {
+	if kind == "endpoint" {
+		// An Endpoint key prefixes its Service key with `<name>@` (connectoutcome.EndpointKey).
+		key = key[strings.LastIndex(key, "@")+1:]
+	}
+	addr, err := netip.ParseAddr(inventoryServiceAddress(key))
+	if err != nil {
+		return ""
+	}
+	return addr.String()
+}
+
 func propagateProxyEdgeToAddresses(groups []inventoryGroup) {
 	// No address-kind reach span exists, so without the lift no Address flags (ADR-0125, #778).
 	proxyAddrs := map[string]bool{}
@@ -196,8 +251,9 @@ func propagateProxyEdgeToAddresses(groups []inventoryGroup) {
 			continue
 		}
 		for _, sub := range groups[gi].Subjects {
-			if sub.ProxyEdge {
-				proxyAddrs[inventoryServiceAddress(sub.Key)] = true
+			// The projected row is keyed canonically, so a raw host spelling would miss it (#2033).
+			if addr := inventorySubjectAddress(sub.Kind, sub.Key); sub.ProxyEdge && addr != "" {
+				proxyAddrs[addr] = true
 			}
 		}
 	}
@@ -627,6 +683,11 @@ func (s *server) writeInventoryExportCSV(w http.ResponseWriter, groups []invento
 
 	for _, g := range groups {
 		for _, sub := range g.Subjects {
+			if len(sub.Facets) == 0 {
+				// A projected Address holds no facet, and no row reads as an absence (#2033).
+				_ = cw.Write([]string{csvSafe(sub.Type), csvSafe(sub.Key), "", "", ""})
+				continue
+			}
 			for _, f := range sub.Facets {
 				// A blank cell reads as a missing export, so a Gap is named (ADR-0072).
 				value := f.Summary

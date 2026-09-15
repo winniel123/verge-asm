@@ -101,6 +101,8 @@ func composeWithdrawnGround(rows []db.ListSeedWithdrawalCandidatesRow, covering 
 		if !c.subjects[row.SubjectKey] {
 			c.subjects[row.SubjectKey] = true
 		}
+		// The Address leaves with its Services and holds no span (#2033).
+		c.subjects[addr.String()] = true
 	}
 	return spanIDs, order, counts
 }

@@ -56,75 +56,79 @@ WHERE account_id = sqlc.arg(account_id) AND message_id = sqlc.arg(message_id);
 WITH cidr AS (
     SELECT sqlc.arg(cidr)::cidr AS net
 ),
+projected_addr AS (
+    -- An Address holds no facet, so no span carries its kind and it projects up (#2033).
+    SELECT DISTINCT substring(s.subject_key from '(?:^|@)([0-9]{1,3}(?:\.[0-9]{1,3}){3}):') AS subject_key
+    FROM span s
+    WHERE s.closed_at IS NULL
+      AND s.subject_kind IN ('service', 'endpoint')
+),
 withdrawn_addr AS (
-    SELECT DISTINCT s.subject_key
-    FROM span s, cidr
+    SELECT p.subject_key
+    FROM projected_addr p, cidr
     WHERE sqlc.arg(kind)::text = 'address'
-      AND s.closed_at IS NULL
-      AND s.subject_kind = 'address'
-      AND s.subject_key ~ '^[0-9.]+$'
-      AND s.subject_key::inet <<= cidr.net
+      AND p.subject_key IS NOT NULL
+      AND p.subject_key::inet <<= cidr.net
       AND NOT EXISTS (
           SELECT 1 FROM span r
           WHERE r.closed_at IS NULL
             AND r.facet = 'resolution'
             AND r.is_gap = false
-            AND position(s.subject_key IN r.value::text) > 0
+            AND position(p.subject_key IN r.value::text) > 0
       )
-),
-withdrawn_subject AS (
-    SELECT s.subject_key
-    FROM span s
-    WHERE s.closed_at IS NULL
-      AND (
-          s.subject_key IN (SELECT subject_key FROM withdrawn_addr)
-          OR (s.subject_kind IN ('service', 'endpoint')
-              AND EXISTS (SELECT 1 FROM withdrawn_addr w WHERE s.subject_key LIKE w.subject_key || ':%'))
-      )
-    GROUP BY s.subject_key
 ),
 withdrawn_span AS (
-    SELECT s.id
+    -- An Endpoint key carries its Name before the address, so a prefix test misses it (#1730).
+    SELECT s.id, s.subject_key
     FROM span s
     WHERE s.closed_at IS NULL
-      AND (
-          s.subject_key IN (SELECT subject_key FROM withdrawn_addr)
-          OR (s.subject_kind IN ('service', 'endpoint')
-              AND EXISTS (SELECT 1 FROM withdrawn_addr w WHERE s.subject_key LIKE w.subject_key || ':%'))
+      AND s.subject_kind IN ('service', 'endpoint')
+      AND EXISTS (
+          SELECT 1 FROM withdrawn_addr w
+          WHERE s.subject_key LIKE w.subject_key || ':%'
+             OR s.subject_key LIKE '%@' || w.subject_key || ':%'
       )
 )
 SELECT
-    (SELECT count(*) FROM withdrawn_subject)::bigint AS subjects_withdrawn,
-    (SELECT count(*) FROM withdrawn_span)::bigint   AS timelines_removed;
+    ((SELECT count(*) FROM withdrawn_addr)
+        + (SELECT count(DISTINCT subject_key) FROM withdrawn_span))::bigint AS subjects_withdrawn,
+    (SELECT count(*) FROM withdrawn_span)::bigint AS timelines_removed;
 
 -- name: ListAddressExclusionWithdrawals :many
-WITH withdrawn_addr AS (
-    SELECT DISTINCT s.subject_key
+WITH projected_addr AS (
+    -- An Address holds no facet, so no span carries its kind and it projects up (#2033).
+    SELECT DISTINCT substring(s.subject_key from '(?:^|@)([0-9]{1,3}(?:\.[0-9]{1,3}){3}):') AS subject_key
     FROM span s
     WHERE s.closed_at IS NULL
-      AND s.subject_kind = 'address'
-      AND s.subject_key ~ '^[0-9.]+$'
+      AND s.subject_kind IN ('service', 'endpoint')
+),
+withdrawn_addr AS (
+    SELECT p.subject_key
+    FROM projected_addr p
+    WHERE p.subject_key IS NOT NULL
       AND EXISTS (
           SELECT 1 FROM exclusion e
           WHERE e.kind = 'address'
             AND e.address_cidr IS NOT NULL
-            AND s.subject_key::inet <<= e.address_cidr
+            AND p.subject_key::inet <<= e.address_cidr
       )
       AND NOT EXISTS (
           SELECT 1 FROM span r
           WHERE r.closed_at IS NULL
             AND r.facet = 'resolution'
             AND r.is_gap = false
-            AND position(s.subject_key IN r.value::text) > 0
+            AND position(p.subject_key IN r.value::text) > 0
       )
 )
 SELECT s.id, s.subject_kind, s.subject_key
 FROM span s
 WHERE s.closed_at IS NULL
-  AND (
-      s.subject_key IN (SELECT subject_key FROM withdrawn_addr)
-      OR (s.subject_kind IN ('service', 'endpoint')
-          AND EXISTS (SELECT 1 FROM withdrawn_addr w WHERE s.subject_key LIKE w.subject_key || ':%'))
+  AND s.subject_kind IN ('service', 'endpoint')
+  AND EXISTS (
+      SELECT 1 FROM withdrawn_addr w
+      -- An Endpoint key carries its Name before the address, so a prefix test misses it (#1730).
+      WHERE s.subject_key LIKE w.subject_key || ':%'
+         OR s.subject_key LIKE '%@' || w.subject_key || ':%'
   )
 ORDER BY s.subject_key, s.id;
 
@@ -139,35 +143,49 @@ ORDER BY w.id
 FOR UPDATE SKIP LOCKED;
 
 -- name: ListSeedWithdrawalCandidates :many
-WITH withdrawn_addr AS (
-    SELECT DISTINCT s.subject_key
+WITH projected_addr AS (
+    -- An Address holds no facet, so no span carries its kind and it projects up (#2033).
+    SELECT DISTINCT substring(s.subject_key from '(?:^|@)([0-9]{1,3}(?:\.[0-9]{1,3}){3}):') AS subject_key
     FROM span s
     WHERE s.closed_at IS NULL
-      AND s.subject_kind = 'address'
-      AND s.subject_key ~ '^[0-9.]+$'
+      AND s.subject_kind IN ('service', 'endpoint')
+),
+withdrawn_addr AS (
+    SELECT p.subject_key
+    FROM projected_addr p
+    WHERE p.subject_key IS NOT NULL
       AND EXISTS (
           SELECT 1 FROM unnest(sqlc.arg(cidrs)::text[]) AS w(net)
-          WHERE s.subject_key::inet <<= w.net::cidr
+          WHERE p.subject_key::inet <<= w.net::cidr
       )
       AND NOT EXISTS (
           SELECT 1 FROM span r
           WHERE r.closed_at IS NULL
             AND r.facet = 'resolution'
             AND r.is_gap = false
-            AND position(s.subject_key IN r.value::text) > 0
+            AND position(p.subject_key IN r.value::text) > 0
       )
 )
 SELECT s.id, s.subject_kind, s.subject_key
 FROM span s
 WHERE s.closed_at IS NULL
-  AND (
-      s.subject_key IN (SELECT subject_key FROM withdrawn_addr)
-      OR (s.subject_kind IN ('service', 'endpoint')
-          AND EXISTS (SELECT 1 FROM withdrawn_addr w WHERE s.subject_key LIKE w.subject_key || ':%'))
+  AND s.subject_kind IN ('service', 'endpoint')
+  AND EXISTS (
+      SELECT 1 FROM withdrawn_addr w
+      -- An Endpoint key carries its Name before the address, so a prefix test misses it (#1730).
+      WHERE s.subject_key LIKE w.subject_key || ':%'
+         OR s.subject_key LIKE '%@' || w.subject_key || ':%'
   )
 ORDER BY s.subject_key, s.id;
 
 -- name: SpendSeedWithdrawals :exec
+WITH projected_addr AS (
+    -- An Address holds no facet, so no span carries its kind and it projects up (#2033).
+    SELECT DISTINCT substring(s.subject_key from '(?:^|@)([0-9]{1,3}(?:\.[0-9]{1,3}){3}):') AS subject_key
+    FROM span s
+    WHERE s.closed_at IS NULL
+      AND s.subject_kind IN ('service', 'endpoint')
+)
 UPDATE seed_withdrawal w
 SET consumed_at = sqlc.arg(consumed_at), consumed_batch_id = sqlc.arg(consumed_batch_id)
 WHERE w.consumed_at IS NULL
@@ -176,11 +194,9 @@ WHERE w.consumed_at IS NULL
   -- Spending an IPv6 tombstone loses ground the gate cannot see, mover and all (ADR-0134 §5.1).
   AND family(w.address_cidr) = 4
   AND NOT EXISTS (
-      SELECT 1 FROM span s
-      WHERE s.closed_at IS NULL
-        AND s.subject_kind = 'address'
-        AND s.subject_key ~ '^[0-9.]+$'
-        AND s.subject_key::inet <<= w.address_cidr
+      SELECT 1 FROM projected_addr p
+      WHERE p.subject_key IS NOT NULL
+        AND p.subject_key::inet <<= w.address_cidr
   );
 
 -- name: ListPendingNameSeedWithdrawals :many

@@ -184,8 +184,10 @@ WITH cited AS (
     WHERE n.subject_kind = 'name'
       AND n.facet = 'resolution'
       AND n.subject_key = ANY($1::text[])
+      -- A JSON null element reaches Go as a NULL key the row type cannot scan (#2033).
+      AND a.addr IS NOT NULL
 )
-SELECT s.id, s.subject_key,
+SELECT c.addr::text AS subject_key,
        COALESCE((
            SELECT array_agg(DISTINCT r.subject_key)
            FROM span r
@@ -194,22 +196,29 @@ SELECT s.id, s.subject_key,
              AND r.facet = 'resolution'
              AND r.is_gap = FALSE
              AND jsonb_typeof(r.value -> 'addresses') = 'array'
-             AND r.value -> 'addresses' @> to_jsonb(s.subject_key)
+             AND r.value -> 'addresses' @> to_jsonb(c.addr)
        ), '{}'::text[])::text[] AS citers
-FROM span s
-JOIN cited c ON c.addr = s.subject_key
-WHERE s.closed_at IS NULL
-  AND s.subject_kind = 'address'
-ORDER BY s.subject_key, s.id
+FROM cited c
+WHERE EXISTS (
+    SELECT 1 FROM span s
+    WHERE s.closed_at IS NULL
+      AND s.subject_kind IN ('service', 'endpoint')
+      AND (s.subject_key LIKE c.addr || ':%'
+        OR s.subject_key LIKE '[' || c.addr || ']:%'
+        OR s.subject_key LIKE '%@' || c.addr || ':%'
+        OR s.subject_key LIKE '%@[' || c.addr || ']:%')
+)
+ORDER BY c.addr
 `
 
 type ListCitedAddressSpansForNamesRow struct {
-	ID         int64    `json:"id"`
 	SubjectKey string   `json:"subject_key"`
 	Citers     []string `json:"citers"`
 }
 
 // The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
+// An Address holds no facet, so no span carries it and citation alone is the read (#2033).
+// The estate bound the dropped address-span join carried: a candidate holds something (#2033).
 func (q *Queries) ListCitedAddressSpansForNames(ctx context.Context, names []string) ([]ListCitedAddressSpansForNamesRow, error) {
 	rows, err := q.db.Query(ctx, listCitedAddressSpansForNames, names)
 	if err != nil {
@@ -219,7 +228,7 @@ func (q *Queries) ListCitedAddressSpansForNames(ctx context.Context, names []str
 	items := []ListCitedAddressSpansForNamesRow{}
 	for rows.Next() {
 		var i ListCitedAddressSpansForNamesRow
-		if err := rows.Scan(&i.ID, &i.SubjectKey, &i.Citers); err != nil {
+		if err := rows.Scan(&i.SubjectKey, &i.Citers); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
