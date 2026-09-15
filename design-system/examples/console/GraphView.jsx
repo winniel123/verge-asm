@@ -73,7 +73,7 @@ export function GraphView() {
               { k: "Node", v: sel.id },
               { k: "Type", v: sel.type, mono: false },
               { k: "Open ports", v: (d && d.ports) || "\u2014" },
-              { k: "First seen", v: (d && d.first) || "2026-08-19T02:12:33Z" },
+              { k: "Since", v: (d && d.first) || "2026-08-19T02:12:33Z" },
             ]} />
             <div>
               <div style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10 }}>Open signals</div>

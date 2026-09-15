@@ -1693,7 +1693,7 @@ type fixtureGraphPackage struct {
 			HaloB       float64 `json:"halo_b"`
 			LabelDX     int     `json:"label_dx"`
 			Ports       string  `json:"ports"`
-			First       string  `json:"first"`
+			Since       string  `json:"first"`
 			OpenSignals []struct {
 				Severity string `json:"severity"`
 				SevLabel string `json:"sev_label"`
@@ -1735,7 +1735,7 @@ func TestGraphFixtureMatchesPackage(t *testing.T) {
 		q := d.Nodes[i]
 		if n.ID != q.ID || n.Label != q.Label || n.Type != q.Type || n.X != q.X || n.Y != q.Y ||
 			n.Mx != q.Mx || n.My != q.My || n.Sev != q.Sev || n.HaloA != q.HaloA || n.HaloB != q.HaloB ||
-			n.LabelDX != q.LabelDX || n.Ports != q.Ports || n.First != q.First {
+			n.LabelDX != q.LabelDX || n.Ports != q.Ports || n.Since != q.Since {
 			t.Errorf("nodes[%d] drift:\n fixtures.json = %+v\n pinned        = %+v", i, n, q)
 		}
 		if len(n.OpenSignals) != len(q.OpenSignals) {

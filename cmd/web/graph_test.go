@@ -601,3 +601,32 @@ func TestJoinSignalsCountsNothingUnderTheCap(t *testing.T) {
 		t.Errorf("CutSignals = %d, want 0 for a drawing the cap did not touch", g.CutSignals)
 	}
 }
+
+func TestGraphDrillDownIsSinceNotFirstSeen(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+	f.addReachability(t, "203.0.113.5:443/tcp", obsClock, `{"outcome":"reached"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/graph", http.StatusOK)
+
+	if strings.Contains(page, "First seen") {
+		t.Errorf("graph drill-down names a first sighting over an open-span minimum; body: %s", page)
+	}
+	if !strings.Contains(page, "Since</span>") {
+		t.Errorf("graph drill-down missing its Since label; body: %s", page)
+	}
+
+	// txt() no-ops on an unknown id, so a half-renamed hook would read "—" for every node in silence.
+	for _, want := range []string{
+		`data-since="2026-08-14 09:00 UTC"`,
+		`id="gd-since"`,
+		`txt("gd-since", g.getAttribute("data-since")`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("graph drill-down missing %q, so its Since hook is not wired end to end; body: %s", want, page)
+		}
+	}
+}

@@ -72,7 +72,7 @@ type graphNode struct {
 	HaloB       float64
 	Mx, My      float64
 	Ports       string
-	First       string
+	Since       string
 	OpenSignals []graphSignal
 	Sev         string
 }
@@ -270,10 +270,10 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 	// A scoped-out subject drops before placement, never dimmed, folded or counted (ADR-0136 §3).
 	members := graphScopeMembers(rows, sc)
 
-	first := map[string]time.Time{}
-	noteFirst := func(id string, t time.Time) {
-		if cur, ok := first[id]; !ok || t.Before(cur) {
-			first[id] = t
+	since := map[string]time.Time{}
+	noteSince := func(id string, t time.Time) {
+		if cur, ok := since[id]; !ok || t.Before(cur) {
+			since[id] = t
 		}
 	}
 
@@ -305,14 +305,14 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 				continue
 			}
 			names[row.SubjectKey] = struct{}{}
-			noteFirst("name:"+row.SubjectKey, at)
+			noteSince("name:"+row.SubjectKey, at)
 			if row.Facet == "resolution" && !row.IsGap {
 				for _, a := range decodeResolution(row.Value).Addresses {
 					if !members.holdsAddress(a) {
 						continue
 					}
 					addrs[a] = struct{}{}
-					noteFirst("addr:"+a, at)
+					noteSince("addr:"+a, at)
 					addEdge(edge{from: "name:" + row.SubjectKey, to: "addr:" + a})
 				}
 			}
@@ -325,10 +325,10 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 				continue
 			}
 			services[row.SubjectKey] = struct{}{}
-			noteFirst("svc:"+row.SubjectKey, at)
+			noteSince("svc:"+row.SubjectKey, at)
 			if keyed {
 				addrs[addr] = struct{}{}
-				noteFirst("addr:"+addr, at)
+				noteSince("addr:"+addr, at)
 				port := ":" + strconv.Itoa(int(pair.Port))
 				if addrPorts[addr] == nil {
 					addrPorts[addr] = map[string]struct{}{}
@@ -357,8 +357,8 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 			HaloB:   float64(r) + 4.5,
 			Ports:   ports,
 		}
-		if t, ok := first[internalID]; ok {
-			n.First = t.Format(spanTimeFmt)
+		if t, ok := since[internalID]; ok {
+			n.Since = t.Format(spanTimeFmt)
 		}
 		nodes = append(nodes, n)
 	}

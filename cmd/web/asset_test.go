@@ -205,7 +205,7 @@ func TestAssetPortsCollapseSpansToOneRowPerPort(t *testing.T) {
 		t.Fatalf("ports = %d rows, want 1; got %+v", len(ports), ports)
 	}
 	if ports[0].Since != "2026-06-14 09:00 UTC" {
-		t.Errorf("first seen = %q, want the earliest span of the two", ports[0].Since)
+		t.Errorf("since = %q, want the earliest open span of the two", ports[0].Since)
 	}
 	if ports[0].Internal.Label != "reached" || ports[0].Internal.Tone != "neutral" {
 		t.Errorf("internal leg = %+v, want a neutral reached", ports[0].Internal)
@@ -375,4 +375,49 @@ func TestAssetDetailFailsLoudlyWhenItsLegReadFails(t *testing.T) {
 
 	// A swallowed leg read renders every leg as never looked, which is a false claim (#1948).
 	getBody(t, ac, base+"/asset/api.example.com", http.StatusInternalServerError)
+}
+
+func TestAssetPortsColumnIsSinceNotFirstSeen(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
+	f.addClassReachability(t, "198.51.100.1:443/tcp", "internet", obsClock, `{"outcome":"reached","result":"open"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/asset/api.example.com", http.StatusOK)
+
+	head, ok := portsTableHead(page)
+	if !ok {
+		t.Fatalf("asset detail rendered no Open ports table head; body: %s", page)
+	}
+	if strings.Contains(head, "First seen") {
+		t.Errorf("ports column names a first sighting over an open-span minimum; head: %s", head)
+	}
+	if !strings.Contains(head, "Since") {
+		t.Errorf("ports column = %s, want the Since word /exposure runs the same rule under", head)
+	}
+}
+
+func portsTableHead(page string) (string, bool) {
+	i := strings.Index(page, "Open ports")
+	if i < 0 {
+		return "", false
+	}
+	rest := page[i:]
+	open := strings.Index(rest, "<thead>")
+	if open < 0 {
+		return "", false
+	}
+	// The card heading sits outside the ports guard, so an empty state would hand back the DNS head.
+	if empty := strings.Index(rest, "as-empty"); empty >= 0 && empty < open {
+		return "", false
+	}
+	rest = rest[open:]
+	j := strings.Index(rest, "</thead>")
+	if j < 0 {
+		return "", false
+	}
+	return rest[:j], true
 }
