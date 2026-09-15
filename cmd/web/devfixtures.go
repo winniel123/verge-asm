@@ -1693,8 +1693,8 @@ func devServiceData() servicePageData {
 		Key:          devServiceKey,
 		CopyKey:      "203.0.113.7:5900 tcp",
 		Withdrawn:    false,
-		InternalLeg:  devLegChip(custody.ClassInternal, "reached", "2026-07-14 06:00 UTC"),
-		InternetLeg:  devLegChip(custody.ClassInternet, "reached", "2026-08-22 14:00 UTC"),
+		InternalLeg:  devLegChip(custody.ClassInternal, "reached", "2026-08-22 14:00 UTC"),
+		InternetLeg:  devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC"),
 		Seen:         "4m",
 		InScopeSince: "2026-08-22",
 		Citation: []citationHop{

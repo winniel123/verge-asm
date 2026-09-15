@@ -1553,8 +1553,8 @@
       "address": "203.0.113.7",
       "port": "5900",
       "transport": "tcp",
-      "internal_leg_date": "2026-07-14 06:00 UTC",
-      "internet_leg_date": "2026-08-22 14:00 UTC",
+      "internal_leg_date": "2026-08-22 14:00 UTC",
+      "internet_leg_date": "2026-09-02 08:30 UTC",
       "timelines": [
         {
           "label": "reachability",
