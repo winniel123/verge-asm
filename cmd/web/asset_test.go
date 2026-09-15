@@ -450,7 +450,7 @@ func portsTableHead(page string) (string, bool) {
 	if open < 0 {
 		return "", false
 	}
-	// The card heading sits outside the ports guard, so an empty state would hand back the DNS head.
+	// The heading sits outside the ports guard, so an empty state hands back the DNS head.
 	if empty := strings.Index(rest, "as-empty"); empty >= 0 && empty < open {
 		return "", false
 	}

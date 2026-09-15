@@ -155,7 +155,7 @@ func TestServiceDetailReachReadFailureRendersDidNotResolve(t *testing.T) {
 		t.Errorf("address cell = %q, want %q; card: %s", got, "198.51.100.1", card)
 	}
 	assertNoHeaderLegChip(t, page, "a failed reach read")
-	// never looked is a claim about the estate's scanning, so a fault may not produce it (ADR-2030).
+	// never looked claims the estate did not look, so a fault may not produce it (ADR-2030).
 	if strings.Contains(page, "never looked") {
 		t.Errorf("a failed reach read substituted a leg word; body: %s", page)
 	}

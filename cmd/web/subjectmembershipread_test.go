@@ -80,7 +80,7 @@ func TestServiceCoveringSeedSettlesMembershipThoughTheCitationReadFailed(t *test
 
 	page := membershipPage(t, base, serviceDetailPath)
 
-	// A Seed that covers the address settles membership, so the other read's failure claims nothing.
+	// A covering Seed settles membership, so the other read's failure claims nothing.
 	wantNotIn(t, page, membershipDidNotResolve, "covering seed with a failed citation read")
 	wantNotIn(t, page, withdrawnHeadline, "covering seed with a failed citation read")
 	wantIn(t, page, "203.0.113.0/24", "covering seed with a failed citation read")

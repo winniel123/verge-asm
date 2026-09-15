@@ -12,8 +12,7 @@ const (
 	searchSignalsFailed  = "Signals did not resolve"
 	searchTotalWithheld  = "Results not totalled"
 	searchNothingMatches = "Nothing matches."
-	// A rendered severity badge is identified by its pill geometry, because every page inlines the --sev-* tokens.
-	sevBadgeGeometry = "height:18px;padding:0 8px;border-radius:999px"
+	sevBadgeGeometry     = "height:18px;padding:0 8px;border-radius:999px"
 )
 
 func searchCountLine(t *testing.T, page string) string {

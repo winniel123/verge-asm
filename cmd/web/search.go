@@ -156,7 +156,7 @@ func searchRenderMap(acct db.Account, q string, total int, signalsFailed bool, a
 		"SignalsFailed": signalsFailed,
 	}
 	if !signalsFailed {
-		// A total counted without the unread group is a measured figure the read never produced (ADR-2030).
+		// A total missing the unread group is a figure the read never produced (ADR-2030).
 		rest["Total"] = total
 	}
 	return pageData(acct, "Search results", "", rest)

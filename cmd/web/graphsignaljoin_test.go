@@ -46,7 +46,7 @@ func TestGraphPageNamesAFailedSignalJoin(t *testing.T) {
 
 func graphCanvasOf(t *testing.T, page string) string {
 	t.Helper()
-	// The severity filter's options carry data-sev too, so a node's verdict is only readable inside the plot.
+	// The filter's options carry data-sev too, so a node's verdict reads only inside the plot.
 	from := strings.Index(page, `<svg id="gr-svg"`)
 	if from < 0 {
 		t.Fatalf("graph page carries no canvas, so its nodes cannot be isolated; body: %s", page)

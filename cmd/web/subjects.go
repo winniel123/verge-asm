@@ -386,7 +386,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		legs, err := s.serviceReachLegs(r.Context(), subject.SubjectKey)
 		if err != nil {
 			log.Printf("web: service detail: service reach legs: %v", err)
-			// The header chip derives from this read, so the absence is stated, never a 500 (ADR-2030 §2).
+			// The header chip derives from this read, so an absence is stated (ADR-2030 §2).
 			data.ReachFailed = true
 		}
 		if legs != nil {
@@ -991,7 +991,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.ScopeDateFailed = scopeFailed
 	dns, dnsErr := s.assetDNS(r, key, res)
 	data.DNS, data.DNSFailed = dns, dnsErr != nil
-	// A read whose failure escapes its region shows an absence at both ends, never a 500 (ADR-2030 §2).
+	// A failure escaping its region shows an absence at both ends, never a 500 (ADR-2030 §2).
 	ports, portsErr := s.assetPorts(r, res.Addresses)
 	data.Ports, data.PortsFailed = ports, portsErr != nil
 	cert, certErr := s.assetCertificate(r, key, res.Addresses)

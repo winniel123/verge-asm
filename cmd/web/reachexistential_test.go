@@ -128,7 +128,7 @@ func TestServiceReachCardGapBannerStatesEveryVantageReason(t *testing.T) {
 
 	card := reachCard(t, serviceDetailBody(t, f, http.StatusOK))
 
-	// An existential composition names no vantage, so the drill-down carries every cause (ADR-0080).
+	// An existential fold names no vantage, so the drill-down carries every cause (ADR-0080).
 	for _, want := range []string{"the control probe did not complete", "an edge answers for the origin"} {
 		if !strings.Contains(card, want) {
 			t.Errorf("the Gap banner is missing %q; card: %s", want, card)

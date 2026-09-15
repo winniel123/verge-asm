@@ -619,7 +619,7 @@ func TestGraphDrillDownIsSinceNotFirstSeen(t *testing.T) {
 		t.Errorf("graph drill-down missing its Since label; body: %s", page)
 	}
 
-	// txt() no-ops on an unknown id, so a half-renamed hook would read "—" for every node in silence.
+	// txt() no-ops on an unknown id, so a half-renamed hook reads "—" on every node in silence.
 	for _, want := range []string{
 		`data-since="2026-08-14 09:00 UTC"`,
 		`id="gd-since"`,
