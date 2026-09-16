@@ -390,11 +390,10 @@ func TestExposureFoldReadsNoActInput(t *testing.T) {
 	}
 }
 
-// #2167 made one LIMIT bound every class at once, so a bulk class can evict the others (#2221).
-// declineLookup records one act per checked proposal and ListPendingProposals has no LIMIT, so
-// proposal.declined is the class that can do it.
+// #2167 made one LIMIT bound every class at once, so a burst in one class evicts the others
+// (#2221). A name scope consumes the read and renders nothing, which is the worst shape.
 
-func TestABulkDeclineDoesNotEvictEveryOtherScopeActClass2221(t *testing.T) {
+func TestANameScopeBurstDoesNotEvictAnAddressScopeAct2221(t *testing.T) {
 	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
 	f := newFakeStore()
 	exposureBoardFixture(t, f, now)
