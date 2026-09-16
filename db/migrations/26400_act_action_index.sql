@@ -8,8 +8,14 @@
 -- inside the window to return none. 61 act classes write into that window and the panel reads seven
 -- of them, so the read scales with act volume that has nothing to do with scopes.
 --
--- Leading on action makes it a seek per array element, and created_at DESC, id DESC then supplies the
--- ORDER BY inside each group, so the LIMIT stops the scan rather than a sort consuming the window.
+-- Leading on action makes it a seek per array element, so the read touches the rows of seven classes
+-- rather than every row in the window. That is the whole of the win here.
+--
+-- The ORDER BY is NOT served by this index on our Postgres. An ordered btree scan over a
+-- ScalarArrayOp arrived in PG 17, and docker-compose.yml pins postgres:16-bookworm, so on 16 the
+-- planner sorts the matched rows and the LIMIT takes the top N of that sort. The trailing
+-- created_at DESC, id DESC columns are carried so the ordering comes for free on a later PG, and so
+-- a single-class caller can seek within one action today.
 --
 -- A partial index over the classes the panel names was weighed and rejected: it needs a migration per
 -- class the reader gains, and the set has already moved once (#2169) before the first index existed.

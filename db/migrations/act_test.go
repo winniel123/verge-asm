@@ -160,8 +160,8 @@ func actIndexesLeadingOn(t *testing.T, col string) (map[string]actIndex, []strin
 }
 
 func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
-	// Five per-class reads run on every admin Exposure load, and an index leading on
-	// created_at makes each one walk the whole window to return its matches (#2073).
+	// One ANY() read runs on every admin Exposure load, and an index leading on
+	// created_at makes it walk the whole window to return its matches (#2073).
 	idx, names := actIndexesLeadingOn(t, "action")
 
 	if len(names) == 0 {
@@ -171,10 +171,10 @@ func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
 	want := []string{"action", "created_at desc", "id desc"}
 	for _, name := range names {
 		ix := idx[name]
-		// The ORDER BY must come from the index, or the LIMIT sorts the window before it stops.
+		// PG 16 sorts a ScalarArrayOp match, so these trailing columns buy ordering on a later PG.
 		for i, col := range want {
 			if i >= len(ix.cols) || ix.cols[i] != col {
-				t.Errorf("%s must key (%s) so the LIMIT stops the scan, got: %v",
+				t.Errorf("%s must key (%s) so the read seeks to a class, got: %v",
 					name, strings.Join(want, ", "), ix)
 				break
 			}
