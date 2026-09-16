@@ -413,3 +413,44 @@ func TestTheGapSpellingMatchesEachFacetsOwnWriter(t *testing.T) {
 		}
 	}
 }
+
+// A host-key pin is the third writer of the availability column, and it reads no facet (#2182).
+
+func collapsed(sql string) string { return strings.Join(strings.Fields(sql), " ") }
+
+func TestPinVantageHostKeyClearsNoOutageItCannotCloseTheGapsOf(t *testing.T) {
+	// `host_key IS NULL` does not say the row holds no span: the shipped resolver-only `local`
+	// vantage holds spans under a NULL host key. What keeps a stranded Gap out of reach today is
+	// two other files — ListVantagesNeedingLatency filters `host IS NOT NULL`, and the router
+	// refuses a host vantage whose key is unpinned, so that vantage completes no batch. The
+	// guard belongs here, where a reader of this statement can see it.
+	q := collapsed(uncommented(namedQuery(t, "vantages.sql", "PinVantageHostKey")))
+
+	if !strings.Contains(q, "availability") {
+		t.Fatalf("PinVantageHostKey writes availability nowhere, so this case has no job; got:\n%s", q)
+	}
+	if !strings.Contains(q, "WHEN availability = 'unavailable' THEN availability") {
+		t.Errorf("the pin must leave an outage standing: it retires no Gap, and a Gap left open "+
+			"under a healthy vantage is listed by no read and closed by nothing (ADR-2087); got:\n%s", q)
+	}
+	if !strings.Contains(q, "ELSE 'available'") {
+		t.Errorf("a first connect still declares the position reachable, so every other prior "+
+			"state must reach 'available'; got:\n%s", q)
+	}
+	if !strings.Contains(q, "host_key = ") {
+		t.Errorf("the pin must still record the key the connect already trusted, or the next "+
+			"connect trusts that host afresh; got:\n%s", q)
+	}
+}
+
+func TestPinVantageHostKeyRetiresNoGapOfItsOwn(t *testing.T) {
+	// Recovery retires the Gap on the facets the recovering batch re-read, and a connect re-reads
+	// none. A pin that closed spans would end readings nothing replaces (ADR-2087, #2060).
+	q := uncommented(namedQuery(t, "vantages.sql", "PinVantageHostKey"))
+
+	for _, writing := range []string{"UPDATE span", "INSERT INTO span", "closed_at"} {
+		if strings.Contains(q, writing) {
+			t.Errorf("a host-key pin states no reading, so it touches no span; got:\n%s", q)
+		}
+	}
+}
