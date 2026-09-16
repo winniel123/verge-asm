@@ -59,6 +59,7 @@ This matches [citation anchors](citation-anchors.md) §1.2. One boundary serves 
 
 - **Repointing an anchor to the declaration the prose names.** §6.3 rules that a suspect anchor
   degrades. Choosing a new target is a judgement about what the document asserts. A human makes it.
+  §6.4 states the route that human takes, and this SPEC repoints nothing itself.
 - **The line anchors the sweep has not reached.** Three batch tickets remain on map
   [#1967](https://github.com/winniel123/verge-asm/issues/1967). They convert under the guard as it
   stands, refined or not.
@@ -84,6 +85,7 @@ This matches [citation anchors](citation-anchors.md) §1.2. One boundary serves 
 | **The history arm** | `docs-site/scripts/sweep/history.mjs`, which reads the target's own history. |
 | **Witness commit** | The newest commit whose revision of the citing line still spelled a line number for the cited path. |
 | **Drift candidate** | An anchor whose cited line sat in another declaration at the witness commit. |
+| **Crossed anchor** | A written anchor that names a declaration the citing document does not mean. A suspect anchor and a drift candidate are the two shapes an instrument reports. Neither report is a proof, so a human names the class. |
 
 ---
 
@@ -283,8 +285,57 @@ puts one declaration where another stood, so the document asserts something new.
 classes where the rival is not the target, so no tool can tell the two acts apart here. A human
 decides each one. Inside `docs/adr` the route is a later ADR's relation, per
 [adr governance](adr-governance.md) §4, and §3 of that SPEC carries the same limit. That SPEC
-governs no file under `docs/spec`, so it prescribes no route there, and a human decides all the
-same.
+governs no file under `docs/spec`, so it prescribes no route there. §6.4 states the route that
+reaches `docs/spec`.
+
+### 6.4 The route for a `docs/spec` anchor that crossed declarations
+
+ADR-2086 §3 puts a crossed anchor in its second row. The document asserts something new, so a human
+acts, and the act leaves a record. ADR-2086 §7 leaves `docs/spec` outside the ADR route, so the
+relation of [adr governance](adr-governance.md) §4 is not that record here. This section names the
+instrument that is.
+
+**The record is the pull request, because a SPEC amends itself in place.** An ADR never does, per
+[adr governance](adr-governance.md) §3, so its record has to be a later file. A SPEC is edited where
+it stands, so the edit is the amendment. No relation is declared and no marker is written.
+
+The route has three steps, and a human takes each one.
+
+1. **Degrade first.** §6.3 stands. The anchor becomes a bare path, and the citation asserts nothing
+   false from that moment. A degrade needs no reading and waits for no decision.
+2. **Repair the sentence, and let the anchor follow it.** The human reads the citing sentence and the
+   target, and states which declaration the sentence means. A rival the guard reports and a witness
+   commit the history arm reads are both evidence for that reading. Neither one decides it, per §6.3
+   and §7. The human then writes the sentence and its anchor in one commit. A new anchor under a
+   sentence nobody re-read is the act §6.3 refuses.
+3. **State the evidence in the pull request body.** One line carries the anchor that degraded, the
+   declaration the repair names, and what chose it. The two steps may land in one pull request or in
+   two, and the request that writes the new anchor carries that line.
+
+**§6.3 keeps its sentence and gains a limit.** It rules the act a tool takes, and the act a human
+takes on the anchor alone. It does not refuse a re-read sentence that carries a new anchor, because
+that act re-states the claim rather than moving it.
+
+**The declaration the sentence means may have left the target.** The citation is then wrong in its
+path as well as its anchor, and the same commit writes both. A citation whose path no longer
+resolves at all stays §1.3's case.
+
+**A wrong rule is not a wrong citation.** This route repairs a citation. Where the reading finds the
+SPEC's rule wrong, the crossed anchor is a symptom, and the rule changes by its own route.
+
+**The rejected record is an in-tree sentence.** [adr governance](adr-governance.md) §5 keeps the
+sentence rule of ADR-0058 for a spec target, so a note beside the repaired citation was available.
+It was rejected because ADR-0058 rules a withdrawn mechanism, and a repaired citation withdraws
+nothing. A note per repair would also state, in the SPEC's own prose, which line number once drifted.
+The cost of the choice is that the tree shows a repaired anchor and a never-wrong anchor alike, and
+the pull request holds the difference.
+
+**No gate reports this work, and no count retires it.** §8 keeps every instrument out of the gate,
+and §7 consequence 3 says why no list proves the anchors correct. §9 fact F3 records three real
+suspect anchors in `docs/spec`, and
+[#2146](https://github.com/winniel123/verge-asm/issues/2146) holds the first. Fact F10 reports 30
+more `docs/spec` drift candidates that no human has read, so those three are the first cases and not
+the population.
 
 ---
 
@@ -357,6 +408,11 @@ and this SPEC adds nothing.
 **No ADR records this SPEC.** The decisions here are corrections to a mechanism that one pull
 request built and the same pull request measured. A human opens the issue that becomes an ADR, per
 `CLAUDE.md`.
+
+**§6.4 is the one section that reason does not cover.** It rules a route rather than correcting the
+guard, and it answers for `docs/spec` the question ADR-2086 §7 left open there. So the pull request
+that added it carries a decision proposal block, per [adr governance](adr-governance.md) §7, and a
+human decides whether an ADR follows.
 
 ---
 
