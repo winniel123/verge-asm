@@ -17,11 +17,12 @@ import (
 // (ADR-2087, #2166).
 
 type spanRow struct {
-	facet      string
-	subjectKey string
-	source     string
-	value      string
-	isGap      bool
+	facet       string
+	subjectKey  string
+	subjectKind string
+	source      string
+	value       string
+	isGap       bool
 }
 
 func valued(facet, subjectKey string) spanRow {
@@ -54,12 +55,16 @@ func insertVantage(t *testing.T, tx pgx.Tx, name string) int64 {
 func insertSpan(t *testing.T, tx pgx.Tx, vantageID int64, row spanRow) int64 {
 	t.Helper()
 	var id int64
+	kind := row.subjectKind
+	if kind == "" {
+		kind = "name"
+	}
 	err := tx.QueryRow(context.Background(),
 		`INSERT INTO span (subject_kind, subject_key, facet, discriminator, vantage_id,
 		                   source, value, is_gap, derivation, opened_at)
-		 VALUES ('name', $1, $2, '', $3, $4, $5::jsonb, $6, '[]'::jsonb, now())
+		 VALUES ($1, $2, $3, '', $4, $5, $6::jsonb, $7, '[]'::jsonb, now())
 		 RETURNING id`,
-		row.subjectKey, row.facet, vantageID, row.source, row.value, row.isGap).Scan(&id)
+		kind, row.subjectKey, row.facet, vantageID, row.source, row.value, row.isGap).Scan(&id)
 	if err != nil {
 		t.Fatalf("insert %s span for %s: %v", row.facet, row.subjectKey, err)
 	}

@@ -264,7 +264,7 @@ dispatch and the path resolution.
 The audit reports three counts per family: suspect, corroborated, and unproven. §9 facts F1 and F2
 are its first output, so a builder can check the arm against them.
 
-### 6.3 A suspect anchor degrades, and is never repointed
+### 6.3 A suspect anchor degrades, and no tool repoints it
 
 A suspect anchor keeps its path and drops the anchor. The citation then says less, and everything it
 says is true.

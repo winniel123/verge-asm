@@ -160,7 +160,8 @@ ORDER BY sp.subject_key, sp.id;
 -- name: ListOutageReachGapVantages :many
 -- One row per position, never one per service: an outage Gaps thousands at once (#2180).
 SELECT v.name AS vantage,
-       count(*)::bigint AS services
+       -- span_open_timeline_idx admits one service twice under two sources (#2180).
+       count(DISTINCT sp.subject_key)::bigint AS services
 FROM span sp
 JOIN vantage v ON v.id = sp.vantage_id
 WHERE sp.subject_kind = 'service'

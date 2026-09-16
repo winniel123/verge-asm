@@ -33,6 +33,12 @@ var migrateOnce struct {
 	err error
 }
 
+var poolOnce struct {
+	sync.Once
+	pool *pgxpool.Pool
+	err  error
+}
+
 func Pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
@@ -48,12 +54,15 @@ func Pool(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("dbtest: %v", migrateOnce.err)
 	}
 
-	pool, err := pgdb.Connect(context.Background(), url)
-	if err != nil {
-		t.Fatalf("dbtest: connect: %v", err)
+	// One pool per process: a second pool would hold a second transaction on the
+	// same rows, and the case would block on the row lock until the test timeout.
+	poolOnce.Do(func() {
+		poolOnce.pool, poolOnce.err = pgdb.Connect(context.Background(), url)
+	})
+	if poolOnce.err != nil {
+		t.Fatalf("dbtest: connect: %v", poolOnce.err)
 	}
-	t.Cleanup(pool.Close)
-	return pool
+	return poolOnce.pool
 }
 
 func Tx(t *testing.T) pgx.Tx {
