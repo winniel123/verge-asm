@@ -235,6 +235,8 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"Messages":       ledger.Messages,
 		"MessagesFailed": ledger.MessagesFailed,
 		"Gaps":           ledger.Gaps,
+		"GapsOmitted":    ledger.GapsOmitted,
+		"GapListCap":     coverageGapListCap,
 		"GapsFailed":     ledger.GapsFailed,
 		"Unevaluable":    unevaluable,
 		"StaleZones":     staleZonesView,
@@ -245,6 +247,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 type coverageGapLedger struct {
 	Gaps           []coverageGapView
 	Messages       []coverageMessageView
+	GapsOmitted    int
 	GapsFailed     bool
 	MessagesFailed bool
 }
@@ -253,7 +256,7 @@ func (s *server) readCoverageGapLedger(ctx context.Context) coverageGapLedger {
 	var l coverageGapLedger
 	// An empty ledger reads as "no gaps", so a failed read hides evidence (ADR-0168 §2, #2091).
 	if rows, err := s.coldStore.ListOpenReachGapServices(ctx); err == nil {
-		l.Gaps, l.Messages = reachGapsAndMessages(rows)
+		l.Gaps, l.Messages, l.GapsOmitted = reachGapsAndMessages(rows)
 	} else {
 		l.GapsFailed, l.MessagesFailed = true, true
 		log.Printf("web: coverage: open reach gap services: %v", err)
@@ -426,7 +429,11 @@ func staleZones(rows []db.ListZoneFileStatusRow, cadenceSeconds int64, now time.
 
 const vantageUnavailableCause = "vantage-unavailable"
 
-func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView) {
+// A wide connect failure Gaps every service at once, and the blanket rollup bars a LIMIT (#2181).
+
+const coverageGapListCap = 50
+
+func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView, int) {
 	blanketed := map[string]bool{}
 	blanketedServices := map[string]bool{}
 	for _, row := range rows {
@@ -489,11 +496,17 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 	})
 
 	seen := map[string]bool{}
+	omitted := 0
 	for _, row := range others {
 		if seen[row.SubjectKey] {
 			continue
 		}
 		seen[row.SubjectKey] = true
+		// A remainder, never len == cap: a window holding exactly the cap lost nothing (#2222).
+		if len(seen) > coverageGapListCap {
+			omitted++
+			continue
+		}
 		addr, port, transport := splitServiceKey(row.SubjectKey)
 		subject := serviceCopyKey(addr, port, transport)
 		gaps = append(gaps, coverageGapView{
@@ -514,7 +527,7 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 			Text:    text,
 		})
 	}
-	return gaps, msgs
+	return gaps, msgs, omitted
 }
 
 func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView, []coverageMessageView) {

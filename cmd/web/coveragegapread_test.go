@@ -182,7 +182,7 @@ func TestReachGapsAndMessagesKeepARowForAnUnexplainedCause(t *testing.T) {
 		{SubjectKey: "198.51.100.10:443/tcp", Value: []byte(`{"outcome":"gap","cause":"probe-failed","reason":"the control probe did not complete"}`)},
 		{SubjectKey: "198.51.100.11:8443/tcp", Value: []byte(`{"outcome":"gap"}`)},
 	}
-	gaps, msgs := reachGapsAndMessages(rows)
+	gaps, msgs, _ := reachGapsAndMessages(rows)
 
 	subjects := map[string]coverageGapView{}
 	for _, g := range gaps {
@@ -224,7 +224,7 @@ func TestReachGapsAndMessagesDoNotLetABlanketedAddressSwallowAnotherPort(t *test
 		{SubjectKey: "104.21.61.6:443/tcp", Value: []byte(`{"outcome":"gap","cause":"` + blanketdiscrim.GapCause + `"}`)},
 		{SubjectKey: "104.21.61.6:8443/tcp", Value: []byte(`{"outcome":"gap","cause":"probe-failed","reason":"the control probe did not complete"}`)},
 	}
-	gaps, msgs := reachGapsAndMessages(rows)
+	gaps, msgs, _ := reachGapsAndMessages(rows)
 
 	if len(gaps) != 2 {
 		t.Fatalf("the blanketed address and the unexplained service are two findings, got %d: %+v", len(gaps), gaps)
