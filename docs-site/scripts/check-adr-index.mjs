@@ -2,17 +2,24 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import yaml from "js-yaml";
-import { ADR_DIR, ADR_FILE, LEGACY_MAX, headings, numberedSections } from "./check-adr-sections.mjs";
+import {
+  ADR_DIR,
+  ADR_FILE,
+  DECISION_CAP,
+  LEGACY_MAX,
+  decisionBlock,
+  headings,
+  numberedSections,
+  splitFrontMatter,
+  wordCount,
+} from "./check-adr-sections.mjs";
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const INDEX_FILE = `${ADR_DIR}/index.json`;
 
-const FRONT = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
 const H1_PREFIX = /^ADR-(\d{4,}):\s+/;
 const DATE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const CLAUSE = /^\d+(?:\.\d+)*$/;
-export const MARKER_LINE = /^> .*<!-- adr-marker (amends|retires|supersedes|withdrawn)(?: (\d+))? -->\s*$/;
 
 const REQUIRED = ["number", "title", "slug", "date", "status", "source", "proof"];
 const STATUSES = new Set(["accepted", "withdrawn"]);
@@ -30,31 +37,9 @@ const DERIVES = { amends: "amended", retires: "amended", supersedes: "superseded
 const RANK = { accepted: 0, amended: 1, superseded: 2, withdrawn: 3 };
 const MARKER_ORDER = { withdrawn: 0, supersedes: 1, amends: 2, retires: 2 };
 const TITLE_CAP = 16;
-const DECISION_CAP = 150;
 
 const pad = (n) => `ADR-${String(n).padStart(4, "0")}`;
 const isInt = (v) => Number.isInteger(v);
-const words = (s) => s.split(/\s+/).filter(Boolean).length;
-
-export function splitFrontMatter(raw) {
-  const m = FRONT.exec(raw);
-  if (!m) return { front: null, frontRaw: "", frontLines: 0, body: raw, error: null };
-  let front = null;
-  let error = null;
-  try {
-    // The default schema turns an unquoted 2026-09-07 into a Date (adr-governance §3)
-    front = yaml.load(m[1], { schema: yaml.CORE_SCHEMA });
-  } catch (err) {
-    error = err.reason ?? err.message;
-  }
-  return {
-    front,
-    frontRaw: m[0],
-    frontLines: m[0].split("\n").length - 1,
-    body: raw.slice(m[0].length),
-    error,
-  };
-}
 
 export function loadAdrs(repoRoot) {
   const adrs = new Map();
@@ -84,30 +69,6 @@ export function loadAdrs(repoRoot) {
     });
   }
   return adrs;
-}
-
-export function decisionBlock(body) {
-  const lines = body.split(/\r?\n/);
-  const all = headings(body);
-  const i = all.findIndex((h) => h.level === 2 && h.title === "Decision");
-  let text;
-  if (i >= 0) {
-    const end = i + 1 < all.length ? all[i + 1].line - 1 : lines.length;
-    text = lines.slice(all[i].line, end);
-  } else {
-    // ADR-0006 has no Decision heading, so its first paragraph stands in (#1641 §5)
-    const h1 = all.find((h) => h.level === 1);
-    let at = h1 ? h1.line : 0;
-    while (at < lines.length && (lines[at].trim() === "" || MARKER_LINE.test(lines[at]))) at++;
-    const start = at;
-    while (at < lines.length && lines[at].trim() !== "") at++;
-    text = lines.slice(start, at);
-  }
-  const joined = text
-    .filter((l) => !MARKER_LINE.test(l))
-    .join("\n")
-    .trim();
-  return { words: words(joined), text: joined };
 }
 
 function checkProof(a, f, repoRoot, fail) {
@@ -259,8 +220,8 @@ export function validate(adrs, repoRoot) {
       else if (f.ticket !== a.number) {
         fail(a, "schema", `above ${LEGACY_MAX}, number ${a.number} must equal ticket ${JSON.stringify(f.ticket)}`);
       }
-      if (typeof f.title === "string" && words(f.title) > TITLE_CAP) {
-        fail(a, "schema", `title is ${words(f.title)} words, cap is ${TITLE_CAP}`);
+      if (typeof f.title === "string" && wordCount(f.title) > TITLE_CAP) {
+        fail(a, "schema", `title is ${wordCount(f.title)} words, cap is ${TITLE_CAP}`);
       }
       if (!prefix) fail(a, "schema", `H1 must carry the ${pad(a.number)}: prefix`);
       const first = a.headings.find((h) => h.level === 2);
