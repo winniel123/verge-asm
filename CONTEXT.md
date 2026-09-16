@@ -1754,14 +1754,15 @@ could not discriminate because the control probe under the name's parent did not
 `reachability` we could not discriminate from a **blanket responder**. **Three openers are
 withdrawn here, at the site that specifies them**
 ([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)),
-because nothing writes any of them, which leaves the two
+because no opener as written has a writer, which leaves the two
 [`docs/spec/v1-spec.md` §5.1](./docs/spec/v1-spec.md) also keeps. A dead-lettered `Batch` records an
 **empty** recorded scope, so it touches no timeline and leaves no span to hold — the argument this
-entry already makes below for a timeline that never existed. Such a batch does write gap spans, but
-through the `Vantage` clause above and under that clause's cause, because a dead-lettered
-resolution walk marks its vantage `unavailable`; a dead-lettered port probe concludes nothing and
-writes nothing. The currency dial drives a **retention delete** over observation rows and a read
-that filters on currency, so nothing ages a stored value into a gap. A `Signal` verdict is a
+entry already makes below for a timeline that never existed. Such a batch can still write gap
+spans, but through the `Vantage` clause above and under that clause's cause, because only a
+dead-lettered **`resolution-walk`** batch moves availability at all; a dead letter on any other
+kind concludes nothing about the vantage and writes nothing. The currency **bound** reaches a
+**retention delete** over observation rows and the reads that filter on it, never a span writer, so
+nothing ages a stored value into a gap. A `Signal` verdict is a
 **read** over span values and opens no span, and the span fold sets its gap flag from an emitted
 observation's outcome alone, consulting no rule. A `Gap` value is one of several things that render
 a `Signal` `not-evaluable`; **no `not-evaluable` verdict renders a `Gap`**. The withdrawals leave
