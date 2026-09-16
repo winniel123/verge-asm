@@ -175,14 +175,15 @@ the same line.
   The anchor the guard dropped was correct.
 
 This class held a third member, and the history arm falsified it. `docs/spec/aperture-statement.md`
-line 408 reads "`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`". That reads as the
-same shape: the rival is a declaration inside the written anchor. The witness commit `060c880d`
-wrote that citation as a line number on `cmd/web/cold.go`. The number named line 246, which at that
-commit was the `func apertureMeters(...)` declaration line itself. So the citation named
-`apertureMeters`, and the written anchor is the declaration the drifted number later landed in. The
-guard's report was a true positive. §9 fact F3 records the corrected verdict, and
-[#2094](https://github.com/winniel123/verge-asm/issues/2094) holds that record. The anchor at that
-site is unchanged, and [#2146](https://github.com/winniel123/verge-asm/issues/2146) holds it.
+line 408 then read "`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`". That reads as
+the same shape: the rival is a declaration inside the written anchor. The witness commit
+`060c880d` wrote that citation as a line number on `cmd/web/cold.go`. The number named line 246,
+which at that commit was the `func apertureMeters(...)` declaration line itself. So the citation
+named `apertureMeters`, and the written anchor was the declaration the drifted number later landed
+in. The guard's report was a true positive. §9 fact F3 records the corrected verdict, and
+[#2094](https://github.com/winniel123/verge-asm/issues/2094) holds that record.
+[#2146](https://github.com/winniel123/verge-asm/issues/2146) repaired that site under §6.4, and
+line 408 now names `apertureMeters`.
 
 **The class survives on the two ADR sites above.** One falsified member is not the class, and §5.2
 rule 2 still answers it.
@@ -332,10 +333,10 @@ the pull request holds the difference.
 
 **No gate reports this work, and no count retires it.** §8 keeps every instrument out of the gate,
 and §7 consequence 3 says why no list proves the anchors correct. §9 fact F3 records three real
-suspect anchors in `docs/spec`, and
-[#2146](https://github.com/winniel123/verge-asm/issues/2146) holds the first. Fact F10 reports 30
-more `docs/spec` drift candidates that no human has read, so those three are the first cases and not
-the population.
+suspect anchors in `docs/spec`. [#2146](https://github.com/winniel123/verge-asm/issues/2146)
+repaired the first under this route, and the two `audit-act.md` rows have no owner. Fact F10
+reports 30 more `docs/spec` drift candidates that no human has read, so those three are the first
+cases and not the population.
 
 ---
 

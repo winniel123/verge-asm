@@ -405,9 +405,8 @@ computation. An HTML-only statement moves #1854's silence rather than ending it.
 
 ### 5.1 The home
 
-`cmd/web/cold.go#apertureMeters` is the shipped precedent for exactly this shape. It takes the
-rows `server.coveragePage` read and returns a typed slice. Build a sibling of it that returns
-the seven rows.
+`cmd/web/cold.go#apertureMeters` is the shipped precedent for exactly this shape. It takes the read
+rows and returns a typed slice. Build a sibling of it that returns the seven rows.
 
 One function feeds both renderers today. `cmd/web/cold.go#server.coveragePage` renders the meters into the
 template, and `cmd/web/api_v1.go#server.apiCoverage` renders them into JSON.
