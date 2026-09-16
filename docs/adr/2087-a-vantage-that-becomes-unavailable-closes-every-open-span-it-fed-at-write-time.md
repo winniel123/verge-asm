@@ -58,6 +58,8 @@ which is forever.
 
 ## 3. Why the write side
 
+> **Amended** by [ADR-2163: A facet is reached by the aperture of the corpus it composes from](./2163-a-facet-is-reached-by-the-aperture-of-the-corpus-it-composes-from.md), 2026-09-16. <!-- adr-marker amends 2163 -->
+
 A `Gap` is what the corpus already has for "we could not say". Closing the span at the write makes
 every reader correct at once, including readers not yet written, and it needs no reader to remember
 a predicate.
