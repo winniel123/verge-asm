@@ -165,7 +165,7 @@ func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
 	idx, names := actIndexesLeadingOn(t, "action")
 
 	if len(names) == 0 {
-		t.Fatalf("no act index leads on action; ListActsOfClassSince filters on it and "+
+		t.Fatalf("no act index leads on action; ListActsOfClassesSince filters on it and "+
 			"act_created_at_idx cannot seek to a class, got: %v", idx)
 	}
 	want := []string{"action", "created_at desc", "id desc"}
