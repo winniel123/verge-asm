@@ -38,7 +38,7 @@ relations:
 | The template's own `<script>` collapses a group, and filters by kind over `data-kind` on each rendered event | `drift.tmpl:208-215`, `:216-240`; attribute at `:142`, chips at `:125` |
 | Both Drift routes are `GET`, and the template's only `<form>` is a `GET` navigation to `/drift?start=&end=` | `cmd/web/handlers.go#server.handler`, `drift.tmpl:106` |
 
-**ADR-0136 §6 does not suppress this record.** It is `Accepted`, and `docs/adr/0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md#decision` reads:
+**ADR-0136 §6 does not suppress this record.** It is `Accepted`, and `docs/adr/0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md` reads:
 
 > Stating a truncation and naming its remedy is already the house habit: the Drift feed caps at
 > 500 events and "states plainly when the cap truncated the view rather than dropping rows
@@ -95,7 +95,7 @@ A screen that genuinely needs a server-side predicate falls under ADR-0158 limb 
 
 - **An operator with more than 500 events in a window loses the oldest tail of it, and is told so.** On a 90d window during an estate expansion that can be most of the period. Narrowing the period recovers the tail, because a narrower window re-reads under the same cap and reaches proportionally further back. `TransitionCount` and the Movement tally are computed over the capped rows, so they state **the window as shown**, never the period.
 - **The truncation statement is wrong in two ways today.** Both are defects against §3, and neither is fixed here.
-- **`driftFeedLimit` is shared by four other reads, and only one renders this page**: the previous-window compare (`cmd/web/drift.go`), the CSV export (`:274`), the read-only API (`cmd/web/api_v1.go#apiDriftBatch`), and the run-outcome join (`cmd/web/scans.go#runVantages`, which passes the zero instant and so reads the 500 most recent events estate-wide). This ADR rules the **console feed**. The run-outcome join is the site whose correctness, not its legibility, rests on the cap, and it is a separate defect on a separate ticket.
+- **`driftFeedLimit` is shared by four other reads, and only one renders this page**: the previous-window compare (`cmd/web/drift.go`), the CSV export (`:274`), the read-only API (`cmd/web/api_v1.go`), and the run-outcome join (`cmd/web/scans.go`, which passes the zero instant and so reads the 500 most recent events estate-wide). This ADR rules the **console feed**. The run-outcome join is the site whose correctness, not its legibility, rests on the cap, and it is a separate defect on a separate ticket.
 - **`cmd/web/drift.go`'s two residual comments gain citations**, and [ADR-0136](./0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md) §6 gains a pointer here at its borrowed sentence, per ADR-0058.
 - **No production behaviour changes by this ADR.** §1, §2 and §4 state shapes the code already has.
 

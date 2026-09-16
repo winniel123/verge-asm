@@ -355,6 +355,11 @@
           "kind": "sibling",
           "from": 198,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2087,
+          "clause": null
         }
       ],
       "sections": [],
@@ -1896,6 +1901,11 @@
           "kind": "rests-on",
           "from": 226,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2087,
+          "clause": null
         }
       ],
       "sections": [],
@@ -2691,6 +2701,16 @@
         {
           "kind": "amends",
           "from": 1644,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2086,
+          "clause": null
+        },
+        {
+          "kind": "bounds",
+          "from": 2157,
           "clause": null
         },
         {
@@ -3632,6 +3652,11 @@
         {
           "kind": "rests-on",
           "from": 211,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2087,
           "clause": null
         }
       ],
@@ -4703,6 +4728,11 @@
           "kind": "sibling",
           "from": 206,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2087,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4711,11 +4741,16 @@
           "kind": "amends",
           "from": 180,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2087,
+          "clause": null
         }
       ],
       "decision": {
-        "words": 1025,
-        "text": "**A measurement that could not reach its position is a failed measurement, not an empty successful\none. It covers nothing, it registers as the vantage's unavailability rather than the subject's\nabsence, and the same rule governs every backend failure path: a failure is legible as a failure and\nnever renders as a clean empty result.**\n\nSix limbs.\n\n1. **The signal is a transport failure, never a null count.** A resolver is unreachable when the\n   exchange to it fails at the socket — a dial or read error against the **declared-path** recursive\n   resolver. It is **not** inferred from *every name came back empty*: a total-null batch is a\n   heuristic and the ticket is right to refuse it, because an estate that genuinely resolves nothing\n   produces the same nulls. `NXDOMAIN`, an empty `NOERROR`, `REFUSED` and `SERVFAIL` are **answers**\n   — the resolver was reached and spoke — and stay values. Only *no answer came off the wire at all*\n   is *we could not look*.\n\n2. **The failure is batch-scoped, because the resolver is one position for the whole batch.** A\n   `Vantage`'s recursive resolver is part of its identity\n   ([ADR-0070](./0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)).\n   One fixed address answers every name in the batch or none. So the **first** declared-path\n   transport failure aborts the batch — there is no honest partial scope to record, and the model\n   forbids recording the attempted one. The delegation **walk** is exempt: it dials delegated\n   authorities direct, whose per-authority silence is already the `Gap`/`Lame` vocabulary\n   ([`leaf.go`'s `walk`](../../internal/measure/resolutionwalk/leaf.go)) and never a statement about\n   our own position.\n\n3. **An aborted batch routes through the existing retry → dead-letter path, and covers nothing.** The\n   failure surfaces as a prober error, so the worker's retry machinery absorbs a transient blip (five\n   attempts across a back-off window) and a **persistently** unreachable resolver dead-letters. A\n   dead-lettered `Batch` records the **empty** scope `{\"names\":[]}` and writes **no** observations —\n   the all-`Gap` rows are never committed. This is not new machinery. It is the batch finally taking\n   the path `Batch` always specified for a failure.\n\n4. **A terminal `dns` (resolution-walk) batch outcome derives the vantage's `Availability`.** A\n   **completed** one marks its vantage `available`. A **dead-lettered** one marks it `unavailable`.\n   The window `Availability` is *\"concluded from recent batch outcomes over\"* is, in v1, the **retry\n   sequence within one dispatch**: a dead-letter already means every attempt across that window\n   failed, and a single completed batch is proof the position observes again, so recovery is immediate\n   on the next success rather than pending a multi-cadence count. Two scopings keep the derivation\n   honest, because **`Availability` is a single scalar per vantage** and a vantage runs several `Scan`\n   kinds:\n   - It runs only where the batch carries a real `Vantage` — the worker-read `zone` and `ct` `Scan`s\n     have none ([`batch.vantage_id`](../../db/migrations/18803_measurement_batch.sql) is nullable) and\n     never move it.\n   - It runs only for the **`resolution-walk`** batch — the one `Scan` that exercises the vantage's\n     recursive resolver, and the only capability a resolver outage impairs. A completing **port\n     probe** (`hot`/`cold`/`tls-acceptance`, whose batches carry `connect-outcome` / `tls-acceptance`)\n     at the same vantage says nothing about resolver health, so it must **not** re-mark the vantage\n     `available` and clobber the `unavailable` a dead-lettered `dns` batch set. Every vantage in\n     `ListVantagesForDispatch` receives all of these kinds, so without this scoping a single\n     port-probe completion would silently re-mask the resolver outage — the exact regression #249\n     removes. This is a deliberate coarseness of the single scalar: a **per-capability** availability\n     (resolution vs reachability) is a larger model change carried as future work, and v1 scopes the\n     scalar's one writer to the resolver capability rather than sharing it across kinds.\n\n5. **The operator-visible signal is the `Gap` on `Reach` the model already routes.** An `unavailable`\n   vantage is excluded from its class's presence\n   ([`cmd/web/exposure.go`](../../cmd/web/exposure.go)), so `Exposure` that would need it is **absent\n   rather than quietly computed** from the class that still answers — a one-legged reading rendered\n   under *we never looked* / a `Gap` under *we stopped looking*\n   ([ADR-0017](./0017-exposure-needs-both-legs.md),\n   [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)).\n   `Coverage` surfaces the unavailable vantage directly, so the condition is legible **without an\n   operator reading `observation.value` by hand** — #249's second acceptance criterion. No new\n   coverage-class member and no new `Gap` register is minted: a resolver our instrument could not\n   reach is *we stopped looking* — **our** failure, keyed on what moved\n   ([ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)) — and it\n   already has a register.\n\n6. **The rule generalises to every backend failure path (#244), each on its own surface.** *A failure\n   renders as a failure, never as a clean empty result* is not a resolver rule. It is the aperture\n   ethos applied to runtime failures. **This limb is bounded to a path that produces a measurement or\n   an empty result. It does not reach a periodic sweep loop, which produces neither. Such a loop logs\n   a failed pass because the next tick retries the same work\n   ([ADR-0141](./0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md)).**\n   Within that bound it is discharged per path — and, crucially, on the surface the\n   model already assigns that path, never uniformly on `Coverage`:\n   - **Proposer** (done, #251): the lookup carries its `perr` to the operator, so a registry outage\n     does not read as *your name matched nothing*.\n   - **Probe / measurement**: a failed probe batch takes the same path as the resolver case — it\n     dead-letters (a durable `Batch` with the empty scope) and marks its `Vantage` unavailable, which\n     `Coverage` surfaces. Probe batches carry a vantage, so limbs 3–5 cover them with no extra\n     machinery.\n   - **Delivery**: a failed POST was **already** recorded durably — a `Delivery` in state\n     `undelivered` carrying its `last_error` — but was rendered nowhere. It is now surfaced on the\n     **Message it failed to carry** (ADR-0039's designated surface), never on `Coverage`,\n     which a delivery has no cause to touch: an undelivered message reads as *could not deliver*, not\n     as *nothing fired*, with the reason as a drill-down (#22).\n   - **Scan dispatch**: a fan-out failure is **not** the indistinguishable-from-empty hazard this ADR\n     closes — it produces no batch, so its effect is a **missed cadence**, which the currency\n     machinery already makes legible as staleness ripening into a `Gap`\n     ([ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)).\n     It stays an operational log line: a durable dispatch-error store is a new subsystem carrying a\n     failure the model already tells honestly, and is deferred rather than built here."
+        "words": 1043,
+        "text": "**A measurement that could not reach its position is a failed measurement, not an empty successful\none. It covers nothing, it registers as the vantage's unavailability rather than the subject's\nabsence, and the same rule governs every backend failure path: a failure is legible as a failure and\nnever renders as a clean empty result.**\n\nSix limbs.\n\n1. **The signal is a transport failure, never a null count.** A resolver is unreachable when the\n   exchange to it fails at the socket — a dial or read error against the **declared-path** recursive\n   resolver. It is **not** inferred from *every name came back empty*: a total-null batch is a\n   heuristic and the ticket is right to refuse it, because an estate that genuinely resolves nothing\n   produces the same nulls. `NXDOMAIN`, an empty `NOERROR`, `REFUSED` and `SERVFAIL` are **answers**\n   — the resolver was reached and spoke — and stay values. Only *no answer came off the wire at all*\n   is *we could not look*.\n\n2. **The failure is batch-scoped, because the resolver is one position for the whole batch.** A\n   `Vantage`'s recursive resolver is part of its identity\n   ([ADR-0070](./0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)).\n   One fixed address answers every name in the batch or none. So the **first** declared-path\n   transport failure aborts the batch — there is no honest partial scope to record, and the model\n   forbids recording the attempted one. The delegation **walk** is exempt: it dials delegated\n   authorities direct, whose per-authority silence is already the `Gap`/`Lame` vocabulary\n   ([`leaf.go`'s `walk`](../../internal/measure/resolutionwalk/leaf.go)) and never a statement about\n   our own position.\n\n3. **An aborted batch routes through the existing retry → dead-letter path, and covers nothing.** The\n   failure surfaces as a prober error, so the worker's retry machinery absorbs a transient blip (five\n   attempts across a back-off window) and a **persistently** unreachable resolver dead-letters. A\n   dead-lettered `Batch` records the **empty** scope `{\"names\":[]}` and writes **no** observations —\n   the all-`Gap` rows are never committed. This is not new machinery. It is the batch finally taking\n   the path `Batch` always specified for a failure.\n\n4. **A terminal `dns` (resolution-walk) batch outcome derives the vantage's `Availability`.** A\n   **completed** one marks its vantage `available`. A **dead-lettered** one marks it `unavailable`.\n   The window `Availability` is *\"concluded from recent batch outcomes over\"* is, in v1, the **retry\n   sequence within one dispatch**: a dead-letter already means every attempt across that window\n   failed, and a single completed batch is proof the position observes again, so recovery is immediate\n   on the next success rather than pending a multi-cadence count. Two scopings keep the derivation\n   honest, because **`Availability` is a single scalar per vantage** and a vantage runs several `Scan`\n   kinds:\n   - It runs only where the batch carries a real `Vantage` — the worker-read `zone` and `ct` `Scan`s\n     have none ([`batch.vantage_id`](../../db/migrations/18803_measurement_batch.sql) is nullable) and\n     never move it.\n   - It runs only for the **`resolution-walk`** batch — the one `Scan` that exercises the vantage's\n     recursive resolver, and the only capability a resolver outage impairs. A completing **port\n     probe** (`hot`/`cold`/`tls-acceptance`, whose batches carry `connect-outcome` / `tls-acceptance`)\n     at the same vantage says nothing about resolver health, so it must **not** re-mark the vantage\n     `available` and clobber the `unavailable` a dead-lettered `dns` batch set. Every vantage in\n     `ListVantagesForDispatch` receives all of these kinds, so without this scoping a single\n     port-probe completion would silently re-mask the resolver outage — the exact regression #249\n     removes. This is a deliberate coarseness of the single scalar: a **per-capability** availability\n     (resolution vs reachability) is a larger model change carried as future work, and v1 scopes the\n     scalar's one writer to the resolver capability rather than sharing it across kinds.\n\n5. **The operator-visible signal is the `Gap` on `Reach` the model already routes.** A vantage that\n   becomes `unavailable` closes its open reach and resolution spans at write time and opens a `Gap`\n   (`db/queries/vantages.sql#MarkVantageUnavailable`, ADR-2087). No composition read carries an\n   availability predicate. So `Exposure` that would need it is **absent rather than quietly\n   computed** from the class that still answers — a one-legged reading rendered\n   under *we never looked* / a `Gap` under *we stopped looking*\n   ([ADR-0017](./0017-exposure-needs-both-legs.md),\n   [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)).\n   `Coverage` surfaces the unavailable vantage directly, so the condition is legible **without an\n   operator reading `observation.value` by hand** — #249's second acceptance criterion. No new\n   coverage-class member and no new `Gap` register is minted: a resolver our instrument could not\n   reach is *we stopped looking* — **our** failure, keyed on what moved\n   ([ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)) — and it\n   already has a register.\n\n6. **The rule generalises to every backend failure path (#244), each on its own surface.** *A failure\n   renders as a failure, never as a clean empty result* is not a resolver rule. It is the aperture\n   ethos applied to runtime failures. **This limb is bounded to a path that produces a measurement or\n   an empty result. It does not reach a periodic sweep loop, which produces neither. Such a loop logs\n   a failed pass because the next tick retries the same work\n   ([ADR-0141](./0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md)).**\n   Within that bound it is discharged per path — and, crucially, on the surface the\n   model already assigns that path, never uniformly on `Coverage`:\n   - **Proposer** (done, #251): the lookup carries its `perr` to the operator, so a registry outage\n     does not read as *your name matched nothing*.\n   - **Probe / measurement**: a failed probe batch takes the same path as the resolver case — it\n     dead-letters (a durable `Batch` with the empty scope) and marks its `Vantage` unavailable, which\n     `Coverage` surfaces. Probe batches carry a vantage, so limbs 3–5 cover them with no extra\n     machinery.\n   - **Delivery**: a failed POST was **already** recorded durably — a `Delivery` in state\n     `undelivered` carrying its `last_error` — but was rendered nowhere. It is now surfaced on the\n     **Message it failed to carry** (ADR-0039's designated surface), never on `Coverage`,\n     which a delivery has no cause to touch: an undelivered message reads as *could not deliver*, not\n     as *nothing fired*, with the reason as a drill-down (#22).\n   - **Scan dispatch**: a fan-out failure is **not** the indistinguishable-from-empty hazard this ADR\n     closes — it produces no batch, so its effect is a **missed cadence**, which the currency\n     machinery already makes legible as staleness ripening into a `Gap`\n     ([ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)).\n     It stays an operational log line: a durable dispatch-error store is a new subsystem carrying a\n     failure the model already tells honestly, and is deferred rather than built here."
       }
     },
     {
@@ -12468,6 +12503,102 @@
       }
     },
     {
+      "number": 2086,
+      "file": "docs/adr/2086-an-anchor-that-moved-keeps-its-meaning-only-while-it-names-the-same-declaration.md",
+      "title": "An anchor that moved keeps its meaning only while it names the same declaration",
+      "slug": "an-anchor-that-moved-keeps-its-meaning-only-while-it-names-the-same-declaration",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2080
+      },
+      "ticket": 2086,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 58
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 146,
+        "text": "> **An anchor that moved keeps its meaning only while it names the same declaration.** Repointing it\n> to the same declaration is a factual repair: it needs no relation, and a tool may do it. Repointing\n> it to a different declaration changes what the document asserts, so it runs through a later ADR\n> under `docs/spec/adr-governance.md` §4, and a human does it.\n>\n> A reader asks which of two SPECs governs. §3 called every repoint a repair, and\n> `docs/spec/citation-anchor-repair.md` §6.3 says a suspect anchor degrades and is never repointed.\n> Neither narrowed the other.\n>\n> Rejected: letting §3 win outright. It authorises 803 anchors inside landed ADRs with no relation\n> and no marker, and a history-arm run finds 71 that cross declarations.\n>\n> Reversal lets a tool move what a landed ADR asserts, leaving no record that it moved."
+      }
+    },
+    {
+      "number": 2087,
+      "file": "docs/adr/2087-a-vantage-that-becomes-unavailable-closes-every-open-span-it-fed-at-write-time.md",
+      "title": "A vantage that becomes unavailable closes every open span it fed, at write time",
+      "slug": "a-vantage-that-becomes-unavailable-closes-every-open-span-it-fed-at-write-time",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2137
+      },
+      "ticket": 2087,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 108
+        },
+        {
+          "kind": "rests-on",
+          "adr": 80
+        },
+        {
+          "kind": "rests-on",
+          "adr": 6
+        },
+        {
+          "kind": "rests-on",
+          "adr": 41
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 148,
+        "text": "> **A vantage that becomes unavailable closes every open span it fed, at write time**, and opens a\n> `Gap` carrying the cause `vantage-unavailable` behind each. The transition is the event, not the\n> column value, so a resolver-only vantage holding no value still transitions. The closure names no\n> facet, so one added later needs no query edit. No composition read gains an availability\n> predicate, and `ListVantagesForDispatch` keeps every row.\n>\n> A reader asks why a class-scoped composition trusts a prober that stopped answering. ADR-0080\n> decision rule 1 says it must not, and no read implemented that predicate.\n>\n> Rejected: a predicate on each composition read. `applyAvailability` clears a vantage only from a\n> completed resolution-walk, so filtering the dispatch query would strand it unavailable forever.\n>\n> Reversal returns a dead prober's open span to the fold, pinning its class to `reached`."
+      }
+    },
+    {
       "number": 2114,
       "file": "docs/adr/2114-the-address-scope-act-reader-covers-every-act-class-that-moves-the-covered-predicate.md",
       "title": "The address-scope act reader covers every act class that moves the covered predicate",
@@ -12520,6 +12651,48 @@
       "decision": {
         "words": 109,
         "text": "> **The `Exposure` screen's address-scope act reader covers every act class that moves\n> `addressScopeCovered`**: `seed.declared`, `seed.withdrawn`, `proposal.confirmed`, and the\n> address-kind `exclusion.declared` and `exclusion.lifted`. The seven-day window, the five-row cap\n> and the newest-first order are unchanged.\n>\n> A reader asks why a panel beside the `Exposure` figure lists one of the five classes that move it.\n> The panel's empty state is a statement, and a withdrawal or a confirmed proposal makes it false.\n>\n> Rejected: narrowing the panel's copy instead, which leaves it honest and useless.\n>\n> Reversal returns a panel that reports no address-scope edit while one has just moved the figure."
+      }
+    },
+    {
+      "number": 2157,
+      "file": "docs/adr/2157-a-consequences-section-is-a-dated-record-never-a-live-assertion.md",
+      "title": "A Consequences section is a dated record, never a live assertion",
+      "slug": "a-consequences-section-is-a-dated-record-never-a-live-assertion",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2127
+      },
+      "ticket": 2157,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "bounds",
+          "adr": 58
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 139,
+        "text": "> **A Consequences section is a dated record, never a live assertion.** It states what the session\n> saw when it decided. Production then moves, and the record does not become false — it becomes\n> historical. So a Consequences section is never amended, and a reference inside it that no longer\n> resolves degrades rather than being repointed.\n>\n> A reader asks what to do when a landed ADR describes a predicate that ships differently, as\n> ADR-0186 and ADR-0185 do.\n>\n> Rejected: amending both through a later ADR. `docs/spec/adr-governance.md` §4 cannot express it —\n> a clause is required wherever the target numbers any heading, and no numbered clause carries the\n> claim.\n>\n> Reversal makes every Consequences section editable in place, so the record of what was decided\n> stops being a record."
       }
     },
     {

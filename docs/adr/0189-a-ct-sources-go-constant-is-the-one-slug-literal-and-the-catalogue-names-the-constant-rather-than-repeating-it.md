@@ -70,8 +70,8 @@ for _, s := range states {
 return shipDefault, nil
 ```
 
-and is called with the **Go constant**, at `internal/queue/crtsh.go#sleepUntil`
-(`d.selectedCTSource()`) and `internal/queue/cttail.go#knownNameSet` (`scan.CTTailSource`).
+and is called with the **Go constant**, at `internal/queue/crtsh.go`
+(`d.selectedCTSource()`) and `internal/queue/cttail.go` (`scan.CTTailSource`).
 
 ### The failure is not one failure, and *"silently disables"* names only one third of it
 
@@ -81,16 +81,16 @@ Three consumers read the same constant, and drift breaks each of them differentl
 | --- | --- | --- |
 | `sourceEnabled` (`internal/queue/crtsh.go`) | No row matches, so the function returns `shipDefault` and the operator's override is discarded | **Silent** |
 | `ReserveCTSlot` (`db/queries/crtsh.sql#ReserveCTSlot`) | `UPDATE ct_throttle … WHERE source = $1` matches no row. The CTE is empty, the `:one` query returns no row, and `internal/queue/crtsh.go#Worker.completeCT` wraps it as `ct throttle: no rows in result set` | **Loud** |
-| `InsertAdmittedName`'s `source` column (`internal/queue/crtsh.go#Worker.admitCT`, `internal/queue/cttail.go#Worker.completeCTTailTiled`) | Rows land under a source string the catalogue does not know, so the Sources page counts them nowhere | **Silent** |
+| `InsertAdmittedName`'s `source` column (`internal/queue/crtsh.go#Worker.admitCT`, `internal/queue/cttail.go`) | Rows land under a source string the catalogue does not know, so the Sources page counts them nowhere | **Silent** |
 
 **The silent half does not always disable.** `sourceEnabled` takes a `shipDefault` argument and the
 two CT sources pass opposite values:
 
-- `crtsh` passes `true` (`internal/queue/crtsh.go#sleepUntil`). An operator who toggles crt.sh **off** gets
+- `crtsh` passes `true` (`internal/queue/crtsh.go`). An operator who toggles crt.sh **off** gets
   a `source_state` row the dispatcher never finds, so the fallback returns `true` and **the Scan
   keeps querying crt.sh.** The failure is an ignored **off**, not an ignored on. Under ADR-0003 the
   toggle is consent, so this direction spends a consent the operator withdrew.
-- `ct-tail` passes `false` (`internal/queue/cttail.go#knownNameSet`). An operator who toggles the tail **on**
+- `ct-tail` passes `false` (`internal/queue/cttail.go`). An operator who toggles the tail **on**
   gets nothing. That direction is the silent disable the deleted comment described.
 
 So the deleted comment was right that the coupling exists and wrong about its cost. The cost is
@@ -99,7 +99,7 @@ whichever way the ship default points, and for `crtsh` that is the worse way.
 ### Nothing checks the equality, and nothing in `internal/scan` can
 
 `internal/scan` cannot import `cmd/web`, which is a `main` package. No test anywhere compares a
-constant against `sourceCatalog`. `cmd/web/sources_test.go#TestSourcesCTCapabilitiesStatesTheExpiredLogList` ranges over `sourceCatalog` and
+constant against `sourceCatalog`. `cmd/web/sources_test.go` ranges over `sourceCatalog` and
 asserts that each row's display `Name` renders in the Sources modal, which touches no slug at all.
 The one direction that compiles is `cmd/web` reading `internal/scan`, and that direction is the fix
 rather than the check.
@@ -187,7 +187,7 @@ today, by coincidence, and stops working the moment one of the two moves.
 
 ## Consequences
 
-- **This ADR changes no Go code.** The catalogue's three bare literals at `cmd/web/sources.go#catalogSource`,
+- **This ADR changes no Go code.** The catalogue's three bare literals at `cmd/web/sources.go`,
   `:49` and `:99` are a known violation of §1 and are **not** fixed here. That ships as its own
   ticket: replace the three literals with `scan.CrtshSource`, `scan.CTTailSource` and
   `scan.CertSpotterSource`. It is a three-line change with no behaviour change, because the strings

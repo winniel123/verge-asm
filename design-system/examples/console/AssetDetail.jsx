@@ -45,7 +45,7 @@ export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSi
               <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>Internet leg</span>
               <ReachLegBadge state="reached" legClass="internet" />
             </span>
-            <span style={{ font: "400 12px var(--font-mono)", color: "var(--text-muted)" }}>seen 4m ago · in scope since 2026-06-14</span>
+            <span style={{ font: "400 12px var(--font-mono)", color: "var(--text-muted)" }}>seen 4m ago · covered since 2026-06-14</span>
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -80,7 +80,7 @@ export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSi
             ]} rows={[
               { type: "A", value: "203.0.113.7", seen: "4m" },
               { type: "AAAA", value: "2001:db8::7", seen: "4m" },
-              { type: "TXT", value: "verge-custody=vg_7f2a91c4", seen: "6h" },
+              { type: "TXT", value: "v=spf1 -all", seen: "6h" },
             ]} rowKey="type" />
           </Card>
           <CertificateCard name="edge-gw-03.acmecorp.io" issuer="CN=R11, O=Let's Encrypt" algorithm="ECDSA-SHA256" notAfter="2026-10-08" daysLeft={47}
@@ -92,7 +92,7 @@ export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSi
               { k: "Seed", v: "acmecorp.io" },
               { k: "Via", v: "CT log → dns sweep" },
               { k: "Vantage", v: "eu-west-1" },
-              { k: "Custody", v: "verified · TXT record" },
+              { k: "Custody", v: "operator · custody extension" },
               { k: "First seen", v: "2026-06-14" },
             ]} />
           </Card>

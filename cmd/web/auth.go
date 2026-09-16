@@ -776,7 +776,6 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	deltas := s.dashboardDeltas(ctx, firedPairs)
 
-	exposed, hasExposed := s.currentExposedCount(ctx)
 	certsExpiring, hasCerts := s.currentCertsExpiring(ctx)
 
 	statBand := []dashStat{
@@ -788,7 +787,9 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		{Label: "Assets watched", Value: statValue(deltas.AssetsWatched.Current, deltas.Known),
 			Caption:  fmt.Sprintf("%d %s · %d %s", nameScopes, plural(nameScopes, "domain", "domains"), addrScopes, plural(addrScopes, "range", "ranges")),
 			HasDelta: deltas.Known, Change: deltas.AssetsWatched.Change(), Tone: "neutral"},
-		{Label: "Exposed services", Value: statValue(exposed, hasExposed), Caption: "reachable from the internet",
+		// The figure is this change's own Current (ADR-1945 §1, #2046).
+		{Label: "Exposed services", Value: statValue(deltas.Exposed.Current, deltas.ExposureKnown),
+			Caption:  "reachable from the internet",
 			HasDelta: deltas.Known, Change: deltas.Exposed.Change(), Tone: statTone(deltas.Exposed.Change(), true)},
 		{Label: "Certs expiring", Value: statValue(certsExpiring, hasCerts), Caption: "inside the last third of validity",
 			HasDelta: deltas.Known, Change: deltas.CertsExpiring.Change(), Tone: statTone(deltas.CertsExpiring.Change(), true)},

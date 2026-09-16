@@ -51,11 +51,11 @@ or its one boolean is unset.
 
 | Rule | The boolean, and where it is folded | Grade |
 | --- | --- | --- |
-| `certificate-expired` | `notAfter` is at or before now — `cmd/web/signals.go` | `critical` |
-| `certificate-not-yet-valid` | `notBefore` is after now — `cmd/web/signals.go` | `high` |
-| `certificate-weak-key-or-signature` | RSA under 2048 bits, ECDSA under 224, DSA under 2048/224, or an MD5 or SHA-1 signature on any chain link that is not self-signed — `weakKeyOrSignature`, `cmd/web/signals.go` | `high` |
-| `certificate-self-signed` | the leaf's subject equals its issuer **and** its self-signature verifies — `selfSignedOf`, `cmd/web/signals.go` | `medium` |
-| `certificate-expiring` | `notAfter` is in the future and within the expiry window — `cmd/web/signals.go` | `medium` |
+| `certificate-expired` | `notAfter` is at or before now — the clock is folded at `internal/signalfacts/signalfacts.go`, the comparison at `internal/signal/endpoint.go` | `critical` |
+| `certificate-not-yet-valid` | `notBefore` is after now — the clock is folded at `internal/signalfacts/signalfacts.go`, the comparison at `internal/signal/endpoint.go` | `high` |
+| `certificate-weak-key-or-signature` | RSA under 2048 bits, ECDSA under 224, DSA under 2048/224, or an MD5 or SHA-1 signature on any chain link that is not self-signed — `internal/signalfacts/signalfacts.go#WeakKeyOrSignature` | `high` |
+| `certificate-self-signed` | the leaf's subject equals its issuer **and** its self-signature verifies — `internal/signalfacts/signalfacts.go#SelfSignedOf` | `medium` |
+| `certificate-expiring` | `notAfter` is in the future and within the expiry window — the clock is folded at `internal/signalfacts/signalfacts.go`, the comparison at `internal/signal/endpoint.go` | `medium` |
 
 ### The ranking is not the one a quality reading produces, and the gap is two bands wide
 

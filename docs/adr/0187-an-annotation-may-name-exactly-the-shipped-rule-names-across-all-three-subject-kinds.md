@@ -101,7 +101,7 @@ caller in the tree, at `cmd/web/annotations.go#server.declareAnnotation`, behind
 
 **The declare form is bound indirectly, through the census.** The form posts a hidden field —
 `<input type="hidden" name="signal" value="{{.RuleID}}">` at
-`design-system/templates/signals.tmpl#signals` — and `RuleID` is set at `cmd/web/signals.go#server.renderSignals` from
+`design-system/templates/signals.tmpl#signals` — and `RuleID` is set at `cmd/web/signals.go` from
 the rule of the census row the operator opened. Every census comes from
 `signal.EvaluateCorpus`, which walks the same three registries `AllRuleNames` walks. So the form can
 only offer a rule that evaluated. It does not call `AllRuleNames`; the one call in `signals.go`, at

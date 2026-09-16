@@ -54,7 +54,7 @@ export function judgeSite(env, repoRoot, body, where) {
   const results = [];
   for (const item of items) {
     // A Site resolves against the merge ref alone, so a ref token pins nothing (SPEC §6 rule 2).
-    for (const a of scanLineAnchorsFromTree(item, { refPin: false })) {
+    for (const a of scanLineAnchorsFromTree(item, { refPin: false, knownFile: env.knownFile })) {
       refused.push({ ...a, file: where });
     }
     for (const r of classify(env, PSEUDO_DOC, extractCitationsFromTree(item))) {

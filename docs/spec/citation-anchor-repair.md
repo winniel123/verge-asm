@@ -171,8 +171,19 @@ the same line.
   `rcodeName` is the callee, and it has its own declaration far from the cited range.
 - ADR-0166's line cites one range and then names a second declaration with its own line number.
   The anchor the guard dropped was correct.
-- `docs/spec/aperture-statement.md` line 408 reads "`cmd/web/cold.go#server.coveragePage` holds
-  `apertureMeters`". The anchor is right, and the rival is a declaration inside it.
+
+This class held a third member, and the history arm falsified it. `docs/spec/aperture-statement.md`
+line 408 reads "`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`". That reads as the
+same shape: the rival is a declaration inside the written anchor. The witness commit `060c880d`
+wrote that citation as a line number on `cmd/web/cold.go`. The number named line 246, which at that
+commit was the `func apertureMeters(...)` declaration line itself. So the citation named
+`apertureMeters`, and the written anchor is the declaration the drifted number later landed in. The
+guard's report was a true positive. §9 fact F3 records the corrected verdict, and
+[#2094](https://github.com/winniel123/verge-asm/issues/2094) holds that record. The anchor at that
+site is unchanged, and [#2146](https://github.com/winniel123/verge-asm/issues/2146) holds it.
+
+**The class survives on the two ADR sites above.** One falsified member is not the class, and §5.2
+rule 2 still answers it.
 
 **Class B — a route or a URL segment collides with a declaration name.** The identifier is not a Go
 name at all.
@@ -232,7 +243,7 @@ finds a new false-positive class adds a rule for that shape. A builder never rel
 ### 6.1 `docs/spec` already carries the defect
 
 Ticket 9 of map [#1967](https://github.com/winniel123/verge-asm/issues/1967) converted `docs/spec`
-before the guard existed. The guard now reports 4 suspect anchors there, and 2 of them are real.
+before the guard existed. The guard now reports 4 suspect anchors there, and 3 of them are real.
 §9 fact F3 names all four.
 
 **The sweep tool's conversion arm cannot reach these tokens.** That arm converts a line anchor, and
@@ -262,8 +273,18 @@ repointed would write a new wrong anchor in exactly those cases, and it would ca
 endorsement again.
 
 **Changing what a document asserts is not a repair.** For an ADR that route runs through a later
-ADR, per [adr governance](adr-governance.md) §4. Repointing a citation to a different declaration
-can change an assertion. Degrading one cannot.
+ADR, per [adr governance](adr-governance.md) §4. Repointing a citation to a **different**
+declaration can change an assertion. Degrading one cannot.
+
+**The limit runs on the declaration, not on the act.** ADR-2086 rules that an anchor which moved
+with its declaration still names that declaration. Repointing it there is a factual repair, it needs
+no relation, and a sweep may do it. Repointing a suspect anchor to its rival is the other act. It
+puts one declaration where another stood, so the document asserts something new. §4.3 measures two
+classes where the rival is not the target, so no tool can tell the two acts apart here. A human
+decides each one. Inside `docs/adr` the route is a later ADR's relation, per
+[adr governance](adr-governance.md) §4, and §3 of that SPEC carries the same limit. That SPEC
+governs no file under `docs/spec`, so it prescribes no route there, and a human decides all the
+same.
 
 ---
 
@@ -350,14 +371,20 @@ with the guard the tree ships.
 **F2 — `docs/adr` holds 219 such anchors. 0 are suspect, 32 are corroborated, and 187 are
 unproven.** The range converted under the guard, so a suspect anchor could not land.
 
-**F3 — 2 of the 4 suspect anchors in `docs/spec` are real.**
+**F3 — 3 of the 4 suspect anchors in `docs/spec` are real.**
 
 | Document | Line | Anchor written | Rival | Verdict |
 | --- | --- | --- | --- | --- |
 | `docs/spec/audit-act.md` | 466 | `cmd/web/auth.go#initials` | `validateCredentials` | real |
 | `docs/spec/audit-act.md` | 1510 | `cmd/web/auth.go#profileRelTime` | `sessionIP` | real |
-| `docs/spec/aperture-statement.md` | 408 | `cmd/web/cold.go#server.coveragePage` | `apertureMeters` | class A |
+| `docs/spec/aperture-statement.md` | 408 | `cmd/web/cold.go#server.coveragePage` | `apertureMeters` | real |
 | `docs/spec/audit-act.md` | 338 | `cmd/web/onboarding.go#server.onboardingStep` | `server.onboarding` | class B |
+
+The `aperture-statement.md` row read `class A` when this fact was first measured, on the guard's
+evidence alone. The history arm overturned it, per §4.3: the witness `060c880d` named line 246 of
+`cmd/web/cold.go`, which was the `func apertureMeters(...)` declaration line. The anchor at that
+site is unchanged, and [#2146](https://github.com/winniel123/verge-asm/issues/2146) holds it. This
+fact records the verdict alone.
 
 **F4 — the guard degraded 36 of 255 candidate conversions over ADR-0001 to ADR-0176.** The
 unguarded pass wrote 255 anchors. The guarded pass wrote 219 and degraded 141 in total.

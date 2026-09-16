@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { ROWS, rowFor } from "../citations/rows.mjs";
 import { CONTAINMENT_ROW } from "../citations/rows/containment.mjs";
-import { lineAnchorPattern } from "../citations/lineanchor.mjs";
-import { enclosing, resolvePath, splitToken } from "./derive.mjs";
+import { basenameOf, formOf, lineAnchorPattern } from "../citations/lineanchor.mjs";
+import { enclosing, resolveBasename, resolvePath, splitToken } from "./derive.mjs";
 
 // A byte no Markdown source holds, so a diff body can never open a block.
 export const BLOCK = "\u0001";
@@ -55,8 +55,14 @@ export function citedLinesFor(env, file, added, path) {
   for (const text of added) {
     for (const match of text.matchAll(lineAnchorPattern())) {
       const parts = splitToken(match[1]);
-      if (parts === null) continue;
-      const resolved = resolvePath(env, file, parts.value);
+      if (parts === null || parts.value === "") continue;
+      // The conversion arm resolves a slashless name against the tree, so this arm reads it too.
+      const value =
+        formOf(match[1]) === "file"
+          ? resolveBasename(env, basenameOf(parts.value), new Set([path])).path
+          : parts.value;
+      if (value === undefined) continue;
+      const resolved = resolvePath(env, file, value);
       if (resolved.status !== "ok" || resolved.path !== path) continue;
       found.push(parts);
     }

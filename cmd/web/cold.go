@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -212,15 +213,8 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), sharedEdges)
 	inputs := s.readApertureInputs(ctx, s.coldStore, "coverage")
 
-	var gaps []coverageGapView
-	var messages []coverageMessageView
-	if reachGaps, berr := s.coldStore.ListOpenReachGapServices(ctx); berr == nil {
-		gaps, messages = blanketGapsAndMessages(reachGaps)
-	}
-	if rows, uerr := s.coldStore.ListUnavailableVantages(ctx); uerr == nil {
-		messages = append(messages, unavailableVantageMessages(rows)...)
-	}
-	sortCoverageMessages(messages)
+	ledger := s.readCoverageGapLedger(ctx)
+	sortCoverageMessages(ledger.Messages)
 
 	var unevaluable []unevaluableRuleView
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
@@ -235,14 +229,41 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	s.render(w, r, "coverage", pageData(acct, "Coverage", "coverage", map[string]any{
-		"Statement":   apertureStatement(inputs, seeds),
-		"Meters":      meters,
-		"Messages":    messages,
-		"Gaps":        gaps,
-		"Unevaluable": unevaluable,
-		"StaleZones":  staleZonesView,
-		"Retention":   s.retentionPanel(ctx, acct.Role == roleAdmin),
+		"Statement":      apertureStatement(inputs, seeds),
+		"Meters":         meters,
+		"Messages":       ledger.Messages,
+		"MessagesFailed": ledger.MessagesFailed,
+		"Gaps":           ledger.Gaps,
+		"GapsFailed":     ledger.GapsFailed,
+		"Unevaluable":    unevaluable,
+		"StaleZones":     staleZonesView,
+		"Retention":      s.retentionPanel(ctx, acct.Role == roleAdmin),
 	}))
+}
+
+type coverageGapLedger struct {
+	Gaps           []coverageGapView
+	Messages       []coverageMessageView
+	GapsFailed     bool
+	MessagesFailed bool
+}
+
+func (s *server) readCoverageGapLedger(ctx context.Context) coverageGapLedger {
+	var l coverageGapLedger
+	// An empty ledger reads as "no gaps", so a failed read hides evidence (ADR-0168 §2, #2091).
+	if rows, err := s.coldStore.ListOpenReachGapServices(ctx); err == nil {
+		l.Gaps, l.Messages = reachGapsAndMessages(rows)
+	} else {
+		l.GapsFailed, l.MessagesFailed = true, true
+		log.Printf("web: coverage: open reach gap services: %v", err)
+	}
+	if rows, err := s.coldStore.ListUnavailableVantages(ctx); err == nil {
+		l.Messages = append(l.Messages, unavailableVantageMessages(rows)...)
+	} else {
+		l.MessagesFailed = true
+		log.Printf("web: coverage: unavailable vantages: %v", err)
+	}
+	return l
 }
 
 func withheldMeter(label, detail string) coverageMeterView {
@@ -395,23 +416,29 @@ func staleZones(rows []db.ListZoneFileStatusRow, cadenceSeconds int64, now time.
 	return out
 }
 
-func blanketGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView) {
-	seen := map[string]bool{}
-	var addrs []string
+const vantageUnavailableCause = "vantage-unavailable"
+
+func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView) {
+	blanketed := map[string]bool{}
 	for _, row := range rows {
 		if decodeReachability(row.Value).Cause != blanketdiscrim.GapCause {
 			continue
 		}
-		if addr, _, _ := splitServiceKey(row.SubjectKey); addr != "" && !seen[addr] {
-			seen[addr] = true
-			addrs = append(addrs, addr)
+		if addr, _, _ := splitServiceKey(row.SubjectKey); addr != "" {
+			blanketed[addr] = true
 		}
+	}
+
+	var addrs []string
+	for addr := range blanketed {
+		addrs = append(addrs, addr)
 	}
 	sort.Strings(addrs)
 
 	var gaps []coverageGapView
 	var msgs []coverageMessageView
 	for _, addr := range addrs {
+		// A blanket responder answers on every port, so the finding is the address, not a service.
 		gaps = append(gaps, coverageGapView{
 			Subject:  addr,
 			Gap:      "no origin",
@@ -423,6 +450,57 @@ func blanketGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGa
 			Badge:   "no origin",
 			Subject: addr,
 			Text:    "Answers TCP on all ports — a proxy edge, not your origin. Its reach is recorded as a Gap, never reached. To measure the real surface, declare your origin addresses as an address scope.",
+		})
+	}
+
+	var others []db.ListOpenReachGapServicesRow
+	for _, row := range rows {
+		if addr, _, _ := splitServiceKey(row.SubjectKey); addr == "" {
+			continue
+		}
+		switch decodeReachability(row.Value).Cause {
+		case blanketdiscrim.GapCause:
+			continue
+		case vantageUnavailableCause:
+			// unavailableVantageMessages carries this cause off its own read (#2090).
+			continue
+		}
+		others = append(others, row)
+	}
+	// One service takes one message, so the order must be total over the row and settled
+	// before the dedupe: two vantages recording different reasons otherwise vary the text
+	// between page loads for identical data.
+	sort.Slice(others, func(i, j int) bool {
+		if others[i].SubjectKey != others[j].SubjectKey {
+			return others[i].SubjectKey < others[j].SubjectKey
+		}
+		return bytes.Compare(others[i].Value, others[j].Value) < 0
+	})
+
+	seen := map[string]bool{}
+	for _, row := range others {
+		if seen[row.SubjectKey] {
+			continue
+		}
+		seen[row.SubjectKey] = true
+		addr, port, transport := splitServiceKey(row.SubjectKey)
+		subject := serviceCopyKey(addr, port, transport)
+		gaps = append(gaps, coverageGapView{
+			Subject:  subject,
+			Gap:      "no reading",
+			Expected: "a reach reading for this service",
+			Since:    "—",
+		})
+		// An unrecognised cause earns no keyed prose, so it states its own reason (#2090).
+		text := "Its reach is recorded as a Gap — over this span we could not say."
+		if reason := decodeReachability(row.Value).Reason; reason != "" {
+			text += " Recorded reason: " + reason
+		}
+		msgs = append(msgs, coverageMessageView{
+			Kind:    "gap",
+			Badge:   "no reading",
+			Subject: subject,
+			Text:    text,
 		})
 	}
 	return gaps, msgs

@@ -87,7 +87,7 @@ The two grounds are not interchangeable, and only the retry generalises.
 
 *Off the measurement path* claims that nothing downstream of the failed work reads a measured value.
 That is true of retention and of the release check. **It is false of the reaper**, for the reason
-`reaper.go:45` states: a stranded `running` job blocks dispatch, and blocked dispatch is a missing
+`internal/queue/reaper.go#Reaper.Sweep` states: a stranded `running` job blocks dispatch, and blocked dispatch is a missing
 measurement. It is also false of the queue dispatcher, whose failed pass is a missed cadence.
 
 *The next tick retries* is true of all nine, because it is a property of the loop rather than of the

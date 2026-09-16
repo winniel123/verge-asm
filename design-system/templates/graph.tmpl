@@ -357,6 +357,56 @@
     if (sp && !sp.hasAttribute("hidden")) { sp.setAttribute("hidden", ""); sb.setAttribute("aria-expanded", "false"); return; }
     closeDrawer();
   });
+  function exportNotes() {
+    var out = [];
+    [].forEach.call(document.querySelectorAll(".gr-main .gr-callout"), function (n) {
+      var t = ((n.querySelector(".tx") || n).textContent || "").replace(/\s+/g, " ").trim();
+      if (t) out.push(t);
+    });
+    return out;
+  }
+  function exportFace(cs) {
+    var stack = ((cs && cs.fontFamily) || "sans-serif").split(",");
+    var key = function (f) { return f.replace(/["']/g, "").trim().toLowerCase(); };
+    var loaded = [];
+    if (document.fonts && document.fonts.forEach) document.fonts.forEach(function (f) { loaded.push(key(f.family)); });
+    // A face this page loaded itself is absent inside the rasterizing img, so measuring
+    // against it would wrap past what the fallback render fits (#2066).
+    while (stack.length > 1 && loaded.indexOf(key(stack[0])) >= 0) stack.shift();
+    return stack.join(",");
+  }
+  var MIN_BAND_PX = 560, MAX_MEASURE_PX = 1000;
+  function layoutNotes(notes, plotW, os) {
+    var probe = document.querySelector(".gr-main .gr-callout .tx");
+    var cs = probe ? getComputedStyle(probe) : null;
+    var body = getComputedStyle(document.body);
+    var fam = exportFace(cs), col = (cs && cs.color) || body.color;
+    var wt = (cs && cs.fontWeight) || "400";
+    var PX = parseFloat(cs && cs.fontSize) || 13;
+    var fs = PX / os, lh = (parseFloat(cs && cs.lineHeight) || PX * 1.55) / os;
+    var gap = fs * 0.9, pad = fs * 1.4;
+    var m = document.createElement("canvas").getContext("2d");
+    if (m) m.font = wt + " " + PX + "px " + fam;
+    function measure(s) { return m ? m.measureText(s).width / os : s.length * fs * 0.5; }
+    // The page wraps the same prose inside a 1440px column, so a wider estate would
+    // otherwise export a note as one unreadable run (#2066).
+    var frame = Math.max(plotW, MIN_BAND_PX / os), fit = Math.min(frame, MAX_MEASURE_PX / os) - pad * 2;
+    var lines = [], widest = 0, y = pad;
+    function push(t) { lines.push({ t: t, y: y }); widest = Math.max(widest, measure(t)); y += lh; }
+    for (var i = 0; i < notes.length; i++) {
+      var words = notes[i].split(" "), cur = "";
+      for (var w = 0; w < words.length; w++) {
+        var t = cur ? cur + " " + words[w] : words[w];
+        if (!cur || measure(t) <= fit) { cur = t; continue; }
+        push(cur); cur = words[w];
+      }
+      if (cur) push(cur);
+      if (i < notes.length - 1) y += gap;
+    }
+    // A word longer than the measure wraps nowhere, and a frame cut to the measure
+    // would clip the note this export exists to carry (#2066).
+    return { width: Math.max(frame, widest + pad * 2), height: y + pad, pad: pad, fs: fs, wt: wt, fam: fam, col: col, lines: lines };
+  }
   var exp = document.getElementById("gr-export");
   if (exp) exp.addEventListener("click", function () {
     // The export renders at its own scale, so it keeps every label. Lift the view's
@@ -387,8 +437,20 @@
       var bx = bb.x - PAD, by = bb.y - PAD, bw = bb.width + PAD * 2, bh = bb.height + PAD * 2;
       if (!(bw > 0) || !(bh > 0)) return;
       var os = Math.min(SCALE, MAX_SIDE / bw, MAX_SIDE / bh, Math.sqrt(MAX_AREA / (bw * bh)));
+      // Each note qualifies the plot, so the image carries them or it states more
+      // than the page did (ADR-0168 §2, #2066).
+      var notes = exportNotes(), band = null;
+      if (notes.length) {
+        band = layoutNotes(notes, bw, os);
+        if (band.width > bw) { bx -= (band.width - bw) / 2; bw = band.width; }
+        by -= band.height; bh += band.height;
+        os = Math.min(SCALE, MAX_SIDE / bw, MAX_SIDE / bh, Math.sqrt(MAX_AREA / (bw * bh)));
+      }
       var outW = Math.max(1, Math.round(bw * os)), outH = Math.max(1, Math.round(bh * os));
       var clone = svg.cloneNode(true);
+      // The live root sizes itself to the card, and that inline height outranks the
+      // attributes below once the note band changes the frame's ratio (#2066).
+      clone.removeAttribute("style");
       clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
       clone.setAttribute("width", outW);
       clone.setAttribute("height", outH);
@@ -404,6 +466,16 @@
         }
         dst[i].setAttribute("style", decl);
       }
+      if (band) {
+        for (var b = 0; b < band.lines.length; b++) {
+          var tn = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          tn.setAttribute("x", bx + band.pad);
+          tn.setAttribute("y", by + band.lines[b].y + band.fs);
+          tn.setAttribute("style", "font-family:" + band.fam + ";font-size:" + band.fs + "px;font-weight:" + band.wt + ";fill:" + band.col + ";");
+          tn.textContent = band.lines[b].t;
+          clone.appendChild(tn);
+        }
+      }
       var xml = new XMLSerializer().serializeToString(clone);
       var img = new Image();
       img.onload = function () {
@@ -417,6 +489,9 @@
         var a = document.createElement("a");
         a.download = "graph.png"; a.href = cv.toDataURL("image/png"); a.click();
       };
+      // A rasterizer that rejects the serialized tree calls neither onload nor the
+      // catch below, so the click would otherwise fail in silence (#2066).
+      img.onerror = function () { console.error("graph PNG export failed: the serialized graph did not rasterize"); };
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
     } catch (err) { console.error("graph PNG export failed", err); }
     finally { if (hushed) svg.classList.add("gr-hushed"); }

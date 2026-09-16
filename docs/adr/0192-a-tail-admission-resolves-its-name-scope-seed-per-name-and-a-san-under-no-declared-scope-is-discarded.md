@@ -29,7 +29,7 @@ relations:
 // names under some declared scope), where crt.sh queries one Seed at a time.
 ```
 
-One line survives, at `internal/scan/cttail.go#parseTileLeaf`:
+One line survives, at `internal/scan/cttail.go`:
 
 ```go
 // The tail reads the whole firehose, so each name's Seed is resolved per name, not per query.
@@ -65,7 +65,7 @@ one Seed.
 `CTTailJob` (`internal/scan/cttail.go`) carries `ScanID` and a `CTLog`. Its wire scope,
 `ctTailScope`, is `{"log_id", "url", "description", "tiled"}`. **There is no Seed in it, and there is
 no Seed to put in it.** §4.2 of the spec fixes the fan-out as *"per-log, not per-Seed"*, and
-`internal/queue/queue.go#Dispatcher.settleRePoints` dispatches one job per followed log.
+`internal/queue/queue.go` dispatches one job per followed log.
 
 So the tail's runner reads the seed corpus at run time instead: `ctSeeds(ctx, w.q)` at
 `internal/queue/cttail.go` and `:176` call `ListNameSeeds`, the whole declared name-scope set,
@@ -139,7 +139,7 @@ subject is *which covering Seed wins, everywhere*, and this is not that document
 
 ### 4. A SAN under no declared scope is discarded, and that is the only available answer
 
-`internal/scan/cttail.go#parseTileLeaf` already cites the ground:
+`internal/scan/cttail.go` already cites the ground:
 
 ```go
 seedID, ok := coveringSeed(n, seeds)
@@ -182,7 +182,7 @@ before it asks. The tail can only know it after.
 - **Membership.** ADR-0106 already rules that an `admitted_name` row records *how a name entered* and
   that membership is measured, not admitted. The Seed on the row is the `Citation`'s terminus, not a
   claim of membership.
-- **The drift signal.** `internal/queue/cttail.go#Worker.completeCTTailTiled` compares admissions against a known-name set
+- **The drift signal.** `internal/queue/cttail.go` compares admissions against a known-name set
   and emits an ephemeral event. §4.1 rules that, and it is downstream of this one.
 - **Duplicate admissions across logs.** The `seen` map is per job, so the same name in two logs is
   admitted by two jobs. `InsertAdmittedName` handles that and this ADR does not reach it.
@@ -191,7 +191,7 @@ before it asks. The tail can only know it after.
 ## Consequences
 
 - **This ADR changes no Go code.** `AdmitCTNames` and `coveringSeed` are correct as they stand.
-- **`internal/scan/cttail.go#parseTileLeaf` gains this ADR's citation** on the surviving line that states the
+- **`internal/scan/cttail.go` gains this ADR's citation** on the surviving line that states the
   rule. Recorded in this issue's manifest.
 - **The per-name resolution is `O(names × seeds)` per job and nothing bounds the seed corpus.**
   `coveringSeed` walks every declared name scope for every candidate SAN, up to 16,384 entries per

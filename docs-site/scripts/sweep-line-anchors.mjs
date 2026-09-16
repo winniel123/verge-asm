@@ -51,7 +51,7 @@ export function historyCitations(repoRoot, env, files, rows) {
   }));
   // A retired line anchor names the declaration the conversion arm would write, so it judges too.
   const relPaths = files.map((abs) => repoPath(repoRoot, abs));
-  for (const r of planFor(repoRoot, env, scanDocuments(repoRoot, relPaths), rows)) {
+  for (const r of planFor(repoRoot, env, scanDocuments(repoRoot, relPaths, env), rows)) {
     if (r.outcome !== "anchor") continue;
     cited.push({
       file: r.file,
@@ -142,7 +142,33 @@ export function reportRecord(results) {
   }));
 }
 
-export function scanDocuments(repoRoot, files) {
+const TREE_PATH = /[A-Za-z0-9_.@][A-Za-z0-9_.@+-]*(?:\/[A-Za-z0-9_.@+-]+)+/g;
+
+// An ADR cross-links with `./` and `../`, so the commonest spelling of a path is a relative one.
+function absolutePath(match, docFile) {
+  if (!/(?:^|\/)\.\.?\//.test(match)) return match;
+  if (docFile === null) return match;
+  const parts = docFile.split("/").slice(0, -1);
+  for (const seg of match.split("/")) {
+    if (seg === ".") continue;
+    if (seg === "..") parts.pop();
+    else parts.push(seg);
+  }
+  return parts.join("/");
+}
+
+// The document's own full paths disambiguate a basename several directories carry (#2120).
+export function pathsNamedIn(markdown, env, docFile = null) {
+  const out = new Set();
+  if (!env?.tracked?.files) return out;
+  for (const [match] of markdown.matchAll(TREE_PATH)) {
+    const path = absolutePath(match, docFile);
+    if (env.tracked.files.has(path)) out.add(path);
+  }
+  return out;
+}
+
+export function scanDocuments(repoRoot, files, env = null) {
   const found = new Map();
   for (const file of files) {
     let markdown;
@@ -153,12 +179,15 @@ export function scanDocuments(repoRoot, files) {
       continue;
     }
     const lines = markdown.split("\n");
-    const hits = scanLineAnchorsFromTree(parse(markdown)).map((h) => ({
+    const namedInDocument = pathsNamedIn(markdown, env, file);
+    const scan = scanLineAnchorsFromTree(parse(markdown), { knownFile: env?.knownFile ?? null });
+    const hits = scan.map((h) => ({
       ...h,
       file,
       glue: trailingGlue(markdown, h),
       // The derivation reads the citing line for a name, so the scan carries it (#1977).
       lineText: lines[h.line - 1] ?? "",
+      namedInDocument,
     }));
     found.set(file, { markdown, hits });
   }
@@ -235,7 +264,7 @@ function report(results) {
   return { anchors, degradations, holds };
 }
 
-function planWrites(results, found) {
+function planWrites(results, found, env) {
   const byFile = new Map();
   for (const r of results) {
     if (!byFile.has(r.file)) byFile.set(r.file, []);
@@ -245,7 +274,8 @@ function planWrites(results, found) {
   for (const [file, conversions] of byFile) {
     const { markdown, hits } = found.get(file);
     const next = rewriteDocument(markdown, conversions);
-    const converted = hits.length - scanLineAnchorsFromTree(parse(next)).length;
+    const after = scanLineAnchorsFromTree(parse(next), { knownFile: env?.knownFile ?? null });
+    const converted = hits.length - after.length;
     if (converted !== conversions.length) {
       throw new Error(
         `sweep: ${file} converted ${converted} token(s), and ${conversions.length} were planned`,
@@ -299,7 +329,7 @@ function main() {
   const files = selectFiles(REPO_ROOT, inScopeFiles(REPO_ROOT), prefixes).map((abs) =>
     repoPath(REPO_ROOT, abs),
   );
-  const found = scanDocuments(REPO_ROOT, files);
+  const found = scanDocuments(REPO_ROOT, files, env);
   const results = planFor(REPO_ROOT, env, found);
   if (results.length === 0) {
     console.log("sweep — no line anchor under that path.");
@@ -320,7 +350,7 @@ function main() {
   }
   const converted = results.filter((r) => r.outcome !== "held");
   // Build and check every rewrite before one byte lands, so no throw can split the act.
-  const writes = planWrites(converted, found);
+  const writes = planWrites(converted, found, env);
   const documents = writeDocuments(REPO_ROOT, writes);
   console.log("");
   console.log(

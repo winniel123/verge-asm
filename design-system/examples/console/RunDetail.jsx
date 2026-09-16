@@ -28,7 +28,7 @@ function jobOutput(job) {
     { time: "14:00:02", text: "job #" + job.id + " started · " + k + v + " · attempt " + (job.attempt || "1/3") },
     { time: "14:00:03", text: "$ verge run " + k + " --vantage " + (job.vantage || "local") },
     { time: "14:00:06", text: k + " · resolving work set" },
-    { time: "14:00:12", text: k + " · 62 subjects in scope" },
+    { time: "14:00:12", text: k + " · 62 covered subjects" },
     { time: "14:00:31", level: job.state === "retrying" ? "warn" : undefined, text: job.state === "retrying" ? "transient error · backing off, retrying (" + (job.attempt || "2/3") + ")" : k + " · 34% · 21/62" },
     { time: "14:01:05", text: k + " · 68% · 42/62" },
     { time: "14:01:44", text: k + " · 100% · 62/62" },
