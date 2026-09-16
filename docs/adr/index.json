@@ -2712,6 +2712,11 @@
           "kind": "bounds",
           "from": 2157,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2159,
+          "clause": null
         }
       ],
       "sections": [],
@@ -11315,7 +11320,7 @@
       "date": "2026-09-08",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -11336,6 +11341,11 @@
           "kind": "rests-on",
           "from": 2114,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2159,
+          "clause": "4"
         }
       ],
       "sections": [
@@ -11346,7 +11356,13 @@
         "5",
         "6"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2159,
+          "clause": "4"
+        }
+      ],
       "decision": {
         "words": 149,
         "text": "For an ADR target, a withdrawal is a tool-written marker, not a hand-edited sentence. The acting ADR declares one relation in its front matter. The tool renders one blockquote line under the affected heading, signed `<!-- adr-marker -->`. CI regenerates every marker and fails on any difference. A relation without a marker, a marker without a relation, and a hand-written marker all fail.\n\nThe unit is the numbered clause, or the whole file when the target numbers no heading. This coarsens the #106 sentence rule for an ADR target only. A spec or research target keeps the hand-written sentence rule.\n\nThe pass that supersedes still pays. It writes the relation. The marker names the acting ADR by thesis title and date.\n\nRejected: a sentence-level marker, which needs a prose parser and a hand edit. On 2026-09-07, 32 ADRs read Accepted while a later ADR amended a clause.\n\nProof: `docs-site/scripts/check-adr-markers.test.mjs`."
@@ -12677,6 +12693,53 @@
       "decision": {
         "words": 139,
         "text": "> **A Consequences section is a dated record, never a live assertion.** It states what the session\n> saw when it decided. Production then moves, and the record does not become false — it becomes\n> historical. So a Consequences section is never amended, and a reference inside it that no longer\n> resolves degrades rather than being repointed.\n>\n> A reader asks what to do when a landed ADR describes a predicate that ships differently, as\n> ADR-0186 and ADR-0185 do.\n>\n> Rejected: amending both through a later ADR. `docs/spec/adr-governance.md` §4 cannot express it —\n> a clause is required wherever the target numbers any heading, and no numbered clause carries the\n> claim.\n>\n> Reversal makes every Consequences section editable in place, so the record of what was decided\n> stops being a record."
+      }
+    },
+    {
+      "number": 2159,
+      "file": "docs/adr/2159-a-legacy-hand-written-marker-is-prose-so-a-falsified-sentence-inside-it-may-be-corrected.md",
+      "title": "A legacy hand-written marker is prose, so a falsified sentence inside it may be corrected",
+      "slug": "a-legacy-hand-written-marker-is-prose-so-a-falsified-sentence-inside-it-may-be-corrected",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2102
+      },
+      "ticket": 2159,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 1644,
+          "clause": "4"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 58
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 135,
+        "text": "> **A legacy hand-written marker is prose, so a falsified sentence inside it may be corrected.**\n> ADR-1644 §4 keeps such a marker in place as prose. *In place* exempts it from the tool. It does not\n> freeze its text. A human may remove a sentence an already-recorded withdrawal falsified. Two bounds\n> hold together: the blockquote carries no `adr-marker` sentinel, and the correction never changes\n> what the ADR decided.\n>\n> A reader asks how ADR-0110 says no clause of its Decision stands and, three times beneath, that the\n> rest stands.\n>\n> Rejected: a later ADR carrying `supersedes` on ADR-0110. That is whole-ADR scope, so it would\n> retire a live ADR to fix three sentences.\n>\n> Reversal leaves a landed ADR asserting both a claim and its withdrawal."
       }
     }
   ]
