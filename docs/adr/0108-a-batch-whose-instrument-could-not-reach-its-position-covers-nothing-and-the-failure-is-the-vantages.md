@@ -14,6 +14,8 @@ proof: {none: "predates the governance SPEC"}
 
 > **Amended** by [ADR-0180: a message detail is a census plus its delivery receipts, and carries no prose body](./0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md), 2026-09-05. <!-- adr-marker amends 180 -->
 
+> **Amended** by [ADR-2087: A vantage that becomes unavailable closes every open span it fed, at write time](./2087-a-vantage-that-becomes-unavailable-closes-every-open-span-it-fed-at-write-time.md), 2026-09-16. <!-- adr-marker amends 2087 -->
+
 ## Context
 
 A `local` vantage whose recursive resolver pointed at nothing produced a `Batch` with
