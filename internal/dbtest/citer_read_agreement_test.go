@@ -87,23 +87,7 @@ func TestBothCiterReadsNameTheSameCitersBehindAGap2204(t *testing.T) {
 	}
 	byTimeline := citersByTimelineRead(timelineRows)
 
-	for _, c := range []struct {
-		addr string
-		want []string
-		why  string
-	}{
-		{
-			addr: agreeCitedAddr,
-			want: []string{agreeGappedName, agreeValuedName},
-			why: "the dark vantage's Gap still cites what its pre-Gap value held, and the timeline " +
-				"closed measured-absent cites nothing",
-		},
-		{
-			addr: agreeOtherAddr,
-			want: []string{agreeMovedName},
-			why:  "a Gap cites the Address its own pre-Gap value named and no other",
-		},
-	} {
+	for _, c := range citerAgreementCases {
 		bySpan := sortedUnique(citersOf(t, spanRows, c.addr))
 		want := sortedUnique(c.want)
 

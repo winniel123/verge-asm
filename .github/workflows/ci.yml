@@ -167,14 +167,20 @@ jobs:
   # binary, so it catches a migration that will not apply, but its database is
   # empty and no query there touches a row.
   #
-  # The job is ADVISORY, like `compose` and `compose-external-db-tls` below. A
-  # required status check is a repository SETTINGS change rather than a file, so
-  # no pull request can land one. Promotion stays a separate human step. Known
-  # cost: an advisory check can go red unnoticed.
+  # The job is REQUIRED. A maintainer registered it on main's ruleset on
+  # 2026-09-16, and the ruleset is the only record of that date. It was advisory
+  # from #2166 until then, and #2255 was filed against the advisory standing. Read
+  # `gh api repos/winniel123/verge-asm/rulesets` before you trust a claim here:
+  # this comment went stale the moment the setting changed, and no check binds the
+  # two together (#2255).
   #
   # `test` keeps running the same package with no DSN set, where every case
   # skips. That is the gate on the skip itself: a case that stopped skipping
   # would fail there, in a required check.
+  #
+  # Do not delete this job without removing its required check first. A required
+  # check that no workflow reports sits on `Expected` forever and blocks every
+  # merge in the repository.
   #
   # The DSN is VERGE_TEST_DATABASE_URL rather than DATABASE_URL. This tier
   # applies migrations and writes rows, and DATABASE_URL is the name a developer
@@ -192,8 +198,12 @@ jobs:
           POSTGRES_DB: verge
         ports:
           - 5432:5432
+        # -h 127.0.0.1 rather than the default socket: the entrypoint's temporary
+        # init server answers the socket while it runs with listen_addresses='',
+        # so a socket probe reports healthy while the mapped port still refuses.
+        # dbtest.Pool connects once and fails the run, and this job is required.
         options: >-
-          --health-cmd "pg_isready -U verge"
+          --health-cmd "pg_isready -h 127.0.0.1 -U verge"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
@@ -207,20 +217,12 @@ jobs:
       - name: run the tier, and fail when it skipped
         run: |
           # A skipped case exits 0 just as a passing one does, so a lost DSN
-          # would turn this whole job into a green no-op.
+          # would turn this whole job into a green no-op. The guard is a script
+          # rather than inline, so scripts/dbtest.sh applies the same one and a
+          # local run cannot pass under a weaker rule (#2255).
           set -o pipefail
           go test ./internal/dbtest/... -count=1 -v 2>&1 | tee "$RUNNER_TEMP/harness.log"
-          if grep -q -- "--- SKIP" "$RUNNER_TEMP/harness.log"; then
-            echo "::error::the harness skipped, so it reached no database"
-            exit 1
-          fi
-          # A package with no runnable case prints no SKIP either, so the guard
-          # asserts the positive: at least one case reached the database.
-          passed=$(grep -c -- "--- PASS" "$RUNNER_TEMP/harness.log" || true)
-          if [ "$passed" -eq 0 ]; then
-            echo "::error::the harness ran no case, so it reached no database"
-            exit 1
-          fi
+          scripts/assert-dbtest-ran.sh "$RUNNER_TEMP/harness.log"
 
   # The golden corpus (golden-corpus.md §3): the measure leaves' pinning rows and
   # the `Custody` derivation's (§10), run hermetically (no network, no
