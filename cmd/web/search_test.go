@@ -223,7 +223,6 @@ func TestSearchCommandPaletteHandoff(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
-	// The label must match ConsoleApp.jsx's CommandPalette entry (design-system/examples/console/).
 	for _, want := range []string{
 		`data-cmdk-search`,
 		`class="cmdk-item" href="/search" data-cmdk-search`,

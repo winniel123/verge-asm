@@ -5,6 +5,7 @@ import { holdsSnippet } from "../citations/armb.mjs";
 import { classify } from "../citations/classify.mjs";
 import { namesAnotherSite } from "./rewrite.mjs";
 import { rivalName } from "./corroborate.mjs";
+import { basenameOf, formOf } from "../citations/lineanchor.mjs";
 
 // A retired token spells its line two ways, and both carry an optional end (SPEC §5).
 const SPLIT = /^(.*?)(?::(\d+)(?:-(\d+))?|#L(\d+)(?:-[Ll]?(\d+))?)$/;
@@ -15,6 +16,17 @@ export function splitToken(token) {
   const start = Number(m[2] ?? m[4]);
   const end = m[3] ?? m[5];
   return { value: m[1], fromLine: start, toLine: end === undefined ? start : Number(end) };
+}
+
+export function resolveBasename(env, base, namedInDocument) {
+  const candidates = env.basenames?.get(base) ?? [];
+  if (candidates.length === 1) return { path: candidates[0] };
+  if (candidates.length === 0) return { reason: `the tree holds no file named ${base}` };
+  // A document that writes the short form wrote the long form somewhere (#2120).
+  const named = candidates.filter((c) => namedInDocument.has(c));
+  if (named.length === 1) return { path: named[0] };
+  const why = named.length === 0 ? "and the document names none of them" : "and the document names several";
+  return { reason: `the tree holds ${candidates.length} files named ${base}, ${why}` };
 }
 
 // The sweep proposes what the gate accepts, so it resolves the path the gate's own way (#1970).
@@ -120,6 +132,19 @@ export function derive(repoRoot, env, found, rows = ROWS) {
       continue;
     }
     const base = { ...hit, value: parts.value, fromLine: parts.fromLine, toLine: parts.toLine };
+    // A path-less token derives an empty value, so the sweep holds rather than writes (#2120).
+    if (parts.value === "") {
+      done.push(held(base, "the token spells no path, so only a reader can repair it"));
+      continue;
+    }
+    if (formOf(hit.token) === "file") {
+      const named = resolveBasename(env, basenameOf(parts.value), hit.namedInDocument ?? new Set());
+      if (named.path === undefined) {
+        done.push(held(base, named.reason));
+        continue;
+      }
+      base.value = named.path;
+    }
     // A reversed range satisfies the containment test against a region holding neither line.
     if (parts.fromLine > parts.toLine) {
       done.push(degraded(base, `the range ${parts.fromLine}-${parts.toLine} runs backwards`));
@@ -130,9 +155,9 @@ export function derive(repoRoot, env, found, rows = ROWS) {
       done.push(degraded(base, `the token names another place at \`${hit.glue.trim()}\``));
       continue;
     }
-    const { status, path } = resolvePath(env, hit.file, parts.value);
+    const { status, path } = resolvePath(env, hit.file, base.value);
     if (status === "dead") {
-      const why = `${parts.value} is no longer in the tree, so the bare path would red the gate`;
+      const why = `${base.value} is no longer in the tree, so the bare path would red the gate`;
       done.push(held(base, why));
       continue;
     }

@@ -2,7 +2,7 @@ import * as React from "react";
 export interface EmptyStateProps {
   /** Lucide name. Default "radar" */
   icon?: string;
-  /** The fact: "No targets yet." */
+  /** The fact: "No seeds yet." */
   message: string;
   /** The next action, as prose: "Add a domain or CIDR range to start scanning." */
   detail?: string;

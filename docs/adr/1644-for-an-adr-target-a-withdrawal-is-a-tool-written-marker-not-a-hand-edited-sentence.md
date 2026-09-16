@@ -72,6 +72,8 @@ in ADR-0001, ADR-0002, and ADR-0004 stand.
 
 ## 4. What ADR-0058 keeps
 
+> **Amended** by [ADR-2159: A legacy hand-written marker is prose, so a falsified sentence inside it may be corrected](./2159-a-legacy-hand-written-marker-is-prose-so-a-falsified-sentence-inside-it-may-be-corrected.md), 2026-09-16. <!-- adr-marker amends 2159 -->
+
 A spec or research target keeps the sentence rule and the hand-written form. A legacy hand-written
 marker inside an ADR keeps its place as prose. The pass that supersedes still pays: it writes the
 relation, and the tool does the rest. The obligation moves from a prose edit to a front matter line.

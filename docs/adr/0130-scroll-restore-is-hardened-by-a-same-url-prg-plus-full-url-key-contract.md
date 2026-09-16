@@ -16,7 +16,7 @@ proof: {none: "predates the governance SPEC"}
 
 Every mutating action in the console is a full-page POST → 303 → GET (ADR-0001). On a
 long screen this reloads at the top, which throws the operator away from the row they acted
-on. A scroll-restore already exists in `shell.tmpl:233-259`: on `submit` it stashes
+on. A scroll-restore already exists in `design-system/templates/shell.tmpl#foot`: on `submit` it stashes
 `window.scrollY` in `sessionStorage` keyed by `location.pathname`, and on the next load of
 that same pathname it restores the value, but only within a 5000 ms window.
 

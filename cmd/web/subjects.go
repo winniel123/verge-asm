@@ -97,13 +97,14 @@ type servicePageData struct {
 	Timelines          []timelineView
 	TimelinesFailed    bool
 	Seen               string
-	InScopeSince       string
+	CoveredSince       string
 	InternalLeg        *legChip
 	InternetLeg        *legChip
 	GapNote            *reachGapNote
 	Provenance         []assetKV
 	Rules              subjectRulesView
 	Signals            []assetSignal
+	SignalsFailed      bool
 	ReachFailed        bool
 }
 
@@ -130,7 +131,7 @@ type endpointPageData struct {
 	Timelines          []timelineView
 	TimelinesFailed    bool
 	Seen               string
-	InScopeSince       string
+	CoveredSince       string
 	Provenance         []assetKV
 	Rules              subjectRulesView
 }
@@ -266,7 +267,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		HasIdentity:      id.Outcome != "",
 	}
 	var seedScope string
-	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, data.SeedFailed, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
+	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, data.SeedFailed, seedScope, data.CoveredSince = s.buildEndpointCitation(r, name, service, addr)
 	tls, tlErr := s.buildTimelines(r, "endpoint", subject.SubjectKey)
 	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
@@ -290,7 +291,7 @@ func endpointStatusLabel(v httpIdentityValue) string {
 	return strconv.Itoa(v.Status)
 }
 
-func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn, unresolved, seedFailed bool, seedScope, inScopeSince string) {
+func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn, unresolved, seedFailed bool, seedScope, coveredSince string) {
 	hops = []citationHop{{Label: "Subject · Endpoint", Value: r.FormValue("key")}}
 	if name != "" {
 		hops = append(hops, citationHop{Label: "Named · Name", Value: name})
@@ -331,7 +332,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 			detail := "declared by " + authorName(seed.CreatedByUsername)
 			seedScope = "address scope " + scope
 			if seed.CreatedAt.Valid {
-				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+				coveredSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
 			}
 			hops = append(hops, citationHop{Label: "Declared · Seed", Value: seedScope, Detail: detail})
 			terminated = true
@@ -343,7 +344,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	if withdrawn && readFailed {
 		withdrawn, unresolved = false, true
 	}
-	return hops, terminated, withdrawn, unresolved, seedFailed, seedScope, inScopeSince
+	return hops, terminated, withdrawn, unresolved, seedFailed, seedScope, coveredSince
 }
 
 func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -379,7 +380,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		Transport: transport,
 	}
 	var seedScope string
-	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, data.SeedFailed, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
+	data.Citation, data.CitationTerminated, data.Withdrawn, data.MembershipUnknown, data.SeedFailed, seedScope, data.CoveredSince = s.buildServiceCitation(r, addr)
 	tls, tlErr := s.buildTimelines(r, "service", subject.SubjectKey)
 	data.Timelines, data.TimelinesFailed = tls, tlErr != nil
 	if subject.ObservedAt.Valid {
@@ -402,13 +403,8 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		}
 	}
 	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines), data.SeedFailed, data.TimelinesFailed)
-	data.Rules = s.subjectRules(r, subject.SubjectKey)
-	signals, sigErr := s.assetSignals(r, subject.SubjectKey)
-	if sigErr != nil {
-		// This card omits itself, so the operator cannot see the degradation (ADR-0168 §1).
-		log.Printf("web: service detail: asset signals: %v", sigErr)
-	}
-	data.Signals = signals
+	panels := s.readServiceSignalPanels(r, subject.SubjectKey)
+	data.Rules, data.Signals, data.SignalsFailed = panels.Rules, panels.Signals, panels.SignalsFailed
 
 	s.render(w, r, "service", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
 		"Service": data,
@@ -450,7 +446,7 @@ func splitServiceKey(key string) (addr, port, transport string) {
 	return addr, port, transport
 }
 
-func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn, unresolved, seedFailed bool, seedScope, inScopeSince string) {
+func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn, unresolved, seedFailed bool, seedScope, coveredSince string) {
 	hops = []citationHop{
 		{Label: "Subject · Service", Value: r.FormValue("key")},
 		{Label: "On address · Address", Value: addr},
@@ -491,7 +487,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 			detail := "declared by " + authorName(seed.CreatedByUsername)
 			seedScope = "address scope " + scope
 			if seed.CreatedAt.Valid {
-				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+				coveredSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
 			}
 			hops = append(hops, citationHop{
 				Label:  "Declared · Seed",
@@ -508,7 +504,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	if withdrawn && readFailed {
 		withdrawn, unresolved = false, true
 	}
-	return hops, terminated, withdrawn, unresolved, seedFailed, seedScope, inScopeSince
+	return hops, terminated, withdrawn, unresolved, seedFailed, seedScope, coveredSince
 }
 
 func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -564,6 +560,31 @@ func (s *server) subjectRules(r *http.Request, key string) subjectRulesView {
 		return subjectRulesView{Failed: true}
 	}
 	return subjectRulesView{Rows: subjectRulesFor(signal.EvaluateCorpus(corpus), key)}
+}
+
+type serviceSignalPanels struct {
+	Rules         subjectRulesView
+	Signals       []assetSignal
+	SignalsFailed bool
+}
+
+func (s *server) readServiceSignalPanels(r *http.Request, key string) serviceSignalPanels {
+	corpus, err := s.buildSignalCorpus(r)
+	if err != nil {
+		log.Printf("web: service detail: signal corpus: %v", err)
+		return serviceSignalPanels{Rules: subjectRulesView{Failed: true}, SignalsFailed: true}
+	}
+	censuses := signal.EvaluateCorpus(corpus)
+	p := serviceSignalPanels{Rules: subjectRulesView{Rows: subjectRulesFor(censuses, key)}}
+	instances, ierr := s.deriveSignalInstances(r.Context(), censuses)
+	if ierr != nil {
+		log.Printf("web: service detail: signal instances: %v", ierr)
+		// An omitted list beside a fired verdict reads as no open signal (ADR-0168 §2, #2043).
+		p.SignalsFailed = true
+		return p
+	}
+	p.Signals = assetSignalsFor(instances, key, s.now().UTC())
+	return p
 }
 
 func subjectRulesFor(censuses []signal.Census, key string) []subjectRule {
@@ -897,7 +918,7 @@ type assetPageData struct {
 	Type          string
 	Withdrawn     bool
 	Seen          string
-	InScopeSince  string
+	CoveredSince  string
 	Severity      string
 	SevLabel      string
 	InternetLeg   *legChip
@@ -972,7 +993,13 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		if s.withdrawnName(r.Context(), key) {
+		withdrawn, spanErr := s.withdrawnName(r.Context(), key)
+		if spanErr != nil {
+			// Which page this key names is the subject read, so it stays loud (ADR-0168 §4).
+			s.renderUnresolvedSubject(w, r, acct, key, "withdrawn name spans", spanErr)
+			return
+		}
+		if withdrawn {
 			s.renderWithdrawnAsset(w, r, acct, key)
 			return
 		}
@@ -993,8 +1020,8 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	if subject.ObservedAt.Valid {
 		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
 	}
-	prov, inScopeSince, scopeFailed, provErr := s.assetProvenance(r, key)
-	data.Provenance, data.InScopeSince, data.ProvenanceFailed = prov, inScopeSince, provErr != nil
+	prov, coveredSince, scopeFailed, provErr := s.assetProvenance(r, key)
+	data.Provenance, data.CoveredSince, data.ProvenanceFailed = prov, coveredSince, provErr != nil
 	data.ScopeDateFailed = scopeFailed
 	dns, dnsErr := s.assetDNS(r, key, res)
 	data.DNS, data.DNSFailed = dns, dnsErr != nil
@@ -1022,14 +1049,14 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}))
 }
 
-func (s *server) withdrawnName(ctx context.Context, key string) bool {
+func (s *server) withdrawnName(ctx context.Context, key string) (bool, error) {
 	rows, err := s.subjectsStore.ListSpansForSubject(ctx, db.ListSpansForSubjectParams{
 		SubjectKind: "name", SubjectKey: key,
 	})
-	if err != nil {
-		return false
+	if readErr := readFailure(err); readErr != nil {
+		return false, readErr
 	}
-	return allSpansClosed(rows)
+	return allSpansClosed(rows), nil
 }
 
 func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
@@ -1047,8 +1074,8 @@ func allSpansClosed(rows []db.ListSpansForSubjectRow) bool {
 func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, acct db.Account, key string) {
 	// A withdrawn Name has no current value, so only closed timelines render (ADR-0072).
 	data := assetPageData{Key: key, Type: "Name", Withdrawn: true}
-	prov, inScopeSince, scopeFailed, provErr := s.assetProvenance(r, key)
-	data.Provenance, data.InScopeSince, data.ProvenanceFailed = prov, inScopeSince, provErr != nil
+	prov, coveredSince, scopeFailed, provErr := s.assetProvenance(r, key)
+	data.Provenance, data.CoveredSince, data.ProvenanceFailed = prov, coveredSince, provErr != nil
 	data.ScopeDateFailed = scopeFailed
 	// An empty list is expected here, so a failed read still needs its own flag.
 	signals, sigErr := s.assetSignals(r, key)
@@ -1067,7 +1094,7 @@ func (s *server) renderWithdrawnAsset(w http.ResponseWriter, r *http.Request, ac
 	}))
 }
 
-func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string, scopeFailed bool, readErr error) {
+func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, coveredSince string, scopeFailed bool, readErr error) {
 	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
@@ -1091,7 +1118,7 @@ func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, 
 			items = append(items, assetKV{K: "Seed", V: seed.NameDomain.String})
 		}
 		if seed.CreatedAt.Valid {
-			inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+			coveredSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
 		}
 	}
 	if citErr == nil {
@@ -1110,7 +1137,7 @@ func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, 
 			items = append(items, assetKV{K: "First seen", V: cit.ObservedAt.Time.UTC().Format("2006-01-02")})
 		}
 	}
-	return items, inScopeSince, scopeFailed, readErr
+	return items, coveredSince, scopeFailed, readErr
 }
 
 func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) ([]assetDNSRow, error) {
@@ -1436,7 +1463,10 @@ func (s *server) assetSignals(r *http.Request, key string) ([]assetSignal, error
 	if err != nil {
 		return nil, err
 	}
-	now := s.now().UTC()
+	return assetSignalsFor(instances, key, s.now().UTC()), nil
+}
+
+func assetSignalsFor(instances []signalInstanceView, key string, now time.Time) []assetSignal {
 	var out []assetSignal
 	for _, inst := range instances {
 		if inst.Asset != key {
@@ -1456,7 +1486,7 @@ func (s *server) assetSignals(r *http.Request, key string) ([]assetSignal, error
 		}
 		out = append(out, sig)
 	}
-	return out, nil
+	return out
 }
 
 func assetDrift(timelines []timelineView) []assetDriftEvent {

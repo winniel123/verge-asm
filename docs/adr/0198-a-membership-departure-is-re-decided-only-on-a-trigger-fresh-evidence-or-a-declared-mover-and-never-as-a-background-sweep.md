@@ -28,16 +28,16 @@ relations:
 // arrived, never as a background sweep of the whole estate.
 ```
 
-The compressed survivor sits at `internal/queue/membership.go#readMembershipInputs`, on the loop head it explains. It
+The compressed survivor sits at `internal/queue/membership.go`, on the loop head it explains. It
 is uncited, because nothing states the rule.
 
 ### The code is exactly as the comment says
 
 `foldEstateTransitions` (`internal/queue/membership.go`) iterates
 `observedResolutionNames(obs)` — the deduplicated `Subject` of every observation in this batch whose
-`Facet` is `resolutionwalk.FacetResolution` (`internal/queue/membership.go#uncitedClosureStore`). For each such Name
+`Facet` is `resolutionwalk.FacetResolution` (`internal/queue/membership.go`). For each such Name
 it lists the open spans, calls `decideNameDeparture`, and closes the timelines only where that
-returns `left`. It has one production caller, `internal/queue/worker.go#Worker.discardCanceled`, inside the batch
+returns `left`. It has one production caller, `internal/queue/worker.go`, inside the batch
 transaction.
 
 There is no other route by which a Name's membership is re-decided. `estate.AddressClosure` has no
@@ -91,7 +91,7 @@ The batch transaction runs five folds in order (`internal/queue/worker.go`):
 | 5 | `foldAddressExclusionWithdrawals` | the live `exclusion` corpus | a declared mover |
 | 6 | `foldSeedWithdrawals` | pending address `seed_withdrawal` tombstones | a declared mover |
 
-`internal/queue/worker.go#Worker.discardCanceled` carries the survivor that names the second trigger:
+`internal/queue/worker.go` carries the survivor that names the second trigger:
 
 ```go
 // A withdrawn Seed stops its Names being enumerated, so a batch-scoped fold misses them (#1045).

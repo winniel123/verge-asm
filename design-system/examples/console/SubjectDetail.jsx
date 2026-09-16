@@ -91,7 +91,7 @@ export function SubjectDetail({ kind = "service", withdrawn = false, onBack, onO
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <Tag>{svc ? "service" : "endpoint"}</Tag>
             {withdrawn ? <WithdrawnMark size="sm" /> : svc ? <ExposureBadge state="exposed" /> : null}
-            <span style={{ font: "400 12px var(--font-mono)", color: "var(--text-muted)" }}>{(withdrawn ? "last seen 6d ago" : "seen 4m ago") + " \u00b7 in scope since " + (svc ? "2026-08-22" : "2026-06-14")}</span>
+            <span style={{ font: "400 12px var(--font-mono)", color: "var(--text-muted)" }}>{(withdrawn ? "last seen 6d ago" : "seen 4m ago") + " \u00b7 covered since " + (svc ? "2026-08-22" : "2026-06-14")}</span>
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>

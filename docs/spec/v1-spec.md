@@ -543,9 +543,21 @@ existential within a class, agreed across classes — so a `Break` on any relied
 `returned` for the whole subject and it re-enters reading `appeared`, the correct carrier and an
 honest word for what happened after a version bump destroyed the history
 ([ADR-0097](../adr/0097-returned-composes-every-witness-a-presence-read-rests-on.md)). A `Gap` is a
-span holding **no value** — the period over which the system could not say, opened by a
-dead-lettered batch, an unavailable vantage, evidence aged past its currency bound, or an answer
-the system could not read (a truncated RRset, an undiscriminated wildcard). A gap never withdraws
+span holding **no value** — the period over which the system could not say, opened by ~~a
+dead-lettered batch~~, an unavailable vantage, ~~evidence aged past its currency bound~~, or an
+answer the system could not read (a truncated RRset, an undiscriminated wildcard, a blanket
+responder). **Two of those four openers are withdrawn here, at the site that specifies them**
+([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). A
+dead-lettered batch records an **empty** scope (§4.1), so it touches no timeline and leaves no span
+to hold. The currency dial drives a **retention delete** over observations (§4.6) and no span
+writer: nothing ages a stored value into a gap, and a read filters on currency instead. The vantage
+clause **stands, and it is a write rather than a read predicate**: the transition to `unavailable`
+closes that vantage's open `reachability` **and** `resolution` spans and opens the gap behind each,
+so no composition read carries an availability predicate (ADR-2087, #2137). The remaining opener,
+the unreadable answer, is written from an emitted measurement: the resolution walk on a truncation
+the TCP fallback did not recover, wildcard discrimination where the control probe under the name's
+parent did not decide, and blanket discrimination on an address that answers every port. A gap
+never withdraws
 a subject. Ceasing to measure is not measuring absence.
 
 **Subjects leave only by measurement**, never by a clock. A `Name` leaves on a Name Error from

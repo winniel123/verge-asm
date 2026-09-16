@@ -67,7 +67,8 @@ func TestExposureBothLegsTable(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Both legs", "Service exposure", "Internal leg", "Internet leg",
-		"198.51.100.10", ":443 tcp", "Exposed to internet",
+		"198.51.100.10", ":443 tcp",
+		"Exposed to internet", "Edge only", "Firewalled", "Unreachable", "One-legged",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("both-legs table missing %q; body: %s", want, got)
@@ -178,6 +179,9 @@ func seedInternetVantage(t *testing.T, f *fakeStore, admin db.Account) {
 	f.vantageNextID++
 }
 
+// The date is the chip's sibling, so this regex stays chip-only and servicedetailcard_test can
+// still assert that a card draws none (#2149).
+
 var legChipCell = regexp.MustCompile(`<span class="vg-leg ([a-z]+)">([^<]*)</span>`)
 
 func legChips(t *testing.T, page string) []legChip {
@@ -190,6 +194,22 @@ func legChips(t *testing.T, page string) []legChip {
 		t.Fatalf("the service table rendered no leg chip; body: %s", page)
 	}
 	return chips
+}
+
+var exposureLegCell = regexp.MustCompile(
+	`<span class="ex-legcell"><span class="vg-leg ([a-z]+)">([^<]*)</span>` +
+		`(?:<span class="ex-legdate">since ([^<]*)</span>)?</span>`)
+
+func exposureLegCells(t *testing.T, page string) []legChip {
+	t.Helper()
+	var cells []legChip
+	for _, m := range exposureLegCell.FindAllStringSubmatch(page, -1) {
+		cells = append(cells, legChip{Tone: m[1], Label: m[2], Date: m[3]})
+	}
+	if len(cells) == 0 {
+		t.Fatalf("the service table rendered no leg cell; body: %s", page)
+	}
+	return cells
 }
 
 func TestExposureLegToneKeysOnValueAndClass(t *testing.T) {
@@ -264,114 +284,63 @@ func TestExposureAbsentLegsKeepTheirTwoWords(t *testing.T) {
 	}
 }
 
-var exposureSinceCell = regexp.MustCompile(`<td class="mono ex-since"[^>]*>([^<]*)</td>`)
+// A date belongs to the value it sits beside, so each leg carries its own and the row carries
+// none (#2034).
 
-func exposureSinceCells(t *testing.T, page string) []string {
-	t.Helper()
-	var cells []string
-	for _, m := range exposureSinceCell.FindAllStringSubmatch(page, -1) {
-		cells = append(cells, m[1])
+func TestExposureRowDatesEachLegBesideItsOwnChip(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedInternetVantage(t, f, admin)
+
+	early := time.Date(2026, 8, 1, 9, 30, 0, 0, time.UTC)
+	late := time.Date(2026, 8, 3, 9, 30, 0, 0, time.UTC)
+	f.addClassReachability(t, "198.51.100.10:443/tcp", "internal", early, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.10:443/tcp", "internet", late, `{"outcome":"reached"}`)
+	// A never-configured leg holds no value for a date to belong to.
+	f.addClassReachability(t, "198.51.100.11:22/tcp", "internal", early, `{"outcome":"reached"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/exposure", http.StatusOK)
+	want := []legChip{
+		{Tone: "neutral", Label: "reached", Date: "2026-08-01"},
+		{Tone: "danger", Label: "reached", Date: "2026-08-03"},
+		{Tone: "neutral", Label: "reached", Date: "2026-08-01"},
+		{Tone: "absent", Label: "never looked"},
 	}
-	if len(cells) == 0 {
-		t.Fatalf("the service table rendered no Since cell; body: %s", page)
+	if got := exposureLegCells(t, page); !slices.Equal(got, want) {
+		t.Errorf("leg cells = %+v, want %+v; body: %s", got, want, page)
 	}
-	return cells
 }
 
-func TestExposureSinceIsUnknownWhenTheOpenSpansReadFails(t *testing.T) {
+// The column the date replaced was class-blind, and so was the banner that stated its absence
+// (#2034).
+
+func TestExposureDrawsNoClassBlindSinceColumn(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	seedInternetVantage(t, f, admin)
 
 	at := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	for _, svc := range []string{"198.51.100.10:443/tcp", "198.51.100.11:22/tcp"} {
-		f.addClassReachability(t, svc, "internal", at, `{"outcome":"reached"}`)
-		f.addClassReachability(t, svc, "internet", at, `{"outcome":"reached"}`)
-	}
+	f.addClassReachability(t, "198.51.100.10:443/tcp", "internal", at, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.10:443/tcp", "internet", at, `{"outcome":"reached"}`)
+	// The board no longer reads the open spans at all, so their failure reaches no column.
 	f.openSpansErr = errors.New("open spans read failed")
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := getBody(t, ac, base+"/exposure", http.StatusOK)
-	for _, want := range []string{"Service exposure", "198.51.100.10", "198.51.100.11", "Exposed to internet"} {
-		if !strings.Contains(page, want) {
-			t.Fatalf("a failed open-spans read took down the board; missing %q; body: %s", want, page)
+	if !strings.Contains(page, "Service exposure") {
+		t.Fatalf("the board did not render; body: %s", page)
+	}
+	for _, refused := range []string{`class="mono ex-since"`, "Since is unknown"} {
+		if strings.Contains(page, refused) {
+			t.Errorf("the table still carries the class-blind Since column: %q", refused)
 		}
 	}
-	if !strings.Contains(page, "Since is unknown") {
-		t.Errorf("the card head does not say the open-spans read failed; body: %s", page)
-	}
-	cells := exposureSinceCells(t, page)
-	if len(cells) != 2 {
-		t.Fatalf("Since cells = %d, want 2; body: %s", len(cells), page)
-	}
-	for _, got := range cells {
-		if got != exposureSinceUnknown {
-			t.Errorf("Since cell = %q, want the unknown token %q", got, exposureSinceUnknown)
-		}
-	}
-}
-
-func TestExposureSinceDatesEveryRowWhenTheOpenSpansReadSucceeds(t *testing.T) {
-	f := newFakeStore()
-	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	seedInternetVantage(t, f, admin)
-
-	at := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	for _, svc := range []string{"198.51.100.10:443/tcp", "198.51.100.11:22/tcp"} {
-		f.addClassReachability(t, svc, "internal", at, `{"outcome":"reached"}`)
-		f.addClassReachability(t, svc, "internet", at, `{"outcome":"reached"}`)
-	}
-
-	base := start(t, f, "")
-	ac := login(t, base, "admin", "hunter2hunter2")
-
-	page := getBody(t, ac, base+"/exposure", http.StatusOK)
-	if strings.Contains(page, "Since is unknown") {
-		t.Errorf("a healthy open-spans read still declared the column unknown; body: %s", page)
-	}
-	want := []string{"2026-08-01", "2026-08-01"}
-	if got := exposureSinceCells(t, page); !slices.Equal(got, want) {
-		t.Errorf("Since cells = %q, want %q; body: %s", got, want, page)
-	}
-}
-
-func TestExposureSinceNoteStaysAwayFromTheEmptyState(t *testing.T) {
-	f := newFakeStore()
-	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	seedInternetVantage(t, f, admin)
-	f.openSpansErr = errors.New("open spans read failed")
-
-	base := start(t, f, "")
-	ac := login(t, base, "admin", "hunter2hunter2")
-
-	page := getBody(t, ac, base+"/exposure", http.StatusOK)
-	if !strings.Contains(page, "No service exposure measured yet") {
-		t.Fatalf("the empty state did not render; body: %s", page)
-	}
-	if strings.Contains(page, "Since is unknown") {
-		t.Errorf("the card head names a column the empty state does not draw; body: %s", page)
-	}
-}
-
-func TestSinceDisplaySeparatesAbsentFromUnknown(t *testing.T) {
-	// Both store reads gate on the same open spans, so no page fixture is absent (#1947).
-	for _, tc := range []struct {
-		name    string
-		since   string
-		unknown bool
-		want    string
-	}{
-		{name: "a dated open span", since: "2026-08-01", want: "2026-08-01"},
-		{name: "no open span", since: "", want: exposureSinceAbsent},
-		{name: "a failed read", since: "", unknown: true, want: exposureSinceUnknown},
-		{name: "a failed read outranks a stale date", since: "2026-08-01", unknown: true, want: exposureSinceUnknown},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := sinceDisplay(tc.since, tc.unknown); got != tc.want {
-				t.Errorf("sinceDisplay(%q, %v) = %q, want %q", tc.since, tc.unknown, got, tc.want)
-			}
-		})
+	if got := exposureLegCells(t, page); got[0].Date != "2026-08-01" {
+		t.Errorf("a leg lost its own date with the column; cells: %+v", got)
 	}
 }

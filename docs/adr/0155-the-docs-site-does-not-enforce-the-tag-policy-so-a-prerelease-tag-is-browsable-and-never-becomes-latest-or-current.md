@@ -44,23 +44,23 @@ Four sites carry the rule. Each was read on 2026-09-05.
 
 | Site | Behaviour |
 | --- | --- |
-| `source-resolution.ts:28` | `SEMVER_TAG` accepts an optional prerelease segment, so a prerelease tag parses |
-| `source-resolution.ts:98` | `publishableTags` keeps every parsed tag that carries `docs/guides/`, prerelease included |
-| `source-resolution.ts:117` | `refForVersion("latest")` picks the newest tag whose `prerelease` is `null` |
-| `source-resolution.ts:213` | `listVersions` puts the `current` badge on the newest stable tag |
+| `docs-site/src/pipeline/source-resolution.ts` | `SEMVER_TAG` accepts an optional prerelease segment, so a prerelease tag parses |
+| `docs-site/src/pipeline/source-resolution.ts` | `publishableTags` keeps every parsed tag that carries `docs/guides/`, prerelease included |
+| `docs-site/src/pipeline/source-resolution.ts` | `refForVersion("latest")` picks the newest tag whose `prerelease` is `null` |
+| `docs-site/src/pipeline/source-resolution.ts` | `listVersions` puts the `current` badge on the newest stable tag |
 
 `listVersions` also puts `current` on the `latest` row when no stable tag exists, and
 `refForVersion` then falls back to `main`. So `current` names a stable tag or the `main` tree. It
 never names a prerelease tag.
 
-`canonicalPath` (`source-resolution.ts:224`) returns `/latest/<slug>` for every guide. The canonical
+`canonicalPath` (`docs-site/src/pipeline/source-resolution.ts`) returns `/latest/<slug>` for every guide. The canonical
 URL of the whole site therefore follows whatever `latest` resolves to.
 
 ### The code refines ADR-0115 rather than implementing it
 
 Semver orders a prerelease below its own release and above the previous release. With the tags
 `v1.0.0` and `v1.0.1-rc1`, the highest tag by semver is `v1.0.1-rc1`. `compareTagsDesc`
-(`source-resolution.ts:78`) agrees, because it compares the patch number before it looks at the
+(`docs-site/src/pipeline/source-resolution.ts`) agrees, because it compares the patch number before it looks at the
 prerelease segment. ADR-0115 §2's plain reading therefore makes `v1.0.1-rc1` the target of `latest`.
 The code refuses that. The clause needs a bound at its own site.
 
@@ -160,7 +160,7 @@ does with an input, not about who reads the output.
   that a fourth site meets such a tag and does not refuse it.
 - **[ADR-0115](./0115-the-docs-site-renders-the-guides-in-place-and-a-version-is-a-git-ref-not-a-copy.md)
   §2 gains one bounding note** on its `latest` bullet. The alias targets the highest **stable** tag.
-- **`source-resolution.ts:212` gains this ADR's citation.** It is the one site that states the rule
+- **`docs-site/src/pipeline/source-resolution.ts` gains this ADR's citation.** It is the one site that states the rule
   in prose. `refForVersion` implements the same rule and states nothing, so it gains nothing.
 - **No production behaviour changes.** The code already has the shape this ADR states. What changes
   is that the shape now has a ground that survives §1.3, and a record both documents can cite.
@@ -182,4 +182,4 @@ does with an input, not about who reads the output.
 | **Fail the docs build when a prerelease tag exists** | Reports a repository-settings defect at a site that cannot fix it, and takes the docs offline for a fault in the tag namespace. §17.1 owns the settings gap. A red docs publish also tells an operator nothing about which layer is missing |
 | **Write the rule in [`docs-site/PIPELINE.md`](../../docs-site/PIPELINE.md)** | That file is the three-stage interface contract for #350's tickets. The rule crosses the docs site and the release SPEC, and both sides need to cite it. A stage contract is read by the ticket that extends the stage, not by a reader of §1.3 |
 | **Amend §1.3 and file no ADR** | §1.3 rules which tags the project cuts. This rules what a consumer does with a tag the project did not cut, and it withdraws a ground the code stated. §1.3 takes the bounding note its own list needs and no more |
-| **Leave the rule uncited in the surviving comment** | The survivor at `source-resolution.ts:212` carries the rule and settles nothing against §1.3. A later reader who finds both reads a docs pipeline that plans for a tag class the release SPEC refuses, with no record of which one wins |
+| **Leave the rule uncited in the surviving comment** | The survivor at `docs-site/src/pipeline/source-resolution.ts` carries the rule and settles nothing against §1.3. A later reader who finds both reads a docs pipeline that plans for a tag class the release SPEC refuses, with no record of which one wins |

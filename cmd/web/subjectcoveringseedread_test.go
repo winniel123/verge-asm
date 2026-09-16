@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	seedChipDidNotResolve  = "in scope since — the Seed read did not resolve"
+	seedChipDidNotResolve  = "covered since — the Seed read did not resolve"
 	seedChainDidNotResolve = "The covering-Seed read did not resolve on this load."
 	seedRowDidNotResolve   = `<span class="sd-micro">Seed</span><span class="v">the Seed read did not resolve</span>`
 	chainReachesNoSeed     = "The chain does not reach a declared Seed."
