@@ -438,9 +438,9 @@ unproven.** The range converted under the guard, so a suspect anchor could not l
 
 The `aperture-statement.md` row read `class A` when this fact was first measured, on the guard's
 evidence alone. The history arm overturned it, per §4.3: the witness `060c880d` named line 246 of
-`cmd/web/cold.go`, which was the `func apertureMeters(...)` declaration line. The anchor at that
-site is unchanged, and [#2146](https://github.com/winniel123/verge-asm/issues/2146) holds it. This
-fact records the verdict alone.
+`cmd/web/cold.go`, which was the `func apertureMeters(...)` declaration line.
+[#2146](https://github.com/winniel123/verge-asm/issues/2146) repaired that site under §6.4, and
+the citation now names `apertureMeters`. This fact records the verdict alone.
 
 **F4 — the guard degraded 36 of 255 candidate conversions over ADR-0001 to ADR-0176.** The
 unguarded pass wrote 255 anchors. The guarded pass wrote 219 and degraded 141 in total.
