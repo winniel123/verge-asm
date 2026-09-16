@@ -240,7 +240,7 @@ function report(results) {
 
   if (holds.length > 0) {
     console.log("");
-    console.log("Held back — the path itself is gone, so the token stays and a human repairs it:");
+    console.log("Held back — the token stays exactly as it is, and a human repairs it:");
     for (const r of holds) console.log(`  ${r.file}:${r.line}  ${r.token}  (${r.reason})`);
   }
 
@@ -260,11 +260,11 @@ function report(results) {
   console.log(`  ${n(anchors)}  derive an anchor`);
   console.log(`  ${n(review)}  of those enter the review queue`);
   console.log(`  ${n(degradations)}  degrade to a bare path`);
-  console.log(`  ${n(holds)}  held back: the path itself is gone`);
+  console.log(`  ${n(holds)}  held back: the token stays for a reader`);
   return { anchors, degradations, holds };
 }
 
-function planWrites(results, found, env) {
+export function planWrites(results, found, env) {
   const byFile = new Map();
   for (const r of results) {
     if (!byFile.has(r.file)) byFile.set(r.file, []);
