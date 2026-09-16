@@ -279,12 +279,19 @@ to `suspect` moves the bias the other way. Such a rule reaches only the shape wh
 rate a §9 fact records. A shape whose rate is assumed rather than counted stays `unproven`, and §5.2
 rule 2 is where an uncertain one goes.
 
-**No §9 fact measures the tree test today, so this section states a boundary and no rule.** F3 and
-F5 measure the position guard, F8 the audit, and F11 the history arm. The rule itself is
+**§9 fact F12 measures the tree test, and this section still states a boundary and no rule.** F3
+and F5 measure the position guard, F8 the audit, F11 the history arm, and F12 the tree test's
+false-positive rate on this boundary. The rule itself is
 [#2155](https://github.com/winniel123/verge-asm/issues/2155)'s, and that ruling binds it to ship in
-one pull request with its own §9 measurement. That pull request also owns §2. A suspect anchor is
-defined there by its rival, and a rival is a declaration the target really has, so a verdict the
-tree test awards has no rival under the term as it stands.
+one pull request with its own §9 measurement. F12 is that measurement, and it landed first, because
+[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s own third fact assigns the breakdown
+to the implementing session as its first step. **The rate F12 records is 14 false positives in 14,
+over an empty true-positive population.** The two shapes this section leaves open are a retired
+line anchor and a residue of five names. A reader of that rate decides what the rule may reach.
+
+The pull request that ships the rule also owns §2, where a suspect anchor takes its name from its
+rival. A rival is a declaration the target really has. So a verdict the tree test awards has no
+rival under the term as it stands.
 
 ---
 
@@ -543,3 +550,99 @@ Two of the 19 spell the intended declaration in the prose, and the guard reports
 line 62 puts that name on the line above the citation. `docs/spec/audit-act.md` line 19 names
 `fillAuditSection`, and `cmd/web/settings.go` no longer declares it. The guard then reads the
 strongest drift evidence available as no evidence at all.
+
+A run on 2026-09-16 produced fact F12. It ran against `ec0404e`, the branch this fact lands from.
+That branch is `main` at `ffa10a8` plus its own merges. Two commands reproduce the inputs.
+`npm run sweep:line-anchors -- --audit` from `docs-site/` gives the population.
+`go run ./cmd/godecls --root .` over `git ls-files '*.go'` gives the Go half of the tree index.
+
+**F12 — the audit judges 626 written anchors and calls 512 unproven. 208 of them spell a name the
+target does not declare, in a span the guard reads. §5.3 leaves the tree test open to 14 of the 459
+names they spell. A hand read finds every one of the 14 a false positive.**
+
+The 512 are 97 in `docs/spec`, 413 in `docs/adr` and 2 in the root documents. The 208 sit on 195
+citing lines. They spell 459 such names between them, and 307 of the names are distinct. The other
+304 anchors spell no name the guard reads. So no rule over the citing line reaches them. The shapes
+below are exclusive, in §5.3's own order of closure. Each one counts a name the target lacks.
+
+| Shape | What the name is | §5.3 | `docs/spec` | `docs/adr` | Total | Distinct |
+| --- | --- | --- | --- | --- | --- | --- |
+| A — declared elsewhere | some inventory in the tree carries it under `sameName` | closed | 14 | 110 | 124 | 90 |
+| C — weak | limb 1 holds: a file the markdown row does not claim spells the token | closed | 55 | 266 | 321 | 205 |
+| B — case-folded only | no inventory carries it, and one carries a case-folded spelling | **open** | 5 | 3 | 8 | 7 |
+| D — residue | no inventory carries it folded or not, and no such file spells it | **open** | 2 | 4 | 6 | 5 |
+
+§5.3 closes the tree test to a name some inventory still carries, and to a weak name. It closes it
+to neither B nor D. **So B and D together are the population a rule of
+[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s shape raises.** That is 14
+occurrences over 12 anchors. Seven of the 12 spell such a name before the citation, so rule 1 of
+§5.2 degrades them. The other five spell one only afterwards, so they enter rule 2's review queue.
+By syntax the 459 are 399 bare identifiers, 40 dotted names and 20 file names.
+
+**All 14 are false positives.** No site below carries a region anchor. One would put this fact's
+own lines into the population it counts.
+
+| Site | The name | Why the anchor stands |
+| --- | --- | --- |
+| `docs/spec/golden-corpus.md` line 219 | `Bumped` | a table column header inside a two-word span, and the anchor is a heading slug |
+| `docs/spec/comment-policy.md` line 2321 | `fa97` | the tail of the commit hash `860fa97`, which the identifier pattern cuts at the digits |
+| ADR-0160 line 39, on both anchors | `account.password_hash` | a database column, and both anchors name the declarations the row is about |
+| ADR-0179 line 33 | `signalRow.seenAge` | a struct field of the anchor's own type, so the prose supports the anchor rather than rivalling it |
+| ADR-0147 line 23 | `assetsWatched` | a withdrawn local; the anchor's declaration still computes the stat, and the stale part is the expression the prose quotes |
+| 6 more anchors, 8 occurrences | `artifactdoc.go`, `password.go` and 5 like them | shape B is a retired line anchor, and a file name is no declaration name |
+
+So the tree test's measured false-positive rate on this boundary is 14 of 14. Its measured
+true-positive population on this boundary is empty.
+
+**Shape B is a retired line anchor, spelled as a bare basename.** §8.4 of
+[citation anchors](citation-anchors.md) stages that form, and the conversion of
+[#2120](https://github.com/winniel123/verge-asm/issues/2120) has not reached it. Each of the 8 sits
+in a span such as `` `artifactdoc.go:147` ``. The guard reads it, because `citesPath` strips the
+line suffix and finds a basename that spells no directory. So the span survives, and the basename
+becomes a candidate. The name then folds on its extension onto a declared type.
+`artifactdoc.go` folds onto the `Go` that `internal/commentlint/surface/golang.go` declares, and
+`_integration_state.sql` folds onto the `SQL` of its sibling. A later conversion of that stage
+empties shape B, and no rule is needed.
+
+**The true positives left the corpus before it was measured.**
+[#2011](https://github.com/winniel123/verge-asm/pull/2011) degraded the ADR-0186 rows by hand. So
+no name they spell is a written anchor's rival today. This run scored them as names against its
+tree index. Shape D holds `certExpiryWindow`, shape B holds `weakKeyOrSignature` and
+`selfSignedOf`, and shape C holds `notAfter` and `notBefore`. So the tree test reaches three of
+those five. It reaches two of the three for the wrong reason, because those declarations are alive
+under an exported initial.
+
+**Relocation is a shape of its own, and shape B holds none of it today.** `sameName` is
+case-sensitive. So a live declaration reads as absent where the prose spells it with another
+initial. `internal/signalfacts/signalfacts.go` declares `WeakKeyOrSignature` and `SelfSignedOf`,
+and ADR-0186 spelled both with a lowercase initial. Neither is a written anchor's rival now, and
+none of the 8 shape-B names is a relocation. Folding the case inside `sameName` is not the repair
+either. Measured over all 459 names, a folding `sameName` makes 3 of them a rival of the anchor's
+own target. They sit at ADR-0150 line 52, ADR-0189 line 83 and ADR-0193 line 59, and they spell
+`connect`, `ReserveCTSlot` and `sct`. All three come before the citation, so all three would
+degrade a sound anchor under §5.2 rule 1. None is a relocation.
+
+**Limb 1 reads a dotted name two ways, and the raised population turns on it.** The table asks
+whether the tree spells the whole dotted name. The other reading asks whether it spells the tail:
+`seenAge` of `signalRow.seenAge`, and `password_hash` of `account.password_hash`. Under that
+reading shape B empties, D falls from 6 to 3, and the raised population falls to 3 occurrences. The
+false-positive rate is 14 of 14 under the first reading, and 3 of 3 under the second.
+
+**What this run did not measure.** §5.3 calls a name weak when either limb holds, and this run
+applied limb 1 alone. Limb 2 names a standard-library field or method, with an exported initial
+folded. A hand read applied it over the 14, and no run applied it mechanically. A mechanical run
+can only move a name out of B or D into C. So the raised population can only shrink. Shape A
+already takes every name some inventory carries. So a name that reaches C is spelled in a position
+no declaration vocabulary carries, which is what limb 1 asserts.
+
+**How the shapes were derived.** The guard scored its own reads. For each span of an unproven
+citing line, the run rebuilt the line with every other span blanked. It then called `rivalName`
+once per identifier of that span, against a one-name inventory holding it. A `suspect` answer then
+means the guard reads that name in that position. The blanking is what makes the answer sound.
+`sameName` matches a suffix, so an un-isolated probe for `fetcher.go` answers `suspect` on a bare
+`go` from any other span. An earlier run of this fact over-counted 10 names that way. No second
+matcher was written, per §5.3, and the tree holds no harness for this run. So this paragraph is the
+record of the method. The tree index took every tracked file under the four declaring rows. It
+holds 9,163 names from 737 Go files, 298 from the `-- name:` queries, and 86 from the `{{define}}`
+templates. It also holds 4,447 heading slugs from 480 markdown files. Limb 1 is a token search over
+every tracked file the markdown row does not claim.
