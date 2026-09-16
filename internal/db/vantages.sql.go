@@ -377,7 +377,9 @@ func (q *Queries) MarkVantageUnavailable(ctx context.Context, id int64) error {
 
 const pinVantageHostKey = `-- name: PinVantageHostKey :exec
 UPDATE vantage
-SET host_key = $2, availability = 'available'
+SET host_key = $2,
+    -- Availability is concluded from a batch outcome, and a connect is not one (ADR-0108).
+    availability = CASE WHEN availability = 'unavailable' THEN availability ELSE 'available' END
 WHERE id = $1 AND host_key IS NULL
 `
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/dbtest"
@@ -327,5 +328,88 @@ func TestMarkVantageAvailableLeavesEveryOtherCauseAndValueAlone(t *testing.T) {
 				t.Error("recovery ended a valued reading it never read")
 			}
 		}
+	}
+}
+
+func hostKeyOf(t *testing.T, tx pgx.Tx, vantageID int64) string {
+	t.Helper()
+	var hostKey string
+	if err := tx.QueryRow(context.Background(),
+		`SELECT COALESCE(host_key, '') FROM vantage WHERE id = $1`, vantageID).Scan(&hostKey); err != nil {
+		t.Fatalf("read host key: %v", err)
+	}
+	return hostKey
+}
+
+func TestPinVantageHostKeyLeavesTheOutageForARecoveringBatchToClear(t *testing.T) {
+	q, tx := dbtest.Queries(t)
+	ctx := context.Background()
+
+	// insertVantage pins no host key, so the pin's own guard is open here (#2182).
+	vantageID := insertVantage(t, tx, "pin-under-outage")
+	insertSpan(t, tx, vantageID, valued("resolution", "a.example"))
+	if err := q.MarkVantageUnavailable(ctx, vantageID); err != nil {
+		t.Fatalf("mark unavailable: %v", err)
+	}
+
+	if err := q.PinVantageHostKey(ctx, db.PinVantageHostKeyParams{
+		ID:      vantageID,
+		HostKey: pgtype.Text{String: "pin-under-outage.example ssh-ed25519 AAAA", Valid: true},
+	}); err != nil {
+		t.Fatalf("PinVantageHostKey did not execute: %v", err)
+	}
+
+	if got := hostKeyOf(t, tx, vantageID); got == "" {
+		t.Error("the connect already trusted this key, so the pin must record it whatever the outage")
+	}
+	if got := availabilityOf(t, tx, vantageID); got != "unavailable" {
+		t.Errorf("availability = %q: a connect is no batch outcome, and this pin retired no Gap, "+
+			"so it may not clear the outage (ADR-2087)", got)
+	}
+	open := openSpans(spansOf(t, tx, vantageID))
+	if len(open) != 1 {
+		t.Fatalf("got %d open spans, want the outage Gap alone: %+v", len(open), open)
+	}
+	if !open[0].isGap || open[0].cause != "vantage-unavailable" {
+		t.Fatalf("want the outage's own Gap still open; got %+v", open[0])
+	}
+
+	// The recovering batch is what closes it, and it still can: no read carries an availability
+	// predicate, so an unavailable vantage keeps being dispatched to.
+	if err := q.MarkVantageAvailable(ctx, db.MarkVantageAvailableParams{
+		ID:     vantageID,
+		Facets: []string{"resolution"},
+	}); err != nil {
+		t.Fatalf("MarkVantageAvailable: %v", err)
+	}
+	if got := availabilityOf(t, tx, vantageID); got != "available" {
+		t.Errorf("availability = %q, want available", got)
+	}
+	if open := openSpans(spansOf(t, tx, vantageID)); len(open) != 0 {
+		t.Errorf("recovery left %d spans open, want none: %+v", len(open), open)
+	}
+}
+
+func TestPinVantageHostKeyStillMarksAPendingVantageAvailable(t *testing.T) {
+	q, tx := dbtest.Queries(t)
+	ctx := context.Background()
+
+	var vantageID int64
+	if err := tx.QueryRow(ctx,
+		`INSERT INTO vantage (name, resolver, host, port, username, availability)
+		 VALUES ('pin-pending', '9.9.9.9', 'pin-pending.example', 22, 'verge', 'pending')
+		 RETURNING id`).Scan(&vantageID); err != nil {
+		t.Fatalf("insert vantage: %v", err)
+	}
+
+	if err := q.PinVantageHostKey(ctx, db.PinVantageHostKeyParams{
+		ID:      vantageID,
+		HostKey: pgtype.Text{String: "pin-pending.example ssh-ed25519 AAAA", Valid: true},
+	}); err != nil {
+		t.Fatalf("PinVantageHostKey did not execute: %v", err)
+	}
+
+	if got := availabilityOf(t, tx, vantageID); got != "available" {
+		t.Errorf("availability = %q: a first connect still declares the position reachable", got)
 	}
 }
