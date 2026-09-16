@@ -1906,6 +1906,11 @@
           "kind": "rests-on",
           "from": 2087,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2163,
+          "clause": null
         }
       ],
       "sections": [],
@@ -3657,6 +3662,11 @@
         {
           "kind": "rests-on",
           "from": 2087,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2163,
           "clause": null
         }
       ],
@@ -12557,7 +12567,7 @@
       "date": "2026-09-16",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -12585,7 +12595,13 @@
           "adr": 41
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 2163,
+          "clause": "3"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -12597,7 +12613,13 @@
         "8",
         "9"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2163,
+          "clause": "3"
+        }
+      ],
       "decision": {
         "words": 148,
         "text": "> **A vantage that becomes unavailable closes every open span it fed, at write time**, and opens a\n> `Gap` carrying the cause `vantage-unavailable` behind each. The transition is the event, not the\n> column value, so a resolver-only vantage holding no value still transitions. The closure names no\n> facet, so one added later needs no query edit. No composition read gains an availability\n> predicate, and `ListVantagesForDispatch` keeps every row.\n>\n> A reader asks why a class-scoped composition trusts a prober that stopped answering. ADR-0080\n> decision rule 1 says it must not, and no read implemented that predicate.\n>\n> Rejected: a predicate on each composition read. `applyAvailability` clears a vantage only from a\n> completed resolution-walk, so filtering the dispatch query would strand it unavailable forever.\n>\n> Reversal returns a dead prober's open span to the fold, pinning its class to `reached`."
@@ -12757,6 +12779,56 @@
       "decision": {
         "words": 135,
         "text": "> **A legacy hand-written marker is prose, so a falsified sentence inside it may be corrected.**\n> ADR-1644 §4 keeps such a marker in place as prose. *In place* exempts it from the tool. It does not\n> freeze its text. A human may remove a sentence an already-recorded withdrawal falsified. Two bounds\n> hold together: the blockquote carries no `adr-marker` sentinel, and the correction never changes\n> what the ADR decided.\n>\n> A reader asks how ADR-0110 says no clause of its Decision stands and, three times beneath, that the\n> rest stands.\n>\n> Rejected: a later ADR carrying `supersedes` on ADR-0110. That is whole-ADR scope, so it would\n> retire a live ADR to fix three sentences.\n>\n> Reversal leaves a landed ADR asserting both a claim and its withdrawal."
+      }
+    },
+    {
+      "number": 2163,
+      "file": "docs/adr/2163-a-facet-is-reached-by-the-aperture-of-the-corpus-it-composes-from.md",
+      "title": "A facet is reached by the aperture of the corpus it composes from",
+      "slug": "a-facet-is-reached-by-the-aperture-of-the-corpus-it-composes-from",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "test": "internal/vantage/availability_test.go::TestEachFacetIsReachedByTheApertureOfItsOwnCorpus"
+      },
+      "ticket": 2163,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 2087,
+          "clause": "3"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 80
+        },
+        {
+          "kind": "rests-on",
+          "adr": 41
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 145,
+        "text": "> **A facet is reached by the aperture of the corpus it composes from.** A write-time closure\n> reaches the corpus it writes, no other. Reachability composes from `span`, so ADR-2087's\n> closure reaches it. Resolution composes from `observation`, and its aperture is the cadence\n> floor: at the shipped daily `dns` cadence a dead vantage's class is stale for at most 48\n> hours, then reads not-evaluable. That floor is intended, not a hole.\n>\n> A reader asks why ADR-2087 §3 promises every reader correctness while §6 admits a read it\n> cannot reach. §3 names no corpus, so the next observation read is written assuming cover.\n>\n> Rejected: a second writer edge on `observation`. ADR-0041 rules that corpus, and writing over\n> it costs more than a bounded, self-healing window.\n>\n> Reversal unprices the window and returns §3's unqualified promise."
       }
     },
     {

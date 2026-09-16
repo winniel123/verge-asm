@@ -3,6 +3,9 @@ package vantage
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
+	"github.com/winniel123/verge-asm/internal/retention"
 )
 
 // ADR-2087 rules Alternative B, write time. The rule is one SQL statement and no Go
@@ -242,6 +246,105 @@ func TestNoCompositionReadGainedAnAvailabilityPredicate(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestEachFacetIsReachedByTheApertureOfItsOwnCorpus(t *testing.T) {
+	closure := uncommented(namedQuery(t, "vantages.sql", "MarkVantageUnavailable"))
+	if !strings.Contains(closure, "UPDATE span") {
+		t.Fatalf("the closure must write the span corpus; got:\n%s", closure)
+	}
+	if strings.Contains(closure, "observation") {
+		t.Errorf("the closure reaches the corpus it writes and no other, so an edge onto "+
+			"observation is the alternative ADR-2163 rejected; got:\n%s", closure)
+	}
+
+	for file, names := range map[string][]string{
+		"signals.sql": {"ListServiceReachabilitySpansByClass", "ListServiceReachabilitySpansByClassForServices"},
+		"span.sql":    {"ListServiceReachabilitySpansByClassAt", "ListServiceReachabilitySpansByClassAtForServices"},
+	} {
+		for _, name := range names {
+			reach := uncommented(namedQuery(t, file, name))
+			if !strings.Contains(reach, "FROM span") || strings.Contains(reach, "FROM observation") {
+				t.Errorf("%s composes reachability from the span corpus alone, which is what puts "+
+					"it inside the closure's reach (ADR-2163 §2); got:\n%s", name, reach)
+			}
+			if !strings.Contains(reach, "closed_at IS NULL") {
+				t.Errorf("%s must read the open span, or closing one changes no row it returns "+
+					"(ADR-2163 §2); got:\n%s", name, reach)
+			}
+		}
+	}
+
+	resolution := uncommented(namedQuery(t, "signals.sql", "ListNameResolutionsByClass"))
+	if !strings.Contains(resolution, "FROM observation") || strings.Contains(resolution, "FROM span") {
+		t.Errorf("resolution composes from the observation corpus alone, which is why closing "+
+			"spans changes no row it returns (ADR-2163 §2); got:\n%s", resolution)
+	}
+	for _, want := range []string{"floor_cadences", "tightest_cadence"} {
+		if !strings.Contains(resolution, want) {
+			t.Errorf("the cadence floor is the resolution aperture, so the read must carry %q or "+
+				"a dead vantage's value never ages out (ADR-2163 §3); got:\n%s", want, resolution)
+		}
+	}
+
+	cadence := shippedDNSCadenceSeconds(t)
+	const priced = 172800
+	if got := retention.FloorCadences * cadence; got != priced {
+		t.Errorf("a dead vantage's resolution value goes stale for k=%d x dns cadence %ds = %ds; "+
+			"ADR-2163 §3 prices that window at %ds, 48 hours, and a moved dial re-prices the ADR",
+			retention.FloorCadences, cadence, got, priced)
+	}
+}
+
+var (
+	dnsScanWrite   = regexp.MustCompile(`(?is)\b(?:INSERT\s+INTO\s+scan|UPDATE\s+scan)\b.*'dns'`)
+	cadenceLiteral = regexp.MustCompile(`(?is)cadence_seconds[^0-9]*?(\d+)`)
+)
+
+func shippedDNSCadenceSeconds(t *testing.T) int64 {
+	t.Helper()
+	entries, err := migrations.FS.ReadDir(".")
+	if err != nil {
+		t.Fatalf("read migrations: %v", err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+
+	cadence, wroteIn := int64(-1), ""
+	for _, name := range names {
+		body, err := migrations.FS.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		up := string(body)
+		if i := strings.Index(up, "-- +goose Down"); i >= 0 {
+			up = up[:i]
+		}
+		for _, stmt := range strings.Split(uncommented(up), ";") {
+			if !strings.Contains(stmt, "cadence_seconds") || !dnsScanWrite.MatchString(stmt) {
+				continue
+			}
+			m := cadenceLiteral.FindStringSubmatch(stmt)
+			if m == nil {
+				t.Fatalf("%s writes the dns scan's cadence in a form this helper cannot read, so a "+
+					"re-priced dial would leave ADR-2163 §3 asserting 48 hours unchecked:\n%s", name, stmt)
+			}
+			n, err := strconv.ParseInt(m[1], 10, 64)
+			if err != nil {
+				t.Fatalf("%s: dns cadence %q: %v", name, m[1], err)
+			}
+			cadence, wroteIn = n, name
+		}
+	}
+	if cadence < 0 {
+		t.Fatal("no migration writes a dns scan cadence, so the resolution aperture ADR-2163 §3 " +
+			"prices is measured over a cadence the tree no longer holds")
+	}
+	t.Logf("dns cadence %ds, last written by %s", cadence, wroteIn)
+	return cadence
 }
 
 func TestAMigrationBackfillsTheAlreadyUnavailableVantages(t *testing.T) {
