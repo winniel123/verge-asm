@@ -13,6 +13,32 @@ Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all op
 
 `gh` infers the repo from `git remote -v`. It does this automatically when you run it inside a clone.
 
+## A claim about the tree carries its verification stamp
+
+An issue body or a triage comment asserts things about the tree. A count, a missing route, a line that reads one way. Each one is a measurement, and a measurement decays. Write the date you took it, and the commit you took it against, beside the claim it covers:
+
+> Verified 2026-09-16 against `58ea06e`.
+
+One stamp covers one measurement. A body that reports two counts taken on different days carries two stamps.
+
+**Re-measure before you split, copy, or promote.** A stamp says the claim held then. It never says the claim holds now. So re-run the measurement and write a fresh stamp before any of these three moves:
+
+- you split an audit list into tickets
+- you quote a count into a second document
+- you move an issue to `ready-for-agent`
+
+Cite the number you just measured, never the number you read.
+
+**An unstamped claim is unverified.** Read a body that carries no stamp as `needs-triage`, whatever label it holds. Re-measure before you act on it.
+
+Five failures on this repo, and a stamp catches every one. Verified 2026-09-16 against `58ea06e`:
+
+- The 2026-09-07 ADR-drift audit measured #1688's "low confidence" list. A session split that list into eleven tickets more than a week later, under the line "Not verified since." Triage on 2026-09-16 reached four of the eleven, and all four were non-findings. #2110, #2111 and #2113 named work that had already shipped, and #2112 over-read ADR-0102. See #2116.
+- #2156's body reports 986 staged tokens. The sweep reads 990.
+- #2140's body reports 71 drift candidates. A re-measure gave 77.
+- #2234 records three sites reporting one count three different ways, with nothing to reconcile them.
+- #2210's body names `2a3627e` as PR #2190's pre-merge commit. That merge's parent is `d919bab`, two commits later. The body measures a tree the PR never met.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests. `/triage` reads this flag.)_
