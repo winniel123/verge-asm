@@ -357,8 +357,24 @@
     if (sp && !sp.hasAttribute("hidden")) { sp.setAttribute("hidden", ""); sb.setAttribute("aria-expanded", "false"); return; }
     closeDrawer();
   });
+  function exportState() {
+    var parts = [];
+    function read(sel, label) {
+      var c = document.querySelector(sel);
+      if (!c) return;
+      var v = (c.textContent || "").replace(/\s+/g, " ").trim();
+      if (v) parts.push(label + ": " + v);
+    }
+    read("#gr-scope-btn .cv", "Scope");
+    read("#gr-sev-btn .cv", "Severity");
+    return parts.join(" · ");
+  }
   function exportNotes() {
     var out = [];
+    // Both controls sit outside #gr-svg, so an unnamed filter or scope exports as the
+    // whole estate (ADR-0168 §2, #2152).
+    var st = exportState();
+    if (st) out.push(st);
     [].forEach.call(document.querySelectorAll(".gr-main .gr-callout"), function (n) {
       var t = ((n.querySelector(".tx") || n).textContent || "").replace(/\s+/g, " ").trim();
       if (t) out.push(t);
@@ -377,9 +393,11 @@
   }
   var MIN_BAND_PX = 560, MAX_MEASURE_PX = 1000;
   function layoutNotes(notes, plotW, os) {
-    var probe = document.querySelector(".gr-main .gr-callout .tx");
-    var cs = probe ? getComputedStyle(probe) : null;
     var body = getComputedStyle(document.body);
+    // The caption bands a page that drew no callout, so the probe this face is
+    // measured from can be absent (#2152).
+    var probe = document.querySelector(".gr-main .gr-callout .tx");
+    var cs = probe ? getComputedStyle(probe) : body;
     var fam = exportFace(cs), col = (cs && cs.color) || body.color;
     var wt = (cs && cs.fontWeight) || "400";
     var PX = parseFloat(cs && cs.fontSize) || 13;
@@ -471,6 +489,9 @@
           var v = cs.getPropertyValue(PROPS[p]);
           if (v && v !== "none" || PROPS[p] === "fill" || PROPS[p] === "stroke") decl += PROPS[p] + ":" + v + ";";
         }
+        // The severity filter hides a halo with an inline display:none, and this sweep
+        // overwrites the clone's own style attribute (ADR-0168 §2, #2152).
+        if (cs.display === "none") decl += "display:none;";
         dst[i].setAttribute("style", decl);
       }
       if (band) {
