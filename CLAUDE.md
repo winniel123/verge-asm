@@ -96,7 +96,7 @@ An ADR PR adds one file: YAML front matter, a Decision block under 150 words, a 
 16 required status checks must pass before merge. They are `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, `adr-review`, commentlint's `lint`, `corpus-version-gate`, and the three `golden-corpus` legs `golden-corpus (ubuntu-24.04, v1)`, `golden-corpus (ubuntu-24.04, v3)` and `golden-corpus (ubuntu-24.04-arm, v8.0)`. `citations`, `adr-sections`, and `lint` joined on 2026-09-07 as Lane A of the ADR-drift repair. `adr-review` joined on 2026-09-08 (#1740). `corpus-version-gate` and the three `golden-corpus` legs joined on 2026-09-09. The ruleset is the only record of that date.
 
 - `gosec` and `govulncheck` BLOCK. `govulncheck` fails on any reachable advisory. `gosec` runs `-exclude-generated -severity high -confidence high`.
-- `test` runs `go vet` and `go test`.
+- `test` runs `go vet` and `go test`. It carries a `postgres` service and sets `VERGE_TEST_DATABASE_URL`, so `internal/dbtest` runs against a real database inside this required check, and a guard step fails the job when that tier skipped (#2255).
 - `sqlc` runs `sqlc generate` then `git diff --exit-code -- internal/db`. Any migration or query change must ship regenerated `internal/db`.
 - Strict up-to-date policy. When you merge PRs in sequence, update each later branch after an earlier merge. This re-triggers CI. `gh pr update-branch` does not exist in `gh` 2.45.0. Run `gh api --method PUT repos/winniel123/verge-asm/pulls/<n>/update-branch` instead.
 
@@ -184,6 +184,8 @@ test -z "$(gofmt -l .)" && go vet ./... && go test ./... -count=1
 
 `gofmt -l` exits 0 whether or not it names a file, so the output is the signal. A bare `gofmt -l . && …` chain always proceeds and reports success on an unformatted tree.
 
+That chain leaves `internal/dbtest` skipped. The `test` job runs it against a database, so add `./scripts/dbtest.sh` for any change to a query, a migration, or that package.
+
 **commentlint.** The required `lint` job. It lints the files the pull request changed, so reproduce its file set from the diff against `main`, not from `git status`:
 
 ```sh
@@ -202,11 +204,15 @@ That is the job's own command, less `--github`. Exit 1 is a violation and exit 2
 
 `commentlint verify --base <ref>` is a different tool with a different job. It proves a diff moved no non-comment byte, so it reports `changed` for any file that also carries a code edit. It fits a pure comment sweep and nothing else.
 
-**`internal/dbtest` runs nowhere on this machine, and its skip is silent.** That package executes generated queries against a real Postgres. Every case calls `dbtest.Queries(t)`, which skips when `VERGE_TEST_DATABASE_URL` is unset. So `go test ./...` reports `ok` for it having run nothing, and a green local suite says nothing about those cases.
+**`internal/dbtest` is binding in CI, and silent locally unless you give it a database.** That package executes generated queries against a real Postgres. Every case calls `dbtest.Queries(t)`, which skips when `VERGE_TEST_DATABASE_URL` is unset.
 
 The variable is deliberately not `DATABASE_URL`: the package applies migrations and writes rows, and `DATABASE_URL` is the name a developer and every container already point at a live instance.
 
-There is no local Postgres here and the user is not in the `docker` group (#2226), so reaching a database needs a human. CI runs the package in the `query-harness` job, which is **advisory, not required** — so a behavioural proof written there cannot block a merge. Promoting it is a repository-settings change no pull request can make.
+The required `test` job carries a `postgres` service and sets that variable, so its `go test ./...` runs every case (#2255). A `prove the database tier ran` step then re-runs the tier under `-v` and calls `scripts/assert-dbtest-ran.sh`, which fails on any `--- SKIP` and on a run with no `--- PASS`. The old advisory `query-harness` job is gone; the tier now blocks a merge.
+
+Run it locally with `./scripts/dbtest.sh`. It starts a throwaway Postgres on port 5442, runs the tier, applies the same guard, and removes the container. Pass `go test` flags straight through, such as `./scripts/dbtest.sh -run TestMarkVantage`.
+
+Plain `go test ./...` here still skips every case and still reports `ok`. Do not read that as a pass: Go **discards a passing package's output**, so neither the skip lines nor any warning the package prints reach the terminal without `-v`. `./scripts/dbtest.sh` is the only local run that proves anything.
 
 **The Node doc gates.** Put Node on `PATH`, keep Go on it too, and give the worktree a `docs-site/node_modules` the way "Building docs-site locally" above describes. `check:citations` shells out to `go run ./cmd/godecls` for its Go anchors, and an absent toolchain makes it exit 2 rather than return a verdict.
 

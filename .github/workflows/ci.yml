@@ -20,6 +20,28 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # The database lives in this job rather than in one of its own, so the
+    # internal/dbtest tier runs inside a REQUIRED check. An advisory job cannot
+    # block a merge, and promoting one is a repository-settings change no pull
+    # request can make (#2255).
+    services:
+      postgres:
+        # The tag the compose stack pins, so the tier reads the server version
+        # the product ships against (NULLS NOT DISTINCT is PostgreSQL 15+).
+        image: postgres:16-bookworm@sha256:60f4761b9035e0b8d5218f701a8c3382f641bf12b1604822574cf5be3baeb537
+        env:
+          POSTGRES_USER: verge
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: verge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U verge"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      VERGE_TEST_DATABASE_URL: postgres://verge:ci-only-password@127.0.0.1:5432/verge?sslmode=disable
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
@@ -39,6 +61,15 @@ jobs:
           fi
       - run: go vet ./...
       - run: go test ./...
+      - name: prove the database tier ran
+        run: |
+          # `go test ./...` above is what binds the tier, and it reports `ok` for a
+          # package whose every case skipped. It also discards a passing package's
+          # output, so the skip leaves no trace. This step re-runs the tier alone
+          # under -v and reads the log, which is the only place a skip is visible.
+          set -o pipefail
+          go test ./internal/dbtest/... -count=1 -v 2>&1 | tee "$RUNNER_TEMP/harness.log"
+          scripts/assert-dbtest-ran.sh "$RUNNER_TEMP/harness.log"
       - name: check the Go toolchain pins
         # Inside `test` rather than in a job of its own: `test` is already one of
         # the 7 required checks, and an 8th would need a human (ADR-0001, #1247).
@@ -159,68 +190,6 @@ jobs:
           sqlc-version: "1.31.1"
       - run: sqlc generate
       - run: git diff --exit-code -- internal/db
-
-  # internal/dbtest, the tier that runs a query rather than reading it (#2166).
-  # A rule carried by SQL alone — MarkVantageUnavailable is one data-modifying
-  # CTE and no Go — was proved until now by matching the statement's text, which
-  # cannot say whether the statement executes. The `compose` job boots the real
-  # binary, so it catches a migration that will not apply, but its database is
-  # empty and no query there touches a row.
-  #
-  # The job is ADVISORY, like `compose` and `compose-external-db-tls` below. A
-  # required status check is a repository SETTINGS change rather than a file, so
-  # no pull request can land one. Promotion stays a separate human step. Known
-  # cost: an advisory check can go red unnoticed.
-  #
-  # `test` keeps running the same package with no DSN set, where every case
-  # skips. That is the gate on the skip itself: a case that stopped skipping
-  # would fail there, in a required check.
-  #
-  # The DSN is VERGE_TEST_DATABASE_URL rather than DATABASE_URL. This tier
-  # applies migrations and writes rows, and DATABASE_URL is the name a developer
-  # and every container already point at a live instance.
-  query-harness:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        # The tag the compose stack pins, so the tier reads the server version
-        # the product ships against (NULLS NOT DISTINCT is PostgreSQL 15+).
-        image: postgres:16-bookworm@sha256:60f4761b9035e0b8d5218f701a8c3382f641bf12b1604822574cf5be3baeb537
-        env:
-          POSTGRES_USER: verge
-          POSTGRES_PASSWORD: ci-only-password
-          POSTGRES_DB: verge
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U verge"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    env:
-      VERGE_TEST_DATABASE_URL: postgres://verge:ci-only-password@127.0.0.1:5432/verge?sslmode=disable
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: .go-version
-      - name: run the tier, and fail when it skipped
-        run: |
-          # A skipped case exits 0 just as a passing one does, so a lost DSN
-          # would turn this whole job into a green no-op.
-          set -o pipefail
-          go test ./internal/dbtest/... -count=1 -v 2>&1 | tee "$RUNNER_TEMP/harness.log"
-          if grep -q -- "--- SKIP" "$RUNNER_TEMP/harness.log"; then
-            echo "::error::the harness skipped, so it reached no database"
-            exit 1
-          fi
-          # A package with no runnable case prints no SKIP either, so the guard
-          # asserts the positive: at least one case reached the database.
-          passed=$(grep -c -- "--- PASS" "$RUNNER_TEMP/harness.log" || true)
-          if [ "$passed" -eq 0 ]; then
-            echo "::error::the harness ran no case, so it reached no database"
-            exit 1
-          fi
 
   # The golden corpus (golden-corpus.md §3): the measure leaves' pinning rows and
   # the `Custody` derivation's (§10), run hermetically (no network, no
