@@ -424,58 +424,67 @@
     "exposed": 14,
     "has_deltas": true,
     "exposed_delta": 2,
+    "edge_only": 3,
     "firewalled": 41,
-    "not_reached": 7,
+    "unreachable": 9,
+    "one_legged": 7,
     "withheld_variant": "no-internet-vantage",
     "rows": [
       {
         "asset": "edge-gw-03.acmecorp.io",
         "svc": ":5900 vnc",
         "internal": "reached",
+        "internal_since": "2026-09-15",
         "internet": "reached",
-        "since": "4m"
+        "internet_since": "2026-09-15"
       },
       {
         "asset": "api.acmecorp.io",
         "svc": ":443 https",
         "internal": "reached",
+        "internal_since": "2026-07-08",
         "internet": "reached",
-        "since": "69d"
+        "internet_since": "2026-07-08"
       },
       {
         "asset": "vpn.acmecorp.io",
         "svc": ":1194 openvpn",
         "internal": "reached",
+        "internal_since": "2026-08-05",
         "internet": "reached",
-        "since": "41d"
+        "internet_since": "2026-09-11"
       },
       {
         "asset": "build-07.acmecorp.io",
         "svc": ":22 ssh",
         "internal": "reached",
+        "internal_since": "2026-09-03",
         "internet": "not-reached",
-        "since": "12d"
+        "internet_since": "2026-08-28"
       },
       {
         "asset": "grafana.acmecorp.io",
         "svc": ":3000 http",
         "internal": "reached",
+        "internal_since": "2026-08-20",
         "internet": "not-reached",
-        "since": "26d"
+        "internet_since": "2026-08-20"
       },
       {
         "asset": "mail.acmecorp.io",
         "svc": ":25 smtp",
         "internal": "reached",
+        "internal_since": "2026-09-07",
         "internet": "gap",
-        "since": "8d"
+        "internet_since": "2026-09-12"
       },
       {
         "asset": "203.0.113.61",
         "svc": ":443 https",
         "internal": "not-reached",
+        "internal_since": "2026-06-30",
         "internet": "never-looked",
-        "since": "—"
+        "internet_since": ""
       }
     ]
   },
