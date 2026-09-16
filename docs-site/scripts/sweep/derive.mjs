@@ -119,6 +119,48 @@ function deriveOne(token, inventory, env) {
   return { ...token, outcome: "anchor", anchor: region.name, ...(review ? { review } : {}) };
 }
 
+// The scan carries the enclosing node's offsets, so every token inside one span keys the same.
+function windowOf(result) {
+  return `${result.start}:${result.end}:${result.file}`;
+}
+
+// The rewrite eats the glue whole, so converting would delete a held token with it (#2158).
+export function withholdSwallowed(results) {
+  const byWindow = new Map();
+  for (const r of results) {
+    if (!byWindow.has(windowOf(r))) byWindow.set(windowOf(r), []);
+    byWindow.get(windowOf(r)).push(r);
+  }
+  const swallowed = new Map();
+  for (const members of byWindow.values()) {
+    // Only a path-less token ever sits in the glue, and the derivation holds every one of them.
+    const bare = members.filter((m) => m.outcome === "held" && m.token.startsWith(":"));
+    if (bare.length === 0) continue;
+    const seen = new Set();
+    const repeated = new Set();
+    for (const m of members) {
+      if (seen.has(m.token)) repeated.add(m.token);
+      seen.add(m.token);
+    }
+    for (const m of members) {
+      if (m.outcome === "held") continue;
+      // trailingGlue reads the first occurrence, so a repeat carries a glue not its own.
+      if (repeated.has(m.token)) {
+        swallowed.set(m, bare[0].token);
+        continue;
+      }
+      const eaten = bare.find((h) => (m.glue ?? "").includes(h.token));
+      if (eaten) swallowed.set(m, eaten.token);
+    }
+  }
+  if (swallowed.size === 0) return results;
+  return results.map((r) =>
+    swallowed.has(r)
+      ? held(r, `converting it may swallow \`${swallowed.get(r)}\`, and that token is held back`)
+      : r,
+  );
+}
+
 // One derivation for all four conversion tickets, so no batch re-invents the conversion (#1975).
 export function derive(repoRoot, env, found, rows = ROWS) {
   const pending = [];
@@ -193,7 +235,7 @@ export function derive(repoRoot, env, found, rows = ROWS) {
     for (const token of tokens) done.push(deriveOne(token, inventory, env));
   }
 
-  return done.sort(
+  return withholdSwallowed(done).sort(
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.token.localeCompare(b.token),
   );
 }

@@ -18,6 +18,7 @@ import {
   pathsNamedIn,
   reportRecord,
   auditRecord,
+  planWrites,
 } from "./sweep-line-anchors.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -451,6 +452,89 @@ test("reportRecord carries the anchor or the reason, so the record outlives the 
   assert.equal(record[0].row, "go");
   assert.equal(record[1].reason, "line 7 of a/c.go is blank");
   assert.equal(record[1].anchor, undefined);
+});
+
+// scanDocuments reads the tree, and these cases need a document the tree does not hold.
+function inMemory(documents, env) {
+  const found = new Map();
+  const hits = [];
+  for (const [file, markdown] of Object.entries(documents)) {
+    const lines = markdown.split("\n");
+    const scanned = scanLineAnchorsFromTree(parse(markdown), { knownFile: env.knownFile }).map((h) => ({
+      ...h,
+      file,
+      glue: trailingGlue(markdown, h),
+      lineText: lines[h.line - 1] ?? "",
+      namedInDocument: new Set(),
+    }));
+    found.set(file, { markdown, hits: scanned });
+    hits.push(...scanned);
+  }
+  return { found, hits };
+}
+
+test("a conversion whose glue swallows a held bare line is held back with it (#2158)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  const { hits } = inMemory({ "docs/spec/glued.md": `See \`${token}, :160\` here.\n` }, env);
+  assert.deepEqual(hits.map((h) => h.token), [token, ":160"]);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  const bare = results.find((r) => r.token === ":160");
+  const path = results.find((r) => r.token === token);
+  assert.equal(bare.outcome, "held");
+  assert.equal(path.outcome, "held");
+  assert.match(path.reason, /converting it may swallow `:160`/);
+});
+
+test("a token the span repeats beside a held bare line is held back too (#2158)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  const { found, hits } = inMemory(
+    { "docs/spec/twice.md": `See \`${token} and ${token}, :160\` here.\n` },
+    env,
+  );
+  // trailingGlue reads the first occurrence, so neither copy records the glue that is really there.
+  assert.deepEqual(hits.map((h) => h.glue), ["", "", ""]);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["held", "held", "held"]);
+  assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
+});
+
+test("a glued document no longer aborts the write plan for a sound one (#2158)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const { found, hits } = inMemory(
+    {
+      "docs/spec/glued.md": `See \`${goToken("return 1")}, :160\` here.\n`,
+      "docs/spec/sound.md": `See \`${goToken("Beta")}\` here.\n`,
+    },
+    env,
+  );
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  const writes = planWrites(results.filter((r) => r.outcome !== "held"), found, env);
+  assert.deepEqual(writes.map((w) => w.file), ["docs/spec/sound.md"]);
+  assert.equal(writes[0].next, `See \`${FIXTURE}/go/decls.go#Beta\` here.\n`);
+});
+
+test("a mismatch the sweep cannot explain still refuses to write (#2158)", () => {
+  const file = "docs/spec/fixture.md";
+  const markdown = "See `a/b.go:4` here.\n";
+  const hits = scanLineAnchorsFromTree(parse(markdown)).map((h) => ({ ...h, file }));
+  const found = new Map([[file, { markdown, hits }]]);
+  assert.throws(
+    () =>
+      planWrites(
+        [
+          { ...hits[0], outcome: "degraded", value: "a/b.go" },
+          { ...hits[0], token: "c/d.go:9", outcome: "degraded", value: "c/d.go" },
+        ],
+        found,
+        null,
+      ),
+    /converted 1 token\(s\), and 2 were planned/,
+  );
 });
 
 // The list retired, so the conversion arm derives over every token the scan found (#1980).
