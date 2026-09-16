@@ -239,7 +239,7 @@ func (s *server) fillIntegrationsSection(r *http.Request, data map[string]any) e
 }
 
 func (s *server) integrationChannelOptions(ctx context.Context) []integrationChannelOption {
-	opts := []integrationChannelOption{{Value: "", Label: "Not connected", Hint: "no delivery target"}}
+	opts := []integrationChannelOption{{Value: "", Label: "Not connected", Hint: "no channel bound"}}
 	channels, err := s.integrationsStore.ListChannels(ctx)
 	if err != nil {
 		log.Printf("web: integrations: list channels for delivery select: %v", err)
