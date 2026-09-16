@@ -61,7 +61,26 @@ func TestAScopeEditMovesBothExposureDeltaLegsTogether(t *testing.T) {
 	s := &server{deltasStore: f, vantageClassStore: f}
 	ctx := context.Background()
 
-	exposed, firewalled, notReached, ok := s.exposureCountDeltas(ctx, t0)
+	// exposureCountDeltas returns the exposed change alone, so the two counts a scope
+	// edit moves are folded here (#2162).
+	censusDeltas := func() (exposed, firewalled, notReached drift.Delta, ok bool) {
+		exposed, ok = s.exposureCountDeltas(ctx, t0)
+		if !ok {
+			return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
+		}
+		legs, lok := s.readExposureLegs(ctx, t0)
+		if !lok {
+			return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
+		}
+		cur := censusFromLegs(collapseReachLegs(legs.cur, legs.covered))
+		prev := censusFromLegs(collapseReachLegs(legs.prev, legs.covered))
+		return exposed,
+			drift.Delta{Current: cur.Firewalled, Previous: prev.Firewalled},
+			drift.Delta{Current: cur.OneLegged, Previous: prev.OneLegged},
+			true
+	}
+
+	exposed, firewalled, notReached, ok := censusDeltas()
 	if !ok {
 		t.Fatal("exposureCountDeltas before the scope edit: not ok")
 	}
@@ -84,7 +103,7 @@ func TestAScopeEditMovesBothExposureDeltaLegsTogether(t *testing.T) {
 
 	f.declareAddressScope(t, "192.0.2.0/24")
 
-	exposed, firewalled, notReached, ok = s.exposureCountDeltas(ctx, t0)
+	exposed, firewalled, notReached, ok = censusDeltas()
 	if !ok {
 		t.Fatal("exposureCountDeltas after the scope edit: not ok")
 	}
@@ -102,5 +121,42 @@ func TestAScopeEditMovesBothExposureDeltaLegsTogether(t *testing.T) {
 		if c.got != c.want {
 			t.Errorf("after the scope edit: %s = %+v, want %+v", c.name, c.got, c.want)
 		}
+	}
+}
+
+func TestAScopeEditMovesTheExposedDeltaLegsTogether2162(t *testing.T) {
+	base := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	t0, t1 := base, base.Add(time.Hour)
+	const svc = "203.0.113.20:443/tcp"
+
+	f := newFakeStore()
+	outside := f.addVantagePresenting("outside", "198.51.100.200")
+	edited := f.addVantagePresenting("edited", "192.0.2.7")
+	for _, at := range []time.Time{t0, t1} {
+		f.addReachabilityAtVantage(t, svc, outside, at, `{"outcome":"reached"}`)
+		f.addReachabilityAtVantage(t, svc, edited, at, `{"outcome":"reached"}`)
+	}
+
+	s := &server{deltasStore: f, vantageClassStore: f}
+	ctx := context.Background()
+
+	exposed, ok := s.exposureCountDeltas(ctx, t0)
+	if !ok {
+		t.Fatal("exposureCountDeltas before the scope edit: not ok")
+	}
+	if exposed != (drift.Delta{}) {
+		t.Errorf("before the scope edit: exposed = %+v, want an empty delta", exposed)
+	}
+
+	f.declareAddressScope(t, "192.0.2.0/24")
+
+	exposed, ok = s.exposureCountDeltas(ctx, t0)
+	if !ok {
+		t.Fatal("exposureCountDeltas after the scope edit: not ok")
+	}
+	// A split binding would read the t0 snapshot under the pre-edit boundary and report a
+	// rise the estate never made (ADR-1895 §4).
+	if want := (drift.Delta{Current: 1, Previous: 1}); exposed != want {
+		t.Errorf("after the scope edit: exposed = %+v, want %+v", exposed, want)
 	}
 }
