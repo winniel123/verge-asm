@@ -29,14 +29,16 @@ const (
 	exclusionKindAddress = "address"
 )
 
-// The five classes ADR-2114 names, each with its own verb. Two more move the predicate (#2169).
+// A decline writes an address exclusion, so it moves addressScopeCovered too (ADR-2171 §2).
 
 var addressScopeActVerbs = map[string]string{
-	act.SeedDeclared{}.Class():      "declared",
-	act.SeedWithdrawn{}.Class():     "withdrawn",
-	act.ProposalConfirmed{}.Class(): "confirmed",
-	act.ExclusionDeclared{}.Class(): "excluded",
-	act.ExclusionLifted{}.Class():   "exclusion lifted",
+	act.SeedDeclared{}.Class():          "declared",
+	act.SeedWithdrawn{}.Class():         "withdrawn",
+	act.ProposalConfirmed{}.Class():     "confirmed",
+	act.ExclusionDeclared{}.Class():     "excluded",
+	act.ExclusionLifted{}.Class():       "exclusion lifted",
+	act.ProposalDeclined{}.Class():      "declined",
+	act.ProposalDeclineUndone{}.Class(): "decline lifted",
 }
 
 var addressScopeActClasses = slices.Sorted(maps.Keys(addressScopeActVerbs))
@@ -62,6 +64,10 @@ func addressScopeOf(a act.Act) (scope string, isAddress bool) {
 	case act.ExclusionDeclared:
 		return v.Scope, v.Kind == exclusionKindAddress
 	case act.ExclusionLifted:
+		return v.Scope, v.Kind == exclusionKindAddress
+	case act.ProposalDeclined:
+		return v.Scope, v.Kind == exclusionKindAddress
+	case act.ProposalDeclineUndone:
 		return v.Scope, v.Kind == exclusionKindAddress
 	}
 	return "", false

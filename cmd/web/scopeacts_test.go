@@ -47,6 +47,8 @@ func TestExposurePanelReadsEveryScopeActClassInOneQuery(t *testing.T) {
 		act.ExclusionDeclared{}.Class(),
 		act.ExclusionLifted{}.Class(),
 		act.ProposalConfirmed{}.Class(),
+		act.ProposalDeclineUndone{}.Class(),
+		act.ProposalDeclined{}.Class(),
 		act.SeedDeclared{}.Class(),
 		act.SeedWithdrawn{}.Class(),
 	}
@@ -129,6 +131,84 @@ func TestExposurePanelCoversEveryClassThatMovesCovered(t *testing.T) {
 	for i, w := range want {
 		if rows[i].Scope != w.Scope || rows[i].Verb != w.Verb {
 			t.Errorf("row %d = %q/%q, want %q/%q", i, rows[i].Scope, rows[i].Verb, w.Scope, w.Verb)
+		}
+	}
+}
+
+// Declining an address proposal writes an address exclusion, and un-declining removes it, so both
+// move addressScopeCovered and both render (ADR-2171, #2169).
+
+func TestExposurePanelCoversADeclinedAddressProposal(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	exposureBoardFixture(t, f, now)
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	recordActAt(t, f, now.Add(-1*time.Minute), who,
+		act.ProposalDeclineUndone{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "203.0.113.0/24"}})
+	recordActAt(t, f, now.Add(-2*time.Minute), who,
+		act.ProposalDeclined{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "192.0.2.0/24"}})
+	// A name-kind decline reaches no address scope, so it stays out (ADR-2114 §4, ADR-2171 §6).
+	recordActAt(t, f, now.Add(-30*time.Second), who,
+		act.ProposalDeclined{ExclusionRef: act.ExclusionRef{Kind: "name", Scope: "acmecorp.io"}})
+
+	s := &server{scopeActStore: f, now: func() time.Time { return now }}
+	rows, _, err := s.recentAddressScopeActs(context.Background())
+	if err != nil {
+		t.Fatalf("recentAddressScopeActs: %v", err)
+	}
+	want := []scopeActRow{
+		{Scope: "203.0.113.0/24", Verb: "decline lifted"},
+		{Scope: "192.0.2.0/24", Verb: "declined"},
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("rows = %d, want %d: %+v", len(rows), len(want), rows)
+	}
+	for i, w := range want {
+		if rows[i].Scope != w.Scope || rows[i].Verb != w.Verb {
+			t.Errorf("row %d = %q/%q, want %q/%q", i, rows[i].Scope, rows[i].Verb, w.Scope, w.Verb)
+		}
+	}
+}
+
+// ADR-2114 named a principle and then a list, and the list went stale (#2169). A scope payload is
+// all this guard sees, so a class that moves the predicate without one stays open (ADR-2171 §6).
+
+func TestEveryScopeShapedActClassIsInThePanel(t *testing.T) {
+	const addr = "192.0.2.0/24"
+	seedScope := reflect.TypeOf(act.SeedScope{})
+	exclusionRef := reflect.TypeOf(act.ExclusionRef{})
+
+	for _, a := range act.Classes {
+		filled := reflect.New(reflect.TypeOf(a)).Elem()
+		var carries bool
+		for i := range filled.NumField() {
+			switch filled.Field(i).Type() {
+			case seedScope:
+				filled.Field(i).Set(reflect.ValueOf(act.SeedScope{Scope: addr}))
+				carries = true
+			case exclusionRef:
+				filled.Field(i).Set(reflect.ValueOf(act.ExclusionRef{Kind: "address", Scope: addr}))
+				carries = true
+			}
+		}
+		if !carries {
+			continue
+		}
+		if _, ok := addressScopeActVerbs[a.Class()]; !ok {
+			t.Errorf("%s carries an address-capable scope payload, so it moves addressScopeCovered, "+
+				"and the panel does not read it (ADR-2114, ADR-2171)", a.Class())
+			continue
+		}
+		scope, isAddress := addressScopeOf(filled.Interface().(act.Act))
+		if !isAddress || scope != addr {
+			t.Errorf("%s is in the read set, and addressScopeOf returned %q/%t: the switch has no "+
+				"case for it, so every row it returns is dropped", a.Class(), scope, isAddress)
+		}
+	}
+	for class := range addressScopeActVerbs {
+		if !slices.ContainsFunc(act.Classes, func(a act.Act) bool { return a.Class() == class }) {
+			t.Errorf("the panel reads %q, which no act class records", class)
 		}
 	}
 }
