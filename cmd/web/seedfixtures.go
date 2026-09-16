@@ -59,7 +59,7 @@ type fixtureSpan struct {
 
 var inventoryFixtureSpans = []fixtureSpan{
 	{kind: "name", key: "www.acmecorp.io", facet: "resolution", vantage: fixtureVantageInternal, value: `{"rrtype":"A","addresses":["198.51.100.7","198.51.100.8"]}`, since: "2026-07-14"},
-	{kind: "name", key: "www.acmecorp.io", facet: "dns-record", discriminator: "TXT", vantage: fixtureVantageInternal, value: `{"rrs":[{"type":"CNAME","data":"edge.acmecorp.io"},{"type":"TXT","data":"verge-custody=vg1:9f3k…"}]}`, since: "2026-07-14"},
+	{kind: "name", key: "www.acmecorp.io", facet: "dns-record", discriminator: "TXT", vantage: fixtureVantageInternal, value: `{"rrs":[{"type":"CNAME","data":"edge.acmecorp.io"},{"type":"TXT","data":"v=spf1 -all"}]}`, since: "2026-07-14"},
 	{kind: "name", key: "api.acmecorp.io", facet: "resolution", vantage: fixtureVantageInternal, value: `{"rrtype":"A","addresses":["203.0.113.44"]}`, since: "2026-06-02"},
 	{kind: "name", key: "api.acmecorp.io", facet: "dns-record", discriminator: "TXT", vantage: fixtureVantageInternal, value: `{"rrs":[{"type":"TXT","data":"v=spf1 -all"}]}`, since: "2026-06-02"},
 	{kind: "name", key: "mail.acmecorp.io", facet: "resolution", vantage: fixtureVantageInternal, value: `{"rrtype":"A","addresses":["203.0.113.25"]}`, since: "2026-05-19"},
