@@ -404,8 +404,8 @@ func TestABulkDeclineDoesNotEvictEveryOtherScopeActClass2221(t *testing.T) {
 	recordActAt(t, f, now.Add(-6*time.Hour), who,
 		act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "198.51.100.7/32"}})
 
-	// Name scopes carry no address scope, so they render nothing and only consume the read.
 	const burst = 200
+	// Name scopes carry no address scope, so they render nothing and only consume the read.
 	for i := range burst {
 		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
 			fmt.Sprintf("host-%d.acmecorp.io", i))
