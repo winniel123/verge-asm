@@ -12,4 +12,6 @@ The skills use five canonical triage roles. This file maps each role to the labe
 
 When a skill names a role (for example "apply the AFK-ready triage label"), use the matching label string from this table.
 
+`ready-for-agent` asserts that the ticket still describes the tree. Re-measure the ticket's claim before you apply it, and write the date and commit into the ticket. See "A claim about the tree carries its verification stamp" in `docs/agents/issue-tracker.md`.
+
 Edit the right-hand column to match whatever vocabulary you actually use.
