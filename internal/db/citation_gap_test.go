@@ -7,8 +7,9 @@ import (
 
 func TestEveryCiterReadTakesTheGapFallback(t *testing.T) {
 	// The weaker of the two guards, and never the proof: a text match cannot see
-	// all three reads move together, and internal/dbtest runs them against a
-	// database inside the same required job now (ADR-0006, #2164, #2255).
+	// all three reads move together, which #2204 and #2255 each showed by
+	// mutation. internal/dbtest runs them, and its `query-harness` job is
+	// required as of 2026-09-16 (ADR-0006, #2164, #2255).
 	for _, read := range []struct {
 		name, query string
 	}{

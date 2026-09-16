@@ -93,10 +93,20 @@ An ADR PR adds one file: YAML front matter, a Decision block under 150 words, a 
 
 `main` is protected by an active repository RULESET, not classic branch protection. `gh api repos/.../branches/main/protection` returns a misleading 404. Check `gh api repos/winniel123/verge-asm/rulesets` instead. No direct pushes. Every change goes through a PR.
 
-16 required status checks must pass before merge. They are `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, `adr-review`, commentlint's `lint`, `corpus-version-gate`, and the three `golden-corpus` legs `golden-corpus (ubuntu-24.04, v1)`, `golden-corpus (ubuntu-24.04, v3)` and `golden-corpus (ubuntu-24.04-arm, v8.0)`. `citations`, `adr-sections`, and `lint` joined on 2026-09-07 as Lane A of the ADR-drift repair. `adr-review` joined on 2026-09-08 (#1740). `corpus-version-gate` and the three `golden-corpus` legs joined on 2026-09-09. The ruleset is the only record of that date.
+17 required status checks must pass before merge. They are `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, `adr-review`, commentlint's `lint`, `corpus-version-gate`, `query-harness`, and the three `golden-corpus` legs `golden-corpus (ubuntu-24.04, v1)`, `golden-corpus (ubuntu-24.04, v3)` and `golden-corpus (ubuntu-24.04-arm, v8.0)`. `citations`, `adr-sections`, and `lint` joined on 2026-09-07 as Lane A of the ADR-drift repair. `adr-review` joined on 2026-09-08 (#1740). `corpus-version-gate` and the three `golden-corpus` legs joined on 2026-09-09. `query-harness` joined on 2026-09-16. The ruleset is the only record of those dates.
+
+**Count this list against the ruleset before you trust it.** It said 16 and omitted `query-harness` for the whole of 2026-09-16, because a maintainer registered that check while a session was reading this file. #2255 was filed against the stale reading and asked for a promotion that had already happened. A branch then deleted the job, and the required check sat on `Expected`, which blocks every merge in the repository.
+
+```sh
+gh api repos/winniel123/verge-asm/rulesets/21255106 \
+  --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'
+```
+
+Never delete a workflow job without running that first. A required check that no workflow reports never resolves.
 
 - `gosec` and `govulncheck` BLOCK. `govulncheck` fails on any reachable advisory. `gosec` runs `-exclude-generated -severity high -confidence high`.
-- `test` runs `go vet` and `go test`. It carries a `postgres` service and sets `VERGE_TEST_DATABASE_URL`, and a `prove the database tier ran` step runs `internal/dbtest` with `-count=1 -v` and fails the job when that tier skipped or ran nothing (#2255).
+- `test` runs `go vet` and `go test`. It sets no DSN, so `internal/dbtest` skips there; `query-harness` is the check that runs that tier.
+- `query-harness` runs `internal/dbtest` against a `postgres` service and calls `scripts/assert-dbtest-ran.sh`, which fails the job on any `--- SKIP` and on a run with no `--- PASS` (#2255).
 - `sqlc` runs `sqlc generate` then `git diff --exit-code -- internal/db`. Any migration or query change must ship regenerated `internal/db`.
 - Strict up-to-date policy. When you merge PRs in sequence, update each later branch after an earlier merge. This re-triggers CI. `gh pr update-branch` does not exist in `gh` 2.45.0. Run `gh api --method PUT repos/winniel123/verge-asm/pulls/<n>/update-branch` instead.
 
@@ -208,11 +218,13 @@ That is the job's own command, less `--github`. Exit 1 is a violation and exit 2
 
 The variable is deliberately not `DATABASE_URL`: the package applies migrations and writes rows, and `DATABASE_URL` is the name a developer and every container already point at a live instance.
 
-The required `test` job carries a `postgres` service and sets that variable, so the tier reaches a database inside a check that blocks a merge (#2255). The old advisory `query-harness` job is gone.
+`query-harness` is the check that binds it. That job sets the variable against a `postgres` service, runs the tier with `-count=1 -v`, and calls `scripts/assert-dbtest-ran.sh`, which fails on any `--- SKIP` and on a run with no `--- PASS`. It is **required** as of 2026-09-16, so a case written there does block a merge.
 
-The binding step is `prove the database tier ran`, not the job's `go test ./...`. That run is cacheable — Go's test cache does not track a TCP connection, so a re-run of the same commit can report `ok (cached)` without reaching the database. The guard step runs the tier with `-count=1 -v` and calls `scripts/assert-dbtest-ran.sh`, which fails on any `--- SKIP` and on a run with no `--- PASS`.
+`test` sets no DSN, so the tier skips there and the job still reports `ok`. That is deliberate: it gates the skip itself, since a case that stopped skipping would fail in `test`.
 
-Run it locally with `./scripts/dbtest.sh`. It starts a throwaway Postgres on port 5442, runs the tier, applies the same guard, and removes the container. Pass `go test` flags straight through, such as `./scripts/dbtest.sh -run TestMarkVantage`.
+Run it locally with `./scripts/dbtest.sh`. It starts a throwaway Postgres on port 5442, runs the tier, applies the same guard script, and removes the container. Pass `go test` flags straight through, such as `./scripts/dbtest.sh -run TestMarkVantage`.
+
+A second worktree running it at the same time needs its own port: `VERGE_DBTEST_PORT=5443 ./scripts/dbtest.sh`. The container is named after the port, so two runs on one port still collide.
 
 Plain `go test ./...` here still skips every case and still reports `ok`. Do not read that as a pass: Go **discards a passing package's output**, so neither the skip lines nor any warning the package prints reach the terminal without `-v`. `./scripts/dbtest.sh` is the only local run that proves anything.
 
