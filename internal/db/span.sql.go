@@ -194,9 +194,31 @@ SELECT c.addr::text AS subject_key,
            WHERE r.closed_at IS NULL
              AND r.subject_kind = 'name'
              AND r.facet = 'resolution'
-             AND r.is_gap = FALSE
-             AND jsonb_typeof(r.value -> 'addresses') = 'array'
-             AND r.value -> 'addresses' @> to_jsonb(c.addr)
+             AND (
+                  (r.is_gap = FALSE
+                   AND jsonb_typeof(r.value -> 'addresses') = 'array'
+                   AND r.value -> 'addresses' @> to_jsonb(c.addr))
+                -- A Gap measures nothing, so it withdraws no Address (ADR-0006, #2164).
+                OR (r.is_gap = TRUE AND EXISTS (
+                       SELECT 1
+                       FROM (
+                           SELECT q.value
+                           FROM span q
+                           WHERE q.subject_kind = 'name'
+                             AND q.facet = 'resolution'
+                             AND q.subject_key = r.subject_key
+                             AND q.discriminator = r.discriminator
+                             AND q.vantage_id IS NOT DISTINCT FROM r.vantage_id
+                             AND q.source = r.source
+                             AND q.closed_at IS NOT NULL
+                             AND q.is_gap = FALSE
+                           ORDER BY q.closed_at DESC, q.id DESC
+                           LIMIT 1
+                       ) p
+                       WHERE jsonb_typeof(p.value -> 'addresses') = 'array'
+                         AND p.value -> 'addresses' @> to_jsonb(c.addr)
+                   ))
+             )
        ), '{}'::text[])::text[] AS citers
 FROM cited c
 WHERE EXISTS (
