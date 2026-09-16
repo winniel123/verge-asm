@@ -42,6 +42,8 @@ one-class read a defect rather than a narrow scope.
 
 ## 2. Five act classes move the predicate, and the reader saw one
 
+> **Amended** by [ADR-2171: Declining an address proposal moves the covered predicate, so the act reader covers seven classes](./2171-declining-an-address-proposal-moves-the-covered-predicate-so-the-act-reader-covers-seven-classes.md), 2026-09-16. <!-- adr-marker amends 2171 -->
+
 `addressScopeCovered` (`cmd/web/vantageclass.go`) decides every `Vantage class`, and therefore which
 leg of `Exposure` an observation lands on. It reads the live address `Seed` set minus the live
 address `exclusion` set.
