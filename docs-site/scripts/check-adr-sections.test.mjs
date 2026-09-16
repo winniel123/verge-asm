@@ -5,18 +5,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   ADR_FILE,
+  DECISION_CAP,
   FENCE,
   annotationLine,
   buildAdrIndex,
+  checkDecisionBlocks,
   checkFile,
+  decisionBlock,
   findCitations,
   headings,
   isTextFile,
   numberedHeadings,
   numberedSections,
   readErrorLine,
+  splitFrontMatter,
   summaryMarkdown,
 } from "./check-adr-sections.mjs";
+import { loadAdrs, validate } from "./check-adr-index.mjs";
 
 const ADR_WITH_SECTIONS = [
   "# ADR-0129: A title",
@@ -494,4 +499,93 @@ test("the numbered list is the heading list filtered to numbered ones", () => {
       .filter((h) => h.number !== null)
       .map(({ number, line, level }) => ({ number, line, level })),
   );
+});
+
+const decisionOf = (words) => Array.from({ length: words }, (_, i) => `word${i + 1}`).join(" ");
+
+function adrFixture(number, words) {
+  return [
+    "---",
+    `number: ${number}`,
+    'title: "A fixture title"',
+    "slug: a-fixture-title",
+    "date: 2026-09-16",
+    "status: accepted",
+    "source: fix",
+    `ticket: ${number}`,
+    "proof: {ticket: 2193}",
+    "---",
+    "",
+    `# ADR-${String(number).padStart(4, "0")}: A fixture title`,
+    "",
+    "## Decision",
+    "",
+    decisionOf(words),
+    "",
+  ].join("\n");
+}
+
+const fixtureFile = (number) => `docs/adr/${number}-a-fixture-title.md`;
+
+test("the Decision block is measured after the front matter, not through it (#2193)", () => {
+  const raw = adrFixture(2193, 7);
+  assert.equal(decisionBlock(splitFrontMatter(raw).body).words, 7);
+});
+
+test("a Decision block over the cap is a check:adr-sections violation (#2193)", () => {
+  const number = 2193;
+  withRepo({ [fixtureFile(number)]: adrFixture(number, DECISION_CAP + 1) }, (root) => {
+    const found = checkDecisionBlocks(buildAdrIndex(root));
+    assert.equal(found.length, 1);
+    assert.equal(found[0].rule, "decision-over-cap");
+    assert.equal(found[0].file, fixtureFile(number));
+    assert.equal(found[0].line, 14);
+    assert.equal(found[0].message, `Decision block is ${DECISION_CAP + 1} words, cap is ${DECISION_CAP}`);
+  });
+});
+
+test("a Decision block at the cap passes check:adr-sections (#2193)", () => {
+  const number = 2193;
+  withRepo({ [fixtureFile(number)]: adrFixture(number, DECISION_CAP) }, (root) => {
+    assert.deepEqual(checkDecisionBlocks(buildAdrIndex(root)), []);
+  });
+});
+
+test("the cap reaches no ADR at or below the legacy maximum (#2193)", () => {
+  withRepo({ "docs/adr/0129-a-fixture-title.md": adrFixture(129, DECISION_CAP + 400) }, (root) => {
+    assert.deepEqual(checkDecisionBlocks(buildAdrIndex(root)), []);
+  });
+});
+
+test("a Decision block with no heading is reported at its first line, not the file's (#2193)", () => {
+  const raw = adrFixture(2193, DECISION_CAP + 1).replace("## Decision\n\n", "");
+  withRepo({ [fixtureFile(2193)]: raw }, (root) => {
+    const found = checkDecisionBlocks(buildAdrIndex(root));
+    assert.deepEqual(
+      found.map((v) => [v.rule, v.line]),
+      [
+        ["decision-not-first-section", 14],
+        ["decision-over-cap", 14],
+      ],
+    );
+  });
+});
+
+test("check:adr-sections and check:adr-index agree on every Decision block (#2193)", () => {
+  const cases = {
+    "at the cap": adrFixture(2193, DECISION_CAP),
+    "over the cap": adrFixture(2193, DECISION_CAP + 1),
+    "no Decision heading": adrFixture(2193, DECISION_CAP + 1).replace("## Decision\n\n", ""),
+    "front matter that is not YAML": adrFixture(2193, DECISION_CAP + 1).replace("status: accepted", "status: ["),
+    "no front matter at all": adrFixture(2193, DECISION_CAP + 1).split("---\n").pop(),
+  };
+  for (const [name, raw] of Object.entries(cases)) {
+    withRepo({ [fixtureFile(2193)]: raw }, (root) => {
+      const sections = checkDecisionBlocks(buildAdrIndex(root)).map((v) => v.message);
+      const index = validate(loadAdrs(root), root)
+        .filter((p) => p.rule === "decision-block")
+        .map((p) => p.message.replace(/^\S+: /, ""));
+      assert.deepEqual(sections, index, name);
+    });
+  }
 });

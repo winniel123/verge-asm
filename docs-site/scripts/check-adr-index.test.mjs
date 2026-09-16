@@ -3,16 +3,8 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import {
-  INDEX_FILE,
-  buildIndex,
-  decisionBlock,
-  derivedStatus,
-  loadAdrs,
-  run,
-  splitFrontMatter,
-  validate,
-} from "./check-adr-index.mjs";
+import { INDEX_FILE, buildIndex, derivedStatus, loadAdrs, run, validate } from "./check-adr-index.mjs";
+import { decisionBlock, splitFrontMatter } from "./check-adr-sections.mjs";
 
 const SLUG_223 = "a-bar-is-authored-in-the-release";
 const SLUG_227 = "caida-publishes-an-org-name-search";
