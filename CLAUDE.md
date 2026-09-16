@@ -51,9 +51,17 @@ A typical task moves through these steps. Follow the GitHub project standard thr
 3. Hand the SPEC to `/to-tickets`. Its output is a NEW parent map, separate from the closed wayfinder map. This parent has the same structure as a wayfinder map, but it is not a wayfinder map. Label that parent issue `implementation:map`. The label is what tells a later session the issue is a map and not a ticket.
 4. Sessions iterate over the tickets with `/implement` until the implementation map is complete.
 
-**One ticket per session.** When you run `/implement` on an issue labelled `implementation:map`, do exactly one ticket, then stop. Do not chain the next ticket into the same session. Pick the first ticket on the frontier, implement it, open its PR, and end the session. A map with nine tickets takes nine sessions.
+**One ticket per PR.** A pull request closes one ticket. This covers a fix, a feature, a chore, a security task, a doc task and an audit finding. It is not scoped to `/implement`, and it is not scoped to a map.
+
+When you run `/implement` on an issue labelled `implementation:map`, do exactly one ticket, then stop. Do not chain the next ticket into the same session. Pick the first ticket on the frontier, implement it, open its PR, and end the session. A map with nine tickets takes nine sessions.
 
 This rule holds even when the next ticket looks small or looks blocked on nothing. A session that runs several tickets produces one PR that mixes them, loses the per-ticket review, and buries a regression in the noise.
+
+**File count is not the rule. Ticket count is.** A mechanical sweep with no behaviour change — one rename across many files under one ruling — is one ticket, and it may touch as many files as the rename reaches.
+
+A measurement on the September corpus put the per-commit defect rate of a batch fix PR above a single-ticket one. Treat that figure as an **upper bound**, never as a fact: it rests on `git blame`, which names the last commit to touch a line, so a 50-file commit over-attributes. A hand-read of every batch-blamed bug found no injected code defect, because 273 of 306 September `bug` issues report pre-existing drift rather than a regression (#2199). The rule rests on the review-loss argument above and on the bookkeeping cost, not on the rate.
+
+The bookkeeping cost is measured. PR #2074 referenced 31 issues and left 24 open (#2083). PR #2190 referenced 73 and left eight open with no verification (#2210).
 
 `/implement` on a plain ticket number implements that ticket. Only a map argument triggers the frontier pick.
 
