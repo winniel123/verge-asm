@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -40,18 +41,36 @@ func TestExposureCountDeltasAcrossBatches(t *testing.T) {
 		t.Fatalf("previous batch instant = %v, want %v", prevAt, t0)
 	}
 
-	exposed, firewalled, notReached, dok := s.exposureCountDeltas(ctx, prevAt)
+	exposed, dok := s.exposureCountDeltas(ctx, prevAt)
 	if !dok {
 		t.Fatal("exposureCountDeltas not ok")
 	}
 	if exposed.Current != 1 || exposed.Previous != 0 || exposed.Change() != 1 {
 		t.Errorf("exposed delta = %+v (change %d), want current 1 / previous 0 / +1", exposed, exposed.Change())
 	}
-	if firewalled.Current != 0 || firewalled.Previous != 1 || firewalled.Change() != -1 {
-		t.Errorf("firewalled delta = %+v (change %d), want current 0 / previous 1 / -1", firewalled, firewalled.Change())
+
+	legs, lok := s.readExposureLegs(ctx, prevAt)
+	if !lok {
+		t.Fatal("readExposureLegs not ok")
 	}
-	if notReached.Current != 0 || notReached.Previous != 0 {
-		t.Errorf("notReached delta = %+v, want 0/0", notReached)
+	cur := censusFromLegs(collapseReachLegs(legs.cur, legs.covered))
+	if cur.Exposed != 1 || cur.Firewalled != 0 || cur.OneLegged != 0 {
+		t.Errorf("current-snapshot census = %+v, want exposed 1 / firewalled 0 / one-legged 0", cur)
+	}
+	prev := censusFromLegs(collapseReachLegs(legs.prev, legs.covered))
+	if prev.Exposed != 0 || prev.Firewalled != 1 || prev.OneLegged != 0 {
+		t.Errorf("previous-snapshot census = %+v, want exposed 0 / firewalled 1 / one-legged 0", prev)
+	}
+}
+
+func TestOnlyTheRenderedExposureDeltaIsCarried2162(t *testing.T) {
+	var _ func(context.Context, time.Time) (drift.Delta, bool) = (&server{}).exposureCountDeltas
+
+	ty := reflect.TypeOf(statDeltas{})
+	for _, name := range []string{"Firewalled", "OneLegged"} {
+		if _, ok := ty.FieldByName(name); ok {
+			t.Errorf("statDeltas carries %s, which no tile draws", name)
+		}
 	}
 }
 

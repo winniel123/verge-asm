@@ -52,7 +52,7 @@ var webBindingProducers = map[string]string{
 // bind exactly once: a count of zero means the gate lost the tree rather than that the rule holds.
 
 var webComparisonRoots = map[string]string{
-	"s.exposureCountDeltas": "the exposed, firewalled and not-reached deltas, over two snapshots",
+	"s.exposureCountDeltas": "the exposed delta, over two snapshots",
 	"s.dashboardDeltas":     "the dashboard fold, which holds the exposure comparison and three more",
 }
 

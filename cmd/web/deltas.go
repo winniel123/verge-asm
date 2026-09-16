@@ -30,8 +30,6 @@ func pgtypeTimestamptz(t time.Time) pgtype.Timestamptz {
 type statDeltas struct {
 	AssetsWatched drift.Delta
 	Exposed       drift.Delta
-	Firewalled    drift.Delta
-	OneLegged     drift.Delta
 	CertsExpiring drift.Delta
 	OpenSignals   drift.Delta
 	Critical      drift.Delta
@@ -84,7 +82,7 @@ func (s *server) dashboardDeltas(ctx context.Context, fired []firedSignal) statD
 	}
 
 	// The Exposed tile reads its figure from this Current, so no second binding is taken (#2046).
-	exposed, firewalled, oneLegged, eok := s.exposureCountDeltas(ctx, prevAt)
+	exposed, eok := s.exposureCountDeltas(ctx, prevAt)
 	if !eok {
 		return statDeltas{}
 	}
@@ -92,9 +90,7 @@ func (s *server) dashboardDeltas(ctx context.Context, fired []firedSignal) statD
 		// No instant to compare against, so the figure renders and no change does.
 		return statDeltas{Exposed: drift.Delta{Current: exposed.Current}, ExposureKnown: true}
 	}
-	exposureOnly := statDeltas{
-		Exposed: exposed, Firewalled: firewalled, OneLegged: oneLegged, ExposureKnown: true,
-	}
+	exposureOnly := statDeltas{Exposed: exposed, ExposureKnown: true}
 
 	out := exposureOnly
 	out.Known = true
@@ -228,18 +224,15 @@ func (s *server) readExposureLegs(ctx context.Context, prevAt time.Time) (exposu
 	}, true
 }
 
-func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exposed, firewalled, oneLegged drift.Delta, ok bool) {
+func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exposed drift.Delta, ok bool) {
 	legs, ok := s.readExposureLegs(ctx, prevAt)
 	if !ok {
-		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
+		return drift.Delta{}, false
 	}
 
 	cur := censusFromLegs(collapseReachLegs(legs.cur, legs.covered))
 	prev := censusFromLegs(collapseReachLegs(legs.prev, legs.covered))
-	return drift.Delta{Current: cur.Exposed, Previous: prev.Exposed},
-		drift.Delta{Current: cur.Firewalled, Previous: prev.Firewalled},
-		drift.Delta{Current: cur.OneLegged, Previous: prev.OneLegged},
-		true
+	return drift.Delta{Current: cur.Exposed, Previous: prev.Exposed}, true
 }
 
 func (s *server) currentCertsExpiring(ctx context.Context) (int, bool) {
