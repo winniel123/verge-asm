@@ -21,6 +21,7 @@ func TestGraphExportSerialiserReadsEveryCalloutThePageDrew(t *testing.T) {
 	}
 	tmplSrc := string(raw)
 
+	// These read the export's source; its raster is measured in the docs-site lane (#2212).
 	for _, want := range []string{
 		`document.querySelectorAll(".gr-main .gr-callout")`,
 		`exportNotes()`,
