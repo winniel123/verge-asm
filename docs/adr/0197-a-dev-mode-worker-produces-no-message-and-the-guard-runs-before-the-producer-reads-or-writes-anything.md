@@ -20,7 +20,7 @@ relations:
 
 ## Context
 
-`internal/queue/produce.go#spanChange` carried this, until [#1314](https://github.com/winniel123/verge-asm/pull/1314) deleted it:
+`internal/queue/produce.go` carried this, until [#1314](https://github.com/winniel123/verge-asm/pull/1314) deleted it:
 
 ```go
 // cmd/worker opts in with the live delivery enqueuer. **VERGE_DEV guard (AL-25):**
@@ -28,7 +28,7 @@ relations:
 // fixtures, and the golden fixtures must stay message-free so G2 does not move.
 ```
 
-The compressed survivor sits at `internal/queue/produce.go#spanChange`. A second survivor states the same
+The compressed survivor sits at `internal/queue/produce.go`. A second survivor states the same
 rule from the wiring side, at `cmd/worker/main.go#main`:
 
 ```go
@@ -87,7 +87,7 @@ claims.
 
 **Ground one — a real deployment never serves fixtures — is correct, and it is the operative one.**
 A `VERGE_DEV` install's message surfaces are served from authored fixtures and never from the
-`message` table. `cmd/web/messages.go#server.markMessageUnread` short-circuits the inbox to `s.inboxFixtureData` before it
+`message` table. `cmd/web/messages.go` short-circuits the inbox to `s.inboxFixtureData` before it
 touches the store. `cmd/web/devfixtures.go` holds a hardcoded `devCoverageMessages` list, and
 `cmd/web/devfixtures.go#server.reportartifactFixtureData` reads a `messages` block out of `design-system/fixtures/fixtures.json`.
 A row a dev-mode worker wrote would be invisible on every console screen that renders messages, so
@@ -189,7 +189,7 @@ diagnostic. A suppressed message stops an outbound POST.
   `cmd/worker/main.go`'s `devMode` read were uncited and cited a dead token respectively. The
   `produce.go` line also stated the corrected-away golden ground and is rewritten to the true one.
   Both edits are applied at their own sites and cite this ADR's §1.
-- **`internal/queue/worker.go#Worker.WithStaleJobThreshold`'s survivor is not touched here.** It states the joint transcript
+- **`internal/queue/worker.go`'s survivor is not touched here.** It states the joint transcript
   and message rule and belongs to [#1316](https://github.com/winniel123/verge-asm/issues/1316)'s
   record.
 - **No [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
@@ -202,7 +202,7 @@ diagnostic. A suppressed message stops an outbound POST.
 
 | Alternative | Why not |
 | --- | --- |
-| **Suppress the delivery enqueue alone, and keep writing the `message` row** | The rows land in a database whose console renders fixtures instead of them (`cmd/web/messages.go#server.markMessageUnread`). They are invisible, unreadable and unclearable through the UI, and they become live the day the install drops `VERGE_DEV`. The write also costs the batch transaction three store reads and an insert per fold, for a row nothing may read |
+| **Suppress the delivery enqueue alone, and keep writing the `message` row** | The rows land in a database whose console renders fixtures instead of them (`cmd/web/messages.go`). They are invisible, unreadable and unclearable through the UI, and they become live the day the install drops `VERGE_DEV`. The write also costs the batch transaction three store reads and an insert per fold, for a row nothing may read |
 | **Do not opt a dev-mode worker into `WithMessages` at all, in `cmd/worker`** | It moves the rule into the composition root, where it is one `if` a future wiring change can drop with no test failing, and it splits the flag: `WithTranscripts` would still take `devMode` while `WithMessages` did not. The guard inside the producer holds for every caller, including a test that wires the seam directly |
 | **Place the guard just before `InsertMessage`** | The visible result is identical and three store reads still run inside the batch transaction on every fold. It also stops the rule being statable as "produces nothing", which is the sentence a reader needs |
 | **Rely on `golden-corpus.md` to carry the rule** | It cannot. The `golden-corpus` CI job runs `./internal/measure/... ./internal/custody/...`, and a `message` row is written by `internal/queue` and read by neither. `golden-corpus.md` contains zero occurrences of `message`. This is the ground the deleted comment gave, and it was the wrong corpus |

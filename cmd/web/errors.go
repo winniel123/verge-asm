@@ -42,6 +42,19 @@ func (s *server) renderMissingSubject(w http.ResponseWriter, r *http.Request, ac
 	}))
 }
 
+// A read that did not resolve establishes neither a keyed subject nor its absence (#2078).
+
+func (s *server) renderUnresolvedSubject(w http.ResponseWriter, r *http.Request, acct db.Account, subject, what string, err error) {
+	log.Printf("web: %s: %v", what, err)
+	// A 404 asserts an absence this read never reached, and is cacheable besides.
+	s.renderStatus(w, r, http.StatusServiceUnavailable, "error-page", pageData(acct, "The read did not resolve", "", map[string]any{
+		"Kind":        "unresolved-subject",
+		"Subject":     subject,
+		"ActionLabel": "Back to inventory",
+		"ActionHref":  "/inventory",
+	}))
+}
+
 func (s *server) renderMissingRun(w http.ResponseWriter, r *http.Request, acct db.Account, run string) {
 	s.renderStatus(w, r, http.StatusNotFound, "error-page", pageData(acct, "No such run", "drift", map[string]any{
 		"Kind":        "missing-run",

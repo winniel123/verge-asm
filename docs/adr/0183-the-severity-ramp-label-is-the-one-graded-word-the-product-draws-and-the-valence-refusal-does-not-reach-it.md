@@ -290,7 +290,7 @@ what is wrong, not the copy.
 > `artifactSeverityBars` and `artifactSignalsTable`, and no `data-sev="title"` and no
 > `data-sev="header"` survives anywhere in the tree. The delivered form draws the same two strings
 > unmarked, at `design-system/templates/reportartifact.tmpl#artifactdoc` and `:39`. `artifactSeverityTitle`
-> (`internal/message/render.go#plural`) and the `pdf_test.go:83` skip both stand, so §4's rule holds on
+> (`internal/message/render.go`) and the `pdf_test.go:83` skip both stand, so §4's rule holds on
 > its own terms.
 
 ### 5. ADR-0114's ramp sentence is withdrawn at its own site

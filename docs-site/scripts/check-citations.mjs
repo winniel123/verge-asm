@@ -8,6 +8,7 @@ import { parse } from "./doclint/engine.mjs";
 import {
   classify,
   trackedPaths,
+  trackedBasenames,
   trackedExtensions,
   topLevelEntries,
 } from "./citations/classify.mjs";
@@ -27,9 +28,12 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
 
 export function environment(repoRoot, exemptionsFile) {
   const tracked = trackedPaths(repoRoot);
+  const basenames = trackedBasenames(tracked);
   return {
     repoRoot,
     tracked,
+    basenames,
+    knownFile: (base) => basenames.has(base),
     extensions: trackedExtensions(tracked),
     roots: topLevelEntries(tracked),
     exempt: exemptionMatcher(loadExemptions(exemptionsFile)),
@@ -56,7 +60,7 @@ export function run(repoRoot, files, env = environment(repoRoot)) {
       results.push({ ...r, file: docFile });
     }
     // Arm A reads its own scanner, because the extractor's path class holds no colon (SPEC §7.5).
-    for (const a of scanLineAnchorsFromTree(tree)) {
+    for (const a of scanLineAnchorsFromTree(tree, { knownFile: env.knownFile })) {
       lineAnchors.push({ ...a, file: docFile });
     }
   }
@@ -66,6 +70,16 @@ export function run(repoRoot, files, env = environment(repoRoot)) {
 export function formatLineAnchor(a) {
   const where = a.kind === "link" ? "link target" : "code span";
   return `${a.file}:${a.line}  ->  ${a.token}  (a citation names no line: this ${where} must name the enclosing declaration)`;
+}
+
+// A newly scanned form is sized, never refused (docs/spec/citation-anchors.md §8.2, #2120).
+export function stageOf(anchor) {
+  return anchor.form === "path" ? "refused" : "staged";
+}
+
+export function formatStagedAnchor(a) {
+  const what = a.form === "bare" ? "names no path" : "names no directory";
+  return `  ${a.file}:${a.line}  ->  ${a.token}  (${what}, and the conversion has not reached it)`;
 }
 
 export function formatDead(r) {
@@ -123,8 +137,12 @@ export async function siteArm(env, repoRoot, verbose, deps = {}) {
 
   const where = `PR #${context.number} body`;
   const site = judgeSite(env, repoRoot, body, where);
+  // One stage for both arms, or a Site field reds on a form the document arm reports (#2120).
+  const refused = site.refused.filter((a) => stageOf(a) === "refused");
+  const staged = site.refused.filter((a) => stageOf(a) === "staged");
   for (const f of site.fatal) console.error(formatFatal(f));
-  for (const a of site.refused) console.log(formatSiteLineAnchor(a));
+  for (const a of refused) console.log(formatSiteLineAnchor(a));
+  for (const a of staged) console.log(formatStagedAnchor(a));
   for (const r of site.broken) console.log(formatBroken(r));
   for (const r of site.dead) console.log(formatDead(r));
   if (verbose) {
@@ -140,9 +158,10 @@ export async function siteArm(env, repoRoot, verbose, deps = {}) {
   console.log(`  ${n(site.verified)}  resolve against their row`);
   console.log(`  ${n(site.broken)}  broken: the target declares no such name`);
   console.log(`  ${n(site.dead)}  dead`);
-  console.log(`  ${n(site.refused)}  refused: a Site field names no line`);
+  console.log(`  ${n(refused)}  refused: a Site field names no line`);
+  console.log(`  ${n(staged)}  line anchor(s) the conversion of #2120 has not reached`);
   return {
-    violations: site.refused.length + site.broken.length + site.dead.length,
+    violations: refused.length + site.broken.length + site.dead.length,
     fatal: site.fatal.length,
   };
 }
@@ -170,9 +189,12 @@ async function main() {
   const skipped = of("ignored");
   const judged = results.length - skipped.length;
 
+  const refusedAnchors = lineAnchors.filter((a) => stageOf(a) === "refused");
+  const stagedAnchors = lineAnchors.filter((a) => stageOf(a) === "staged");
+
   for (const r of unreadable) console.error(`check:citations: cannot read ${r.file} (${r.code})`);
   for (const f of fatal) console.error(formatFatal(f));
-  for (const a of lineAnchors) console.log(formatLineAnchor(a));
+  for (const a of refusedAnchors) console.log(formatLineAnchor(a));
   for (const r of broken) console.log(formatBroken(r));
   for (const r of dead) console.log(formatDead(r));
 
@@ -195,6 +217,12 @@ async function main() {
       (r) => `#${r.anchor} on a ${r.status} path`,
     ],
   ];
+  if (stagedAnchors.length > 0) {
+    console.log("");
+    console.log("A line anchor the conversion of #2120 has not reached (reported, not a violation):");
+    if (verbose) for (const a of stagedAnchors) console.log(formatStagedAnchor(a));
+    else console.log("  re-run with --verbose to list every one of them.");
+  }
   if (verbose) {
     for (const [heading, rows, note] of passedOver) {
       if (rows.length === 0) continue;
@@ -207,7 +235,7 @@ async function main() {
   console.log("");
   console.log(
     `check:citations — ${dead.length} dead path(s), ${broken.length} broken anchor(s) and ` +
-      `${lineAnchors.length} line anchor(s) across ${files.length} file(s).`,
+      `${refusedAnchors.length} line anchor(s) across ${files.length} file(s).`,
   );
   const n = (rows) => String(rows.length).padStart(5);
   console.log(`  ${judged} path citation(s) judged`);
@@ -233,13 +261,15 @@ async function main() {
   }
 
   console.log("");
-  // The sweep is complete, so the scanner reaches no line anchor it passes (SPEC §8.2, #1980).
-  console.log(`  ${n(lineAnchors)}  refused: a citation names no line`);
+  // The sweep is complete for the path form, and an empty count is what proves it (SPEC §8.2).
+  console.log(`  ${n(refusedAnchors)}  refused: a citation names no line`);
+  // What sizes the staged work is this count, and an empty one is what retires the stage (§8.2).
+  console.log(`  ${n(stagedAnchors)}  line anchor(s) the conversion of #2120 has not reached`);
 
   const site = await siteArm(env, REPO_ROOT, verbose);
 
   if (unreadable.length + fatal.length + site.fatal > 0) process.exit(2);
-  if (dead.length + broken.length + lineAnchors.length + site.violations > 0) {
+  if (dead.length + broken.length + refusedAnchors.length + site.violations > 0) {
     process.exit(1);
   }
 }

@@ -31,7 +31,7 @@ const CATALOG = [
 ];
 const CATS = ["All", "Notify", "Ticketing", "SIEM", "Storage"];
 const CHANNELS = [
-  { value: "", label: "Not connected", hint: "no delivery target" },
+  { value: "", label: "Not connected", hint: "no channel bound" },
   { value: "ops", label: "ops.acmecorp.io/hook", hint: "signed HTTPS channel" },
   { value: "pager", label: "pager.example/verge", hint: "signed HTTPS channel" },
 ];

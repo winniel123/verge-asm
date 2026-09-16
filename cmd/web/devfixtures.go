@@ -390,7 +390,9 @@ func (s *server) devSetupSeedEmpty(w http.ResponseWriter, r *http.Request) {
 const (
 	devExposureExposed      = 14
 	devExposureExposedDelta = 2
+	devExposureEdgeOnly     = 3
 	devExposureFirewalled   = 41
+	devExposureUnreachable  = 9
 	devExposureNotReached   = 7
 	devExposureHasDeltas    = true
 
@@ -398,29 +400,34 @@ const (
 )
 
 type devExposureRow struct {
-	asset    string
-	svc      string
-	internal string
-	internet string
-	since    string
+	asset        string
+	svc          string
+	internal     string
+	internalDate string
+	internet     string
+	internetDate string
+	since        string
 }
 
+// The board dates a leg to the day, so these carry exposureSinceDateFmt and not spanTimeFmt.
+
 var devExposureRows = []devExposureRow{
-	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "reached", internet: "reached", since: "4m"},
-	{asset: "api.acmecorp.io", svc: ":443 https", internal: "reached", internet: "reached", since: "69d"},
-	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "reached", internet: "reached", since: "41d"},
-	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "reached", internet: "not-reached", since: "12d"},
-	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "reached", internet: "not-reached", since: "26d"},
-	{asset: "mail.acmecorp.io", svc: ":25 smtp", internal: "reached", internet: "gap", since: "8d"},
-	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "never-looked", since: "—"},
+	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "reached", internalDate: "2026-09-15", internet: "reached", internetDate: "2026-09-15", since: "4m"},
+	{asset: "api.acmecorp.io", svc: ":443 https", internal: "reached", internalDate: "2026-07-08", internet: "reached", internetDate: "2026-07-08", since: "69d"},
+	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "reached", internalDate: "2026-08-05", internet: "reached", internetDate: "2026-09-11", since: "41d"},
+	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "reached", internalDate: "2026-09-03", internet: "not-reached", internetDate: "2026-08-28", since: "12d"},
+	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "reached", internalDate: "2026-08-20", internet: "not-reached", internetDate: "2026-08-20", since: "26d"},
+	{asset: "mail.acmecorp.io", svc: ":25 smtp", internal: "reached", internalDate: "2026-09-07", internet: "gap", internetDate: "2026-09-12", since: "8d"},
+	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internalDate: "2026-06-30", internet: "never-looked", since: "—"},
 }
 
 func devScopeActs() []scopeActRow {
 	// The fixture panel renders through the live formatter, so it cannot drift off it.
 	actor := act.ActorCell(act.Account{AccountID: 1, UsernameSnapshot: "dana.ops"})
 	return []scopeActRow{
-		{Scope: "198.51.100.0/24", Actor: actor, When: "2h", ISO: "2026-09-15T08:12:00Z"},
-		{Scope: "10.42.0.0/16", Actor: actor, When: "3d", ISO: "2026-09-12T15:41:00Z"},
+		{Scope: "198.51.100.0/24", Verb: "declared", Actor: actor, When: "2h", ISO: "2026-09-15T08:12:00Z"},
+		{Scope: "192.0.2.64/26", Verb: "excluded", Actor: actor, When: "1d", ISO: "2026-09-14T11:05:00Z"},
+		{Scope: "10.42.0.0/16", Verb: "withdrawn", Actor: actor, When: "3d", ISO: "2026-09-12T15:41:00Z"},
 	}
 }
 
@@ -452,10 +459,10 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 	rows := make([]exposureRow, 0, len(devExposureRows))
 	for _, r := range devExposureRows {
 		rows = append(rows, exposureRow{
-			Asset: r.asset, Svc: r.svc, Since: r.since,
+			Asset: r.asset, Svc: r.svc,
 			// The fixture board renders through the live formatter, so it cannot drift off it.
-			Internal: reachLegChip(custody.ClassInternal, legFrom(devLegInfo(r.internal))),
-			Internet: reachLegChip(custody.ClassInternet, legFrom(devLegInfo(r.internet))),
+			Internal: *devLegChip(custody.ClassInternal, r.internal, r.internalDate),
+			Internet: *devLegChip(custody.ClassInternet, r.internet, r.internetDate),
 		})
 	}
 	data["Withheld"] = false
@@ -465,8 +472,10 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 		data["ScopeActs"] = devScopeActs()
 	}
 	data["Exposed"] = devExposureExposed
+	data["EdgeOnly"] = devExposureEdgeOnly
 	data["Firewalled"] = devExposureFirewalled
-	data["NotReached"] = devExposureNotReached
+	data["Unreachable"] = devExposureUnreachable
+	data["OneLegged"] = devExposureNotReached
 	if devExposureHasDeltas {
 		data["HasDeltas"] = true
 		data["ExposedDelta"] = map[string]any{"Change": devExposureExposedDelta}
@@ -1603,7 +1612,7 @@ func devAssetPortRows() []assetPort {
 var devAssetDNS = []assetDNSRow{
 	{Type: "A", Value: "203.0.113.7", Seen: "4m"},
 	{Type: "AAAA", Value: "2001:db8::7", Seen: "4m"},
-	{Type: "TXT", Value: "verge-custody=vg_7f2a91c4", Seen: "6h"},
+	{Type: "TXT", Value: "v=spf1 -all", Seen: "6h"},
 }
 
 var devAssetCert = &assetCert{
@@ -1620,7 +1629,7 @@ var devAssetProvenance = []assetKV{
 	{K: "Seed", V: "acmecorp.io"},
 	{K: "Via", V: "CT log → dns sweep"},
 	{K: "Vantage", V: "eu-west-1"},
-	{K: "Custody", V: "verified · TXT record"},
+	{K: "Custody", V: "operator · custody extension"},
 	{K: "First seen", V: "2026-06-14"},
 }
 
@@ -1642,7 +1651,7 @@ func devAssetData() assetPageData {
 		Type:         "subdomain",
 		Withdrawn:    false,
 		Seen:         "4m",
-		InScopeSince: "2026-06-14",
+		CoveredSince: "2026-06-14",
 		Severity:     "critical",
 		SevLabel:     "Critical",
 		InternetLeg:  assetHeaderInternetLeg(ports),
@@ -1711,7 +1720,7 @@ func devServiceData() servicePageData {
 		InternalLeg:  devLegChip(custody.ClassInternal, "reached", "2026-08-22 14:00 UTC"),
 		InternetLeg:  devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC"),
 		Seen:         "4m",
-		InScopeSince: "2026-08-22",
+		CoveredSince: "2026-08-22",
 		Citation: []citationHop{
 			{Label: "Service", Value: "203.0.113.7:5900/tcp", Detail: "an (address, port, transport) triple"},
 			{Label: "Address · cited by a current resolution", Value: "203.0.113.7"},
@@ -1752,7 +1761,7 @@ func devServiceWithdrawnData() servicePageData {
 		InternalLeg:  nil,
 		InternetLeg:  nil,
 		Seen:         "12d",
-		InScopeSince: "2026-07-18",
+		CoveredSince: "2026-07-18",
 		Citation: []citationHop{
 			{Label: "Service", Value: "203.0.113.29:8080/tcp", Detail: "an (address, port, transport) triple"},
 			{Label: "Address · formerly cited", Value: "203.0.113.29"},
@@ -1791,7 +1800,7 @@ func devEndpointData() endpointPageData {
 		Service:      "203.0.113.7:443/tcp",
 		Withdrawn:    false,
 		Seen:         "4m",
-		InScopeSince: "2026-06-14",
+		CoveredSince: "2026-06-14",
 		Citation: []citationHop{
 			{Label: "Endpoint", Value: "edge-gw-03.acmecorp.io · :443 https", Detail: "a (Name, Service) pair — the only key under which HTTP identity is single-valued"},
 			{Label: "Name leg", Value: "edge-gw-03.acmecorp.io"},

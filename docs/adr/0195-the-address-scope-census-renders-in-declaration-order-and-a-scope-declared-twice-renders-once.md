@@ -51,7 +51,7 @@ order, and a repeat collapses onto its **first** occurrence.
 (`db/queries/measurement.sql`) reads `FROM seed WHERE kind = 'address'` and closes
 `ORDER BY id`. `seed.id` ascends with the declaration, so the slice reaching the census is the
 operator's list in the order the operator wrote it. `cmd/web/addressscopecensus.go#addressScopeSharedEdges` and
-`internal/queue/hot.go#CitedResolutions` both build the `Estate` from that read.
+`internal/queue/hot.go` both build the `Estate` from that read.
 
 **A duplicate cannot arrive from the database today.** `db/migrations/00003_seeds.sql` creates
 `UNIQUE INDEX seed_address_cidr_key ON seed (address_cidr)`, and no later migration drops it. The

@@ -169,6 +169,48 @@ test("bodyDecision runs from the first ## Decision to the next heading of any le
   assert.equal(bodyDecision(null), null);
 });
 
+const TRAILER = "\u{1F916} Generated with [Claude Code](https://claude.com/claude-code)";
+const SESSION = "https://claude.ai/code/session_01UMirUT7YQoTqdEhW1Rtm1N";
+
+const LAST_SECTION_BODY = ["Closes #1700", "", "## Decision", "", ...DECISION, "", TRAILER].join("\n");
+
+const LAST_SECTION_BODY_WITH_SESSION = [
+  "Closes #1700",
+  "",
+  "## Decision",
+  "",
+  ...DECISION,
+  "",
+  TRAILER,
+  "",
+  SESSION,
+  "",
+].join("\n");
+
+test("a last-position ## Decision does not absorb the attribution trailer", () => {
+  assert.equal(bodyDecision(LAST_SECTION_BODY), DECISION.join("\n"));
+  assert.equal(bodyDecision(`## Decision\n\nRule.\n\n\n${TRAILER}\n`), "Rule.");
+  assert.equal(bodyDecision(`## Decision\r\n\r\nRule.\r\n\r\n${TRAILER}\r\n`), "Rule.");
+});
+
+test("the trailer is a block: the session link below the attribution line goes with it", () => {
+  assert.equal(bodyDecision(LAST_SECTION_BODY_WITH_SESSION), DECISION.join("\n"));
+  assert.equal(bodyDecision(`## Decision\r\n\r\nRule.\r\n\r\n${TRAILER}\r\n\r\n${SESSION}\r\n`), "Rule.");
+});
+
+test("a PR body whose ## Decision is the last section passes", () => {
+  assert.equal(run({ prBody: LAST_SECTION_BODY }).code, 0);
+  const r = run({ prBody: LAST_SECTION_BODY_WITH_SESSION });
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.problems, []);
+});
+
+test("a trailing line that is neither the attribution nor its session link stays", () => {
+  assert.equal(bodyDecision(`## Decision\n\n${TRAILER}\n\nRule.`), `${TRAILER}\n\nRule.`);
+  assert.equal(bodyDecision("## Decision\n\nRule.\n\nSee the log.\n"), "Rule.\n\nSee the log.");
+  assert.equal(bodyDecision(`## Decision\n\nRule.\n\n${SESSION}\n`), `Rule.\n\n${SESSION}`);
+});
+
 test("gather pages through the PR files and comments", async () => {
   const page = (n, prefix) => Array.from({ length: n }, (_, i) => ({ filename: `${prefix}${i}`, body: `${prefix}${i}` }));
   const pages = {

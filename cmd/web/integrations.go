@@ -58,7 +58,7 @@ type catalogIntegration struct {
 	Grants      []integrationGrant
 }
 
-// A verbatim port of the example's CATALOG, never editorial copy (ADR-0110).
+// Authoritative for the catalog; the example's CATALOG is an unchecked design reference (ADR-1988).
 
 var integrationCatalog = []catalogIntegration{
 	{

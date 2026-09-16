@@ -46,7 +46,7 @@ func TestSeverityForResolvesEveryRuleName(t *testing.T) {
 }
 
 func TestSevOrderMatchesSpec(t *testing.T) {
-	// Pinned to SignalData.jsx's SEV_ORDER so a severity-sorted view ranks as the design does.
+	// The five bands and their order are P0.1's, not this package's to change (ADR-0185 §5).
 	want := []Severity{SevCritical, SevHigh, SevMedium, SevLow, SevInfo}
 	if len(SevOrder) != len(want) {
 		t.Fatalf("SevOrder has %d levels, want %d", len(SevOrder), len(want))

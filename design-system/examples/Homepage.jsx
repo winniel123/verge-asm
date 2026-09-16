@@ -101,7 +101,7 @@ export function Homepage() {
         <Stepper active={1} steps={[
           { title: "Run the container", detail: "One image, listens on :8443" },
           { title: "Add your first seed", detail: "A name or an address scope" },
-          { title: "Confirm ownership", detail: "Custody via DNS TXT record — active probing waits for it" },
+          { title: "Confirm custody", detail: "Extend custody to a name scope — off by default, and active probing waits for it" },
           { title: "Watch for drift", detail: "Signals when the surface moves" },
         ]} />
       </section>

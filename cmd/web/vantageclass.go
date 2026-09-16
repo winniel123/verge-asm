@@ -12,6 +12,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/exposure"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
@@ -68,8 +69,8 @@ func listedVantageClasses(rows []db.ListVantagesRow, covered func(netip.Addr) bo
 }
 
 func runningVantageClasses(vantages []db.ListVantagesForDispatchRow, covered func(netip.Addr) bool) []string {
-	// An unavailable vantage still names its class; the gap reads not-evaluable (ADR-0080).
 	seen := map[string]struct{}{}
+	// An unavailable vantage closes its spans at write time, so this keeps every row (ADR-2087).
 	for _, v := range vantages {
 		seen[string(vantageFactsClass(v.DialledAddr, v.Egress, covered))] = struct{}{}
 	}
@@ -194,32 +195,62 @@ func classGap(group []reachLegRow, values []reachabilityValue) (bool, []string, 
 }
 
 func collapseNameResolutions(rows []db.ListNameResolutionsByClassRow, covered func(netip.Addr) bool) map[string]map[string]resolutionValue {
-	type chosen struct {
-		value      []byte
-		observedAt time.Time
-		id         int64
-	}
-	best := map[string]map[string]chosen{}
+	grouped := map[string]map[string][]resolutionValue{}
 	for _, r := range rows {
 		class := string(vantageclass.Derive(r.DialledAddr.String, r.Egress.String, covered))
-		m := best[r.SubjectKey]
+		m := grouped[r.SubjectKey]
 		if m == nil {
-			m = map[string]chosen{}
-			best[r.SubjectKey] = m
+			m = map[string][]resolutionValue{}
+			grouped[r.SubjectKey] = m
 		}
-		cur, ok := m[class]
-		if !ok || r.ObservedAt.Time.After(cur.observedAt) ||
-			(r.ObservedAt.Time.Equal(cur.observedAt) && r.ID > cur.id) {
-			m[class] = chosen{value: r.Value, observedAt: r.ObservedAt.Time, id: r.ID}
-		}
+		m[class] = append(m[class], decodeResolution(r.Value))
 	}
-	out := make(map[string]map[string]resolutionValue, len(best))
-	for name, byClass := range best {
+	out := make(map[string]map[string]resolutionValue, len(grouped))
+	for name, byClass := range grouped {
 		cm := make(map[string]resolutionValue, len(byClass))
-		for class, c := range byClass {
-			cm[class] = decodeResolution(c.value)
+		for class, group := range byClass {
+			cm[class] = composeClassResolution(group)
 		}
 		out[name] = cm
 	}
 	return out
+}
+
+// The quantifiers close at two, so recency is a third rule this seam may not take (ADR-0080).
+
+func composeClassResolution(group []resolutionValue) resolutionValue {
+	addrs := map[string]struct{}{}
+	agreed, voted, unanimous := "", false, true
+	resolved := false
+	for _, v := range group {
+		if v.Outcome == signal.Gap {
+			// A vantage that could not look is not one that got nothing (ADR-0080 decision rule 3).
+			continue
+		}
+		if v.Outcome == signal.Resolved {
+			resolved = true
+			for _, a := range v.Addresses {
+				addrs[a] = struct{}{}
+			}
+		}
+		switch {
+		case !voted:
+			agreed, voted = v.Outcome, true
+		case v.Outcome != agreed:
+			unanimous = false
+		}
+	}
+	switch {
+	case resolved:
+		// Resolved is a presence claim, and one answer establishes it (ADR-0080 decision rule 2).
+		return resolutionValue{Outcome: signal.Resolved, Addresses: sortedKeys(addrs)}
+	case !voted:
+		return resolutionValue{Outcome: signal.Gap}
+	case unanimous:
+		// An absence claim needs every vantage of the class (ADR-0080 decision rule 2).
+		return resolutionValue{Outcome: agreed}
+	default:
+		// Variance neither quantifier settles, so the class holds no value (ADR-0080).
+		return resolutionValue{Outcome: signal.ResolutionNotEvaluable}
+	}
 }

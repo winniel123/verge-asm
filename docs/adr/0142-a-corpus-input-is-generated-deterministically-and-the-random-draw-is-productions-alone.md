@@ -39,7 +39,7 @@ and cost determinism". Both sentences are about what the leaf *talks to*. A gene
 binary under test is neither a peer nor a fixture, so the paragraph does not reach it. A session
 reading ADR-0021 for the whole determinism condition finds one half of it.
 
-**The ordering half is already ruled and is not this one.** `ports.go:17` states that a `PortGen`
+**The ordering half is already ruled and is not this one.** `internal/measure/blanketdiscrim/ports.go#PortGen` states that a `PortGen`
 returns sorted ports "so the control probe is order-stable for the golden corpus (ADR-0021)".
 Sorting gives a stable order over a set that is still unstable. Order-stability and determinism are
 two properties, and only the first had a ruling.
@@ -93,7 +93,7 @@ pinning the same fact twice, and A6 already reads the digest.
 
 - **Not a claim that the drawn value is unimportant.** The band and the count are ADR-0104's
   defence, and a predictable control set is exactly the failure that defence exists against.
-- **Not an ordering rule.** Sorting is ADR-0021's, stated at `ports.go:17`, and both properties are
+- **Not an ordering rule.** Sorting is ADR-0021's, stated at `internal/measure/blanketdiscrim/ports.go#PortGen`, and both properties are
   owed.
 - **Not a licence to make production deterministic.** The *Alternatives rejected* table refuses that.
 

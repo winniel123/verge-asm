@@ -24,7 +24,7 @@ relations:
 `cmd/web/auth.go` stated this rule twice, and #1337 deleted both statements. One sat on
 `injectChrome`, the other beside the literal — *"single-org deployment; static chip (ADR-0073,
 switcher retired #33)"*. Neither statement survives; the constant does, at
-`cmd/web/auth.go#initials`.
+`cmd/web/auth.go`.
 
 **The citation was wrong, not dead.** ADR-0073 is *An operator dial carries no author, however
 specific its target*, Status Accepted, and it rules attribution on an `Annotation` and a mute. It
@@ -37,11 +37,11 @@ test: #33 is *Does the claim/attestation/determinacy standard generalise to the 
 signals?*, #28 is the Coverage screen prototype and #27 the CAIDA bundling question — all live,
 none this rule's source, which §4.7 names a design-collision id.
 
-**What the tree holds.** One production site fills the chip: `cmd/web/auth.go#initials`,
+**What the tree holds.** One production site fills the chip: `cmd/web/auth.go`,
 `Org: "self-hosted"`, a Go string literal with no read behind it. `chromeVM.Org`
 (`cmd/web/chrome.go#chromeVM`) is its only carrier, and `design-system/templates/shell.tmpl#chrome` renders
 it as `<span class="sh-orgchip">{{.Org}}</span>` — a span, styled at `:29`, with no control, no
-form and no link. The second site is the `devMode` branch at `cmd/web/auth.go#validatePassword`, which calls
+form and no link. The second site is the `devMode` branch at `cmd/web/auth.go`, which calls
 `chromeFromFixture` (`cmd/web/chrome.go#chromeFromFixture`); that reads `design-system/fixtures/fixtures.json`
 line 4534, `"org": "acmecorp"`. **The two sites do not agree**, and under ADR-0167 §3 they are not
 required to: the fixture is the design corpus and the live path renders the honest projection.
@@ -75,7 +75,7 @@ any read. The chip's value is not a projection of anything.
 
 The domain already spends the word. `CONTEXT.md:220` has the operator *"searching the org-name
 box"*, and that org is a **registry** organisation — the string handed to ARIN
-(`internal/proposer/arin.go#ARIN.Propose`) and CAIDA (`internal/proposer/caida.go#caidaSearchPage`) to produce a
+(`internal/proposer/arin.go#ARIN.Propose`) and CAIDA (`internal/proposer/caida.go`) to produce a
 `Proposal`. It is a third party's name for a network, never a tenant of this instance. A reader
 who meets `chromeVM.Org` and reads it as that term is reading a fourth thing.
 

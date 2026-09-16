@@ -8,7 +8,7 @@ import { extractCitations, refTokensOf } from "./citations/extract.mjs";
 import { classify } from "./citations/classify.mjs";
 import { loadExemptions } from "./citations/exempt.mjs";
 import { isInScope, inScopeFiles } from "./citations/scope.mjs";
-import { scanLineAnchors } from "./citations/lineanchor.mjs";
+import { basenameOf, formOf, scanLineAnchors } from "./citations/lineanchor.mjs";
 import { parse } from "./doclint/engine.mjs";
 import { environment, run } from "./check-citations.mjs";
 
@@ -399,6 +399,61 @@ test("a fenced block is sample text for Arm A too", () => {
   assert.deepEqual(tokens("```sh\nsed -n 247p docs/spec/v1-spec.md:247\n```\n"), []);
 });
 
+// The two forms #2120 reached: a slashless `file.ext:NNN`, and a path-less `:NNN`.
+
+test("a slashless file name carrying a line is a line anchor", () => {
+  assert.deepEqual(tokens("The read sits at `cold.go:153`."), ["cold.go:153"]);
+  assert.deepEqual(sites("A range sits at `seeds.go:291-294`."), [
+    { token: "seeds.go:291-294", kind: "code", line: 1 },
+  ]);
+  assert.deepEqual(tokens("GitHub writes `hot.go#L247`."), ["hot.go#L247"]);
+  assert.equal(formOf("cold.go:153"), "file");
+  assert.equal(basenameOf("cold.go:153"), "cold.go");
+  assert.equal(basenameOf("cmd/web/cold.go#L153"), "cold.go");
+});
+
+test("a path-less line is a line anchor, and it names no path to degrade to", () => {
+  assert.deepEqual(tokens("the reads at `cmd/web/cold.go` (zones), `:147` (subjects)"), [
+    "cmd/web/cold.go",
+    ":147",
+  ].slice(1));
+  assert.deepEqual(sites("The fold runs at `:92-113`."), [
+    { token: ":92-113", kind: "code", line: 1 },
+  ]);
+  assert.equal(formOf(":147"), "bare");
+  assert.equal(formOf("cmd/web/cold.go:147"), "path");
+});
+
+test("a clock, a port, a ratio and a version are no line anchor", () => {
+  for (const markdown of [
+    "The sweep runs at `10:30` every day.",
+    "The stack serves `localhost:8080`.",
+    "The tunnel opens `http://127.0.0.1:8090/` on this host.",
+    "The ratio is `3.2:1` at the edge.",
+    "The pin is `v1.26:8` in the matrix.",
+    "The worker binds `::1` and `[::]:10249`.",
+  ]) {
+    assert.deepEqual(tokens(markdown), [], markdown);
+  }
+});
+
+test("a slashless host is not a file, and the tree is what says so", () => {
+  const markdown = "The peer is `admin.example.com:443` here.";
+  // Without a tree the scan cannot tell the two apart, so the caller supplies one.
+  assert.deepEqual(tokens(markdown), ["admin.example.com:443"]);
+  const known = (base) => base === "cold.go";
+  assert.deepEqual(scanLineAnchors(markdown, { knownFile: known }).map((a) => a.token), []);
+  assert.deepEqual(
+    scanLineAnchors("The read is `cold.go:153`.", { knownFile: known }).map((a) => a.token),
+    ["cold.go:153"],
+  );
+  // The filter reaches the slashless form alone, so no whole path is dropped by a basename.
+  assert.deepEqual(
+    scanLineAnchors("The read is `cmd/web/seeds.go:291`.", { knownFile: known }).map((a) => a.token),
+    ["cmd/web/seeds.go:291"],
+  );
+});
+
 test("an anchored citation and a bare path are no line anchor", () => {
   assert.deepEqual(tokens("The list read is `internal/queue/hot.go#hotCore`."), []);
   assert.deepEqual(tokens("The list read is `internal/queue/hot.go`."), []);
@@ -438,10 +493,35 @@ test("a line anchor in docs/research is outside the boundary", () => {
   assert.deepEqual(lineAnchors.filter((a) => a.file.startsWith("docs/research/")), []);
 });
 
-// The sweep is complete, and an empty boundary is what proves it (SPEC §8.2, #1980).
-test("no document inside the boundary holds a line anchor", () => {
+// The sweep is complete for the path form, and an empty boundary is what proves it (§8.2, #1980).
+test("no document inside the boundary holds a path-form line anchor", () => {
   const { lineAnchors } = wholeTree();
-  assert.deepEqual(lineAnchors.map((a) => `${a.file}:${a.line} -> ${a.token}`), []);
+  const refused = lineAnchors.filter((a) => a.form === "path");
+  assert.deepEqual(refused.map((a) => `${a.file}:${a.line} -> ${a.token}`), []);
+});
+
+// The two forms #2120 reached are staged behind their conversion, and the count sizes it (§8.2).
+test("the staged forms are reported, and the boundary still holds them", () => {
+  const { lineAnchors } = wholeTree();
+  const staged = lineAnchors.filter((a) => a.form !== "path");
+  assert.ok(staged.length > 0, "the conversion of #2120 has not run, so the scan must find them");
+  assert.ok(staged.some((a) => a.form === "bare"));
+  assert.ok(staged.some((a) => a.form === "file"));
+});
+
+test("a staged form is reported and never refused, and the path form still exits 1", () => {
+  const fixture = join(SCRIPT_DIR, "citations", `staged-${process.pid}.md`);
+  try {
+    for (const token of ["`cold.go:153`", "`:147`", "`cold.go#L153`"]) {
+      writeFileSync(fixture, `The read sits at ${token} today.\n`);
+      assert.equal(cliStatus([fixture]), 0, token);
+      assert.match(cliOutput([fixture]), /the conversion of #2120 has not reached/);
+    }
+    writeFileSync(fixture, "The read sits at `cmd/web/cold.go:153` today.\n");
+    assert.equal(cliStatus([fixture]), 1);
+  } finally {
+    rmSync(fixture, { force: true });
+  }
 });
 
 test("the CLI exits 1 on a new line anchor, and names the document, the line and the token", () => {
@@ -477,10 +557,11 @@ test("a line anchor a named ref pins passes the CLI, and a bare path passes", ()
   }
 });
 
-test("the refusal is unconditional, so no summary line sizes a remaining sweep", () => {
+test("the refusal is unconditional for the path form, and no list licenses one", () => {
   const out = cliOutput([]);
   // The count is right-padded, so a bare `0` would also match 10, 20 and every other multiple.
   assert.match(out, /(?<!\d)0 {2}refused: a citation names no line/);
-  assert.doesNotMatch(out, /line anchor\(s\) the sweep has not reached/);
   assert.doesNotMatch(out, /stale: an entry no scan finds/);
+  // The staged count sizes the work #2120 opened, and an empty one is what retires the stage.
+  assert.match(out, /\d+ {2}line anchor\(s\) the conversion of #2120 has not reached/);
 });

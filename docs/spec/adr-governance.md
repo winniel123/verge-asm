@@ -54,8 +54,12 @@ or `supersedes` relation. The citation `ADR-nnnn #nnn` names a legacy in-file am
 at 227 and below only.
 
 `docs/spec/citation-anchors.md` rules the form of a cross-file citation. It names no line.
-Repointing a stale anchor is a factual repair, and it needs no relation. Changing what an ADR
-asserts is not a repair, and it runs through a later ADR's relation under §4.
+Repointing a stale anchor **to the same declaration** is a factual repair. It needs no relation. The
+declaration moved and the anchor follows it, so the ADR asserts what it always did. A sweep may do
+that. An anchor that now names a **different** declaration is the other case. Repointing it changes
+what the ADR asserts. So it is not a repair, it runs through a later ADR's relation under §4, and a
+human does it. ADR-2086 rules the line between the two, and
+[citation anchor repair](citation-anchor-repair.md) §6.3 carries the same limit.
 
 ## 4. Relations and status (#1641)
 

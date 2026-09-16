@@ -75,9 +75,9 @@ Neither reaches a log-list URL, and no code constructs one.
 
 ### The tail's reader runs inside the dispatch transaction
 
-`internal/queue/queue.go#Dispatcher.settleDue` opens the transaction, `:126` takes
+`internal/queue/queue.go` opens the transaction, `:126` takes
 `pg_advisory_xact_lock`, `:150` calls `fanOutCTTail`, and `:163` commits.
-`internal/queue/cttail.go#knownNameSet` calls `scan.SelectTailLogs(d.now())` inside that call.
+`internal/queue/cttail.go` calls `scan.SelectTailLogs(d.now())` inside that call.
 
 So the log set is chosen between `BEGIN` and `COMMIT`, under an advisory lock. A fetch there holds a
 Postgres transaction and a lock open across a third-party round trip.
@@ -214,7 +214,7 @@ rather than grudging.
 **Nothing in the tree verifies a CT log signature.** `SelectTailLogs` reads `description`, `log_id`,
 `url` or `monitoring_url`, `state` and `temporal_interval`. `AllLogs` reads `log_id`, `url` or
 `monitoring_url` and `description`. `ParseSTH` reads `tree_size` and keeps the raw body.
-`ParseCheckpoint` splits the note and reads the size. `internal/queue/cttail.go#Worker.completeCTTailRFC` says so at the
+`ParseCheckpoint` splits the note and reads the size. `internal/queue/cttail.go` says so at the
 one place a reader might assume otherwise:
 
 ```go
