@@ -141,7 +141,7 @@ each with its shipped example.
 | Class | Example | Why loud |
 | --- | --- | --- |
 | **The page's own subject** | `cmd/web/cold.go#server.coveragePage`, `ListSeeds` on Coverage; `seeds.go:408`–`:411`, `ListSeeds` on Scope | Every meter and card on both screens is one `Seed`. Degrading it renders *no scopes declared* — a lie about the operator's own declaration, and one they may act on |
-| **A subject fetched by key** | `cmd/web/subjects.go#server.endpointPage`–`:231` | `pgx.ErrNoRows` renders a distinct missing-subject page; any other error 500s. **No rows and the read failed are different facts**, and the handler keeps them apart |
+| **A subject fetched by key** | `cmd/web/subjects.go#server.endpointPage`–`:231` | `pgx.ErrNoRows` renders a distinct missing-subject page; any other error answers 503 through the unresolved-subject page (#2170). **No rows and the read failed are different facts**, and the handler keeps them apart |
 | **The act** | `seeds.go:291`, the `serverError` calls in `cmd/web/cold.go#server.setColdScope` | A write reported as done when it was not is unrecoverable by reload |
 
 The test is not the surface. `apiCoverage` (`cmd/web/api_v1.go`) makes the identical split on the
