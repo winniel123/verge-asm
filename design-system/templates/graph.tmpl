@@ -441,10 +441,17 @@
       // than the page did (ADR-0168 §2, #2066).
       var notes = exportNotes(), band = null;
       if (notes.length) {
-        band = layoutNotes(notes, bw, os);
-        if (band.width > bw) { bx -= (band.width - bw) / 2; bw = band.width; }
-        by -= band.height; bh += band.height;
-        os = Math.min(SCALE, MAX_SIDE / bw, MAX_SIDE / bh, Math.sqrt(MAX_AREA / (bw * bh)));
+        var px = bx, py = by, pw = bw, ph = bh;
+        // The band heightens the frame, which lowers the scale its own type is sized
+        // from, so settle the two before the clone carries either (#2186).
+        for (var pass = 0; pass < 16; pass++) {
+          band = layoutNotes(notes, pw, os);
+          bx = px; bw = pw; by = py - band.height; bh = ph + band.height;
+          if (band.width > bw) { bx -= (band.width - bw) / 2; bw = band.width; }
+          var next = Math.min(SCALE, MAX_SIDE / bw, MAX_SIDE / bh, Math.sqrt(MAX_AREA / (bw * bh)));
+          if (!(next < os)) break;
+          os = next;
+        }
       }
       var outW = Math.max(1, Math.round(bw * os)), outH = Math.max(1, Math.round(bh * os));
       var clone = svg.cloneNode(true);
