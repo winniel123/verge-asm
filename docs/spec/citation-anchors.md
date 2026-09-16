@@ -370,13 +370,44 @@ gate should judge and could not. That is the invisibility of fact F1 under a fri
 
 ### 8.1 Conversion is required
 
-**The 945 in-scope anchors convert.** 803 sit in `docs/adr`, and 142 sit in `docs/spec`. See fact
-F9.
+**The 945 in-scope anchors convert.** 803 sit in `docs/adr`, and 142 sit in `docs/spec`. See §11
+fact F9.
 
-The 803 anchors inside landed ADRs convert **without a relation, without a marker, and without a
-later ADR**. `docs/spec/adr-governance.md` §3 already rules that repointing a stale anchor is a
-factual repair, and a factual repair needs no relation. Changing what an ADR asserts is not a
-repair, and that runs through a later ADR under that SPEC's §4.
+**An anchor inside a landed ADR converts without a relation, without a marker, and without a later
+ADR while it still names the same declaration.** `docs/spec/adr-governance.md` §3 rules that
+repointing a stale anchor to that declaration is a factual repair, and a factual repair needs no
+relation. ADR-2086 rules the line, and [citation anchor repair](citation-anchor-repair.md) §6.3
+carries the same limit.
+
+**An anchor that now names a different declaration was never inside that authorisation.** It
+changes what the ADR asserts, so it is not a repair. It runs through a later ADR under
+`docs/spec/adr-governance.md` §4, and a human does it. **The limit binds at conversion time and
+after it.** §8.2's list is retired, and the conversion of
+[#2120](https://github.com/winniel123/verge-asm/issues/2120) still has line anchors to reach. A
+conversion that would write an anchor on a different declaration is outside this authorisation, and
+§8.4 degrades that anchor instead.
+
+**803 was never a blanket over the anchors already written.** The history arm of
+[citation anchor repair](citation-anchor-repair.md) §7 is the instrument that sorts them, and that
+SPEC's §9 facts F9 to F11 measure it. **The arm is evidence and not a proof**, so no verdict below
+settles an anchor on its own.
+
+- **Judged consistent.** The witnessed line sat in the declaration the anchor names. That is
+  evidence the authorisation covers it. That SPEC's §7 shape 3 bounds the evidence: an anchor
+  already wrong when its number landed leaves no change for the arm to find.
+- **Judged a drift candidate.** The witnessed line sat somewhere other than the declaration the
+  anchor names. That is evidence of the different-declaration case, and that SPEC's fact F11
+  measures a false-positive class where the number landed just outside the declaration the prose
+  means. A human reads each one under [citation anchor repair](citation-anchor-repair.md) §6.3, and
+  that reading is what puts the anchor inside the authorisation or outside it.
+- **Not judged.** The arm reports an anchor unwitnessed when no revision of the citing line spells a
+  number, and when the witness spells a different count of numbers than the line cites. It reports
+  an anchor unreadable when it cannot resolve the witnessed line at all. The authorisation over such
+  an anchor is unproven rather than wrong, and this section asserts nothing about it.
+
+**This section states no count of the three classes.** The arm re-measures on every run, and it
+reports a different figure as the tree moves. §11 fact F9's 803 stands unchanged: it counts the
+tokens the conversion had to reach, not the anchors this section authorises.
 
 Refusal alone was rejected. It freezes 945 anchors that no check reads, and fact F3 measures at
 least 129 of them as already stale.
