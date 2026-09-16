@@ -87,3 +87,47 @@ func TestOneServicesGapMessageIsTheSameWhateverOrderTheRowsArrive(t *testing.T) 
 		t.Errorf("the surviving row is the one whose recorded value sorts first; got %q", msgsA[0].Text)
 	}
 }
+
+func TestABlanketedAddressTakesNoServiceLevelGapRow(t *testing.T) {
+	const svc = "104.21.61.6:443/tcp"
+	// Two vantages can hold an open Gap on one service and disagree on the cause. The blanket
+	// row raises the finding to the address, so a "no reading" row for the same service would
+	// state that address a second time (#2184).
+	rows := []db.ListOpenReachGapServicesRow{
+		{SubjectKey: svc, Value: []byte(`{"outcome":"gap","cause":"` + blanketdiscrim.GapCause + `"}`)},
+		{SubjectKey: svc, Value: []byte(`{"outcome":"gap","cause":"probe-timeout","reason":"the dial never completed"}`)},
+	}
+	gaps, msgs := reachGapsAndMessages(rows)
+
+	if len(gaps) != 1 || len(msgs) != 1 {
+		t.Fatalf("a blanketed address states one gap and one message, got %d and %d: %+v", len(gaps), len(msgs), gaps)
+	}
+	if gaps[0].Subject != "104.21.61.6" || gaps[0].Gap != "no origin" {
+		t.Errorf("gap = %q/%q, want the blanketed address and \"no origin\"", gaps[0].Subject, gaps[0].Gap)
+	}
+	if msgs[0].Subject != "104.21.61.6" {
+		t.Errorf("message subject = %q, want the blanketed address", msgs[0].Subject)
+	}
+}
+
+func TestSilencingTheBlanketedServiceLeavesAnotherPortOfItsAddressStanding(t *testing.T) {
+	// Dedupe on the service key, never on the address: an address-wide skip would take the
+	// third row too, which TestReachGapsAndMessagesDoNotLetABlanketedAddressSwallowAnotherPort
+	// forbids (#2184).
+	rows := []db.ListOpenReachGapServicesRow{
+		{SubjectKey: "104.21.61.6:443/tcp", Value: []byte(`{"outcome":"gap","cause":"` + blanketdiscrim.GapCause + `"}`)},
+		{SubjectKey: "104.21.61.6:443/tcp", Value: []byte(`{"outcome":"gap","cause":"probe-timeout","reason":"the dial never completed"}`)},
+		{SubjectKey: "104.21.61.6:8080/tcp", Value: []byte(`{"outcome":"gap","cause":"probe-timeout","reason":"the dial never completed"}`)},
+	}
+	gaps, msgs := reachGapsAndMessages(rows)
+
+	if len(gaps) != 2 || len(msgs) != 2 {
+		t.Fatalf("want the address row and the unblanketed port, got %d gaps and %d messages: %+v", len(gaps), len(msgs), gaps)
+	}
+	want := []string{"104.21.61.6", serviceCopyKey("104.21.61.6", "8080", "tcp")}
+	for i, subject := range want {
+		if gaps[i].Subject != subject {
+			t.Errorf("gap %d subject = %q, want %q", i, gaps[i].Subject, subject)
+		}
+	}
+}

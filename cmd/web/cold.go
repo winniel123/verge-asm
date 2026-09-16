@@ -427,12 +427,14 @@ const vantageUnavailableCause = "vantage-unavailable"
 
 func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView) {
 	blanketed := map[string]bool{}
+	blanketedServices := map[string]bool{}
 	for _, row := range rows {
 		if decodeReachability(row.Value).Cause != blanketdiscrim.GapCause {
 			continue
 		}
 		if addr, _, _ := splitServiceKey(row.SubjectKey); addr != "" {
 			blanketed[addr] = true
+			blanketedServices[row.SubjectKey] = true
 		}
 	}
 
@@ -465,10 +467,11 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 		if addr, _, _ := splitServiceKey(row.SubjectKey); addr == "" {
 			continue
 		}
-		switch decodeReachability(row.Value).Cause {
-		case blanketdiscrim.GapCause:
+		// The address row already states this service, whatever a second vantage recorded (#2184).
+		if blanketedServices[row.SubjectKey] {
 			continue
-		case vantageUnavailableCause:
+		}
+		if decodeReachability(row.Value).Cause == vantageUnavailableCause {
 			// unavailableVantageMessages carries this cause off its own read (#2090).
 			continue
 		}
