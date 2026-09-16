@@ -13,8 +13,8 @@ import (
 )
 
 // ADR-2087 rules Alternative B, write time. The rule is one SQL statement and no Go
-// production code, so its proof is the statement's text: this repository has no
-// Postgres-backed test harness, and #2166 tracks the gap.
+// production code, so these read its text. internal/dbtest runs that statement against
+// a real PostgreSQL, which is where its execution is proved (#2166).
 
 const gapCause = `"cause":"vantage-unavailable"`
 
