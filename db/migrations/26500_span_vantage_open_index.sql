@@ -28,10 +28,11 @@
 --
 -- Built inside goose's transaction rather than CONCURRENTLY. The SHARE lock blocks the
 -- worker's span writes for the build, and compose starts worker off `postgres: service_healthy`
--- rather than off web, so a deploy can stall a live job. CONCURRENTLY needs
--- `-- +goose NO TRANSACTION`, which this repo has never used: a failed build then leaves an
--- INVALID index whose name blocks the re-run, and no runbook covers clearing it. A bounded
--- stall was taken over an unattended failure mode.
+-- rather than off web, so a deploy can stall a live job. CONCURRENTLY needs the no-transaction
+-- annotation, which this repo has never used: a failed build then leaves an INVALID index whose
+-- name blocks the re-run, and no runbook covers clearing it. A bounded stall was taken over an
+-- unattended failure mode. Do not spell that annotation here, even quoted: goose parses any
+-- comment line beginning with its marker and refuses the file.
 CREATE INDEX span_vantage_open_idx ON span (vantage_id) WHERE closed_at IS NULL;
 
 -- +goose Down
