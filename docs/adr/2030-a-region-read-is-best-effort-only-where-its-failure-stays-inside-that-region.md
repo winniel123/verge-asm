@@ -93,7 +93,7 @@ reporting that the read did not resolve, and a header reporting no severity at a
 the claim an operator reads first.
 
 The covering-seed lookup on the same page took the same half. `server.assetProvenance` returns its
-error and the provenance card renders a citation note, while the header's `in scope since` line
+error and the provenance card renders a citation note, while the header's `covered since` line
 derives from the same read and vanishes with nothing said.
 
 The region end is not the whole remedy. That is the rule.
@@ -157,8 +157,8 @@ counts two. It was taken after #1951, #2017 and #2029 landed.
 | `cmd/web/subjects.go#server.assetPorts` | 1 | the ports table | the header's internet-leg chip | loud, so neither end |
 | `cmd/web/subjects.go#server.serviceReachLegs` | 1 | the Reachability card | the header's internet-leg chip | loud, so neither end |
 | `cmd/web/subjects.go#server.assetSignals` | 2 | the signals card | the header's severity badge | remedied |
-| `cmd/web/subjects.go#server.assetProvenance` | 2 | the provenance card's Seed row | the header's `in scope since` line | remedied |
-| `cmd/web/subjects.go#server.buildEndpointCitation` and `#server.buildServiceCitation` | 2 | the citation hops and the provenance card | the header's `in scope since` line | not remedied |
+| `cmd/web/subjects.go#server.assetProvenance` | 2 | the provenance card's Seed row | the header's `covered since` line | remedied |
+| `cmd/web/subjects.go#server.buildEndpointCitation` and `#server.buildServiceCitation` | 2 | the citation hops and the provenance card | the header's `covered since` line | not remedied |
 | `cmd/web/subjects.go#server.buildTimelines` | 2 | the timelines card | the provenance card's first-seen line | not remedied |
 | `cmd/web/search.go#server.searchPage` | 1 | the signals results | a per-asset severity, the result total, the nav badge | not remedied |
 | `cmd/web/graph.go#server.graphPage` | 1 | the graph | the per-node severity badges | not remedied |
