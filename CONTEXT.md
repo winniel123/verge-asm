@@ -1227,8 +1227,9 @@ transition is the event rather than the column value — a resolver-only vantage
 still transitions. The same write closes **every open span the vantage fed, whatever
 the facet**, and opens a `Gap` carrying the cause `vantage-unavailable`
 behind each one. **Every facet, never `Reach` alone**: one per-vantage scalar moves, and every
-facet is read per vantage, so a facet added later needs no edit here and none at the write
-(ADR-2087, #2137, #2144). The exclusion lives at that write and nowhere else
+facet is read per vantage, so a facet added later needs no edit here and none at the **outage**
+write (ADR-2087, #2137, #2144). The **recovery** write names its facets, and a new one is an edit
+there — see below. The exclusion lives at the outage write and nowhere else
 — **no composition read carries an availability predicate**, because filtering the cross-class
 denominator would conclude from the survivor, the reading
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) refuses. So `Exposure` that would
@@ -1237,7 +1238,15 @@ the `Vantage` it belongs to is Declared — we
 never measured the vantage, we inferred it from what failed. **The derivation is produced from
 terminal `Batch` outcomes** ([ADR-0108](./docs/adr/0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md)).
 A **completed** `Batch` restores it to `available` and a **dead-lettered** one opens it to
-`unavailable`, in the same transaction that writes the batch. Two scopings keep the single per-vantage
+`unavailable`, in the same transaction that writes the batch. The two writes are **not symmetric in
+reach**. The outage closes every open span whatever the facet; the recovery retires the
+`vantage-unavailable` `Gap` **only on the facets the recovering batch re-measured** — a
+`resolution-walk` re-reads `resolution` and `dns-record`, and nothing else — because a resolver
+signal must not retire a `reachability`, `certificate`, `tls-acceptance` or `http-identity` `Gap`
+that nothing looked at again. So a timeline that receives no further batch of its own facet
+**holds its outage `Gap` open** after
+the vantage has recovered, until a batch of that facet writes over it
+([#2189](https://github.com/winniel123/verge-asm/issues/2189)). Two scopings keep the single per-vantage
 scalar honest. It moves only where the batch carries a real `Vantage` — the worker-read `zone` and
 `ct` `Scan`s have none and move it nowhere. And it moves only from a **`resolution-walk` (`dns`) `Batch`**, the
 one `Scan` that exercises the resolver. A completing **port probe** (`hot`/`cold`/`tls-acceptance`) at
