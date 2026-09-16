@@ -4265,7 +4265,7 @@
         {
           "value": "",
           "label": "Not connected",
-          "hint": "no delivery target"
+          "hint": "no channel bound"
         },
         {
           "value": "ops",
