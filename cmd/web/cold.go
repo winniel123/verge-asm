@@ -259,9 +259,10 @@ func (s *server) readCoverageGapLedger(ctx context.Context) coverageGapLedger {
 		log.Printf("web: coverage: open reach gap services: %v", err)
 	}
 	if rows, err := s.coldStore.ListOutageReachGapVantages(ctx); err == nil {
-		l.Gaps = append(l.Gaps, outageGapViews(rows)...)
+		gaps, msgs := outageGapViews(rows)
+		l.Gaps, l.Messages = append(l.Gaps, gaps...), append(l.Messages, msgs...)
 	} else {
-		l.GapsFailed = true
+		l.GapsFailed, l.MessagesFailed = true, true
 		log.Printf("web: coverage: outage reach gap vantages: %v", err)
 	}
 	if rows, err := s.coldStore.ListUnavailableVantages(ctx); err == nil {
@@ -516,22 +517,36 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 	return gaps, msgs
 }
 
-func outageGapViews(rows []db.ListOutageReachGapVantagesRow) []coverageGapView {
-	out := make([]coverageGapView, 0, len(rows))
+func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView, []coverageMessageView) {
+	gaps := make([]coverageGapView, 0, len(rows))
+	var msgs []coverageMessageView
 	for _, v := range rows {
 		unit := "services"
 		if v.Services == 1 {
 			unit = "service"
 		}
-		out = append(out, coverageGapView{
-			Subject: "vantage " + v.Vantage,
+		subject := "vantage " + v.Vantage
+		expected := fmt.Sprintf("a reach reading for %d %s", v.Services, unit)
+		if v.Recovered {
+			// Recovery retires the Gap only on the facets it re-read (ADR-2087, #2189).
+			expected += ", pending"
+			msgs = append(msgs, coverageMessageView{
+				Kind:    "gap",
+				Badge:   "outage",
+				Subject: subject,
+				Text: "This position has recovered. The Gap its outage opened stands until the next reach " +
+					"batch writes over it, so the reading is pending rather than one we cannot take.",
+			})
+		}
+		gaps = append(gaps, coverageGapView{
+			Subject: subject,
 			// The badge names the cause the span recorded, not the vantage's present availability.
 			Gap:      "outage",
-			Expected: fmt.Sprintf("a reach reading for %d %s", v.Services, unit),
+			Expected: expected,
 			Since:    "—",
 		})
 	}
-	return out
+	return gaps, msgs
 }
 
 func unavailableVantageMessages(rows []db.ListUnavailableVantagesRow) []coverageMessageView {

@@ -295,3 +295,48 @@ func messageFor(msgs []coverageMessageView, subject string) coverageMessageView 
 	}
 	return coverageMessageView{}
 }
+
+func TestCoverageSaysARecoveredVantagesOutageGapIsPending(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "local", Class: "internet", Resolver: "127.0.0.11:53",
+		Availability: pgtype.Text{String: "available", Valid: true},
+	})
+	f.vantageNextID = 2
+	f.addClassReachability(t, "198.51.100.9:443/tcp", "internet", obsClock, unavailableGap)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	if !strings.Contains(page, "1 service, pending") {
+		t.Errorf("a recovered vantage's outage row must say the reading is pending (#2189); body: %s", page)
+	}
+	if !strings.Contains(page, "This position has recovered") {
+		t.Errorf("Coverage must tell a recovered position from one we cannot look from (#2189); body: %s", page)
+	}
+}
+
+func TestOutageGapViewsLeaveADarkVantagesRowUnqualified(t *testing.T) {
+	gaps, msgs := outageGapViews([]db.ListOutageReachGapVantagesRow{
+		{Vantage: "dark", Services: 2, Recovered: false},
+		{Vantage: "back", Services: 1, Recovered: true},
+	})
+
+	if len(gaps) != 2 {
+		t.Fatalf("both positions still hold an open Gap, so both take a row (#2189): %+v", gaps)
+	}
+	if gaps[0].Expected != "a reach reading for 2 services" {
+		t.Errorf("a position we still cannot look from must not read as pending (#2189): %+v", gaps[0])
+	}
+	if gaps[1].Expected != "a reach reading for 1 service, pending" {
+		t.Errorf("a recovered position's row must say the reading is pending (#2189): %+v", gaps[1])
+	}
+	if gaps[0].Gap != "outage" || gaps[1].Gap != "outage" {
+		t.Errorf("the badge names the cause the span recorded, for both (#2180): %+v", gaps)
+	}
+	if len(msgs) != 1 || msgs[0].Subject != "vantage back" {
+		t.Fatalf("only the recovered position earns the pending message (#2189): %+v", msgs)
+	}
+}
