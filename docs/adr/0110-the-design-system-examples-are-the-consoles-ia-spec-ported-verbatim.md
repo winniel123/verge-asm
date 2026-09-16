@@ -74,7 +74,7 @@ where a verbatim port is both cheaper and more faithful. The user ratified the r
 > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
 > `ConsoleApp.jsx:95` passes no `orgs`, so the shell spec never instantiated a switcher, and
 > [ADR-0181](./0181-the-deployment-is-single-tenant-so-no-organisation-is-modelled-and-the-shell-ships-a-static-chip.md)
-> rules that no `Organisation` is modelled. The rest of this Decision stands.
+> rules that no `Organisation` is modelled.
 >
 > **The `screenshots/` clause is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
 > [#1450](https://github.com/winniel123/verge-asm/issues/1450)
@@ -85,7 +85,7 @@ where a verbatim port is both cheaper and more faithful. The user ratified the r
 > `design-system/templates/`, which
 > [ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md)
 > makes the source of truth. No byte-compare checks a console screen now. The Consequences section
-> below strikes the same fact at its own site. The rest of this Decision stands.
+> below strikes the same fact at its own site.
 
 This reverses exactly one clause and nothing else. Every other guardrail in
 `docs/agents/design-system.md` stands unchanged:
@@ -132,8 +132,7 @@ This reverses exactly one clause and nothing else. Every other guardrail in
   > so the mechanism this bullet prescribes no longer exists. The Accepted ADR that states the
   > replacing rule is
   > [ADR-0145](0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md);
-  > `CLAUDE.md` and [`docs/agents/design-system.md`](../agents/design-system.md) restate it. The
-  > rest of this Decision stands: the console screens are still the IA spec, ported verbatim.
+  > `CLAUDE.md` and [`docs/agents/design-system.md`](../agents/design-system.md) restate it.
 
 The scope of the port is the console only (`cmd/web`). The marketing `Homepage.jsx` and `DocsPage.jsx`
 have no serving surface in-repo and are out of scope.
