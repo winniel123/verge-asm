@@ -38,7 +38,7 @@
                   },
                   {
                     "type": "TXT",
-                    "data": "verge-custody=vg1:9f3k…"
+                    "data": "v=spf1 -all"
                   }
                 ]
               }

@@ -15,7 +15,7 @@ const GROUPS = [
   { kind: "name", label: "Names", type: "Name", subjects: [
     { key: "www.acmecorp.io", facets: [
       { label: "resolution \u00b7 internal", summary: "A \u00b7 2 addresses", since: "2026-07-14", records: [{ type: "A", data: "198.51.100.7" }, { type: "A", data: "198.51.100.8" }] },
-      { label: "dns-records \u00b7 TXT", summary: "CNAME \u00b7 TXT", since: "2026-07-14", records: [{ type: "CNAME", data: "edge.acmecorp.io" }, { type: "TXT", data: "verge-custody=vg1:9f3k\u2026" }] },
+      { label: "dns-records \u00b7 TXT", summary: "CNAME \u00b7 TXT", since: "2026-07-14", records: [{ type: "CNAME", data: "edge.acmecorp.io" }, { type: "TXT", data: "v=spf1 -all" }] },
     ] },
     { key: "api.acmecorp.io", facets: [
       { label: "resolution \u00b7 internal", summary: "A \u00b7 203.0.113.44", since: "2026-06-02" },
