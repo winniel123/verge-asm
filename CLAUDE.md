@@ -166,13 +166,48 @@ One process at a time holds the port. Stop the running server before you start a
 
 ### Running the checks
 
-Run the gating checks natively:
+Four required checks are reproducible here: `test`, commentlint's `lint`, `citations`, and `adr-sections`. Run every one your change can reach. `staticcheck`, `gosec`, `govulncheck`, `gitleaks` and `sqlc` have no recipe in this section yet.
+
+**The Go gates.** Part of the required `test` job, which also runs `scripts/check-go-pins.sh --mode ci`.
 
 ```sh
-go vet ./... && go test ./... -count=1
+test -z "$(gofmt -l .)" && go vet ./... && go test ./... -count=1
 ```
 
-Run them in the container instead when you want CI's exact image:
+`gofmt -l` exits 0 whether or not it names a file, so the output is the signal. A bare `gofmt -l . && …` chain always proceeds and reports success on an unformatted tree.
+
+**commentlint.** The required `lint` job. It lints the files the pull request changed, so reproduce its file set from the diff against `main`, not from `git status`:
+
+```sh
+git fetch origin main
+readarray -t changed < <(git diff --name-only --diff-filter=ACMRT origin/main...HEAD)
+go run ./cmd/commentlint lint --in-scope-only "${changed[@]}"
+```
+
+That is the job's own command, less `--github`. Exit 1 is a violation and exit 2 is a lex failure; both fail the job. Five facts decide whether your run matches the job's.
+
+- **The diff, not the working tree.** A run over uncommitted files alone never lints a branch whole. Re-run the sweep after every commit. Fetch first: a worktree's `origin/main` goes stale, and a stale base inflates the file set with work that already merged.
+- **Not only `.go`.** In scope: `.go`, `.mjs`, `.ts`, `.jsx`, `.tmpl`, `.css`, and `.sql` under `db/queries/`. Out: `internal/db/`, `prototypes/`, any `node_modules`, and a `.sql` file under `db/migrations/` — but a `.go` file under `db/migrations/` is in scope. `.html` and `.astro` are refused outright. A branch that touches no Go file still faces this job.
+- **`.jsx` lexes through esbuild**, which lives in `docs-site/node_modules`. Without it the lexer errors and the run exits 2. Link that directory before you lint a `.jsx` file.
+- **The tool names more rules than the comment policy does.** Beyond `go-decl-comment`, `change-narration`, `todo-marker`, `citation-over-one-line` and `column-over-cap`, every delete-set class is its own rule id: `short-label`, `section-divider`, `commented-out-code`, `docstring-exported-conventional`, `docstring-unexported`. Read the rule id the tool prints rather than guessing which rule you hit.
+- **The 100-column cap measures the widest source line the comment block spans**, not the comment's own width. A five-character trailing comment on a 102-column code line trips `column-over-cap`, and wrapping the comment does not clear it. Declaration position stays empty, and a cited comment fits on one line, because contiguous comment lines lex as one block.
+
+`commentlint verify --base <ref>` is a different tool with a different job. It proves a diff moved no non-comment byte, so it reports `changed` for any file that also carries a code edit. It fits a pure comment sweep and nothing else.
+
+**The Node doc gates.** Put Node on `PATH`, keep Go on it too, and give the worktree a `docs-site/node_modules` the way "Building docs-site locally" above describes. `check:citations` shells out to `go run ./cmd/godecls` for its Go anchors, and an absent toolchain makes it exit 2 rather than return a verdict.
+
+```sh
+export PATH=$HOME/.nvm/versions/node/v22.23.2/bin:$PATH
+cd docs-site
+npm run -s check:citations
+npm run -s check:adr-sections && npm run -s check:adr-index && npm run -s check:adr-markers
+```
+
+The `adr-sections` job runs all three of those, so `check:adr-sections` alone leaves a stale `docs/adr/index.json` or a hand-edited marker to fail the merge. Regenerate the index with `npm run write:adr-index`.
+
+`check:citations` reads a pull-request body for its `Site` arm, so a local run reports that it judged no `Site` field and gates everything else normally. The fourth Node check, `adr-review`, has no local run at all: `npm run -s check:adr-review` exits 2 with `GITHUB_EVENT_PATH and GITHUB_REPOSITORY are required`.
+
+Run the Go gates in the container instead when you want CI's exact image:
 
 ```sh
 docker run --rm \
