@@ -221,6 +221,8 @@ type Querier interface {
 	// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
 	ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error)
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
+	// One row per position, never one per service: an outage Gaps thousands at once (#2180).
+	ListOutageReachGapVantages(ctx context.Context) ([]ListOutageReachGapVantagesRow, error)
 	ListPendingNameSeedWithdrawals(ctx context.Context) ([]ListPendingNameSeedWithdrawalsRow, error)
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
 	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)

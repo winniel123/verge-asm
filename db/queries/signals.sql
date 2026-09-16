@@ -157,6 +157,20 @@ WHERE sp.subject_kind = 'service'
   AND sp.is_gap = TRUE
 ORDER BY sp.subject_key, sp.id;
 
+-- name: ListOutageReachGapVantages :many
+-- One row per position, never one per service: an outage Gaps thousands at once (#2180).
+SELECT v.name AS vantage,
+       count(*)::bigint AS services
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+  AND sp.is_gap = TRUE
+  AND sp.value ->> 'cause' = 'vantage-unavailable'
+GROUP BY v.name
+ORDER BY v.name;
+
 -- name: ListEndpointCertificates :many
 WITH cover AS (
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
