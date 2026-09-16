@@ -50,15 +50,17 @@ SAN *"raise[s] the count by zero"* — but in the shared-edge reduction, a diffe
 `internal/queue/edgefanout.go` returns `cert.DNSNames` alone. A search of `docs/spec/`,
 `docs/adr/`, `docs/guides/`, `docs/research/` and `CONTEXT.md` returns nothing for either rule here.
 
-**The code, verified in this tree.** `selfSignedOf` is `cmd/web/signals.go` and its body
-is `return subject == issuer && selfSigVerifies`. The two strings are not DER: they are
+**The code, verified in this tree.** `SelfSignedOf` is
+`internal/signalfacts/signalfacts.go#SelfSignedOf` and its body is
+`return subject == issuer && selfSigVerifies`. The two strings are not DER: they are
 `pkix.Name.String()` renderings taken at measure time (`internal/measure/connectoutcome/tls.go`,
 `:204`), carried as `chain_certs[].subject` and `.issuer` and decoded at `cmd/web/signals.go`.
 That rendering discards the ASN.1 string type and emits the nine standard attribute types in a fixed
 order, so it is neither raw bytes nor RFC 5280 §7.1. `selfSigVerifies` does come from
-`CheckSignatureFrom` — `tls.go:201` — captured in-leaf and stored at `:205`. Two callers, both in
-this file: `certDetailsFromValue` on `chain_certs[0]` at `:1076`, and `weakKeyOrSignature` per link
-at `:1171`. There is no third outside the test.
+`CheckSignatureFrom` — `tls.go:201` — captured in-leaf and stored at `:205`. Two callers:
+`internal/signalfacts/signalfacts.go#CertDetailsFromValue` on `chain_certs[0]`, and
+`internal/signalfacts/signalfacts.go#WeakKeyOrSignature` per link. There is no third outside the
+test.
 
 **`san_ip` is captured and read by nothing.** `tls.go:165-168` renders every `leaf.IPAddresses`
 entry, `certificate.go:63` emits it, `cmd/web/signals.go` decodes it — and no expression reads

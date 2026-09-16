@@ -69,7 +69,7 @@ Seven production sites construct an `http.Client`. Three refuse a redirect and f
 | --- | --- | --- | --- | --- |
 | `internal/measure/httpexchange/exchange.go#NetExchanger.Exchange` | a measured `Endpoint` | Yes | [`v1-spec.md`](../spec/v1-spec.md) §3.3 line 186, [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) line 372, ADR-0148 | `TestRedirectIsRecordedButNotFollowed` (`internal/measure/httpexchange/leaf_test.go`) |
 | `internal/delivery/runner.go` | an operator-declared channel | Yes | [`notification-channels.md`](../spec/notification-channels.md) §4, ADR-0119 | `TestHTTPDoerRefusesRedirects` (`internal/delivery/delivery_test.go`) |
-| `internal/queue/crtsh.go#HTTPCTFetcher` | crt.sh and Cert Spotter | Yes | **Nowhere** — this ADR | `TestHTTPCTFetcherDoesNotFollowRedirect` (`internal/queue/crtsh_test.go#TestHTTPCTFetcherDoesNotFollowRedirect`) |
+| `internal/queue/crtsh.go` | crt.sh and Cert Spotter | Yes | **Nowhere** — this ADR | `TestHTTPCTFetcherDoesNotFollowRedirect` (`internal/queue/crtsh_test.go#TestHTTPCTFetcherDoesNotFollowRedirect`) |
 | `internal/release/fetcher.go#NewHTTPDoer` | `api.github.com`'s release feed | **No** | Nowhere | None |
 | `cmd/web/handlers.go#newServer` | ARIN RDAP, CAIDA, the RIR delegated stats | **No** | Nowhere | None |
 | `cmd/web/handlers.go#newServer` | an OIDC issuer's discovery and token endpoints | **No** | Nowhere | None |

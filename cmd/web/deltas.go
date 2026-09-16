@@ -11,7 +11,6 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
-	"github.com/winniel123/verge-asm/internal/exposure"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
@@ -32,10 +31,11 @@ type statDeltas struct {
 	AssetsWatched drift.Delta
 	Exposed       drift.Delta
 	Firewalled    drift.Delta
-	NotReached    drift.Delta
+	OneLegged     drift.Delta
 	CertsExpiring drift.Delta
 	OpenSignals   drift.Delta
 	Critical      drift.Delta
+	ExposureKnown bool // A later leg's failure may not blank the Exposed tile's figure (#2046).
 	Known         bool
 }
 
@@ -76,16 +76,28 @@ func spanFromOpenSinceRow(row db.ListSpansOpenSinceRow) drift.Span {
 }
 
 func (s *server) dashboardDeltas(ctx context.Context, fired []firedSignal) statDeltas {
-	prevAt, ok, err := s.previousBatchInstant(ctx)
+	prevAt, hasPrev, err := s.previousBatchInstant(ctx)
 	if err != nil {
+		// The tile's figure needs no previous batch, so this failure may not blank it (#2046).
 		log.Printf("web: dashboard: previous batch instant: %v", err)
-		return statDeltas{}
-	}
-	if !ok {
-		return statDeltas{}
+		hasPrev = false
 	}
 
-	out := statDeltas{Known: true}
+	// The Exposed tile reads its figure from this Current, so no second binding is taken (#2046).
+	exposed, firewalled, oneLegged, eok := s.exposureCountDeltas(ctx, prevAt)
+	if !eok {
+		return statDeltas{}
+	}
+	if !hasPrev {
+		// No instant to compare against, so the figure renders and no change does.
+		return statDeltas{Exposed: drift.Delta{Current: exposed.Current}, ExposureKnown: true}
+	}
+	exposureOnly := statDeltas{
+		Exposed: exposed, Firewalled: firewalled, OneLegged: oneLegged, ExposureKnown: true,
+	}
+
+	out := exposureOnly
+	out.Known = true
 
 	if rows, serr := s.deltasStore.ListSpansOpenSince(ctx, pgtypeTimestamptz(prevAt)); serr == nil {
 		all := make([]drift.Span, 0, len(rows))
@@ -104,19 +116,13 @@ func (s *server) dashboardDeltas(ctx context.Context, fired []firedSignal) statD
 		}
 	} else {
 		log.Printf("web: dashboard: list spans open since: %v", serr)
-		return statDeltas{}
-	}
-
-	if exposed, firewalled, notReached, eok := s.exposureCountDeltas(ctx, prevAt); eok {
-		out.Exposed, out.Firewalled, out.NotReached = exposed, firewalled, notReached
-	} else {
-		return statDeltas{}
+		return exposureOnly
 	}
 
 	open, critical, serr := s.signalDeltas(ctx, fired, prevAt)
 	if serr != nil {
 		log.Printf("web: dashboard: signal deltas: %v", serr)
-		return statDeltas{}
+		return exposureOnly
 	}
 	out.OpenSignals, out.Critical = open, critical
 
@@ -200,10 +206,14 @@ func (s *server) readExposureLegs(ctx context.Context, prevAt time.Time) (exposu
 		log.Printf("web: exposure delta: list reachability by class: %v", err)
 		return exposureLegs{}, false
 	}
-	past, err := s.deltasStore.ListServiceReachabilitySpansByClassAt(ctx, pgtypeTimestamptz(prevAt))
-	if err != nil {
-		log.Printf("web: exposure delta: list reachability by class at: %v", err)
-		return exposureLegs{}, false
+	var past []db.ListServiceReachabilitySpansByClassAtRow
+	// A zero instant names no previous batch, and the snapshot behind one is empty (#2046).
+	if !prevAt.IsZero() {
+		past, err = s.deltasStore.ListServiceReachabilitySpansByClassAt(ctx, pgtypeTimestamptz(prevAt))
+		if err != nil {
+			log.Printf("web: exposure delta: list reachability by class at: %v", err)
+			return exposureLegs{}, false
+		}
 	}
 	// One binding holds both snapshots, so a scope edit moves both legs (ADR-1895 §4, ADR-1945 §2).
 	covered, err := s.addressScopeCovered(ctx)
@@ -218,49 +228,18 @@ func (s *server) readExposureLegs(ctx context.Context, prevAt time.Time) (exposu
 	}, true
 }
 
-func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exposed, firewalled, notReached drift.Delta, ok bool) {
+func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exposed, firewalled, oneLegged drift.Delta, ok bool) {
 	legs, ok := s.readExposureLegs(ctx, prevAt)
 	if !ok {
 		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
 	}
 
-	cur := projectStatsFromLegs(collapseReachLegs(legs.cur, legs.covered))
-	prev := projectStatsFromLegs(collapseReachLegs(legs.prev, legs.covered))
-	return drift.Delta{Current: cur.exposed, Previous: prev.exposed},
-		drift.Delta{Current: cur.firewalled, Previous: prev.firewalled},
-		drift.Delta{Current: cur.notReached, Previous: prev.notReached},
+	cur := censusFromLegs(collapseReachLegs(legs.cur, legs.covered))
+	prev := censusFromLegs(collapseReachLegs(legs.prev, legs.covered))
+	return drift.Delta{Current: cur.Exposed, Previous: prev.Exposed},
+		drift.Delta{Current: cur.Firewalled, Previous: prev.Firewalled},
+		drift.Delta{Current: cur.OneLegged, Previous: prev.OneLegged},
 		true
-}
-
-func projectStatsFromLegs(byService map[string]map[string]legInfo) exposureStats {
-	var stats exposureStats
-	for _, m := range byService {
-		ev, ok := exposure.Project(legFrom(m["internet"]), legFrom(m["internal"]))
-		switch {
-		case !ok:
-			stats.notReached++
-		case ev == exposure.Exposed:
-			stats.exposed++
-		case ev == exposure.Firewalled:
-			stats.firewalled++
-		}
-	}
-	return stats
-}
-
-func (s *server) currentExposedCount(ctx context.Context) (int, bool) {
-	// A withheld delta carries no Current, so the cell derives the value the same way.
-	rows, err := s.deltasStore.ListServiceReachabilitySpansByClass(ctx)
-	if err != nil {
-		log.Printf("web: dashboard: exposed services count: %v", err)
-		return 0, false
-	}
-	covered, err := s.addressScopeCovered(ctx)
-	if err != nil {
-		log.Printf("web: dashboard: address scope coverage: %v", err)
-		return 0, false
-	}
-	return projectStatsFromLegs(collapseReachLegs(reachRowsFromCurrent(rows), covered)).exposed, true
 }
 
 func (s *server) currentCertsExpiring(ctx context.Context) (int, bool) {

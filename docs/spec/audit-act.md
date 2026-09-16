@@ -504,11 +504,11 @@ username`, so a create-time rule would have no rename backdoor.)
    else does — not cost, and not a new grant kind.
 
 **Two costs, stated rather than hidden.** `[thin]` `@` is an **infix** in this system today
-(`{{.RuleID}}@{{.RuleVersion}}` at `design-system/templates/coverage.tmpl#coverage`,
-`{{$p.Username}}@{{$p.Endpoint}}` at `settings.tmpl:513`), so prefix position is a new use of a
-character that currently means *joins two things*. Judged acceptable, because the second operand is
-absent. And the same person reads `@alice` on Audit and `alice` on Team. That is the price of holding
-the mark to the corpus that needs it.
+(`{{.ID}}@{{.Version}}` at `design-system/templates/coverage.tmpl#coverage`,
+`{{$p.Username}}@{{$p.Endpoint}}` at `design-system/templates/settings.tmpl#settings-vantages`), so
+prefix position is a new use of a character that currently means *joins two things*. Judged
+acceptable, because the second operand is absent. And the same person reads `@alice` on Audit and
+`alice` on Team. That is the price of holding the mark to the corpus that needs it.
 
 **Component choice, measured.** `st-badge` carries **state** in this system — `enrolled`, `enabled`,
 `set` (`settings.tmpl:586,587,681`), each with a status dot. `st-tag` carries a **kind** —
@@ -1559,8 +1559,10 @@ For `/to-tickets`. Each ticket is one session and one PR.
 9. **The withdrawal set (§8).** ADR sites, `CONTEXT.md`, the two closed issues, the guides, the specs,
    the prototype note. `CONTEXT.md` rides with ticket 1, not with this one (§10).
 
-**Unblock [#1720](https://github.com/winniel123/verge-asm/issues/1720) when this SPEC lands** — it is
-the SSO audit-write ticket, blocked on this chart since 2026-09-09.
+**[#1720](https://github.com/winniel123/verge-asm/issues/1720) is unblocked and closed** — the SSO
+audit-write ticket was blocked on this chart from 2026-09-09. It closed on 2026-09-11 with
+[#1833](https://github.com/winniel123/verge-asm/issues/1833), which landed in
+[#1852](https://github.com/winniel123/verge-asm/pull/1852).
 
 ---
 

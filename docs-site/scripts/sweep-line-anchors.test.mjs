@@ -6,15 +6,16 @@ import { dirname, join, resolve } from "node:path";
 import { parse } from "./doclint/engine.mjs";
 import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
 import { ROWS } from "./citations/rows.mjs";
-import { derive, splitToken } from "./sweep/derive.mjs";
+import { derive, resolveBasename, splitToken } from "./sweep/derive.mjs";
 import { rewriteDocument, replacementFor, trailingGlue, namesAnotherSite } from "./sweep/rewrite.mjs";
 import { auditAnchors, countByFamily } from "./sweep/audit.mjs";
 import { familyOf } from "./citations/scope.mjs";
-import { trackedExtensions } from "./citations/classify.mjs";
+import { trackedBasenames, trackedExtensions } from "./citations/classify.mjs";
 import {
   selectFiles,
   planFor,
   scanDocuments,
+  pathsNamedIn,
   reportRecord,
   auditRecord,
 } from "./sweep-line-anchors.mjs";
@@ -46,9 +47,12 @@ function envFor(paths) {
     for (let i = 1; i < parts.length; i++) dirs.add(parts.slice(0, i).join("/"));
   }
   const extensions = trackedExtensions({ files });
+  const basenames = trackedBasenames({ files });
   return {
     repoRoot: REPO_ROOT,
     tracked: { files, dirs },
+    basenames,
+    knownFile: (base) => basenames.has(base),
     extensions,
     roots: new Set([...files].map((f) => f.split("/")[0])),
     exempt: () => null,
@@ -61,8 +65,8 @@ const AT_FIXTURE = ROWS.map((row) => ({
   matches: (p) => p.startsWith(`${FIXTURE}/`) && row.matches(p.slice(FIXTURE.length + 1)),
 }));
 
-function hit(token, { file = "docs/spec/fixture.md", line = 1, lineText } = {}) {
-  return { token, file, line, kind: "code", start: 0, end: token.length + 2, lineText };
+function hit(token, { file = "docs/spec/fixture.md", line = 1, lineText, namedInDocument } = {}) {
+  return { token, file, line, kind: "code", start: 0, end: token.length + 2, lineText, namedInDocument };
 }
 
 function run(files, tokens) {
@@ -659,4 +663,66 @@ test("the audit counts a row that could not run apart from a missing vocabulary"
   assert.equal(judged.length, 7);
   assert.ok(judged.every((a) => a.verdict === "unreadable"));
   assert.match(judged[0].detail, /the go row could not run: godecls did not finish/);
+});
+
+// The two forms #2120 reached: the sweep resolves one against the tree and holds the other.
+
+test("a path-less token is held, because degrading it would write an empty citation", () => {
+  const paths = fixture({ "go/one.go": "package one\n\nfunc One() {}\n" });
+  const [result] = derive(REPO_ROOT, envFor(paths), [hit(":3")], AT_FIXTURE);
+  assert.equal(result.outcome, "held");
+  assert.match(result.reason, /spells no path/);
+  assert.equal(replacementFor(result), "");
+});
+
+test("a slashless token resolves against the one file of that name in the tree", () => {
+  const paths = fixture({ "go/one.go": "package one\n\nfunc One() {}\n" });
+  const [result] = derive(REPO_ROOT, envFor(paths), [hit("one.go:3")], AT_FIXTURE);
+  assert.equal(result.outcome, "anchor");
+  assert.equal(replacementFor(result), `${FIXTURE}/go/one.go#One`);
+});
+
+test("a basename several directories carry resolves only against the document's own paths", () => {
+  const env = envFor(["a/x/one.go", "a/y/one.go", "a/z/two.go"]);
+  assert.deepEqual(resolveBasename(env, "two.go", new Set()), { path: "a/z/two.go" });
+  assert.match(resolveBasename(env, "gone.go", new Set()).reason, /holds no file named gone\.go/);
+  assert.match(resolveBasename(env, "one.go", new Set()).reason, /names none of them/);
+  assert.deepEqual(resolveBasename(env, "one.go", new Set(["a/y/one.go"])), { path: "a/y/one.go" });
+  const both = new Set(["a/x/one.go", "a/y/one.go"]);
+  assert.match(resolveBasename(env, "one.go", both).reason, /names several/);
+});
+
+test("a slashless token the document cannot place is held, and never guessed", () => {
+  const paths = fixture({
+    "go/one.go": "package one\n\nfunc One() {}\n",
+    "go2/one.go": "package one\n",
+  });
+  const [result] = derive(REPO_ROOT, envFor(paths), [hit("one.go:3")], AT_FIXTURE);
+  assert.equal(result.outcome, "held");
+  assert.match(result.reason, /2 files named one\.go/);
+
+  const named = new Set([`${FIXTURE}/go/one.go`]);
+  const placed = derive(
+    REPO_ROOT,
+    envFor(paths),
+    [hit("one.go:3", { namedInDocument: named })],
+    AT_FIXTURE,
+  );
+  assert.equal(placed[0].outcome, "anchor");
+  assert.equal(replacementFor(placed[0]), `${FIXTURE}/go/one.go#One`);
+});
+
+test("a document places a basename by the full paths it writes, and the tree confirms each", () => {
+  const env = envFor(["cmd/web/cold.go", "internal/queue/cold.go"]);
+  const prose = "Read `cmd/web/cold.go` and `docs/gone/none.go`, then `cold.go:12`.";
+  assert.deepEqual([...pathsNamedIn(prose, env)], ["cmd/web/cold.go"]);
+  assert.deepEqual([...pathsNamedIn("no path here", env)], []);
+  assert.deepEqual([...pathsNamedIn("anything", null)], []);
+  // An ADR cross-links relatively, so the commonest spelling resolves against the citing document.
+  const rel = "See [web](../../cmd/web/cold.go) and [queue](./cold.go).";
+  assert.deepEqual([...pathsNamedIn(rel, env, "internal/queue/notes.md")], [
+    "cmd/web/cold.go",
+    "internal/queue/cold.go",
+  ]);
+  assert.deepEqual([...pathsNamedIn(rel, env)], []);
 });

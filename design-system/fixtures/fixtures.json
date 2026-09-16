@@ -1378,7 +1378,7 @@
     "sev_label": "Critical",
     "internet_leg": "reached",
     "seen": "4m",
-    "in_scope_since": "2026-06-14",
+    "covered_since": "2026-06-14",
     "withdrawn": false,
     "ports": [
       {
@@ -1419,7 +1419,7 @@
       },
       {
         "type": "TXT",
-        "value": "verge-custody=vg_7f2a91c4",
+        "value": "v=spf1 -all",
         "seen": "6h"
       }
     ],
@@ -1448,7 +1448,7 @@
       },
       {
         "k": "Custody",
-        "v": "verified · TXT record"
+        "v": "operator · custody extension"
       },
       {
         "k": "First seen",
@@ -1503,7 +1503,7 @@
       "internal_leg": "reached",
       "internet_leg": "reached",
       "seen": "4m",
-      "in_scope_since": "2026-08-22",
+      "covered_since": "2026-08-22",
       "citation": [
         {
           "label": "Service",
@@ -1615,7 +1615,7 @@
       "copy_key": "203.0.113.29:8080 tcp",
       "withdrawn": true,
       "seen": "12d",
-      "in_scope_since": "2026-07-18",
+      "covered_since": "2026-07-18",
       "citation": [
         {
           "label": "Service",
@@ -1693,7 +1693,7 @@
       "nameless": false,
       "withdrawn": false,
       "seen": "4m",
-      "in_scope_since": "2026-06-14",
+      "covered_since": "2026-06-14",
       "citation": [
         {
           "label": "Endpoint",

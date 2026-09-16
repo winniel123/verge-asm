@@ -452,10 +452,6 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err != nil {
 			return err
 		}
-		// A port probe must not clobber a resolver outage, so this is dns-scoped (ADR-0108).
-		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeCompleted); err != nil {
-			return err
-		}
 		observedAt := w.now().UTC()
 		for _, p := range toObservationParams(batchID, job.VantageID, tstz(observedAt), obs) {
 			if err := qtx.InsertObservation(ctx, p); err != nil {
@@ -501,6 +497,10 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		}
 		// The delete destroys the mover, so an address withdrawal runs off a tombstone (ADR-0134).
 		if err := foldSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
+			return err
+		}
+		// Recovery closes the outage Gap, so it must run after this batch's own fold (ADR-2087).
+		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeCompleted); err != nil {
 			return err
 		}
 		if err := w.produce(ctx, qtx, batchID, observedAt, changes, departures, narrowings, membership); err != nil {

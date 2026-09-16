@@ -87,13 +87,13 @@ A refusal with reasons. Three mechanisms were weighed and each fails on its own 
 2. SSH public-key auth, with `restrict` and `from=<egress>` in `authorized_keys`. The instance
    generates the keypair and only the public half leaves it (ADR-0053).
 3. The trust-on-first-use host-key pin. A change is a hard failure, never a prompt.
-4. The `0700` random temp path, `/tmp/verge-prober-<8 random bytes>` (`probe.go:104,112`).
-5. The delete after every run (`probe.go:118`).
+4. The `0700` random temp path, `/tmp/verge-prober-<8 random bytes>` (`internal/remoteexec/probe.go`).
+5. The delete after every run (`internal/remoteexec/probe.go#Probe`).
 
 ### 3. The boundary this rules on is host to verge, and the other half is already built
 
 Verge to host is settled code, not an open decision: public-key auth, the host-key pin, the bounded
-prober stdout, and the `uname` arch check that gates the push at `probe.go:96-101` and refuses a
+prober stdout, and the `uname` arch check that gates the push at `internal/remoteexec/probe.go#Probe` and refuses a
 mismatched binary rather than shipping one.
 
 ### 4. A lent host gets no origin proof, and the condition is stated
@@ -106,7 +106,7 @@ When it holds, **verge offers that person no origin proof.** Their lever is the 
 signature: a non-root user, `restrict`, `from=`, `cap_drop: [ALL]` and `no-new-privileges`. **Those
 bound what the binary may do. They do not prove what it is.**
 
-**One consequence is sharp and is stated rather than smoothed.** `probe.go:118` removes the binary
+**One consequence is sharp and is stated rather than smoothed.** `internal/remoteexec/probe.go#Probe` removes the binary
 after every run, so a lent-host operator **cannot inspect afterwards what verge ran**.
 
 ### 5. The transitive claim carries its bound wherever it is printed

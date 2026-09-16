@@ -68,7 +68,7 @@ moving it would move a version and `Break` the estate without a release and with
 row moving. An operator-supplied body defeats that rule at its root: it does not merely add or drop a
 sensitive pair, it lets the operator **relabel** one as `frequency` and then remove it through the
 edit path the product already offers. `IsSensitive` — which is what the settings UI's edit guard reads
-(`vergecore.go:105`) — would answer from the operator's own file, so the guard would be asking the
+(`internal/vergecore/vergecore.go#List.IsSensitive`) — would answer from the operator's own file, so the guard would be asking the
 attacker's document whether the attacker may act.
 
 The layering shape has no such hole, and the property is arithmetic rather than checked. The union

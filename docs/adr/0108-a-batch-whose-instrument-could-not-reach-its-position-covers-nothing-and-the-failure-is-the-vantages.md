@@ -14,6 +14,8 @@ proof: {none: "predates the governance SPEC"}
 
 > **Amended** by [ADR-0180: a message detail is a census plus its delivery receipts, and carries no prose body](./0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md), 2026-09-05. <!-- adr-marker amends 180 -->
 
+> **Amended** by [ADR-2087: A vantage that becomes unavailable closes every open span it fed, at write time](./2087-a-vantage-that-becomes-unavailable-closes-every-open-span-it-fed-at-write-time.md), 2026-09-16. <!-- adr-marker amends 2087 -->
+
 ## Context
 
 A `local` vantage whose recursive resolver pointed at nothing produced a `Batch` with
@@ -98,10 +100,11 @@ Six limbs.
      (resolution vs reachability) is a larger model change carried as future work, and v1 scopes the
      scalar's one writer to the resolver capability rather than sharing it across kinds.
 
-5. **The operator-visible signal is the `Gap` on `Reach` the model already routes.** An `unavailable`
-   vantage is excluded from its class's presence
-   ([`cmd/web/exposure.go`](../../cmd/web/exposure.go)), so `Exposure` that would need it is **absent
-   rather than quietly computed** from the class that still answers — a one-legged reading rendered
+5. **The operator-visible signal is the `Gap` on `Reach` the model already routes.** A vantage that
+   becomes `unavailable` closes its open reach and resolution spans at write time and opens a `Gap`
+   (`db/queries/vantages.sql#MarkVantageUnavailable`, ADR-2087). No composition read carries an
+   availability predicate. So `Exposure` that would need it is **absent rather than quietly
+   computed** from the class that still answers — a one-legged reading rendered
    under *we never looked* / a `Gap` under *we stopped looking*
    ([ADR-0017](./0017-exposure-needs-both-legs.md),
    [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)).
@@ -169,10 +172,12 @@ resolver retains over nothing.
 
 ### Deriving `Availability` from the outcome is the mechanism the model already wired its consumers to
 
-`Availability` is *"concluded from its recent batch outcomes rather than measured directly,"* and its
-consumer — `Exposure`'s class-presence gate — was already written against it: `exposure.go` skips any
-vantage that is not `available`, and `ComposeReach` already handles the empty-in-scope set as
-`not-evaluable`. The producing half was simply absent. Limb 4 supplies it as the thinnest possible
+`Availability` is *"concluded from its recent batch outcomes rather than measured directly,"* and one
+consumer was already written against it: `internal/exposure/exposure.go#ComposeReach` handles the
+empty-in-scope set as `not-evaluable`. `Exposure`'s class-presence gate was not, and under ADR-2087
+it never will be: `cmd/web/exposure.go` reads no availability, because the writer closes the
+vantage's open spans, so the reach the composition reads is already a `Gap` rather than a stale
+value. The producing half was simply absent. Limb 4 supplies it as the thinnest possible
 derivation — the latest terminal outcome — rather than a windowed count, and the choice is the
 ticket's own safety direction: a false `unavailable` **opens** a `Gap` and is investigated, while a
 false `available` **hides** one, so the responsive rule fails in the loud direction, exactly as
