@@ -442,10 +442,13 @@ func devLegInfo(state string) legInfo {
 	}
 }
 
-func devLegChip(class custody.VantageClass, state, date string) *legChip {
-	// The fixture header renders through the live formatter, so it cannot drift off it.
-	chip := reachLegChip(class, legFrom(devLegInfo(state)))
-	chip.Date = date
+func devLegChip(class custody.VantageClass, state, date, layout string) *legChip {
+	info := devLegInfo(state)
+	if since, err := time.Parse(layout, date); err == nil {
+		info.since = since
+	}
+	chip := reachLegChip(class, legFrom(info))
+	chip.Date = legSinceIn(info, layout)
 	return &chip
 }
 
@@ -461,8 +464,8 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 		rows = append(rows, exposureRow{
 			Asset: r.asset, Svc: r.svc,
 			// The fixture board renders through the live formatter, so it cannot drift off it.
-			Internal: *devLegChip(custody.ClassInternal, r.internal, r.internalDate),
-			Internet: *devLegChip(custody.ClassInternet, r.internet, r.internetDate),
+			Internal: *devLegChip(custody.ClassInternal, r.internal, r.internalDate, exposureSinceDateFmt),
+			Internet: *devLegChip(custody.ClassInternet, r.internet, r.internetDate, exposureSinceDateFmt),
 		})
 	}
 	data["Withheld"] = false
@@ -1602,8 +1605,8 @@ func devAssetPortRows() []assetPort {
 		rows = append(rows, assetPort{
 			Port: p.port, Service: p.service,
 			// The fixture page renders through the live formatter, so it cannot drift off it.
-			Internal: *devLegChip(custody.ClassInternal, p.internal, p.internalDate),
-			Internet: *devLegChip(custody.ClassInternet, p.internet, p.internetDate),
+			Internal: *devLegChip(custody.ClassInternal, p.internal, p.internalDate, spanTimeFmt),
+			Internet: *devLegChip(custody.ClassInternet, p.internet, p.internetDate, spanTimeFmt),
 		})
 	}
 	return rows
@@ -1717,8 +1720,8 @@ func devServiceData() servicePageData {
 		Key:          devServiceKey,
 		CopyKey:      "203.0.113.7:5900 tcp",
 		Withdrawn:    false,
-		InternalLeg:  devLegChip(custody.ClassInternal, "reached", "2026-08-22 14:00 UTC"),
-		InternetLeg:  devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC"),
+		InternalLeg:  devLegChip(custody.ClassInternal, "reached", "2026-08-22 14:00 UTC", spanTimeFmt),
+		InternetLeg:  devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC", spanTimeFmt),
 		Seen:         "4m",
 		CoveredSince: "2026-08-22",
 		Citation: []citationHop{

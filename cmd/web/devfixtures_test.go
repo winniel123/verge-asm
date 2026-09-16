@@ -489,7 +489,6 @@ func TestAssetFixturePortsCarryKnownLegStates(t *testing.T) {
 				}
 				continue
 			}
-			// devLegChip skips legSince, so no live code holds this date to its shape (#2035).
 			if _, err := time.Parse(spanTimeFmt, leg.date); err != nil {
 				t.Errorf("port %d %s leg holds %q and dates it %q, want a %q date", i, class, leg.state, leg.date, spanTimeFmt)
 			}
@@ -501,11 +500,40 @@ func TestExposureFixtureRowsCarryKnownLegStates(t *testing.T) {
 	// An unrecognised state reaches the board as `never looked`, which is a false claim.
 	known := []string{"reached", "not-reached", "gap", "never-looked"}
 	for i, r := range devExposureRows {
-		for class, state := range map[string]string{"internal": r.internal, "internet": r.internet} {
-			if !slices.Contains(known, state) {
-				t.Errorf("row %d %s leg = %q, want one of %q", i, class, state, known)
+		for class, leg := range map[string]struct{ state, date string }{
+			"internal": {r.internal, r.internalDate},
+			"internet": {r.internet, r.internetDate},
+		} {
+			if !slices.Contains(known, leg.state) {
+				t.Errorf("row %d %s leg = %q, want one of %q", i, class, leg.state, known)
+			}
+			if leg.state == "never-looked" {
+				if leg.date != "" {
+					t.Errorf("row %d %s leg reads never looked and carries the date %q", i, class, leg.date)
+				}
+				continue
+			}
+			if _, err := time.Parse(exposureSinceDateFmt, leg.date); err != nil {
+				t.Errorf("row %d %s leg holds %q and dates it %q, want a %q date", i, class, leg.state, leg.date, exposureSinceDateFmt)
 			}
 		}
+	}
+}
+
+func TestDevLegChipDropsADateProductionNeverRenders(t *testing.T) {
+	// legSinceIn dates no never-configured leg, so a dated fixture outruns production (#2175).
+	for _, state := range []string{"never-looked", "not-a-state"} {
+		if got := devLegChip(custody.ClassInternet, state, "2026-09-15", exposureSinceDateFmt); got.Date != "" {
+			t.Errorf("devLegChip(%q) dated the chip %q, want no date", state, got.Date)
+		}
+	}
+	for _, state := range []string{"reached", "not-reached", "gap"} {
+		if got := devLegChip(custody.ClassInternet, state, "2026-09-15", exposureSinceDateFmt); got.Date != "2026-09-15" {
+			t.Errorf("devLegChip(%q) dated the chip %q, want 2026-09-15", state, got.Date)
+		}
+	}
+	if got := devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC", spanTimeFmt); got.Date != "2026-09-02 08:30 UTC" {
+		t.Errorf("devLegChip dated the chip %q, want 2026-09-02 08:30 UTC", got.Date)
 	}
 }
 
