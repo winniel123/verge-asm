@@ -1744,22 +1744,30 @@ compare.
 _Avoid_: seam (reserved for architectural boundaries), fault, discontinuity, version bump
 
 **Gap**:
-A `Span` holding no value — the period over which we could not say. Opened by a dead-lettered
-`Batch`'s empty scope, by a `Vantage` becoming `unavailable` — one write closing **every
+A `Span` holding no value — the period over which we could not say. Opened ~~by a dead-lettered
+`Batch`'s empty scope,~~ by a `Vantage` becoming `unavailable` — one write closing **every
 open span it fed, whatever the facet**, and opening the gap behind each, never a predicate on the
 read side (ADR-2087, #2137, #2144) — ~~by evidence absent where a
-`Signal` would be `not-evaluable`~~, by an observation ageing past its currency bound, and by an
+`Signal` would be `not-evaluable`, by an observation ageing past its currency bound,~~ and by an
 answer we cannot read — a truncated RRset no fallback transport recovered, or a `resolution` we
 could not discriminate because the control probe under the name's parent did not complete, or a
-`reachability` we could not discriminate from a **blanket responder**. **The `not-evaluable` opener
-is withdrawn here, at the site that specifies it**
+`reachability` we could not discriminate from a **blanket responder**. **Three openers are
+withdrawn here, at the site that specifies them**
 ([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)),
-because nothing writes it. A `Signal` verdict is a **read** over span values and opens no span, and
-the span fold sets its gap flag from an emitted observation's outcome alone, consulting no rule. A
-`Gap` value is one of several things that render a `Signal` `not-evaluable`; **no `not-evaluable`
-verdict renders a `Gap`**. The withdrawal leaves the register count below **unmoved**, because the
-withdrawn opener named no register of its own and no gap cause
-([#2136](https://github.com/winniel123/verge-asm/issues/2136)). A blanket responder is an
+because nothing writes any of them, which leaves the two
+[`docs/spec/v1-spec.md` §5.1](./docs/spec/v1-spec.md) also keeps. A dead-lettered `Batch` records an
+**empty** recorded scope, so it touches no timeline and leaves no span to hold — the argument this
+entry already makes below for a timeline that never existed. Such a batch does write gap spans, but
+through the `Vantage` clause above and under that clause's cause, because a dead-lettered
+resolution walk marks its vantage `unavailable`; a dead-lettered port probe concludes nothing and
+writes nothing. The currency dial drives a **retention delete** over observation rows and a read
+that filters on currency, so nothing ages a stored value into a gap. A `Signal` verdict is a
+**read** over span values and opens no span, and the span fold sets its gap flag from an emitted
+observation's outcome alone, consulting no rule. A `Gap` value is one of several things that render
+a `Signal` `not-evaluable`; **no `not-evaluable` verdict renders a `Gap`**. The withdrawals leave
+the register count below **unmoved**, because no withdrawn opener named a register of its own or a
+gap cause ([#2136](https://github.com/winniel123/verge-asm/issues/2136),
+[#2143](https://github.com/winniel123/verge-asm/issues/2143)). A blanket responder is an
 address that answers TCP on every port, so a `reached` witnesses no listener and cannot be
 attributed to the origin
 ([ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).
