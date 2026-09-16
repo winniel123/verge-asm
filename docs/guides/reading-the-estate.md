@@ -61,9 +61,9 @@ Two things sit on the page:
   enumerates nothing on its own. That asymmetry is the same fact stated twice.
 - **`Gap`s and coverage messages** — a `Gap` is a `Span` holding no value, *the period
   over which we could not say*. It records its cause:
-  - a dead-lettered batch,
   - a vantage gone `unavailable`,
-  - an observation aged past its currency bound,
+  - an answer we cannot read — a truncated RRset, or a `resolution` whose
+    control probe did not complete,
   - or a **blanket responder** whose reach cannot be attributed to a listener
     ([ADR-0104](../adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).
 
