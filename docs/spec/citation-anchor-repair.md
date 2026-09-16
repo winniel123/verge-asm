@@ -239,6 +239,53 @@ finds a new false-positive class adds a rule for that shape. A builder never rel
 **It must not reimplement `rivalName`.** One derivation serves every caller, per
 [#1975](https://github.com/winniel123/verge-asm/issues/1975). A second copy drifts from the first.
 
+**It must not read the target alone.** The rule *any name the target does not declare is suspect* is
+rejected. A citing line legitimately spells a struct field, a method-local name, a rule slug, a
+column name and a template token. No declaration vocabulary carries any of those, so the target's
+inventory declares none of them, and that rule would degrade sound anchors across the 301 unproven
+anchors of §9 fact F6. The test is the tree, not the target. A rule that reads an absence as
+evidence asks every declaration the tree carries, under every declaration vocabulary, and it is
+closed to any name some inventory in the tree still carries. This section calls that the tree test.
+
+**A declaration vocabulary is one that names.** The containment row matches every path and answers
+whether a file holds a token. It enumerates no name, `rivalName` never sees it, and a rule that
+counted it would find every word present and fire on nothing.
+
+**It must not read a common word's absence as evidence.** An identifier whose name is a common word,
+or a common compound, carries too little distinctiveness for a position verdict. It scores
+`unproven` however the tree reads, and the tree test is closed to it. The test is mechanical, so a
+name that appears later is covered on the day it appears. Either limb is enough.
+
+1. The tree spells the name outside a citation, in a position no declaration vocabulary carries: a
+   parameter, a local, or a struct field. The name is then absent from every inventory for a reason
+   the vocabulary chose, not for a withdrawal.
+2. The name matches a standard-library field or method name, with an exported initial folded.
+
+A **distinctive** identifier is the complement. Only a distinctive identifier reaches the verdict the
+tree test awards.
+
+`notAfter` and `notBefore` are the measured cases, and they are why the tree test is not enough on
+its own. `cmd/web/subjects.go#certValidity` spells `notAfter` as a parameter, and
+`internal/signal/endpoint.go#CertHorizon` spells both. Every X.509 certificate carries both fields,
+and `crypto/x509` spells them `NotAfter` and `NotBefore`. So both limbs hold, while no row inventory
+declares either name and the tree test alone would call both suspect. The tree holds each word for a
+reason unrelated to the citation, so the absence is unreadable. `certExpiryWindow`, which §9 fact F9
+names, is the complement: no file outside `docs/` spells it, no limb holds, and its withdrawal
+reads. These three measurements were taken on 2026-09-16, against `main` at `ffa10a8`.
+
+**It must not raise a shape whose false-positive rate no fact measures.** This is the mirror of the
+first rule. That rule forbids lowering the bias toward degrading, and a rule that raises `unproven`
+to `suspect` moves the bias the other way. Such a rule reaches only the shape whose false-positive
+rate a §9 fact records. A shape whose rate is assumed rather than counted stays `unproven`, and §5.2
+rule 2 is where an uncertain one goes.
+
+**No §9 fact measures the tree test today, so this section states a boundary and no rule.** F3 and
+F5 measure the position guard, F8 the audit, and F11 the history arm. The rule itself is
+[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s, and that ruling binds it to ship in
+one pull request with its own §9 measurement. That pull request also owns §2. A suspect anchor is
+defined there by its rival, and a rival is a declaration the target really has, so a verdict the
+tree test awards has no rival under the term as it stands.
+
 ---
 
 ## 6. The repair
