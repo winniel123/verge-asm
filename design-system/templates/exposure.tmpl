@@ -26,9 +26,9 @@
 </tr>{{end}}
 </tbody>
 </table>
-<div class="ex-scopefoot">{{if .ScopeActsCapped}}<span class="ex-sub">This read stopped at the {{.ScopeActReadCap}} newest acts of each class, so an older one in the window is not listed. </span>{{end}}<a class="ex-btn-sm" href="/settings?tab=audit&amp;period=90d">Open the audit log</a></div>
+<div class="ex-scopefoot">{{if .ScopeActsCapped}}<span class="ex-sub">This read stopped at the {{.ScopeActReadCap}} newest scope acts, so an older one in the window is not listed. </span>{{end}}<a class="ex-btn-sm" href="/settings?tab=audit&amp;period=90d">Open the audit log</a></div>
 {{else}}
-<div class="ex-scopenote">{{if .ScopeActsCapped}}No address scope is among the {{.ScopeActReadCap}} newest acts of each class in the last 7 days.{{else}}No act in the last 7 days named an address scope.{{end}} <a href="/settings?tab=audit&amp;period=90d">Open the audit log</a> for every act.</div>
+<div class="ex-scopenote">{{if .ScopeActsCapped}}No address scope is among the {{.ScopeActReadCap}} newest scope acts in the last 7 days.{{else}}No act in the last 7 days named an address scope.{{end}} <a href="/settings?tab=audit&amp;period=90d">Open the audit log</a> for every act.</div>
 {{end}}
 </section>
 {{end}}{{end}}

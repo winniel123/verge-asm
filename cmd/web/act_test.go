@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -87,13 +88,13 @@ func (f *fakeStore) ListActsInRange(ctx context.Context, arg db.ListActsInRangeP
 	return out, nil
 }
 
-func (f *fakeStore) ListActsOfClassSince(ctx context.Context, arg db.ListActsOfClassSinceParams) ([]db.Act, error) {
+func (f *fakeStore) ListActsOfClassesSince(ctx context.Context, arg db.ListActsOfClassesSinceParams) ([]db.Act, error) {
 	if f.actListErr != nil {
 		return nil, f.actListErr
 	}
 	out := []db.Act{}
 	for _, row := range f.actRows {
-		if row.Action != arg.Action {
+		if !slices.Contains(arg.Actions, row.Action) {
 			continue
 		}
 		if arg.FromTime.Valid && row.CreatedAt.Time.Before(arg.FromTime.Time) {
