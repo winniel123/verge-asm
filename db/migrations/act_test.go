@@ -1,6 +1,8 @@
 package migrations
 
 import (
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -89,5 +91,108 @@ func TestActPayloadColumnsAreJSONB(t *testing.T) {
 		if !strings.Contains(col, "jsonb") || !strings.Contains(col, "not null") {
 			t.Errorf("%s must be JSONB NOT NULL, got: %s", name, col)
 		}
+	}
+}
+
+type actIndex struct {
+	cols    []string
+	partial bool
+}
+
+func (ix actIndex) String() string {
+	s := "(" + strings.Join(ix.cols, ", ") + ")"
+	if ix.partial {
+		s += " partial"
+	}
+	return s
+}
+
+var (
+	createActIndex = regexp.MustCompile(
+		`create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?` +
+			`(\w+)\s+on\s+(?:public\.)?act\s*\((.*)`)
+	dropActIndex = regexp.MustCompile(
+		`drop\s+index\s+(?:concurrently\s+)?(?:if\s+exists\s+)?(?:public\.)?(\w+)`)
+)
+
+func parseActIndex(body string) actIndex {
+	cols, rest := body, ""
+	if i := strings.Index(body, ")"); i >= 0 {
+		cols, rest = body[:i], body[i+1:]
+	}
+	ix := actIndex{partial: strings.Contains(rest, "where")}
+	for _, c := range strings.Split(cols, ",") {
+		ix.cols = append(ix.cols, strings.Join(strings.Fields(c), " "))
+	}
+	return ix
+}
+
+// upMigrations strips every -- comment, so prose cannot satisfy the tests below. It also
+// concatenates every Up, so a later DROP INDEX is what decides whether an index stands.
+
+func actIndexes(t *testing.T) map[string]actIndex {
+	t.Helper()
+	out := map[string]actIndex{}
+	for _, s := range strings.Split(strings.ToLower(upMigrations(t)), ";") {
+		if m := createActIndex.FindStringSubmatch(s); m != nil {
+			out[m[1]] = parseActIndex(m[2])
+			continue
+		}
+		if m := dropActIndex.FindStringSubmatch(s); m != nil {
+			delete(out, m[1])
+		}
+	}
+	return out
+}
+
+func actIndexesLeadingOn(t *testing.T, col string) (map[string]actIndex, []string) {
+	t.Helper()
+	idx := actIndexes(t)
+	var names []string
+	for name, ix := range idx {
+		if len(ix.cols) > 0 && ix.cols[0] == col {
+			names = append(names, name)
+		}
+	}
+	// A map ranges in no fixed order, so a second matching index must not decide the run.
+	sort.Strings(names)
+	return idx, names
+}
+
+func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
+	// Five per-class reads run on every admin Exposure load, and an index leading on
+	// created_at makes each one walk the whole window to return its matches (#2073).
+	idx, names := actIndexesLeadingOn(t, "action")
+
+	if len(names) == 0 {
+		t.Fatalf("no act index leads on action; ListActsOfClassSince filters on it and "+
+			"act_created_at_idx cannot seek to a class, got: %v", idx)
+	}
+	want := []string{"action", "created_at desc", "id desc"}
+	for _, name := range names {
+		ix := idx[name]
+		// The ORDER BY must come from the index, or the LIMIT sorts the window before it stops.
+		for i, col := range want {
+			if i >= len(ix.cols) || ix.cols[i] != col {
+				t.Errorf("%s must key (%s) so the LIMIT stops the scan, got: %v",
+					name, strings.Join(want, ", "), ix)
+				break
+			}
+		}
+		// A partial index needs a migration per class added, and the set already moved (#2169).
+		if ix.partial {
+			t.Errorf("%s is partial; the act class set is not fixed (#2169), got: %v", name, ix)
+		}
+	}
+}
+
+func TestActKeepsItsDateRangeIndex(t *testing.T) {
+	// ListActsInRange carries no action predicate, so an index leading on action cannot
+	// serve it: the action index is an addition and never a replacement (#2073).
+	idx, names := actIndexesLeadingOn(t, "created_at desc")
+
+	if len(names) == 0 {
+		t.Fatalf("no act index leads on created_at desc; ListActsInRange filters on the "+
+			"range alone, got: %v", idx)
 	}
 }
