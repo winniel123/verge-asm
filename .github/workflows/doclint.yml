@@ -177,7 +177,10 @@ jobs:
   # heading, so a `§n` against one of those is wrong by construction (SPEC
   # docs/spec/comment-policy.md §4.7). The citation grammar is SPEC
   # docs/spec/adr-governance.md §9: `ADR-\d{4,}` must name a file, a `§` naming a
-  # heading by word fails, and `ADR-nnnn #nnn` fails above ADR-0227 (#1735).
+  # heading by word fails, and `ADR-nnnn #nnn` fails above ADR-0227 (#1735). The same step
+  # also holds §9's Decision-block row: above ADR-0227 the first `##` must be Decision and its
+  # block must not exceed 150 words. That row lived only in the index and marker steps below,
+  # which an author running `npm run check:adr-sections` alone never reaches (#2193).
   #
   # NOT ADVISORY, and REQUIRED. The step exits non-zero on a violation, so the job
   # goes red, and `main`'s ruleset requires `adr-sections`, so a red run blocks the

@@ -91,3 +91,41 @@ func TestActPayloadColumnsAreJSONB(t *testing.T) {
 		}
 	}
 }
+
+func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
+	// One ANY() read runs on every admin Exposure load, and an index leading on
+	// created_at makes it walk the whole window to return its matches (#2073).
+	idx, names := indexesLeadingOn(t, "act", "action")
+
+	if len(names) == 0 {
+		t.Fatalf("no act index leads on action; ListActsOfClassesSince filters on it and "+
+			"act_created_at_idx cannot seek to a class, got: %v", idx)
+	}
+	want := []string{"action", "created_at desc", "id desc"}
+	for _, name := range names {
+		ix := idx[name]
+		// PG 16 sorts a ScalarArrayOp match, so these trailing columns buy ordering on a later PG.
+		for i, col := range want {
+			if i >= len(ix.cols) || ix.cols[i] != col {
+				t.Errorf("%s must key (%s) so the read seeks to a class, got: %v",
+					name, strings.Join(want, ", "), ix)
+				break
+			}
+		}
+		// A partial index needs a migration per class added, and the set already moved (#2169).
+		if ix.partial() {
+			t.Errorf("%s is partial; the act class set is not fixed (#2169), got: %v", name, ix)
+		}
+	}
+}
+
+func TestActKeepsItsDateRangeIndex(t *testing.T) {
+	// ListActsInRange carries no action predicate, so an index leading on action cannot
+	// serve it: the action index is an addition and never a replacement (#2073).
+	idx, names := indexesLeadingOn(t, "act", "created_at desc")
+
+	if len(names) == 0 {
+		t.Fatalf("no act index leads on created_at desc; ListActsInRange filters on the "+
+			"range alone, got: %v", idx)
+	}
+}

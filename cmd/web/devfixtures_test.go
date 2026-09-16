@@ -418,15 +418,18 @@ type fixtureExposurePackage struct {
 		Exposed         int    `json:"exposed"`
 		HasDeltas       bool   `json:"has_deltas"`
 		ExposedDelta    int    `json:"exposed_delta"`
+		EdgeOnly        int    `json:"edge_only"`
 		Firewalled      int    `json:"firewalled"`
-		NotReached      int    `json:"not_reached"`
+		Unreachable     int    `json:"unreachable"`
+		OneLegged       int    `json:"one_legged"`
 		WithheldVariant string `json:"withheld_variant"`
 		Rows            []struct {
-			Asset    string `json:"asset"`
-			Svc      string `json:"svc"`
-			Internal string `json:"internal"`
-			Internet string `json:"internet"`
-			Since    string `json:"since"`
+			Asset         string `json:"asset"`
+			Svc           string `json:"svc"`
+			Internal      string `json:"internal"`
+			InternalSince string `json:"internal_since"`
+			Internet      string `json:"internet"`
+			InternetSince string `json:"internet_since"`
 		} `json:"rows"`
 	} `json:"exposure"`
 }
@@ -451,25 +454,38 @@ func TestExposureFixtureMatchesPackage(t *testing.T) {
 	if e.ExposedDelta != devExposureExposedDelta {
 		t.Errorf("exposed_delta drift: fixtures.json = %d, pinned = %d", e.ExposedDelta, devExposureExposedDelta)
 	}
-	if e.Firewalled != devExposureFirewalled {
-		t.Errorf("firewalled drift: fixtures.json = %d, pinned = %d", e.Firewalled, devExposureFirewalled)
-	}
-	if e.NotReached != devExposureNotReached {
-		t.Errorf("not_reached drift: fixtures.json = %d, pinned = %d", e.NotReached, devExposureNotReached)
-	}
 	if e.WithheldVariant != devExposureWithheldVariant {
 		t.Errorf("withheld_variant drift: fixtures.json = %q, pinned = %q", e.WithheldVariant, devExposureWithheldVariant)
 	}
 
-	if len(e.Rows) != len(devExposureRows) {
-		t.Fatalf("rows length drift: fixtures.json = %d, pinned = %d", len(e.Rows), len(devExposureRows))
-	}
-	for i, r := range e.Rows {
-		p := devExposureRows[i]
-		if r.Asset != p.asset || r.Svc != p.svc || r.Internal != p.internal || r.Internet != p.internet || r.Since != p.since {
-			t.Errorf("row %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, r, p)
+	t.Run("#2161 every band count", func(t *testing.T) {
+		if e.EdgeOnly != devExposureEdgeOnly {
+			t.Errorf("edge_only drift: fixtures.json = %d, pinned = %d", e.EdgeOnly, devExposureEdgeOnly)
 		}
-	}
+		if e.Firewalled != devExposureFirewalled {
+			t.Errorf("firewalled drift: fixtures.json = %d, pinned = %d", e.Firewalled, devExposureFirewalled)
+		}
+		if e.Unreachable != devExposureUnreachable {
+			t.Errorf("unreachable drift: fixtures.json = %d, pinned = %d", e.Unreachable, devExposureUnreachable)
+		}
+		if e.OneLegged != devExposureOneLegged {
+			t.Errorf("one_legged drift: fixtures.json = %d, pinned = %d", e.OneLegged, devExposureOneLegged)
+		}
+	})
+
+	t.Run("#2161 every row leg and its date", func(t *testing.T) {
+		if len(e.Rows) != len(devExposureRows) {
+			t.Fatalf("rows length drift: fixtures.json = %d, pinned = %d", len(e.Rows), len(devExposureRows))
+		}
+		for i, r := range e.Rows {
+			p := devExposureRows[i]
+			if r.Asset != p.asset || r.Svc != p.svc ||
+				r.Internal != p.internal || r.InternalSince != p.internalDate ||
+				r.Internet != p.internet || r.InternetSince != p.internetDate {
+				t.Errorf("row %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, r, p)
+			}
+		}
+	})
 }
 
 func TestAssetFixturePortsCarryKnownLegStates(t *testing.T) {
@@ -489,7 +505,6 @@ func TestAssetFixturePortsCarryKnownLegStates(t *testing.T) {
 				}
 				continue
 			}
-			// devLegChip skips legSince, so no live code holds this date to its shape (#2035).
 			if _, err := time.Parse(spanTimeFmt, leg.date); err != nil {
 				t.Errorf("port %d %s leg holds %q and dates it %q, want a %q date", i, class, leg.state, leg.date, spanTimeFmt)
 			}
@@ -501,11 +516,40 @@ func TestExposureFixtureRowsCarryKnownLegStates(t *testing.T) {
 	// An unrecognised state reaches the board as `never looked`, which is a false claim.
 	known := []string{"reached", "not-reached", "gap", "never-looked"}
 	for i, r := range devExposureRows {
-		for class, state := range map[string]string{"internal": r.internal, "internet": r.internet} {
-			if !slices.Contains(known, state) {
-				t.Errorf("row %d %s leg = %q, want one of %q", i, class, state, known)
+		for class, leg := range map[string]struct{ state, date string }{
+			"internal": {r.internal, r.internalDate},
+			"internet": {r.internet, r.internetDate},
+		} {
+			if !slices.Contains(known, leg.state) {
+				t.Errorf("row %d %s leg = %q, want one of %q", i, class, leg.state, known)
+			}
+			if leg.state == "never-looked" {
+				if leg.date != "" {
+					t.Errorf("row %d %s leg reads never looked and carries the date %q", i, class, leg.date)
+				}
+				continue
+			}
+			if _, err := time.Parse(exposureSinceDateFmt, leg.date); err != nil {
+				t.Errorf("row %d %s leg holds %q and dates it %q, want a %q date", i, class, leg.state, leg.date, exposureSinceDateFmt)
 			}
 		}
+	}
+}
+
+func TestDevLegChipDropsADateProductionNeverRenders(t *testing.T) {
+	// legSinceIn dates no never-configured leg, so a dated fixture outruns production (#2175).
+	for _, state := range []string{"never-looked", "not-a-state"} {
+		if got := devLegChip(custody.ClassInternet, state, "2026-09-15", exposureSinceDateFmt); got.Date != "" {
+			t.Errorf("devLegChip(%q) dated the chip %q, want no date", state, got.Date)
+		}
+	}
+	for _, state := range []string{"reached", "not-reached", "gap"} {
+		if got := devLegChip(custody.ClassInternet, state, "2026-09-15", exposureSinceDateFmt); got.Date != "2026-09-15" {
+			t.Errorf("devLegChip(%q) dated the chip %q, want 2026-09-15", state, got.Date)
+		}
+	}
+	if got := devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC", spanTimeFmt); got.Date != "2026-09-02 08:30 UTC" {
+		t.Errorf("devLegChip dated the chip %q, want 2026-09-02 08:30 UTC", got.Date)
 	}
 }
 

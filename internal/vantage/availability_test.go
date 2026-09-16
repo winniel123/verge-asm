@@ -3,6 +3,9 @@ package vantage
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -10,11 +13,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
+	"github.com/winniel123/verge-asm/internal/retention"
 )
 
 // ADR-2087 rules Alternative B, write time. The rule is one SQL statement and no Go
-// production code, so its proof is the statement's text: this repository has no
-// Postgres-backed test harness, and #2166 tracks the gap.
+// production code, so these read its text. internal/dbtest runs that statement against
+// a real PostgreSQL, which is where its execution is proved (#2166).
 
 const gapCause = `"cause":"vantage-unavailable"`
 
@@ -45,10 +49,92 @@ func namedQuery(t *testing.T, file, name string) string {
 		t.Fatalf("%s declares no query named %s", file, name)
 	}
 	rest := string(body)[i:]
-	if j := strings.Index(rest, ";"); j >= 0 {
-		return rest[:j+1]
+	end := statementEnd(rest)
+	if end < 0 {
+		t.Fatalf("%s.%s reaches the end of the file with no terminating semicolon outside a "+
+			"comment or a literal", file, name)
 	}
-	return rest
+	return rest[:end]
+}
+
+func statementEnd(sql string) int {
+	for i := 0; i < len(sql); {
+		switch {
+		case strings.HasPrefix(sql[i:], "--"):
+			j := strings.IndexByte(sql[i:], '\n')
+			if j < 0 {
+				return -1
+			}
+			i += j + 1
+		case strings.HasPrefix(sql[i:], "/*"):
+			// Postgres nests a block comment, so the first */ need not end it.
+			depth := 1
+			i += 2
+			for depth > 0 {
+				switch {
+				case i >= len(sql):
+					return -1
+				case strings.HasPrefix(sql[i:], "/*"):
+					depth++
+					i += 2
+				case strings.HasPrefix(sql[i:], "*/"):
+					depth--
+					i += 2
+				default:
+					i++
+				}
+			}
+		case sql[i] == '\'' || sql[i] == '"':
+			// A doubled quote reads as a close and a reopen, so the run stays quoted.
+			j := strings.IndexByte(sql[i+1:], sql[i])
+			if j < 0 {
+				return -1
+			}
+			i += j + 2
+		case sql[i] == ';':
+			return i + 1
+		default:
+			i++
+		}
+	}
+	return -1
+}
+
+func TestStatementEndReadsNoSemicolonInsideACommentOrALiteral(t *testing.T) {
+	// A cut at the first semicolon returned a fragment, and every negative assertion over the
+	// tail passed because the text it forbids sat past the cut (#2187).
+	for _, tc := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"bare statement", "SELECT 1;\n-- name: Next :one\nSELECT 2;\n", "SELECT 1;"},
+		{"line comment", "-- retires the Gap; the caller names the facets\nSELECT 1;\nSELECT 2;",
+			"-- retires the Gap; the caller names the facets\nSELECT 1;"},
+		{"trailing comment", "SELECT 1\n  AND a = 'b' -- one; two\n  AND c = 'd';\nSELECT 2;",
+			"SELECT 1\n  AND a = 'b' -- one; two\n  AND c = 'd';"},
+		{"block comment", "/* one;\ntwo */\nSELECT 1;\nSELECT 2;", "/* one;\ntwo */\nSELECT 1;"},
+		{"nested block comment", "/* one /* two; */ three; */\nSELECT 1;", "/* one /* two; */ three; */\nSELECT 1;"},
+		{"literal", "SELECT ';';\nSELECT 2;", "SELECT ';';"},
+		{"doubled quote in a literal", "SELECT 'it''s; here';\nSELECT 2;", "SELECT 'it''s; here';"},
+		{"quoted identifier", "SELECT \"a;b\";\nSELECT 2;", "SELECT \"a;b\";"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			end := statementEnd(tc.sql)
+			if end < 0 {
+				t.Fatalf("statementEnd found no end in:\n%s", tc.sql)
+			}
+			if got := tc.sql[:end]; got != tc.want {
+				t.Errorf("statementEnd cut\n%q\nwant\n%q", got, tc.want)
+			}
+		})
+	}
+	for _, unterminated := range []string{"SELECT 1\n", "-- one; two\nSELECT 1\n", "SELECT ';\n", "/* one;\n"} {
+		if end := statementEnd(unterminated); end >= 0 {
+			t.Errorf("an unterminated statement ends nowhere, so the helper must say so; got %d for %q",
+				end, unterminated)
+		}
+	}
 }
 
 func TestMarkVantageUnavailableClosesTheVantagesOpenSpans(t *testing.T) {
@@ -160,6 +246,105 @@ func TestNoCompositionReadGainedAnAvailabilityPredicate(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestEachFacetIsReachedByTheApertureOfItsOwnCorpus(t *testing.T) {
+	closure := uncommented(namedQuery(t, "vantages.sql", "MarkVantageUnavailable"))
+	if !strings.Contains(closure, "UPDATE span") {
+		t.Fatalf("the closure must write the span corpus; got:\n%s", closure)
+	}
+	if strings.Contains(closure, "observation") {
+		t.Errorf("the closure reaches the corpus it writes and no other, so an edge onto "+
+			"observation is the alternative ADR-2163 rejected; got:\n%s", closure)
+	}
+
+	for file, names := range map[string][]string{
+		"signals.sql": {"ListServiceReachabilitySpansByClass", "ListServiceReachabilitySpansByClassForServices"},
+		"span.sql":    {"ListServiceReachabilitySpansByClassAt", "ListServiceReachabilitySpansByClassAtForServices"},
+	} {
+		for _, name := range names {
+			reach := uncommented(namedQuery(t, file, name))
+			if !strings.Contains(reach, "FROM span") || strings.Contains(reach, "FROM observation") {
+				t.Errorf("%s composes reachability from the span corpus alone, which is what puts "+
+					"it inside the closure's reach (ADR-2163 §2); got:\n%s", name, reach)
+			}
+			if !strings.Contains(reach, "closed_at IS NULL") {
+				t.Errorf("%s must read the open span, or closing one changes no row it returns "+
+					"(ADR-2163 §2); got:\n%s", name, reach)
+			}
+		}
+	}
+
+	resolution := uncommented(namedQuery(t, "signals.sql", "ListNameResolutionsByClass"))
+	if !strings.Contains(resolution, "FROM observation") || strings.Contains(resolution, "FROM span") {
+		t.Errorf("resolution composes from the observation corpus alone, which is why closing "+
+			"spans changes no row it returns (ADR-2163 §2); got:\n%s", resolution)
+	}
+	for _, want := range []string{"floor_cadences", "tightest_cadence"} {
+		if !strings.Contains(resolution, want) {
+			t.Errorf("the cadence floor is the resolution aperture, so the read must carry %q or "+
+				"a dead vantage's value never ages out (ADR-2163 §3); got:\n%s", want, resolution)
+		}
+	}
+
+	cadence := shippedDNSCadenceSeconds(t)
+	const priced = 172800
+	if got := retention.FloorCadences * cadence; got != priced {
+		t.Errorf("a dead vantage's resolution value goes stale for k=%d x dns cadence %ds = %ds; "+
+			"ADR-2163 §3 prices that window at %ds, 48 hours, and a moved dial re-prices the ADR",
+			retention.FloorCadences, cadence, got, priced)
+	}
+}
+
+var (
+	dnsScanWrite   = regexp.MustCompile(`(?is)\b(?:INSERT\s+INTO\s+scan|UPDATE\s+scan)\b.*'dns'`)
+	cadenceLiteral = regexp.MustCompile(`(?is)cadence_seconds[^0-9]*?(\d+)`)
+)
+
+func shippedDNSCadenceSeconds(t *testing.T) int64 {
+	t.Helper()
+	entries, err := migrations.FS.ReadDir(".")
+	if err != nil {
+		t.Fatalf("read migrations: %v", err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+
+	cadence, wroteIn := int64(-1), ""
+	for _, name := range names {
+		body, err := migrations.FS.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		up := string(body)
+		if i := strings.Index(up, "-- +goose Down"); i >= 0 {
+			up = up[:i]
+		}
+		for _, stmt := range strings.Split(uncommented(up), ";") {
+			if !strings.Contains(stmt, "cadence_seconds") || !dnsScanWrite.MatchString(stmt) {
+				continue
+			}
+			m := cadenceLiteral.FindStringSubmatch(stmt)
+			if m == nil {
+				t.Fatalf("%s writes the dns scan's cadence in a form this helper cannot read, so a "+
+					"re-priced dial would leave ADR-2163 §3 asserting 48 hours unchecked:\n%s", name, stmt)
+			}
+			n, err := strconv.ParseInt(m[1], 10, 64)
+			if err != nil {
+				t.Fatalf("%s: dns cadence %q: %v", name, m[1], err)
+			}
+			cadence, wroteIn = n, name
+		}
+	}
+	if cadence < 0 {
+		t.Fatal("no migration writes a dns scan cadence, so the resolution aperture ADR-2163 §3 " +
+			"prices is measured over a cadence the tree no longer holds")
+	}
+	t.Logf("dns cadence %ds, last written by %s", cadence, wroteIn)
+	return cadence
 }
 
 func TestAMigrationBackfillsTheAlreadyUnavailableVantages(t *testing.T) {
@@ -328,6 +513,47 @@ func TestTheGapSpellingMatchesEachFacetsOwnWriter(t *testing.T) {
 	for _, facet := range []string{"resolution", "dns-record"} {
 		if strings.Contains(q, "WHEN '"+facet+"'") {
 			t.Errorf("%s spells the outcome %s and takes the default branch, never one of its own; got:\n%s", facet, upper, q)
+		}
+	}
+}
+
+// A host-key pin is the third writer of the availability column, and it reads no facet (#2182).
+
+func collapsed(sql string) string { return strings.Join(strings.Fields(sql), " ") }
+
+func TestPinVantageHostKeyClearsNoOutageItCannotCloseTheGapsOf(t *testing.T) {
+	// `host_key IS NULL` does not say the row holds no span: the shipped resolver-only `local`
+	// vantage holds spans under a NULL host key. What keeps a stranded Gap out of reach today is
+	// two other files — ListVantagesNeedingLatency filters `host IS NOT NULL`, and the router
+	// refuses a host vantage whose key is unpinned, so that vantage completes no batch. The
+	// guard belongs here, where a reader of this statement can see it.
+	q := collapsed(uncommented(namedQuery(t, "vantages.sql", "PinVantageHostKey")))
+
+	if !strings.Contains(q, "availability") {
+		t.Fatalf("PinVantageHostKey writes availability nowhere, so this case has no job; got:\n%s", q)
+	}
+	if !strings.Contains(q, "WHEN availability = 'unavailable' THEN availability") {
+		t.Errorf("the pin must leave an outage standing: it retires no Gap, and a Gap left open "+
+			"under a healthy vantage is listed by no read and closed by nothing (ADR-2087); got:\n%s", q)
+	}
+	if !strings.Contains(q, "ELSE 'available'") {
+		t.Errorf("a first connect still declares the position reachable, so every other prior "+
+			"state must reach 'available'; got:\n%s", q)
+	}
+	if !strings.Contains(q, "host_key = ") {
+		t.Errorf("the pin must still record the key the connect already trusted, or the next "+
+			"connect trusts that host afresh; got:\n%s", q)
+	}
+}
+
+func TestPinVantageHostKeyRetiresNoGapOfItsOwn(t *testing.T) {
+	// Recovery retires the Gap on the facets the recovering batch re-read, and a connect re-reads
+	// none. A pin that closed spans would end readings nothing replaces (ADR-2087, #2060).
+	q := uncommented(namedQuery(t, "vantages.sql", "PinVantageHostKey"))
+
+	for _, writing := range []string{"UPDATE span", "INSERT INTO span", "closed_at"} {
+		if strings.Contains(q, writing) {
+			t.Errorf("a host-key pin states no reading, so it touches no span; got:\n%s", q)
 		}
 	}
 }

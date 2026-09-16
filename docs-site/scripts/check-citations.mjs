@@ -263,7 +263,7 @@ async function main() {
   console.log("");
   // The sweep is complete for the path form, and an empty count is what proves it (SPEC §8.2).
   console.log(`  ${n(refusedAnchors)}  refused: a citation names no line`);
-  // What sizes the staged work is this count, and an empty one is what retires the stage (§8.2).
+  // An empty count is what retires the stage, and a full one is what retirement would red (§8.2).
   console.log(`  ${n(stagedAnchors)}  line anchor(s) the conversion of #2120 has not reached`);
 
   const site = await siteArm(env, REPO_ROOT, verbose);

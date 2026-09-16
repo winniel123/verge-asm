@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -243,6 +244,16 @@ func TestFixtureCorpusHoldsNoAddressSubject(t *testing.T) {
 	for _, fs := range inventoryFixtureSpans {
 		if fs.kind == "address" {
 			t.Errorf("fixture span %s/%s/%s models an unproducible address subject", fs.kind, fs.key, fs.facet)
+		}
+	}
+}
+
+func TestNoFixtureSpanTeachesACustodyDNSToken(t *testing.T) {
+	for _, fs := range inventoryFixtureSpans {
+		// ADR-0013 §3 rules custody a seed declaration, never a record (#2145).
+		row := strings.ToLower(fs.key + " " + fs.discriminator + " " + fs.value)
+		if strings.Contains(row, "verge-custody") || strings.Contains(row, "verge_custody") {
+			t.Errorf("fixture span %s/%s/%s teaches a custody DNS token: %s", fs.kind, fs.key, fs.facet, fs.value)
 		}
 	}
 }

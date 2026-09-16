@@ -190,3 +190,28 @@ func (f *fakeStore) ListOpenReachGapServices(_ context.Context) ([]db.ListOpenRe
 	})
 	return rows, nil
 }
+
+func (f *fakeStore) ListOutageReachGapVantages(_ context.Context) ([]db.ListOutageReachGapVantagesRow, error) {
+	counts := map[string]int64{}
+	recovered := map[string]bool{}
+	for k, o := range f.currentReachByVantage() {
+		if !reachOutcomeIsGap(o.Value) || decodeReachability(o.Value).Cause != vantageUnavailableCause {
+			continue
+		}
+		v := f.vantageByID(k.vantage)
+		if _, seen := counts[v.Name]; !seen {
+			recovered[v.Name] = true
+		}
+		counts[v.Name]++
+		// bool_and over the group: one position not yet available holds the whole name back.
+		if v.Availability.String != "available" {
+			recovered[v.Name] = false
+		}
+	}
+	rows := []db.ListOutageReachGapVantagesRow{}
+	for name, n := range counts {
+		rows = append(rows, db.ListOutageReachGapVantagesRow{Vantage: name, Services: n, Recovered: recovered[name]})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Vantage < rows[j].Vantage })
+	return rows, nil
+}

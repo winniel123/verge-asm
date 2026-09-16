@@ -393,7 +393,7 @@ const (
 	devExposureEdgeOnly     = 3
 	devExposureFirewalled   = 41
 	devExposureUnreachable  = 9
-	devExposureNotReached   = 7
+	devExposureOneLegged    = 7
 	devExposureHasDeltas    = true
 
 	devExposureWithheldVariant = "no-internet-vantage"
@@ -406,19 +406,18 @@ type devExposureRow struct {
 	internalDate string
 	internet     string
 	internetDate string
-	since        string
 }
 
 // The board dates a leg to the day, so these carry exposureSinceDateFmt and not spanTimeFmt.
 
 var devExposureRows = []devExposureRow{
-	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "reached", internalDate: "2026-09-15", internet: "reached", internetDate: "2026-09-15", since: "4m"},
-	{asset: "api.acmecorp.io", svc: ":443 https", internal: "reached", internalDate: "2026-07-08", internet: "reached", internetDate: "2026-07-08", since: "69d"},
-	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "reached", internalDate: "2026-08-05", internet: "reached", internetDate: "2026-09-11", since: "41d"},
-	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "reached", internalDate: "2026-09-03", internet: "not-reached", internetDate: "2026-08-28", since: "12d"},
-	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "reached", internalDate: "2026-08-20", internet: "not-reached", internetDate: "2026-08-20", since: "26d"},
-	{asset: "mail.acmecorp.io", svc: ":25 smtp", internal: "reached", internalDate: "2026-09-07", internet: "gap", internetDate: "2026-09-12", since: "8d"},
-	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internalDate: "2026-06-30", internet: "never-looked", since: "—"},
+	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "reached", internalDate: "2026-09-15", internet: "reached", internetDate: "2026-09-15"},
+	{asset: "api.acmecorp.io", svc: ":443 https", internal: "reached", internalDate: "2026-07-08", internet: "reached", internetDate: "2026-07-08"},
+	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "reached", internalDate: "2026-08-05", internet: "reached", internetDate: "2026-09-11"},
+	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "reached", internalDate: "2026-09-03", internet: "not-reached", internetDate: "2026-08-28"},
+	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "reached", internalDate: "2026-08-20", internet: "not-reached", internetDate: "2026-08-20"},
+	{asset: "mail.acmecorp.io", svc: ":25 smtp", internal: "reached", internalDate: "2026-09-07", internet: "gap", internetDate: "2026-09-12"},
+	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internalDate: "2026-06-30", internet: "never-looked"},
 }
 
 func devScopeActs() []scopeActRow {
@@ -442,10 +441,13 @@ func devLegInfo(state string) legInfo {
 	}
 }
 
-func devLegChip(class custody.VantageClass, state, date string) *legChip {
-	// The fixture header renders through the live formatter, so it cannot drift off it.
-	chip := reachLegChip(class, legFrom(devLegInfo(state)))
-	chip.Date = date
+func devLegChip(class custody.VantageClass, state, date, layout string) *legChip {
+	info := devLegInfo(state)
+	if since, err := time.Parse(layout, date); err == nil {
+		info.since = since
+	}
+	chip := reachLegChip(class, legFrom(info))
+	chip.Date = legSinceIn(info, layout)
 	return &chip
 }
 
@@ -461,8 +463,8 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 		rows = append(rows, exposureRow{
 			Asset: r.asset, Svc: r.svc,
 			// The fixture board renders through the live formatter, so it cannot drift off it.
-			Internal: *devLegChip(custody.ClassInternal, r.internal, r.internalDate),
-			Internet: *devLegChip(custody.ClassInternet, r.internet, r.internetDate),
+			Internal: *devLegChip(custody.ClassInternal, r.internal, r.internalDate, exposureSinceDateFmt),
+			Internet: *devLegChip(custody.ClassInternet, r.internet, r.internetDate, exposureSinceDateFmt),
 		})
 	}
 	data["Withheld"] = false
@@ -475,7 +477,7 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 	data["EdgeOnly"] = devExposureEdgeOnly
 	data["Firewalled"] = devExposureFirewalled
 	data["Unreachable"] = devExposureUnreachable
-	data["OneLegged"] = devExposureNotReached
+	data["OneLegged"] = devExposureOneLegged
 	if devExposureHasDeltas {
 		data["HasDeltas"] = true
 		data["ExposedDelta"] = map[string]any{"Change": devExposureExposedDelta}
@@ -1602,8 +1604,8 @@ func devAssetPortRows() []assetPort {
 		rows = append(rows, assetPort{
 			Port: p.port, Service: p.service,
 			// The fixture page renders through the live formatter, so it cannot drift off it.
-			Internal: *devLegChip(custody.ClassInternal, p.internal, p.internalDate),
-			Internet: *devLegChip(custody.ClassInternet, p.internet, p.internetDate),
+			Internal: *devLegChip(custody.ClassInternal, p.internal, p.internalDate, spanTimeFmt),
+			Internet: *devLegChip(custody.ClassInternet, p.internet, p.internetDate, spanTimeFmt),
 		})
 	}
 	return rows
@@ -1717,8 +1719,8 @@ func devServiceData() servicePageData {
 		Key:          devServiceKey,
 		CopyKey:      "203.0.113.7:5900 tcp",
 		Withdrawn:    false,
-		InternalLeg:  devLegChip(custody.ClassInternal, "reached", "2026-08-22 14:00 UTC"),
-		InternetLeg:  devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC"),
+		InternalLeg:  devLegChip(custody.ClassInternal, "reached", "2026-08-22 14:00 UTC", spanTimeFmt),
+		InternetLeg:  devLegChip(custody.ClassInternet, "reached", "2026-09-02 08:30 UTC", spanTimeFmt),
 		Seen:         "4m",
 		CoveredSince: "2026-08-22",
 		Citation: []citationHop{

@@ -3,8 +3,11 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { parse } from "./doclint/engine.mjs";
-import { scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
+import { visitParents } from "unist-util-visit-parents";
+import { basenameOf, scanLineAnchorsFromTree } from "./citations/lineanchor.mjs";
 import { environment } from "./check-citations.mjs";
+import { classify, URL_WITHOUT_SCHEME } from "./citations/classify.mjs";
+import { inOpaque } from "./citations/extract.mjs";
 import { derive } from "./sweep/derive.mjs";
 import { rewriteDocument, trailingGlue } from "./sweep/rewrite.mjs";
 import { auditAnchors, reportAudit, writtenAnchors } from "./sweep/audit.mjs";
@@ -168,6 +171,68 @@ export function pathsNamedIn(markdown, env, docFile = null) {
   return out;
 }
 
+// classify's three verdicts for a path this tree does not hold (#2160).
+const ELSEWHERE = new Set(["foreign", "exempt", "untracked"]);
+
+function baseOf(path) {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+// classify trims a sentence's punctuation off its target, and a raw match keeps it (#2160).
+function trimmed(match) {
+  return match.replace(/[.,;:)\]]+$/, "");
+}
+
+// A shorthand of a path the document also writes in full names our file, not another tree (#2160).
+function shorthandFor(value, namedInDocument) {
+  for (const path of namedInDocument) {
+    if (path === value || path.endsWith(`/${value}`)) return true;
+  }
+  return false;
+}
+
+// A fence and an HTML comment are sample text the scanner passes over, so this scan does too.
+export function visibleText(tree) {
+  let out = "";
+  visitParents(tree, (node, ancestors) => {
+    if (inOpaque([...ancestors, node])) return;
+    if (node.type === "text" || node.type === "inlineCode") out += `${node.value}\n`;
+    else if (typeof node.url === "string") out += `${node.url}\n`;
+  });
+  return out;
+}
+
+// The tree repoints a slashless form at our file, so the document's foreign paths deny it (#2160).
+export function foreignBasenamesIn(text, env, docFile, wanted, namedInDocument = new Set()) {
+  const out = new Set();
+  if (!env?.tracked?.files || wanted.size === 0) return out;
+  const seen = new Set();
+  const citations = [];
+  for (const [match] of text.matchAll(TREE_PATH)) {
+    const value = trimmed(match);
+    if (!wanted.has(baseOf(value)) || seen.has(value)) continue;
+    seen.add(value);
+    citations.push({
+      raw: value,
+      kind: "code",
+      line: 1,
+      withdrawn: false,
+      prose: "",
+      refs: [],
+      snippet: null,
+    });
+  }
+  if (citations.length === 0) return out;
+  for (const result of classify(env, docFile, citations)) {
+    // A URL names another project's tree as plainly as a foreign root does (#2160).
+    const url = result.status === "ignored" && result.reason === URL_WITHOUT_SCHEME;
+    if (!url && !ELSEWHERE.has(result.status)) continue;
+    if (shorthandFor(result.value, namedInDocument)) continue;
+    out.add(baseOf(result.value));
+  }
+  return out;
+}
+
 export function scanDocuments(repoRoot, files, env = null) {
   const found = new Map();
   for (const file of files) {
@@ -180,7 +245,16 @@ export function scanDocuments(repoRoot, files, env = null) {
     }
     const lines = markdown.split("\n");
     const namedInDocument = pathsNamedIn(markdown, env, file);
-    const scan = scanLineAnchorsFromTree(parse(markdown), { knownFile: env?.knownFile ?? null });
+    const tree = parse(markdown);
+    const scan = scanLineAnchorsFromTree(tree, { knownFile: env?.knownFile ?? null });
+    const wanted = new Set(scan.filter((h) => h.form === "file").map((h) => basenameOf(h.token)));
+    const foreignInDocument = foreignBasenamesIn(
+      visibleText(tree),
+      env,
+      file,
+      wanted,
+      namedInDocument,
+    );
     const hits = scan.map((h) => ({
       ...h,
       file,
@@ -188,6 +262,7 @@ export function scanDocuments(repoRoot, files, env = null) {
       // The derivation reads the citing line for a name, so the scan carries it (#1977).
       lineText: lines[h.line - 1] ?? "",
       namedInDocument,
+      foreignInDocument,
     }));
     found.set(file, { markdown, hits });
   }
@@ -240,7 +315,7 @@ function report(results) {
 
   if (holds.length > 0) {
     console.log("");
-    console.log("Held back — the path itself is gone, so the token stays and a human repairs it:");
+    console.log("Held back — the token stays exactly as it is, and a human repairs it:");
     for (const r of holds) console.log(`  ${r.file}:${r.line}  ${r.token}  (${r.reason})`);
   }
 
@@ -260,11 +335,11 @@ function report(results) {
   console.log(`  ${n(anchors)}  derive an anchor`);
   console.log(`  ${n(review)}  of those enter the review queue`);
   console.log(`  ${n(degradations)}  degrade to a bare path`);
-  console.log(`  ${n(holds)}  held back: the path itself is gone`);
+  console.log(`  ${n(holds)}  held back: the token stays for a reader`);
   return { anchors, degradations, holds };
 }
 
-function planWrites(results, found, env) {
+export function planWrites(results, found, env) {
   const byFile = new Map();
   for (const r of results) {
     if (!byFile.has(r.file)) byFile.set(r.file, []);

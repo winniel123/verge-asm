@@ -157,7 +157,7 @@ type Querier interface {
 	// A 90d window on an unbounded corpus is itself unbounded, so the read caps (ADR-0178 §1).
 	ListActsInRange(ctx context.Context, arg ListActsInRangeParams) ([]Act, error)
 	// The panel beside a figure is a pointer at the audit trail, not a second one (ADR-1946 §3).
-	ListActsOfClassSince(ctx context.Context, arg ListActsOfClassSinceParams) ([]Act, error)
+	ListActsOfClassesSince(ctx context.Context, arg ListActsOfClassesSinceParams) ([]Act, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
@@ -221,6 +221,8 @@ type Querier interface {
 	// LIKE only prefilters; Go re-parses each key, so a loose pattern closes no stranger (#1689).
 	ListOpenSpansBeneathAddresses(ctx context.Context, addresses []string) ([]ListOpenSpansBeneathAddressesRow, error)
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
+	// One row per position, never one per service: an outage Gaps thousands at once (#2180).
+	ListOutageReachGapVantages(ctx context.Context) ([]ListOutageReachGapVantagesRow, error)
 	ListPendingNameSeedWithdrawals(ctx context.Context) ([]ListPendingNameSeedWithdrawalsRow, error)
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
 	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)

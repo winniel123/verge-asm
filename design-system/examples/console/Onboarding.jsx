@@ -19,7 +19,7 @@ export function Onboarding({ open, onClose, onFinish }) {
       steps={[
         { id: "seeds", title: "Seeds", valid: seeds.length > 0, content: (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <span style={micro}>What you own</span>
+            <span style={micro}>What you declare</span>
             <TagInput values={seeds} onChange={setSeeds} placeholder="acmecorp.io, 203.0.113.0/24" />
             <span style={{ font: "400 12px/1.6 var(--font-ui)", color: "var(--text-muted)" }}>Domains or CIDR ranges. Discovery expands each seed into subjects — you never enumerate hosts by hand.</span>
           </div>

@@ -59,6 +59,7 @@ This matches [citation anchors](citation-anchors.md) §1.2. One boundary serves 
 
 - **Repointing an anchor to the declaration the prose names.** §6.3 rules that a suspect anchor
   degrades. Choosing a new target is a judgement about what the document asserts. A human makes it.
+  §6.4 states the route that human takes, and this SPEC repoints nothing itself.
 - **The line anchors the sweep has not reached.** Three batch tickets remain on map
   [#1967](https://github.com/winniel123/verge-asm/issues/1967). They convert under the guard as it
   stands, refined or not.
@@ -84,6 +85,7 @@ This matches [citation anchors](citation-anchors.md) §1.2. One boundary serves 
 | **The history arm** | `docs-site/scripts/sweep/history.mjs`, which reads the target's own history. |
 | **Witness commit** | The newest commit whose revision of the citing line still spelled a line number for the cited path. |
 | **Drift candidate** | An anchor whose cited line sat in another declaration at the witness commit. |
+| **Crossed anchor** | A written anchor that names a declaration the citing document does not mean. A suspect anchor and a drift candidate are the two shapes an instrument reports. Neither report is a proof, so a human names the class. |
 
 ---
 
@@ -173,14 +175,15 @@ the same line.
   The anchor the guard dropped was correct.
 
 This class held a third member, and the history arm falsified it. `docs/spec/aperture-statement.md`
-line 408 reads "`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`". That reads as the
-same shape: the rival is a declaration inside the written anchor. The witness commit `060c880d`
-wrote that citation as a line number on `cmd/web/cold.go`. The number named line 246, which at that
-commit was the `func apertureMeters(...)` declaration line itself. So the citation named
-`apertureMeters`, and the written anchor is the declaration the drifted number later landed in. The
-guard's report was a true positive. §9 fact F3 records the corrected verdict, and
-[#2094](https://github.com/winniel123/verge-asm/issues/2094) holds that record. The anchor at that
-site is unchanged, and [#2146](https://github.com/winniel123/verge-asm/issues/2146) holds it.
+line 408 then read "`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`". That reads as
+the same shape: the rival is a declaration inside the written anchor. The witness commit
+`060c880d` wrote that citation as a line number on `cmd/web/cold.go`. The number named line 246,
+which at that commit was the `func apertureMeters(...)` declaration line itself. So the citation
+named `apertureMeters`, and the written anchor was the declaration the drifted number later landed
+in. The guard's report was a true positive. §9 fact F3 records the corrected verdict, and
+[#2094](https://github.com/winniel123/verge-asm/issues/2094) holds that record.
+[#2146](https://github.com/winniel123/verge-asm/issues/2146) repaired that site under §6.4, and
+line 408 now names `apertureMeters`.
 
 **The class survives on the two ADR sites above.** One falsified member is not the class, and §5.2
 rule 2 still answers it.
@@ -236,6 +239,60 @@ finds a new false-positive class adds a rule for that shape. A builder never rel
 **It must not reimplement `rivalName`.** One derivation serves every caller, per
 [#1975](https://github.com/winniel123/verge-asm/issues/1975). A second copy drifts from the first.
 
+**It must not read the target alone.** The rule *any name the target does not declare is suspect* is
+rejected. A citing line legitimately spells a struct field, a method-local name, a rule slug, a
+column name and a template token. No declaration vocabulary carries any of those, so the target's
+inventory declares none of them, and that rule would degrade sound anchors across the 301 unproven
+anchors of §9 fact F6. The test is the tree, not the target. A rule that reads an absence as
+evidence asks every declaration the tree carries, under every declaration vocabulary, and it is
+closed to any name some inventory in the tree still carries. This section calls that the tree test.
+
+**A declaration vocabulary is one that names.** The containment row matches every path and answers
+whether a file holds a token. It enumerates no name, `rivalName` never sees it, and a rule that
+counted it would find every word present and fire on nothing.
+
+**It must not read a common word's absence as evidence.** An identifier whose name is a common word,
+or a common compound, carries too little distinctiveness for a position verdict. It scores
+`unproven` however the tree reads, and the tree test is closed to it. The test is mechanical, so a
+name that appears later is covered on the day it appears. Either limb is enough.
+
+1. The tree spells the name outside a citation, in a position no declaration vocabulary carries: a
+   parameter, a local, or a struct field. The name is then absent from every inventory for a reason
+   the vocabulary chose, not for a withdrawal.
+2. The name matches a standard-library field or method name, with an exported initial folded.
+
+A **distinctive** identifier is the complement. Only a distinctive identifier reaches the verdict the
+tree test awards.
+
+`notAfter` and `notBefore` are the measured cases, and they are why the tree test is not enough on
+its own. `cmd/web/subjects.go#certValidity` spells `notAfter` as a parameter, and
+`internal/signal/endpoint.go#CertHorizon` spells both. Every X.509 certificate carries both fields,
+and `crypto/x509` spells them `NotAfter` and `NotBefore`. So both limbs hold, while no row inventory
+declares either name and the tree test alone would call both suspect. The tree holds each word for a
+reason unrelated to the citation, so the absence is unreadable. `certExpiryWindow`, which §9 fact F9
+names, is the complement: no file outside `docs/` spells it, no limb holds, and its withdrawal
+reads. These three measurements were taken on 2026-09-16, against `main` at `ffa10a8`.
+
+**It must not raise a shape whose false-positive rate no fact measures.** This is the mirror of the
+first rule. That rule forbids lowering the bias toward degrading, and a rule that raises `unproven`
+to `suspect` moves the bias the other way. Such a rule reaches only the shape whose false-positive
+rate a §9 fact records. A shape whose rate is assumed rather than counted stays `unproven`, and §5.2
+rule 2 is where an uncertain one goes.
+
+**§9 fact F12 measures the tree test, and this section still states a boundary and no rule.** F3
+and F5 measure the position guard, F8 the audit, F11 the history arm, and F12 the tree test's
+false-positive rate on this boundary. The rule itself is
+[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s, and that ruling binds it to ship in
+one pull request with its own §9 measurement. F12 is that measurement, and it landed first, because
+[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s own third fact assigns the breakdown
+to the implementing session as its first step. **The rate F12 records is 14 false positives in 14,
+over an empty true-positive population.** The two shapes this section leaves open are a retired
+line anchor and a residue of five names. A reader of that rate decides what the rule may reach.
+
+The pull request that ships the rule also owns §2, where a suspect anchor takes its name from its
+rival. A rival is a declaration the target really has. So a verdict the tree test awards has no
+rival under the term as it stands.
+
 ---
 
 ## 6. The repair
@@ -262,7 +319,7 @@ dispatch and the path resolution.
 The audit reports three counts per family: suspect, corroborated, and unproven. §9 facts F1 and F2
 are its first output, so a builder can check the arm against them.
 
-### 6.3 A suspect anchor degrades, and is never repointed
+### 6.3 A suspect anchor degrades, and no tool repoints it
 
 A suspect anchor keeps its path and drops the anchor. The citation then says less, and everything it
 says is true.
@@ -283,8 +340,57 @@ puts one declaration where another stood, so the document asserts something new.
 classes where the rival is not the target, so no tool can tell the two acts apart here. A human
 decides each one. Inside `docs/adr` the route is a later ADR's relation, per
 [adr governance](adr-governance.md) §4, and §3 of that SPEC carries the same limit. That SPEC
-governs no file under `docs/spec`, so it prescribes no route there, and a human decides all the
-same.
+governs no file under `docs/spec`, so it prescribes no route there. §6.4 states the route that
+reaches `docs/spec`.
+
+### 6.4 The route for a `docs/spec` anchor that crossed declarations
+
+ADR-2086 §3 puts a crossed anchor in its second row. The document asserts something new, so a human
+acts, and the act leaves a record. ADR-2086 §7 leaves `docs/spec` outside the ADR route, so the
+relation of [adr governance](adr-governance.md) §4 is not that record here. This section names the
+instrument that is.
+
+**The record is the pull request, because a SPEC amends itself in place.** An ADR never does, per
+[adr governance](adr-governance.md) §3, so its record has to be a later file. A SPEC is edited where
+it stands, so the edit is the amendment. No relation is declared and no marker is written.
+
+The route has three steps, and a human takes each one.
+
+1. **Degrade first.** §6.3 stands. The anchor becomes a bare path, and the citation asserts nothing
+   false from that moment. A degrade needs no reading and waits for no decision.
+2. **Repair the sentence, and let the anchor follow it.** The human reads the citing sentence and the
+   target, and states which declaration the sentence means. A rival the guard reports and a witness
+   commit the history arm reads are both evidence for that reading. Neither one decides it, per §6.3
+   and §7. The human then writes the sentence and its anchor in one commit. A new anchor under a
+   sentence nobody re-read is the act §6.3 refuses.
+3. **State the evidence in the pull request body.** One line carries the anchor that degraded, the
+   declaration the repair names, and what chose it. The two steps may land in one pull request or in
+   two, and the request that writes the new anchor carries that line.
+
+**§6.3 keeps its sentence and gains a limit.** It rules the act a tool takes, and the act a human
+takes on the anchor alone. It does not refuse a re-read sentence that carries a new anchor, because
+that act re-states the claim rather than moving it.
+
+**The declaration the sentence means may have left the target.** The citation is then wrong in its
+path as well as its anchor, and the same commit writes both. A citation whose path no longer
+resolves at all stays §1.3's case.
+
+**A wrong rule is not a wrong citation.** This route repairs a citation. Where the reading finds the
+SPEC's rule wrong, the crossed anchor is a symptom, and the rule changes by its own route.
+
+**The rejected record is an in-tree sentence.** [adr governance](adr-governance.md) §5 keeps the
+sentence rule of ADR-0058 for a spec target, so a note beside the repaired citation was available.
+It was rejected because ADR-0058 rules a withdrawn mechanism, and a repaired citation withdraws
+nothing. A note per repair would also state, in the SPEC's own prose, which line number once drifted.
+The cost of the choice is that the tree shows a repaired anchor and a never-wrong anchor alike, and
+the pull request holds the difference.
+
+**No gate reports this work, and no count retires it.** §8 keeps every instrument out of the gate,
+and §7 consequence 3 says why no list proves the anchors correct. §9 fact F3 records three real
+suspect anchors in `docs/spec`. [#2146](https://github.com/winniel123/verge-asm/issues/2146)
+repaired the first under this route, and the two `audit-act.md` rows have no owner. Fact F10
+reports 30 more `docs/spec` drift candidates that no human has read, so those three are the first
+cases and not the population.
 
 ---
 
@@ -358,6 +464,11 @@ and this SPEC adds nothing.
 request built and the same pull request measured. A human opens the issue that becomes an ADR, per
 `CLAUDE.md`.
 
+**§6.4 is the one section that reason does not cover.** It rules a route rather than correcting the
+guard, and it answers for `docs/spec` the question ADR-2086 §7 left open there. So the pull request
+that added it carries a decision proposal block, per [adr governance](adr-governance.md) §7, and a
+human decides whether an ADR follows.
+
 ---
 
 ## 9. Established facts
@@ -382,9 +493,9 @@ unproven.** The range converted under the guard, so a suspect anchor could not l
 
 The `aperture-statement.md` row read `class A` when this fact was first measured, on the guard's
 evidence alone. The history arm overturned it, per §4.3: the witness `060c880d` named line 246 of
-`cmd/web/cold.go`, which was the `func apertureMeters(...)` declaration line. The anchor at that
-site is unchanged, and [#2146](https://github.com/winniel123/verge-asm/issues/2146) holds it. This
-fact records the verdict alone.
+`cmd/web/cold.go`, which was the `func apertureMeters(...)` declaration line.
+[#2146](https://github.com/winniel123/verge-asm/issues/2146) repaired that site under §6.4, and
+the citation now names `apertureMeters`. This fact records the verdict alone.
 
 **F4 — the guard degraded 36 of 255 candidate conversions over ADR-0001 to ADR-0176.** The
 unguarded pass wrote 255 anchors. The guarded pass wrote 219 and degraded 141 in total.
@@ -439,3 +550,99 @@ Two of the 19 spell the intended declaration in the prose, and the guard reports
 line 62 puts that name on the line above the citation. `docs/spec/audit-act.md` line 19 names
 `fillAuditSection`, and `cmd/web/settings.go` no longer declares it. The guard then reads the
 strongest drift evidence available as no evidence at all.
+
+A run on 2026-09-16 produced fact F12. It ran against `ec0404e`, the branch this fact lands from.
+That branch is `main` at `ffa10a8` plus its own merges. Two commands reproduce the inputs.
+`npm run sweep:line-anchors -- --audit` from `docs-site/` gives the population.
+`go run ./cmd/godecls --root .` over `git ls-files '*.go'` gives the Go half of the tree index.
+
+**F12 — the audit judges 626 written anchors and calls 512 unproven. 208 of them spell a name the
+target does not declare, in a span the guard reads. §5.3 leaves the tree test open to 14 of the 459
+names they spell. A hand read finds every one of the 14 a false positive.**
+
+The 512 are 97 in `docs/spec`, 413 in `docs/adr` and 2 in the root documents. The 208 sit on 195
+citing lines. They spell 459 such names between them, and 307 of the names are distinct. The other
+304 anchors spell no name the guard reads. So no rule over the citing line reaches them. The shapes
+below are exclusive, in §5.3's own order of closure. Each one counts a name the target lacks.
+
+| Shape | What the name is | §5.3 | `docs/spec` | `docs/adr` | Total | Distinct |
+| --- | --- | --- | --- | --- | --- | --- |
+| A — declared elsewhere | some inventory in the tree carries it under `sameName` | closed | 14 | 110 | 124 | 90 |
+| C — weak | limb 1 holds: a file the markdown row does not claim spells the token | closed | 55 | 266 | 321 | 205 |
+| B — case-folded only | no inventory carries it, and one carries a case-folded spelling | **open** | 5 | 3 | 8 | 7 |
+| D — residue | no inventory carries it folded or not, and no such file spells it | **open** | 2 | 4 | 6 | 5 |
+
+§5.3 closes the tree test to a name some inventory still carries, and to a weak name. It closes it
+to neither B nor D. **So B and D together are the population a rule of
+[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s shape raises.** That is 14
+occurrences over 12 anchors. Seven of the 12 spell such a name before the citation, so rule 1 of
+§5.2 degrades them. The other five spell one only afterwards, so they enter rule 2's review queue.
+By syntax the 459 are 399 bare identifiers, 40 dotted names and 20 file names.
+
+**All 14 are false positives.** No site below carries a region anchor. One would put this fact's
+own lines into the population it counts.
+
+| Site | The name | Why the anchor stands |
+| --- | --- | --- |
+| `docs/spec/golden-corpus.md` line 219 | `Bumped` | a table column header inside a two-word span, and the anchor is a heading slug |
+| `docs/spec/comment-policy.md` line 2321 | `fa97` | the tail of the commit hash `860fa97`, which the identifier pattern cuts at the digits |
+| ADR-0160 line 39, on both anchors | `account.password_hash` | a database column, and both anchors name the declarations the row is about |
+| ADR-0179 line 33 | `signalRow.seenAge` | a struct field of the anchor's own type, so the prose supports the anchor rather than rivalling it |
+| ADR-0147 line 23 | `assetsWatched` | a withdrawn local; the anchor's declaration still computes the stat, and the stale part is the expression the prose quotes |
+| 6 more anchors, 8 occurrences | `artifactdoc.go`, `password.go` and 5 like them | shape B is a retired line anchor, and a file name is no declaration name |
+
+So the tree test's measured false-positive rate on this boundary is 14 of 14. Its measured
+true-positive population on this boundary is empty.
+
+**Shape B is a retired line anchor, spelled as a bare basename.** §8.4 of
+[citation anchors](citation-anchors.md) stages that form, and the conversion of
+[#2120](https://github.com/winniel123/verge-asm/issues/2120) has not reached it. Each of the 8 sits
+in a span such as `` `artifactdoc.go:147` ``. The guard reads it, because `citesPath` strips the
+line suffix and finds a basename that spells no directory. So the span survives, and the basename
+becomes a candidate. The name then folds on its extension onto a declared type.
+`artifactdoc.go` folds onto the `Go` that `internal/commentlint/surface/golang.go` declares, and
+`_integration_state.sql` folds onto the `SQL` of its sibling. A later conversion of that stage
+empties shape B, and no rule is needed.
+
+**The true positives left the corpus before it was measured.**
+[#2011](https://github.com/winniel123/verge-asm/pull/2011) degraded the ADR-0186 rows by hand. So
+no name they spell is a written anchor's rival today. This run scored them as names against its
+tree index. Shape D holds `certExpiryWindow`, shape B holds `weakKeyOrSignature` and
+`selfSignedOf`, and shape C holds `notAfter` and `notBefore`. So the tree test reaches three of
+those five. It reaches two of the three for the wrong reason, because those declarations are alive
+under an exported initial.
+
+**Relocation is a shape of its own, and shape B holds none of it today.** `sameName` is
+case-sensitive. So a live declaration reads as absent where the prose spells it with another
+initial. `internal/signalfacts/signalfacts.go` declares `WeakKeyOrSignature` and `SelfSignedOf`,
+and ADR-0186 spelled both with a lowercase initial. Neither is a written anchor's rival now, and
+none of the 8 shape-B names is a relocation. Folding the case inside `sameName` is not the repair
+either. Measured over all 459 names, a folding `sameName` makes 3 of them a rival of the anchor's
+own target. They sit at ADR-0150 line 52, ADR-0189 line 83 and ADR-0193 line 59, and they spell
+`connect`, `ReserveCTSlot` and `sct`. All three come before the citation, so all three would
+degrade a sound anchor under §5.2 rule 1. None is a relocation.
+
+**Limb 1 reads a dotted name two ways, and the raised population turns on it.** The table asks
+whether the tree spells the whole dotted name. The other reading asks whether it spells the tail:
+`seenAge` of `signalRow.seenAge`, and `password_hash` of `account.password_hash`. Under that
+reading shape B empties, D falls from 6 to 3, and the raised population falls to 3 occurrences. The
+false-positive rate is 14 of 14 under the first reading, and 3 of 3 under the second.
+
+**What this run did not measure.** §5.3 calls a name weak when either limb holds, and this run
+applied limb 1 alone. Limb 2 names a standard-library field or method, with an exported initial
+folded. A hand read applied it over the 14, and no run applied it mechanically. A mechanical run
+can only move a name out of B or D into C. So the raised population can only shrink. Shape A
+already takes every name some inventory carries. So a name that reaches C is spelled in a position
+no declaration vocabulary carries, which is what limb 1 asserts.
+
+**How the shapes were derived.** The guard scored its own reads. For each span of an unproven
+citing line, the run rebuilt the line with every other span blanked. It then called `rivalName`
+once per identifier of that span, against a one-name inventory holding it. A `suspect` answer then
+means the guard reads that name in that position. The blanking is what makes the answer sound.
+`sameName` matches a suffix, so an un-isolated probe for `fetcher.go` answers `suspect` on a bare
+`go` from any other span. An earlier run of this fact over-counted 10 names that way. No second
+matcher was written, per §5.3, and the tree holds no harness for this run. So this paragraph is the
+record of the method. The tree index took every tracked file under the four declaring rows. It
+holds 9,163 names from 737 Go files, 298 from the `-- name:` queries, and 86 from the `{{define}}`
+templates. It also holds 4,447 heading slugs from 480 markdown files. Limb 1 is a token search over
+every tracked file the markdown row does not claim.

@@ -91,10 +91,8 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
 		log.Printf("web: exposure: previous batch instant: %v", err)
 	} else if ok {
-		if exposed, firewalled, oneLegged, dok := s.exposureDeltasFrom(ctx, prevAt, census, covered); dok {
+		if exposed, dok := s.exposureDeltasFrom(ctx, prevAt, census, covered); dok {
 			data["ExposedDelta"] = exposed
-			data["FirewalledDelta"] = firewalled
-			data["OneLeggedDelta"] = oneLegged
 			data["HasDeltas"] = true
 		}
 	}
@@ -158,17 +156,14 @@ func censusFromLegs(byService map[string]map[string]legInfo) exposure.Census {
 // The change is a difference from the figure the band renders (ADR-1945 §1, #2046).
 
 func (s *server) exposureDeltasFrom(ctx context.Context, prevAt time.Time, cur exposure.Census,
-	covered func(netip.Addr) bool) (exposed, firewalled, oneLegged drift.Delta, ok bool) {
+	covered func(netip.Addr) bool) (exposed drift.Delta, ok bool) {
 	past, err := s.deltasStore.ListServiceReachabilitySpansByClassAt(ctx, pgtypeTimestamptz(prevAt))
 	if err != nil {
 		log.Printf("web: exposure delta: list reachability by class at: %v", err)
-		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
+		return drift.Delta{}, false
 	}
 	prev := censusFromLegs(collapseReachLegs(reachRowsFromAt(past), covered))
-	return drift.Delta{Current: cur.Exposed, Previous: prev.Exposed},
-		drift.Delta{Current: cur.Firewalled, Previous: prev.Firewalled},
-		drift.Delta{Current: cur.OneLegged, Previous: prev.OneLegged},
-		true
+	return drift.Delta{Current: cur.Exposed, Previous: prev.Exposed}, true
 }
 
 type legChip struct {

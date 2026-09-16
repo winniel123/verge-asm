@@ -1,0 +1,39 @@
+-- +goose Up
+-- The two availability writers in db/queries/vantages.sql both filter span on
+-- `closed_at IS NULL AND vantage_id IN (<one-row CTE>)`, and no index leads on vantage_id
+-- (#2179). MarkVantageAvailable runs inside the job transaction on EVERY completed
+-- resolution-walk batch and almost always closes nothing, so that filter is paid at scan
+-- cadence for no rows.
+--
+-- span_open_timeline_idx is the only index whose predicate matches `closed_at IS NULL`, and
+-- it leads on subject_key, which neither writer constrains. The planner can still read it,
+-- but only as a full scan of the whole index with vantage_id applied per entry. So each
+-- write costs the count of OPEN spans across every vantage. Leading on vantage_id makes it
+-- a seek, and the scan touches one vantage's open spans. That is the whole of the win here:
+-- a factor of the vantage count, and nothing more.
+--
+-- It is NOT a win against the span corpus. ADR-0041 bars compaction, so the table grows with
+-- drift, but 19000's partial unique index holds one OPEN row per timeline, so the open set
+-- grows with live timelines instead. The existing partial index already bounds the scan to
+-- that set; this one bounds it to a vantage's share of it.
+--
+-- `is_gap` is deliberately NOT in the predicate. #2179 proposed
+-- `WHERE closed_at IS NULL AND is_gap` for all three statements, but MarkVantageUnavailable
+-- closes on `(is_gap AND value ->> 'cause' = 'vantage-unavailable') IS NOT TRUE`, so the rows
+-- it closes are mostly non-gap and an index partial on is_gap holds none of them. Only
+-- `closed_at IS NULL` is common to both writers.
+--
+-- No facet column. MarkVantageUnavailable names no facet on purpose (ADR-2087, #2144), so a
+-- trailing facet would serve one writer and cost both on every span insert and close.
+--
+-- Built inside goose's transaction rather than CONCURRENTLY. The SHARE lock blocks the
+-- worker's span writes for the build, and compose starts worker off `postgres: service_healthy`
+-- rather than off web, so a deploy can stall a live job. CONCURRENTLY needs the no-transaction
+-- annotation, which this repo has never used: a failed build then leaves an INVALID index whose
+-- name blocks the re-run, and no runbook covers clearing it. A bounded stall was taken over an
+-- unattended failure mode. Do not spell that annotation here, even quoted: goose parses any
+-- comment line beginning with its marker and refuses the file.
+CREATE INDEX span_vantage_open_idx ON span (vantage_id) WHERE closed_at IS NULL;
+
+-- +goose Down
+DROP INDEX span_vantage_open_idx;

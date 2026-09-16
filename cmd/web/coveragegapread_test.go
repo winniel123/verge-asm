@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
@@ -180,7 +182,7 @@ func TestReachGapsAndMessagesKeepARowForAnUnexplainedCause(t *testing.T) {
 		{SubjectKey: "198.51.100.10:443/tcp", Value: []byte(`{"outcome":"gap","cause":"probe-failed","reason":"the control probe did not complete"}`)},
 		{SubjectKey: "198.51.100.11:8443/tcp", Value: []byte(`{"outcome":"gap"}`)},
 	}
-	gaps, msgs := reachGapsAndMessages(rows)
+	gaps, msgs, _ := reachGapsAndMessages(rows)
 
 	subjects := map[string]coverageGapView{}
 	for _, g := range gaps {
@@ -222,7 +224,7 @@ func TestReachGapsAndMessagesDoNotLetABlanketedAddressSwallowAnotherPort(t *test
 		{SubjectKey: "104.21.61.6:443/tcp", Value: []byte(`{"outcome":"gap","cause":"` + blanketdiscrim.GapCause + `"}`)},
 		{SubjectKey: "104.21.61.6:8443/tcp", Value: []byte(`{"outcome":"gap","cause":"probe-failed","reason":"the control probe did not complete"}`)},
 	}
-	gaps, msgs := reachGapsAndMessages(rows)
+	gaps, msgs, _ := reachGapsAndMessages(rows)
 
 	if len(gaps) != 2 {
 		t.Fatalf("the blanketed address and the unexplained service are two findings, got %d: %+v", len(gaps), gaps)
@@ -235,6 +237,56 @@ func TestReachGapsAndMessagesDoNotLetABlanketedAddressSwallowAnotherPort(t *test
 	}
 }
 
+func TestCoverageDoesNotClaimNoGapsWhileAnOutageGapStandsOpen(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "local", Class: "internet", Resolver: "127.0.0.11:53",
+		Availability: pgtype.Text{String: "unavailable", Valid: true},
+	})
+	f.vantageNextID = 2
+	for _, svc := range []string{"198.51.100.9:443/tcp", "198.51.100.10:443/tcp"} {
+		f.addClassReachability(t, svc, "internet", obsClock, unavailableGap)
+	}
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	if strings.Contains(page, "No gaps this batch") {
+		t.Errorf("Coverage claimed no gaps while two outage Gaps stood open (#2180); body: %s", page)
+	}
+	if !strings.Contains(page, "2 services") {
+		t.Errorf("the outage row must count the services beneath the dark vantage (#2180); body: %s", page)
+	}
+}
+
+type outageReadStore struct {
+	coldStore
+	err error
+}
+
+func (o outageReadStore) ListOutageReachGapVantages(context.Context) ([]db.ListOutageReachGapVantagesRow, error) {
+	return nil, o.err
+}
+
+func TestCoverageNamesAFailedOutageGapRead(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	buf := captureLog(t)
+
+	srv := newServer(f, testKey, "", fixedClock())
+	srv.useTranscriptKey(testTranscriptKey)
+	srv.coldStore = outageReadStore{coldStore: f, err: errors.New("list outage reach gap vantages: connection reset")}
+	ledger := srv.readCoverageGapLedger(t.Context())
+
+	if !ledger.GapsFailed {
+		t.Error("a failed outage read must raise GapsFailed, not render an empty gap ledger (#2180)")
+	}
+	if !strings.Contains(buf.String(), "connection reset") {
+		t.Errorf("a degradation the operator cannot see must log; log: %q", buf.String())
+	}
+}
+
 func messageFor(msgs []coverageMessageView, subject string) coverageMessageView {
 	for _, m := range msgs {
 		if m.Subject == subject {
@@ -242,4 +294,49 @@ func messageFor(msgs []coverageMessageView, subject string) coverageMessageView 
 		}
 	}
 	return coverageMessageView{}
+}
+
+func TestCoverageSaysARecoveredVantagesOutageGapIsPending(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "local", Class: "internet", Resolver: "127.0.0.11:53",
+		Availability: pgtype.Text{String: "available", Valid: true},
+	})
+	f.vantageNextID = 2
+	f.addClassReachability(t, "198.51.100.9:443/tcp", "internet", obsClock, unavailableGap)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	if !strings.Contains(page, "1 service, pending") {
+		t.Errorf("a recovered vantage's outage row must say the reading is pending (#2189); body: %s", page)
+	}
+	if !strings.Contains(page, "This position has recovered") {
+		t.Errorf("Coverage must tell a recovered position from one we cannot look from (#2189); body: %s", page)
+	}
+}
+
+func TestOutageGapViewsLeaveADarkVantagesRowUnqualified(t *testing.T) {
+	gaps, msgs := outageGapViews([]db.ListOutageReachGapVantagesRow{
+		{Vantage: "dark", Services: 2, Recovered: false},
+		{Vantage: "back", Services: 1, Recovered: true},
+	})
+
+	if len(gaps) != 2 {
+		t.Fatalf("both positions still hold an open Gap, so both take a row (#2189): %+v", gaps)
+	}
+	if gaps[0].Expected != "a reach reading for 2 services" {
+		t.Errorf("a position we still cannot look from must not read as pending (#2189): %+v", gaps[0])
+	}
+	if gaps[1].Expected != "a reach reading for 1 service, pending" {
+		t.Errorf("a recovered position's row must say the reading is pending (#2189): %+v", gaps[1])
+	}
+	if gaps[0].Gap != "outage" || gaps[1].Gap != "outage" {
+		t.Errorf("the badge names the cause the span recorded, for both (#2180): %+v", gaps)
+	}
+	if len(msgs) != 1 || msgs[0].Subject != "vantage back" {
+		t.Fatalf("only the recovered position earns the pending message (#2189): %+v", msgs)
+	}
 }

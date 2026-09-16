@@ -39,7 +39,7 @@ content below. Each ticket holds the measurements and the rejected alternatives 
 | The refusal of a line anchor | §5 |
 | The ADR Decision proposal block's `Site` field | §6 |
 | What the checker asserts, and which required check owns it | §7 |
-| The existing population, and the burn-down that ends it | §8 |
+| The existing population, the burn-down that ended it, and what retires the stage that replaced it | §8 |
 | Non-goals | §9 |
 | The change this SPEC makes to `docs/spec/adr-governance.md` | §10 |
 | Established facts | §11 |
@@ -84,7 +84,10 @@ pull-request body.
 | Containment anchor | One token the target file contains. A checker verifies containment, not declaration. |
 | Row | One line of the §3.2 table. A row keys on a path predicate, and it fixes the anchor vocabulary for that predicate. |
 | Degrade | To drop an anchor and keep the bare path, because no anchor is derivable. |
-| Burn-down list | The staged exemption list of §8.2. It holds the line anchors the sweep has not yet converted. |
+| Burn-down list | The staged exemption list of §8.2, now retired. It held the line anchors the sweep had not yet converted. |
+| Staged form | A line-anchor form the scanner reports and §5 does not refuse. §8.2 names them. |
+| Staged count | The number of in-scope tokens of a staged form. An empty one retires the stage, per §8.2. |
+| Held | Of a token: the derivation writes neither an anchor nor a bare path for it, so the sweep leaves it exactly as it found it. |
 
 ---
 
@@ -370,18 +373,49 @@ gate should judge and could not. That is the invisibility of fact F1 under a fri
 
 ### 8.1 Conversion is required
 
-**The 945 in-scope anchors convert.** 803 sit in `docs/adr`, and 142 sit in `docs/spec`. See fact
-F9.
+**The 945 in-scope anchors convert.** 803 sit in `docs/adr`, and 142 sit in `docs/spec`. See §11
+fact F9.
 
-The 803 anchors inside landed ADRs convert **without a relation, without a marker, and without a
-later ADR**. `docs/spec/adr-governance.md` §3 already rules that repointing a stale anchor is a
-factual repair, and a factual repair needs no relation. Changing what an ADR asserts is not a
-repair, and that runs through a later ADR under that SPEC's §4.
+**An anchor inside a landed ADR converts without a relation, without a marker, and without a later
+ADR while it still names the same declaration.** `docs/spec/adr-governance.md` §3 rules that
+repointing a stale anchor to that declaration is a factual repair, and a factual repair needs no
+relation. ADR-2086 rules the line, and [citation anchor repair](citation-anchor-repair.md) §6.3
+carries the same limit.
+
+**An anchor that now names a different declaration was never inside that authorisation.** It
+changes what the ADR asserts, so it is not a repair. It runs through a later ADR under
+`docs/spec/adr-governance.md` §4, and a human does it. **The limit binds at conversion time and
+after it.** §8.2's list is retired, and the conversion of
+[#2120](https://github.com/winniel123/verge-asm/issues/2120) still has line anchors to reach. A
+conversion that would write an anchor on a different declaration is outside this authorisation, and
+§8.4 degrades that anchor instead.
+
+**803 was never a blanket over the anchors already written.** The history arm of
+[citation anchor repair](citation-anchor-repair.md) §7 is the instrument that sorts them, and that
+SPEC's §9 facts F9 to F11 measure it. **The arm is evidence and not a proof**, so no verdict below
+settles an anchor on its own.
+
+- **Judged consistent.** The witnessed line sat in the declaration the anchor names. That is
+  evidence the authorisation covers it. That SPEC's §7 shape 3 bounds the evidence: an anchor
+  already wrong when its number landed leaves no change for the arm to find.
+- **Judged a drift candidate.** The witnessed line sat somewhere other than the declaration the
+  anchor names. That is evidence of the different-declaration case, and that SPEC's fact F11
+  measures a false-positive class where the number landed just outside the declaration the prose
+  means. A human reads each one under [citation anchor repair](citation-anchor-repair.md) §6.3, and
+  that reading is what puts the anchor inside the authorisation or outside it.
+- **Not judged.** The arm reports an anchor unwitnessed when no revision of the citing line spells a
+  number, and when the witness spells a different count of numbers than the line cites. It reports
+  an anchor unreadable when it cannot resolve the witnessed line at all. The authorisation over such
+  an anchor is unproven rather than wrong, and this section asserts nothing about it.
+
+**This section states no count of the three classes.** The arm re-measures on every run, and it
+reports a different figure as the tree moves. §11 fact F9's 803 stands unchanged: it counts the
+tokens the conversion had to reach, not the anchors this section authorises.
 
 Refusal alone was rejected. It freezes 945 anchors that no check reads, and fact F3 measures at
 least 129 of them as already stale.
 
-### 8.2 The refusal lands first, over a burn-down list
+### 8.2 The refusal lands first, and a newly scanned form is staged before it is refused
 
 The refusal of §5 lands **before** the conversion. Conversion first was rejected, because no ratchet
 exists during the sweep, and the gap re-admits new tokens.
@@ -414,9 +448,68 @@ slices. `/to-tickets` cuts those.
 
 **The sweep is complete, and the list retired.** Four conversion tickets emptied it, and
 [#1980](https://github.com/winniel123/verge-asm/issues/1980) then deleted the file, its loader and
-the stale-entry rule of rule 4. The refusal of §5 is now unconditional, and the check consults no
-list. The rules above record why the list took the shape it did. They govern no live file, and
-`--prune-list` is gone with the rest.
+the stale-entry rule of rule 4. The check consults no list, and `--prune-list` is gone with the
+rest. The rules above record why the list took the shape it did. They govern no live file.
+
+**A second stage replaced the list.**
+[#2120](https://github.com/winniel123/verge-asm/issues/2120) widened Arm A's scanner to two more
+spellings of the retired form, and it staged both behind the ruling above. A scan hit now carries a
+**form**. The `path` form spells a whole path. The `file` form spells a slashless file name. The
+`bare` form spells no path at all, and it leans on a path the prose already named.
+
+**The stage defers enforcement. It amends no rule.** §5 refuses a new line anchor in every form,
+and this section changes nothing about that. The check enforces §5 for the `path` form alone. It
+reports a `file` or a `bare` token and refuses neither.
+`docs-site/scripts/check-citations.mjs` holds that split in one function, and both the document arm
+and the Site arm read it. A reader of §5 who wants to know what the check enforces today reads this
+section.
+
+**The staged count is every in-scope token of a staged form.** It is not a measure of sweep work,
+and it is not a burn-down of the sweep alone. It counts what the check would turn red if the stage
+retired today, which is the one quantity that decides whether the stage may retire.
+
+**The stage retires when the staged count is zero.** The split function is then deleted, the check
+enforces §5 for every form, and one deletion retires both arms.
+
+**Zero is a moment, not a steady state, so the emptying and the deletion are one pull request.**
+The retired list was a ratchet: a token the list did not hold was refused the day it was written.
+The stage replaced the list with a report, and a report stops nothing. So a document merged during
+the stage may mint a `file` or a `bare` token freely, and the count rises again. It stood at 986
+when the stage landed and at 990 when F11 was first measured, and ADR-2159 minted the difference. Any
+sequence that empties the count in one pull request and deletes the split function in a later one
+lets a third pull request re-open the stage in between.
+
+**A staged token leaves the count by one of three routes.** Only the first belongs to the sweep.
+
+1. **Conversion.** §8.3's derivation reads an anchor out of the token, and the sweep writes it.
+2. **A reader's repair.** The token is a citation, and the derivation holds it because the document
+   alone does not prove the path. The derivation holds every `bare` token, because §8.4's
+   degradation would write a citation with no path at all. A reader names the path, or rewords the
+   sentence. That work is [#2156](https://github.com/winniel123/verge-asm/issues/2156).
+3. **A matcher repair.** The token is no citation, so no edit to the document is correct. The
+   scanner stops matching it. A port number in prose is the measured instance, fact F11 records it,
+   and that repair is [#2185](https://github.com/winniel123/verge-asm/issues/2185).
+
+**Naming the three routes is what makes zero reachable.** Conversion alone can never empty the
+count. The derivation holds every `bare` token, and a port is no citation that any conversion can
+take. A retirement condition only conversion can satisfy is a target the instrument cannot reach,
+and a gate that reports an unreachable target teaches a reader to ignore it.
+
+**The held figure bounds routes 2 and 3 together. It is not the staged count.** A dry run of
+`npm run sweep:line-anchors` splits the staged population into derived, degraded and held. Held is
+every token the derivation writes nothing for, so it holds route 2 and route 3 in one bucket. A
+reader who wants route 2 alone subtracts the route-3 population F11 measures. A reader reads the
+held figure from the sweep, never from the check, and it is a component of the staged count rather
+than a rival to it.
+
+**Excluding a held token from the staged count was rejected.** The count would then read zero while
+tokens the check refuses after retirement were still in the tree, and the instrument would certify
+a retirement that turns a required check red on the merge that performs it. Held work is human work,
+not absent work.
+
+**Retiring the stage on a condition other than zero was also rejected.** Every such condition names
+a population the check keeps reporting and has agreed to ignore. That is the permanent exemption
+rule 3 above already refuses, and it kills the completion proof for the second time.
 
 ### 8.3 A citation converts, the extractor changes first
 
@@ -491,7 +584,8 @@ form, so the pull request that lands it makes two edits.
 Facts F1 to F8 were measured during triage of
 [#1916](https://github.com/winniel123/verge-asm/issues/1916), on `main` at `072ff24`. F9 was
 measured when map [#1931](https://github.com/winniel123/verge-asm/issues/1931) was cut. F10 was
-measured on 2026-09-14. **Do not re-measure them.**
+measured on 2026-09-14. **Do not re-measure F1 to F10.** F11 was measured on 2026-09-16, and it is
+the one fact below that a later session re-reads. Its own paragraph says why.
 
 **F1. The extractor never sees a line anchor.** The citation extractor gates every inline-code
 candidate through one path pattern, and that pattern's character classes hold no colon. So a
@@ -534,6 +628,19 @@ comments. This SPEC does not reach `docs/spec/comment-policy.md`.
 commit and on `main`. One drifted by two lines, from a comment line to a type declaration. A second
 moved from a `continue` statement to the `for` statement above it. A third of the four is the pull
 request that converted ADR-0144's line anchors, and its own body minted a fresh line anchor.
+
+**F11. The staged population is 986 tokens across 60 files.** 522 spell the `file` form and 464
+spell the `bare` form. The tokens divide 818 in `docs/adr` and 168 in `docs/spec`. A dry run of the
+sweep derives an anchor for 306, degrades 140, and holds 540. The count read 990 across 63 files
+until the matcher stopped counting 4 tokens that were no citation. Each of those 4 sat outside
+`docs/adr` and `docs/spec`, and each named port 8080 of the `web` service. No conversion repairs a
+port, so §8.2 route 3 took them. The `docs/guides` and `README.md` families now hold no staged
+token.
+
+**F11 is the one fact to re-measure.** §8.2 makes retirement conditional on reading the staged
+count as zero, and §8.2 also rules that the count rises with every document merged during the
+stage. The figure above was 986 when the stage landed. Read it from the check, and read the split
+from a dry run of the sweep. **Every other fact above stays frozen.**
 
 **A method note.** A later re-derivation found 1,067 tokens, where F2 states a total of 1,070
 tokens. It counted 46 `.sql` targets and 23 `.md` targets, where F5 states 47 and 25 of them. A

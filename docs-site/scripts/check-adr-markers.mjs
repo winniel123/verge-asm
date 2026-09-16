@@ -2,8 +2,8 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ADR_DIR, FENCE, headings } from "./check-adr-sections.mjs";
-import { MARKER_LINE, incomingEdges, loadAdrs, plannedMarkers, validate } from "./check-adr-index.mjs";
+import { ADR_DIR, FENCE, MARKER_LINE, headings } from "./check-adr-sections.mjs";
+import { incomingEdges, loadAdrs, plannedMarkers, validate } from "./check-adr-index.mjs";
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const H1_PREFIX = /^ADR-\d{4,}:\s+/;

@@ -243,7 +243,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 	if err != nil {
-		s.serverError(w, "get endpoint subject", err)
+		s.renderUnresolvedSubject(w, r, acct, key, "get endpoint subject", err)
 		return
 	}
 
@@ -367,7 +367,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	if err != nil {
-		s.serverError(w, "get service subject", err)
+		s.renderUnresolvedSubject(w, r, acct, key, "get service subject", err)
 		return
 	}
 
@@ -1007,7 +1007,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	if err != nil {
-		s.serverError(w, "get name subject", err)
+		s.renderUnresolvedSubject(w, r, acct, key, "get name subject", err)
 		return
 	}
 

@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import yaml from "js-yaml";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = resolve(SCRIPT_DIR, "..", "..");
@@ -17,6 +18,12 @@ const NUMBERED_TITLE = /^(\d+(?:\.\d+)*)[.)]?\s+(\S.*)$/;
 
 // ADR-0001 to ADR-0227 amended themselves in file, and a later ADR never does (adr-governance §3)
 export const LEGACY_MAX = 227;
+
+const FRONT = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
+export const MARKER_LINE = /^> .*<!-- adr-marker (amends|retires|supersedes|withdrawn)(?: (\d+))? -->\s*$/;
+export const DECISION_CAP = 150;
+
+export const wordCount = (s) => s.split(/\s+/).filter(Boolean).length;
 
 // reports.md:253 wraps before its §3, so a line break with indent is one blank
 const WRAP = "(?:[ \\t\\u00a0]|\\n[ \\t]*)";
@@ -106,6 +113,54 @@ export function numberedSections(markdown) {
   return sectionSet(numberedHeadings(markdown));
 }
 
+export function splitFrontMatter(raw) {
+  const m = FRONT.exec(raw);
+  if (!m) return { front: null, frontRaw: "", frontLines: 0, body: raw, error: null };
+  let front = null;
+  let error = null;
+  try {
+    // The default schema turns an unquoted 2026-09-07 into a Date (adr-governance §3)
+    front = yaml.load(m[1], { schema: yaml.CORE_SCHEMA });
+  } catch (err) {
+    error = err.reason ?? err.message;
+  }
+  return {
+    front,
+    frontRaw: m[0],
+    frontLines: m[0].split("\n").length - 1,
+    body: raw.slice(m[0].length),
+    error,
+  };
+}
+
+// One range feeds the word count and the reported line, so the two cannot disagree (#2193)
+function decisionRange(body) {
+  const lines = body.split(/\r?\n/);
+  const all = headings(body);
+  const i = all.findIndex((h) => h.level === 2 && h.title === "Decision");
+  if (i >= 0) {
+    const end = i + 1 < all.length ? all[i + 1].line - 1 : lines.length;
+    return { lines, from: all[i].line, to: end, line: all[i].line };
+  }
+  // ADR-0006 has no Decision heading, so its first paragraph stands in (#1641 §5)
+  const h1 = all.find((h) => h.level === 1);
+  let at = h1 ? h1.line : 0;
+  while (at < lines.length && (lines[at].trim() === "" || MARKER_LINE.test(lines[at]))) at++;
+  const from = at;
+  while (at < lines.length && lines[at].trim() !== "") at++;
+  return { lines, from, to: at, line: from + 1 };
+}
+
+export function decisionBlock(body) {
+  const { lines, from, to } = decisionRange(body);
+  const joined = lines
+    .slice(from, to)
+    .filter((l) => !MARKER_LINE.test(l))
+    .join("\n")
+    .trim();
+  return { words: wordCount(joined), text: joined };
+}
+
 export function buildAdrIndex(repoRoot) {
   const index = new Map();
   let names;
@@ -118,10 +173,42 @@ export function buildAdrIndex(repoRoot) {
     const m = ADR_FILE.exec(name);
     if (!m) continue;
     const file = `${ADR_DIR}/${name}`;
-    const headings = numberedHeadings(readFileSync(join(repoRoot, file), "utf8"));
-    index.set(m[1], { file, headings, sections: sectionSet(headings) });
+    const raw = readFileSync(join(repoRoot, file), "utf8");
+    const numbered = numberedHeadings(raw);
+    const { body, front, frontLines, error } = splitFrontMatter(raw);
+    index.set(m[1], {
+      file,
+      number: Number(m[1]),
+      headings: numbered,
+      sections: sectionSet(numbered),
+      // A file the schema gate already rejects is left to that gate, so the two agree (#2193)
+      converted: !error && typeof front === "object" && front !== null && !Array.isArray(front),
+      firstSection: headings(body).find((h) => h.level === 2)?.title ?? null,
+      decision: decisionBlock(body),
+      decisionLine: decisionRange(body).line + frontLines,
+    });
   }
   return index;
+}
+
+export function checkDecisionBlocks(index) {
+  const violations = [];
+  for (const a of [...index.values()].sort((x, y) => x.number - y.number)) {
+    // At 227 and below no ADR was written to either rule (adr-governance §9, #2193)
+    if (a.number <= LEGACY_MAX || !a.converted) continue;
+    const at = { file: a.file, line: a.decisionLine };
+    if (a.firstSection !== "Decision") {
+      violations.push({ ...at, rule: "decision-not-first-section", message: "first ## must be Decision" });
+    }
+    if (a.decision.words > DECISION_CAP) {
+      violations.push({
+        ...at,
+        rule: "decision-over-cap",
+        message: `Decision block is ${a.decision.words} words, cap is ${DECISION_CAP}`,
+      });
+    }
+  }
+  return violations;
 }
 
 // A code span quotes a specimen, and "~" stops a section reaching across it (comment-policy §4.7)
@@ -320,7 +407,8 @@ export function summaryMarkdown(fileCount, violations, readErrors = []) {
   const lines = ["## check:adr-sections", ""];
   lines.push(
     "A `§n` citation resolves to a numbered heading (SPEC docs/spec/comment-policy.md §4.7), " +
-      "and the citation grammar is SPEC docs/spec/adr-governance.md §9.",
+      "and the citation grammar is SPEC docs/spec/adr-governance.md §9. Above ADR-0227 a " +
+      "Decision block is also capped at 150 words by that §9.",
   );
   lines.push("");
   lines.push(`**${fileCount} file(s) scanned, ${violations.length} violation(s).**`);
@@ -375,6 +463,7 @@ function main() {
     }
     violations.push(...checkFile(file, text, index));
   }
+  violations.push(...checkDecisionBlocks(index));
 
   if (github) {
     for (const v of violations) console.log(annotationLine(v));

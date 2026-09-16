@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -18,11 +19,47 @@ import (
 
 // A fold that reads an Act would call this, and the count is what the assertion reads.
 
-type countingScopeActStore struct{ calls int }
+type countingScopeActStore struct {
+	calls int
+	args  db.ListActsOfClassesSinceParams
+}
 
-func (c *countingScopeActStore) ListActsOfClassSince(context.Context, db.ListActsOfClassSinceParams) ([]db.Act, error) {
+func (c *countingScopeActStore) ListActsOfClassesSince(_ context.Context, arg db.ListActsOfClassesSinceParams) ([]db.Act, error) {
 	c.calls++
+	c.args = arg
 	return []db.Act{}, nil
+}
+
+// One read covers every class, so a class added to the panel costs no extra round trip (#2167).
+
+func TestExposurePanelReadsEveryScopeActClassInOneQuery(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	spy := &countingScopeActStore{}
+	s := &server{scopeActStore: spy, now: func() time.Time { return now }}
+
+	if _, _, err := s.recentAddressScopeActs(context.Background()); err != nil {
+		t.Fatalf("recentAddressScopeActs: %v", err)
+	}
+	if spy.calls != 1 {
+		t.Errorf("the panel issued %d act reads, want 1", spy.calls)
+	}
+	want := []string{
+		act.ExclusionDeclared{}.Class(),
+		act.ExclusionLifted{}.Class(),
+		act.ProposalConfirmed{}.Class(),
+		act.ProposalDeclineUndone{}.Class(),
+		act.ProposalDeclined{}.Class(),
+		act.SeedDeclared{}.Class(),
+		act.SeedWithdrawn{}.Class(),
+	}
+	got := slices.Clone(spy.args.Actions)
+	slices.Sort(got)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("the one read asked for %v, want %v", got, want)
+	}
+	if spy.args.MaxActs != scopeActReadCap {
+		t.Errorf("MaxActs = %d, want %d: the cap bounds the whole read", spy.args.MaxActs, scopeActReadCap)
+	}
 }
 
 func exposureBoardFixture(t *testing.T, f *fakeStore, at time.Time) db.Account {
@@ -98,9 +135,87 @@ func TestExposurePanelCoversEveryClassThatMovesCovered(t *testing.T) {
 	}
 }
 
-// The five-row cap holds over the merged read, not over one class (ADR-2114).
+// Declining an address proposal writes an address exclusion, and un-declining removes it, so both
+// move addressScopeCovered and both render (ADR-2171, #2169).
 
-func TestExposurePanelCapsTheMergedReadAtFiveRows(t *testing.T) {
+func TestExposurePanelCoversADeclinedAddressProposal(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	exposureBoardFixture(t, f, now)
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	recordActAt(t, f, now.Add(-1*time.Minute), who,
+		act.ProposalDeclineUndone{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "203.0.113.0/24"}})
+	recordActAt(t, f, now.Add(-2*time.Minute), who,
+		act.ProposalDeclined{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "192.0.2.0/24"}})
+	// A name-kind decline reaches no address scope, so it stays out (ADR-2114 §4, ADR-2171 §6).
+	recordActAt(t, f, now.Add(-30*time.Second), who,
+		act.ProposalDeclined{ExclusionRef: act.ExclusionRef{Kind: "name", Scope: "acmecorp.io"}})
+
+	s := &server{scopeActStore: f, now: func() time.Time { return now }}
+	rows, _, err := s.recentAddressScopeActs(context.Background())
+	if err != nil {
+		t.Fatalf("recentAddressScopeActs: %v", err)
+	}
+	want := []scopeActRow{
+		{Scope: "203.0.113.0/24", Verb: "decline lifted"},
+		{Scope: "192.0.2.0/24", Verb: "declined"},
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("rows = %d, want %d: %+v", len(rows), len(want), rows)
+	}
+	for i, w := range want {
+		if rows[i].Scope != w.Scope || rows[i].Verb != w.Verb {
+			t.Errorf("row %d = %q/%q, want %q/%q", i, rows[i].Scope, rows[i].Verb, w.Scope, w.Verb)
+		}
+	}
+}
+
+// ADR-2114 named a principle and then a list, and the list went stale (#2169). A scope payload is
+// all this guard sees, so a class that moves the predicate without one stays open (ADR-2171 §6).
+
+func TestEveryScopeShapedActClassIsInThePanel(t *testing.T) {
+	const addr = "192.0.2.0/24"
+	seedScope := reflect.TypeOf(act.SeedScope{})
+	exclusionRef := reflect.TypeOf(act.ExclusionRef{})
+
+	for _, a := range act.Classes {
+		filled := reflect.New(reflect.TypeOf(a)).Elem()
+		var carries bool
+		for i := range filled.NumField() {
+			switch filled.Field(i).Type() {
+			case seedScope:
+				filled.Field(i).Set(reflect.ValueOf(act.SeedScope{Scope: addr}))
+				carries = true
+			case exclusionRef:
+				filled.Field(i).Set(reflect.ValueOf(act.ExclusionRef{Kind: "address", Scope: addr}))
+				carries = true
+			}
+		}
+		if !carries {
+			continue
+		}
+		if _, ok := addressScopeActVerbs[a.Class()]; !ok {
+			t.Errorf("%s carries an address-capable scope payload, so it moves addressScopeCovered, "+
+				"and the panel does not read it (ADR-2114, ADR-2171)", a.Class())
+			continue
+		}
+		scope, isAddress := addressScopeOf(filled.Interface().(act.Act))
+		if !isAddress || scope != addr {
+			t.Errorf("%s is in the read set, and addressScopeOf returned %q/%t: the switch has no "+
+				"case for it, so every row it returns is dropped", a.Class(), scope, isAddress)
+		}
+	}
+	for class := range addressScopeActVerbs {
+		if !slices.ContainsFunc(act.Classes, func(a act.Act) bool { return a.Class() == class }) {
+			t.Errorf("the panel reads %q, which no act class records", class)
+		}
+	}
+}
+
+// The five-row render cap holds over every class the read covers, not over one class (ADR-2114).
+
+func TestExposurePanelCapsTheReadAtFiveRows(t *testing.T) {
 	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
 	f := newFakeStore()
 	exposureBoardFixture(t, f, now)
@@ -124,7 +239,7 @@ func TestExposurePanelCapsTheMergedReadAtFiveRows(t *testing.T) {
 	want := []string{"10.0.0.0/16", "172.0.0.0/16", "10.1.0.0/16", "172.1.0.0/16", "10.2.0.0/16"}
 	for i, w := range want {
 		if rows[i].Scope != w {
-			t.Errorf("row %d = %q, want %q; the merge did not re-impose newest-first", i, rows[i].Scope, w)
+			t.Errorf("row %d = %q, want %q; the read did not return newest-first", i, rows[i].Scope, w)
 		}
 	}
 }
@@ -275,6 +390,39 @@ func TestExposureFoldReadsNoActInput(t *testing.T) {
 	}
 }
 
+// #2167 made one LIMIT bound every class at once, so a burst in one class evicts the others
+// (#2221). A name scope consumes the read and renders nothing, which is the worst shape.
+
+func TestANameScopeBurstDoesNotEvictAnAddressScopeAct2221(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	exposureBoardFixture(t, f, now)
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	// The address scope is the oldest act, so only a cap wide enough to hold the burst reaches it.
+	recordActAt(t, f, now.Add(-6*time.Hour), who,
+		act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "198.51.100.7/32"}})
+
+	const burst = 200
+	// Name scopes carry no address scope, so they render nothing and only consume the read.
+	for i := range burst {
+		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
+			fmt.Sprintf("host-%d.acmecorp.io", i))
+	}
+
+	if int(scopeActReadCap) <= burst {
+		t.Fatalf("scopeActReadCap = %d, want more than the %d-act burst: one class would evict the rest",
+			scopeActReadCap, burst)
+	}
+
+	base := startAt(t, f, now)
+	page := getBody(t, login(t, base, "admin", "hunter2hunter2"), base+"/exposure", http.StatusOK)
+
+	if !strings.Contains(page, "198.51.100.7/32") {
+		t.Error("a bulk decline evicted the address scope, so the panel hid an act the cap should reach")
+	}
+}
+
 // A name-scope burst fills the read, and the empty panel may not then claim no scope was declared.
 
 func TestExposurePanelNamesACappedRead(t *testing.T) {
@@ -289,7 +437,7 @@ func TestExposurePanelNamesACappedRead(t *testing.T) {
 	base := startAt(t, f, now)
 	page := getBody(t, login(t, base, "admin", "hunter2hunter2"), base+"/exposure", http.StatusOK)
 
-	if !strings.Contains(page, "No address scope is among the 50 newest acts of each class") {
+	if !strings.Contains(page, fmt.Sprintf("No address scope is among the %d newest scope acts", scopeActReadCap)) {
 		t.Error("a capped read claimed more than it read")
 	}
 	if strings.Contains(page, "named an address scope") {
@@ -306,13 +454,13 @@ func TestACappedReadSurvivesAFullRender(t *testing.T) {
 	exposureBoardFixture(t, f, now)
 
 	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
-	// seed.declared fills its own read with name scopes, so it renders nothing and hides the rest.
-	for i := range int(scopeActReadCap) {
+	// Name scopes take every slot the five render rows leave, so the read returns its whole LIMIT.
+	for i := range int(scopeActReadCap) - scopeActRows {
 		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
 			fmt.Sprintf("host-%d.acmecorp.io", i))
 	}
-	// A second class supplies every row the render caps at, so the early return fires.
-	for i := range scopeActRows {
+	// Six, so five fill the render and the sixth is the address scope the LIMIT really drops.
+	for i := range scopeActRows + 1 {
 		recordActAt(t, f, now.Add(-time.Duration(i+1)*time.Hour), who,
 			act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{
 				Kind: "address", Scope: fmt.Sprintf("192.0.2.%d/32", i)}})
@@ -338,11 +486,11 @@ func TestExposurePanelNamesACappedReadBesideFiveRows(t *testing.T) {
 	exposureBoardFixture(t, f, now)
 
 	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
-	for i := range int(scopeActReadCap) {
+	for i := range int(scopeActReadCap) - scopeActRows {
 		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
 			fmt.Sprintf("host-%d.acmecorp.io", i))
 	}
-	for i := range scopeActRows {
+	for i := range scopeActRows + 1 {
 		recordActAt(t, f, now.Add(-time.Duration(i+1)*time.Hour), who,
 			act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{
 				Kind: "address", Scope: fmt.Sprintf("192.0.2.%d/32", i)}})
@@ -351,8 +499,8 @@ func TestExposurePanelNamesACappedReadBesideFiveRows(t *testing.T) {
 	base := startAt(t, f, now)
 	page := getBody(t, login(t, base, "admin", "hunter2hunter2"), base+"/exposure", http.StatusOK)
 
-	if !strings.Contains(page, "This read stopped at the 50 newest acts of each class") {
-		t.Error("a full list claimed a completeness its capped reads cannot support, and the " +
+	if !strings.Contains(page, fmt.Sprintf("This read stopped at the %d newest scope acts", scopeActReadCap)) {
+		t.Error("a full list claimed a completeness its capped read cannot support, and the " +
 			"operator is told nothing (#2188)")
 	}
 	if !strings.Contains(page, "192.0.2.0/32") {

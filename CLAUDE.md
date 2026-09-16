@@ -51,9 +51,17 @@ A typical task moves through these steps. Follow the GitHub project standard thr
 3. Hand the SPEC to `/to-tickets`. Its output is a NEW parent map, separate from the closed wayfinder map. This parent has the same structure as a wayfinder map, but it is not a wayfinder map. Label that parent issue `implementation:map`. The label is what tells a later session the issue is a map and not a ticket.
 4. Sessions iterate over the tickets with `/implement` until the implementation map is complete.
 
-**One ticket per session.** When you run `/implement` on an issue labelled `implementation:map`, do exactly one ticket, then stop. Do not chain the next ticket into the same session. Pick the first ticket on the frontier, implement it, open its PR, and end the session. A map with nine tickets takes nine sessions.
+**One ticket per PR.** A pull request closes one ticket. This covers a fix, a feature, a chore, a security task, a doc task and an audit finding. It is not scoped to `/implement`, and it is not scoped to a map.
+
+When you run `/implement` on an issue labelled `implementation:map`, do exactly one ticket, then stop. Do not chain the next ticket into the same session. Pick the first ticket on the frontier, implement it, open its PR, and end the session. A map with nine tickets takes nine sessions.
 
 This rule holds even when the next ticket looks small or looks blocked on nothing. A session that runs several tickets produces one PR that mixes them, loses the per-ticket review, and buries a regression in the noise.
+
+**File count is not the rule. Ticket count is.** A mechanical sweep with no behaviour change — one rename across many files under one ruling — is one ticket, and it may touch as many files as the rename reaches.
+
+A measurement on the September corpus put the per-commit defect rate of a batch fix PR above a single-ticket one. Treat that figure as an **upper bound**, never as a fact: it rests on `git blame`, which names the last commit to touch a line, so a 50-file commit over-attributes. A hand-read of every batch-blamed bug found no injected code defect, because 273 of 306 September `bug` issues report pre-existing drift rather than a regression (#2199). The rule rests on the review-loss argument above and on the bookkeeping cost, not on the rate.
+
+The bookkeeping cost is measured. PR #2074 referenced 31 issues and left 24 open (#2083). PR #2190 referenced 73 and left eight open with no verification (#2210).
 
 `/implement` on a plain ticket number implements that ticket. Only a map argument triggers the frontier pick.
 
@@ -144,7 +152,7 @@ Serve every prototype on port **8090**. Always use that port. `8080` belongs to 
 Bind the server to `127.0.0.1`. Run it from the prototype's own directory:
 
 ```sh
-cd prototype/<name> && python3 -m http.server 8090 --bind 127.0.0.1
+cd prototypes/<name> && python3 -m http.server 8090 --bind 127.0.0.1
 ```
 
 Start it in the background. A foreground server blocks the session.
@@ -166,13 +174,54 @@ One process at a time holds the port. Stop the running server before you start a
 
 ### Running the checks
 
-Run the gating checks natively:
+Four required checks are reproducible here: `test`, commentlint's `lint`, `citations`, and `adr-sections`. Run every one your change can reach. `staticcheck`, `gosec`, `govulncheck`, `gitleaks` and `sqlc` have no recipe in this section yet.
+
+**The Go gates.** Part of the required `test` job, which also runs `scripts/check-go-pins.sh --mode ci`.
 
 ```sh
-go vet ./... && go test ./... -count=1
+test -z "$(gofmt -l .)" && go vet ./... && go test ./... -count=1
 ```
 
-Run them in the container instead when you want CI's exact image:
+`gofmt -l` exits 0 whether or not it names a file, so the output is the signal. A bare `gofmt -l . && …` chain always proceeds and reports success on an unformatted tree.
+
+**commentlint.** The required `lint` job. It lints the files the pull request changed, so reproduce its file set from the diff against `main`, not from `git status`:
+
+```sh
+git fetch origin main
+readarray -t changed < <(git diff --name-only --diff-filter=ACMRT origin/main...HEAD)
+go run ./cmd/commentlint lint --in-scope-only "${changed[@]}"
+```
+
+That is the job's own command, less `--github`. Exit 1 is a violation and exit 2 is a lex failure; both fail the job. Five facts decide whether your run matches the job's.
+
+- **The diff, not the working tree.** A run over uncommitted files alone never lints a branch whole. Re-run the sweep after every commit. Fetch first: a worktree's `origin/main` goes stale, and a stale base inflates the file set with work that already merged.
+- **Not only `.go`.** In scope: `.go`, `.mjs`, `.ts`, `.jsx`, `.tmpl`, `.css`, and `.sql` under `db/queries/`. Out: `internal/db/`, `prototypes/`, any `node_modules`, and a `.sql` file under `db/migrations/` — but a `.go` file under `db/migrations/` is in scope. `.html` and `.astro` are refused outright. A branch that touches no Go file still faces this job.
+- **`.jsx` lexes through esbuild**, which lives in `docs-site/node_modules`. Without it the lexer errors and the run exits 2. Link that directory before you lint a `.jsx` file.
+- **The tool names more rules than the comment policy does.** Beyond `go-decl-comment`, `change-narration`, `todo-marker`, `citation-over-one-line` and `column-over-cap`, every delete-set class is its own rule id: `short-label`, `section-divider`, `commented-out-code`, `docstring-exported-conventional`, `docstring-unexported`. Read the rule id the tool prints rather than guessing which rule you hit.
+- **The 100-column cap measures the widest source line the comment block spans**, not the comment's own width. A five-character trailing comment on a 102-column code line trips `column-over-cap`, and wrapping the comment does not clear it. Declaration position stays empty, and a cited comment fits on one line, because contiguous comment lines lex as one block.
+
+`commentlint verify --base <ref>` is a different tool with a different job. It proves a diff moved no non-comment byte, so it reports `changed` for any file that also carries a code edit. It fits a pure comment sweep and nothing else.
+
+**`internal/dbtest` runs nowhere on this machine, and its skip is silent.** That package executes generated queries against a real Postgres. Every case calls `dbtest.Queries(t)`, which skips when `VERGE_TEST_DATABASE_URL` is unset. So `go test ./...` reports `ok` for it having run nothing, and a green local suite says nothing about those cases.
+
+The variable is deliberately not `DATABASE_URL`: the package applies migrations and writes rows, and `DATABASE_URL` is the name a developer and every container already point at a live instance.
+
+There is no local Postgres here and the user is not in the `docker` group (#2226), so reaching a database needs a human. CI runs the package in the `query-harness` job, which is **advisory, not required** — so a behavioural proof written there cannot block a merge. Promoting it is a repository-settings change no pull request can make.
+
+**The Node doc gates.** Put Node on `PATH`, keep Go on it too, and give the worktree a `docs-site/node_modules` the way "Building docs-site locally" above describes. `check:citations` shells out to `go run ./cmd/godecls` for its Go anchors, and an absent toolchain makes it exit 2 rather than return a verdict.
+
+```sh
+export PATH=$HOME/.nvm/versions/node/v22.23.2/bin:$PATH
+cd docs-site
+npm run -s check:citations
+npm run -s check:adr-sections && npm run -s check:adr-index && npm run -s check:adr-markers
+```
+
+The `adr-sections` job runs all three of those, so `check:adr-sections` alone leaves a stale `docs/adr/index.json` or a hand-edited marker to fail the merge. Regenerate the index with `npm run write:adr-index`.
+
+`check:citations` reads a pull-request body for its `Site` arm, so a local run reports that it judged no `Site` field and gates everything else normally. The fourth Node check, `adr-review`, has no local run at all: `npm run -s check:adr-review` exits 2 with `GITHUB_EVENT_PATH and GITHUB_REPOSITORY are required`.
+
+Run the Go gates in the container instead when you want CI's exact image:
 
 ```sh
 docker run --rm \

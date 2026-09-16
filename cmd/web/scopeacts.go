@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sort"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -16,30 +17,31 @@ import (
 // An Act may be rendered beside a derived figure and may not be read into one (ADR-1946 §5).
 
 type scopeActStore interface {
-	ListActsOfClassSince(ctx context.Context, arg db.ListActsOfClassSinceParams) ([]db.Act, error)
+	ListActsOfClassesSince(ctx context.Context, arg db.ListActsOfClassesSinceParams) ([]db.Act, error)
 }
 
 const (
 	scopeActWindow = 7 * 24 * time.Hour
 	scopeActRows   = 5
 
-	scopeActReadCap int32 = 50
+	scopeActReadCap int32 = 350
 
 	exclusionKindAddress = "address"
 )
 
-// The five classes ADR-2114 names, each with its own verb. Two more move the predicate (#2169).
+// A decline writes an address exclusion, so it moves addressScopeCovered too (ADR-2171 §2).
 
-var addressScopeActClasses = []struct {
-	class string
-	verb  string
-}{
-	{act.SeedDeclared{}.Class(), "declared"},
-	{act.SeedWithdrawn{}.Class(), "withdrawn"},
-	{act.ProposalConfirmed{}.Class(), "confirmed"},
-	{act.ExclusionDeclared{}.Class(), "excluded"},
-	{act.ExclusionLifted{}.Class(), "exclusion lifted"},
+var addressScopeActVerbs = map[string]string{
+	act.SeedDeclared{}.Class():          "declared",
+	act.SeedWithdrawn{}.Class():         "withdrawn",
+	act.ProposalConfirmed{}.Class():     "confirmed",
+	act.ExclusionDeclared{}.Class():     "excluded",
+	act.ExclusionLifted{}.Class():       "exclusion lifted",
+	act.ProposalDeclined{}.Class():      "declined",
+	act.ProposalDeclineUndone{}.Class(): "decline lifted",
 }
+
+var addressScopeActClasses = slices.Sorted(maps.Keys(addressScopeActVerbs))
 
 type scopeActRow struct {
 	When  string
@@ -47,11 +49,6 @@ type scopeActRow struct {
 	Actor string
 	Scope string
 	Verb  string
-}
-
-type scopeActAt struct {
-	row  db.Act
-	verb string
 }
 
 // An exclusion carries a Kind, so the address ones separate without re-parsing (ADR-2114 §4).
@@ -68,6 +65,10 @@ func addressScopeOf(a act.Act) (scope string, isAddress bool) {
 		return v.Scope, v.Kind == exclusionKindAddress
 	case act.ExclusionLifted:
 		return v.Scope, v.Kind == exclusionKindAddress
+	case act.ProposalDeclined:
+		return v.Scope, v.Kind == exclusionKindAddress
+	case act.ProposalDeclineUndone:
+		return v.Scope, v.Kind == exclusionKindAddress
 	}
 	return "", false
 }
@@ -76,55 +77,41 @@ func (s *server) recentAddressScopeActs(ctx context.Context) (out []scopeActRow,
 	now := s.now()
 	from := pgtype.Timestamptz{Time: now.UTC().Add(-scopeActWindow), Valid: true}
 
-	var merged []scopeActAt
-	for _, c := range addressScopeActClasses {
-		rows, rerr := s.scopeActStore.ListActsOfClassSince(ctx, db.ListActsOfClassSinceParams{
-			Action:   c.class,
-			FromTime: from,
-			// Only an address scope renders, so the read caps above the render (ADR-1946 §3).
-			MaxActs: scopeActReadCap,
-		})
-		if rerr != nil {
-			return nil, false, rerr
-		}
-		// A name-scope burst can fill the read, and an empty panel would then read as no edit.
-		capped = capped || len(rows) == int(scopeActReadCap)
-		for _, row := range rows {
-			merged = append(merged, scopeActAt{row: row, verb: c.verb})
-		}
-	}
-	// ADR-1946 §3 fixes the order, and five per-class reads must be merged to hold it.
-	sort.SliceStable(merged, func(i, j int) bool {
-		a, b := merged[i].row, merged[j].row
-		if !a.CreatedAt.Time.Equal(b.CreatedAt.Time) {
-			return a.CreatedAt.Time.After(b.CreatedAt.Time)
-		}
-		return a.ID > b.ID
+	rows, err := s.scopeActStore.ListActsOfClassesSince(ctx, db.ListActsOfClassesSinceParams{
+		Actions:  addressScopeActClasses,
+		FromTime: from,
+		// Only an address scope renders, so the read caps above the render (ADR-1946 §3).
+		MaxActs: scopeActReadCap,
 	})
+	if err != nil {
+		return nil, false, err
+	}
+	// A name-scope burst can fill the read, and an empty panel would then read as no edit.
+	capped = len(rows) == int(scopeActReadCap)
 
 	out = make([]scopeActRow, 0, scopeActRows)
-	for _, m := range merged {
-		a, derr := act.DecodeSubject(m.row.Action, m.row.Subject)
+	for _, row := range rows {
+		a, derr := act.DecodeSubject(row.Action, row.Subject)
 		if derr != nil {
-			return nil, false, fmt.Errorf("act %d: %w", m.row.ID, derr)
+			return nil, false, fmt.Errorf("act %d: %w", row.ID, derr)
 		}
 		// The declare path decides the same question about the same string (ADR-1946 §7).
 		scope, isAddress := addressScopeOf(a)
 		if !isAddress {
 			continue
 		}
-		actor, aerr := act.DecodeActor(m.row.ActorKind, m.row.Actor)
+		actor, aerr := act.DecodeActor(row.ActorKind, row.Actor)
 		if aerr != nil {
-			return nil, false, fmt.Errorf("act %d: %w", m.row.ID, aerr)
+			return nil, false, fmt.Errorf("act %d: %w", row.ID, aerr)
 		}
 		out = append(out, scopeActRow{
-			When:  relTime(m.row.CreatedAt.Time, now),
-			ISO:   m.row.CreatedAt.Time.UTC().Format(time.RFC3339),
+			When:  relTime(row.CreatedAt.Time, now),
+			ISO:   row.CreatedAt.Time.UTC().Format(time.RFC3339),
 			Actor: act.ActorCell(actor),
 			Scope: scope,
-			Verb:  m.verb,
+			Verb:  addressScopeActVerbs[row.Action],
 		})
-		// A filled render says five rendered, never that the reads saw no more (#2188).
+		// A filled render says five rendered, never that the read saw no more (#2188).
 		if len(out) == scopeActRows {
 			break
 		}

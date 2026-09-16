@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -519,6 +520,47 @@ func TestDriftTruncationIsStatedWhenTheCapBoundsARange(t *testing.T) {
 
 	if !strings.Contains(page, fmt.Sprintf("Showing the most recent %d transitions for this period.", driftFeedLimit)) {
 		t.Errorf("a range whose read the cap bound must state the truncation; body: %s", page)
+	}
+
+	resp, err := ac.Get(fmt.Sprintf("%s/drift/export?start=%s&end=%s",
+		base, from.Format("2006-01-02"), to.Format("2006-01-02")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := fmt.Sprintf("feed capped at %d most-recent events; older transitions omitted", driftFeedLimit)
+	if csv := body(t, resp); !strings.Contains(csv, marker) {
+		t.Errorf("a capped CSV export omitted %q, so it reads as the whole feed; last row: %q",
+			marker, strings.TrimRight(csv, "\n")[strings.LastIndex(strings.TrimRight(csv, "\n"), "\n")+1:])
+	}
+}
+
+func TestDriftExportCSVStatesTruncationWhenTheCapBoundsTheRead(t *testing.T) {
+	at := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	s := &server{now: func() time.Time { return at.Add(time.Hour) }}
+	marker := fmt.Sprintf("feed capped at %d most-recent events; older transitions omitted,,,,,,,,", driftFeedLimit)
+
+	rows := make([]db.ListRecentDriftEventsRow, 0, driftFeedLimit)
+	for i := 0; i < int(driftFeedLimit); i++ {
+		rows = append(rows, driftOpenedRow(1, at, fmt.Sprintf("h%03d.example.com", i), `{"outcome":"Resolved"}`, ""))
+	}
+
+	export := func(rows []db.ListRecentDriftEventsRow) []string {
+		rec := httptest.NewRecorder()
+		s.writeDriftExportCSV(rec, "30d", rows)
+		return strings.Split(strings.TrimRight(rec.Body.String(), "\n"), "\n")
+	}
+
+	capped := export(rows)
+	if got := capped[len(capped)-1]; got != marker {
+		t.Errorf("a capped export's last row = %q, want %q: without it a capped CSV reads as the whole feed", got, marker)
+	}
+	if want := int(driftFeedLimit) + 2; len(capped) != want {
+		t.Errorf("capped export = %d lines, want %d (header, %d events, marker)", len(capped), want, driftFeedLimit)
+	}
+
+	under := export(rows[:len(rows)-1])
+	if got := under[len(under)-1]; strings.Contains(got, "feed capped") {
+		t.Errorf("an export one row under the cap claimed truncation; last row = %q", got)
 	}
 }
 

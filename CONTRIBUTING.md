@@ -92,6 +92,16 @@ Every change lands through a pull request. The PR is the review and CI gate.
   GitHub uses the PR title as the squash commit message verbatim.
 - **CI must be green** before the merge. The branch auto-deletes on merge.
 - Self-review the diff first. Leave inline notes on any non-obvious choice.
+- **State a disposition for every issue the body names.** Write `closes`,
+  `partial` with what is left, or `context only`. A referenced issue with no
+  statement is a defect in the PR body.
+
+A reader of a merged PR cannot tell a fixed issue from a mentioned one. PR #2190
+referenced 73 issues and stated a disposition for none of them, which left eight
+open with no verification (#2210). PR #2074 did the same for 31 issues, of which
+24 stayed open (#2083). The cost falls on whoever reads the tracker next.
+
+No check enforces this. State the rule first, and see whether it holds.
 
 ## Releases
 

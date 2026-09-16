@@ -33,6 +33,7 @@ type coldStore interface {
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
 	ListOpenReachGapServices(ctx context.Context) ([]db.ListOpenReachGapServicesRow, error)
+	ListOutageReachGapVantages(ctx context.Context) ([]db.ListOutageReachGapVantagesRow, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
@@ -234,6 +235,8 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"Messages":       ledger.Messages,
 		"MessagesFailed": ledger.MessagesFailed,
 		"Gaps":           ledger.Gaps,
+		"GapsOmitted":    ledger.GapsOmitted,
+		"GapListCap":     coverageGapListCap,
 		"GapsFailed":     ledger.GapsFailed,
 		"Unevaluable":    unevaluable,
 		"StaleZones":     staleZonesView,
@@ -244,6 +247,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 type coverageGapLedger struct {
 	Gaps           []coverageGapView
 	Messages       []coverageMessageView
+	GapsOmitted    int
 	GapsFailed     bool
 	MessagesFailed bool
 }
@@ -252,10 +256,17 @@ func (s *server) readCoverageGapLedger(ctx context.Context) coverageGapLedger {
 	var l coverageGapLedger
 	// An empty ledger reads as "no gaps", so a failed read hides evidence (ADR-0168 §2, #2091).
 	if rows, err := s.coldStore.ListOpenReachGapServices(ctx); err == nil {
-		l.Gaps, l.Messages = reachGapsAndMessages(rows)
+		l.Gaps, l.Messages, l.GapsOmitted = reachGapsAndMessages(rows)
 	} else {
 		l.GapsFailed, l.MessagesFailed = true, true
 		log.Printf("web: coverage: open reach gap services: %v", err)
+	}
+	if rows, err := s.coldStore.ListOutageReachGapVantages(ctx); err == nil {
+		gaps, msgs := outageGapViews(rows)
+		l.Gaps, l.Messages = append(l.Gaps, gaps...), append(l.Messages, msgs...)
+	} else {
+		l.GapsFailed, l.MessagesFailed = true, true
+		log.Printf("web: coverage: outage reach gap vantages: %v", err)
 	}
 	if rows, err := s.coldStore.ListUnavailableVantages(ctx); err == nil {
 		l.Messages = append(l.Messages, unavailableVantageMessages(rows)...)
@@ -418,14 +429,20 @@ func staleZones(rows []db.ListZoneFileStatusRow, cadenceSeconds int64, now time.
 
 const vantageUnavailableCause = "vantage-unavailable"
 
-func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView) {
+// A wide connect failure Gaps every service at once, and the blanket rollup bars a LIMIT (#2181).
+
+const coverageGapListCap = 50
+
+func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapView, []coverageMessageView, int) {
 	blanketed := map[string]bool{}
+	blanketedServices := map[string]bool{}
 	for _, row := range rows {
 		if decodeReachability(row.Value).Cause != blanketdiscrim.GapCause {
 			continue
 		}
 		if addr, _, _ := splitServiceKey(row.SubjectKey); addr != "" {
 			blanketed[addr] = true
+			blanketedServices[row.SubjectKey] = true
 		}
 	}
 
@@ -458,11 +475,12 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 		if addr, _, _ := splitServiceKey(row.SubjectKey); addr == "" {
 			continue
 		}
-		switch decodeReachability(row.Value).Cause {
-		case blanketdiscrim.GapCause:
+		// The address row already states this service, whatever a second vantage recorded (#2184).
+		if blanketedServices[row.SubjectKey] {
 			continue
-		case vantageUnavailableCause:
-			// unavailableVantageMessages carries this cause off its own read (#2090).
+		}
+		if decodeReachability(row.Value).Cause == vantageUnavailableCause {
+			// outageGapViews carries this cause per vantage off its own read (#2180).
 			continue
 		}
 		others = append(others, row)
@@ -478,11 +496,17 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 	})
 
 	seen := map[string]bool{}
+	omitted := 0
 	for _, row := range others {
 		if seen[row.SubjectKey] {
 			continue
 		}
 		seen[row.SubjectKey] = true
+		// A remainder, never len == cap: a window holding exactly the cap lost nothing (#2222).
+		if len(seen) > coverageGapListCap {
+			omitted++
+			continue
+		}
 		addr, port, transport := splitServiceKey(row.SubjectKey)
 		subject := serviceCopyKey(addr, port, transport)
 		gaps = append(gaps, coverageGapView{
@@ -501,6 +525,38 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 			Badge:   "no reading",
 			Subject: subject,
 			Text:    text,
+		})
+	}
+	return gaps, msgs, omitted
+}
+
+func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView, []coverageMessageView) {
+	gaps := make([]coverageGapView, 0, len(rows))
+	var msgs []coverageMessageView
+	for _, v := range rows {
+		unit := "services"
+		if v.Services == 1 {
+			unit = "service"
+		}
+		subject := "vantage " + v.Vantage
+		expected := fmt.Sprintf("a reach reading for %d %s", v.Services, unit)
+		if v.Recovered {
+			// Recovery retires the Gap only on the facets it re-read (ADR-2087, #2189).
+			expected += ", pending"
+			msgs = append(msgs, coverageMessageView{
+				Kind:    "gap",
+				Badge:   "outage",
+				Subject: subject,
+				Text: "This position has recovered. The Gap its outage opened stands until the next reach " +
+					"batch writes over it, so the reading is pending rather than one we cannot take.",
+			})
+		}
+		gaps = append(gaps, coverageGapView{
+			Subject: subject,
+			// The badge names the cause the span recorded, not the vantage's present availability.
+			Gap:      "outage",
+			Expected: expected,
+			Since:    "—",
 		})
 	}
 	return gaps, msgs

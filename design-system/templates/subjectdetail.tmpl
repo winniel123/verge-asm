@@ -266,6 +266,7 @@
 </div>
 <div style="display:flex;flex-direction:column;gap:24px">
 {{template "subjectprovenance" .Provenance}}
+{{/* Withdrawn still renders the rules card, so a failed read stays loud (ADR-0168 §2, #2043). */}}
 {{if or .SignalsFailed (and (not .Withdrawn) .Signals)}}
 <section class="sd-card">
 <div class="sd-cardhead"><span class="sd-micro">Open</span><h3>Signals here</h3></div>

@@ -130,6 +130,43 @@ jobs:
         with:
           path: docs-site/dist
 
+  # ADVISORY — the graph PNG export is template JavaScript, and cmd/web cannot execute
+  # it, so every Go assertion about the export is source-text only. That is how #2186
+  # (notes laid out at the pre-band scale) and #2152 (the severity filter's display:none
+  # discarded by the clone's style sweep) both shipped green (#2212). This job lifts the
+  # export out of design-system/templates/graph.tmpl, runs it against a fixture in the
+  # image's own chromium, and measures the PNG it produces.
+  #
+  # It is deliberately NOT one of the required checks on the `main` ruleset, and
+  # continue-on-error keeps a red run from failing the workflow. A raster measurement
+  # moves with fonts, antialiasing and container versions, so a 17th required check that
+  # can flap would block every PR in the repository.
+  #
+  # PROMOTION CONDITION, ruled by the repository owner in the "Ruling" comment on #2212
+  # (2026-09-16, not the issue body): this job becomes required once it has run green on
+  # 30 consecutive `main` builds with no manual re-run. A human applies that, because a
+  # required-check addition is a repo settings change. Follow-up: #2212.
+  #
+  # It shares docs-site's Playwright pin rather than taking its own install, so the
+  # library and the browser move together on one version number — the container tag here
+  # stays in lockstep with `playwright` in docs-site/package.json, as the build job's does.
+  graph-export-raster:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    concurrency:
+      group: docs-site-graph-export-${{ github.ref }}
+      cancel-in-progress: true
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Graph export raster gate (advisory)
+        run: npm run test:graph-export
+
   # Deploy to GitHub Pages. Push events only (main + v* tags); never on PRs. Depends
   # on the gated build, so a broken link or design drift blocks the deploy.
   deploy:

@@ -268,6 +268,50 @@ func (q *Queries) ListOpenReachGapServices(ctx context.Context) ([]ListOpenReach
 	return items, nil
 }
 
+const listOutageReachGapVantages = `-- name: ListOutageReachGapVantages :many
+SELECT v.name AS vantage,
+       -- span_open_timeline_idx admits one service twice under two sources (#2180).
+       count(DISTINCT sp.subject_key)::bigint AS services,
+       -- A projection, never a predicate: filtering a recovered vantage out hides the Gap (#2189).
+       bool_and(v.availability IS NOT DISTINCT FROM 'available')::boolean AS recovered
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+  AND sp.is_gap = TRUE
+  AND sp.value ->> 'cause' = 'vantage-unavailable'
+GROUP BY v.name
+ORDER BY v.name
+`
+
+type ListOutageReachGapVantagesRow struct {
+	Vantage   string `json:"vantage"`
+	Services  int64  `json:"services"`
+	Recovered bool   `json:"recovered"`
+}
+
+// One row per position, never one per service: an outage Gaps thousands at once (#2180).
+func (q *Queries) ListOutageReachGapVantages(ctx context.Context) ([]ListOutageReachGapVantagesRow, error) {
+	rows, err := q.db.Query(ctx, listOutageReachGapVantages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOutageReachGapVantagesRow{}
+	for rows.Next() {
+		var i ListOutageReachGapVantagesRow
+		if err := rows.Scan(&i.Vantage, &i.Services, &i.Recovered); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listServiceReachabilitySpansByClass = `-- name: ListServiceReachabilitySpansByClass :many
 SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
     sp.subject_key AS subject_key,

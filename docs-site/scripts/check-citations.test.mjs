@@ -437,6 +437,39 @@ test("a clock, a port, a ratio and a version are no line anchor", () => {
   }
 });
 
+test("a bare port a listener names is no line anchor (#2185)", () => {
+  // A table cell holds no sentence, so the row carries the word (SPEC §8.2 route 3).
+  const table = [
+    "| Service | Role | Listener |",
+    "| --- | --- | --- |",
+    "| `web` | The only listener. Serves the operator UI. | `:8080` |",
+    "| `worker` | No listener. | none |",
+  ].join("\n");
+  assert.deepEqual(tokens(table), []);
+  const row = [
+    "| Variable | Default | Notes |",
+    "| --- | --- | --- |",
+    "| `VERGE_LISTEN_ADDR` | `:8080` | Listen address for the UI. |",
+  ].join("\n");
+  assert.deepEqual(tokens(row), []);
+  assert.deepEqual(tokens("A healthy boot reaches `web: listening on :8080`."), []);
+  assert.deepEqual(tokens("The UI listens on `:8080` in every deployment."), []);
+});
+
+test("the listener carve-out reaches one sentence and the `bare` form alone (#2185)", () => {
+  assert.deepEqual(tokens("the reads at `cmd/web/cold.go` (zones), `:147` (subjects)"), [":147"]);
+  // A named path spells a file, never an address, so no sentence takes it.
+  assert.deepEqual(tokens("The listener is built at `cmd/web/main.go:127`."), [
+    "cmd/web/main.go:127",
+  ]);
+  assert.deepEqual(
+    tokens("The worker has no listener. The fold runs at `:92-113` in the subjects read."),
+    [":92-113"],
+  );
+  // A definition's only block is the root, and a word anywhere in the file qualifies nothing.
+  assert.deepEqual(tokens("Web listens on port 8080 here.\n\n[a]: :147\n"), [":147"]);
+});
+
 test("a slashless host is not a file, and the tree is what says so", () => {
   const markdown = "The peer is `admin.example.com:443` here.";
   // Without a tree the scan cannot tell the two apart, so the caller supplies one.
@@ -500,7 +533,7 @@ test("no document inside the boundary holds a path-form line anchor", () => {
   assert.deepEqual(refused.map((a) => `${a.file}:${a.line} -> ${a.token}`), []);
 });
 
-// The two forms #2120 reached are staged behind their conversion, and the count sizes it (§8.2).
+// The check defers §5 for the two forms #2120 reached, and the count is every one of them (§8.2).
 test("the staged forms are reported, and the boundary still holds them", () => {
   const { lineAnchors } = wholeTree();
   const staged = lineAnchors.filter((a) => a.form !== "path");
@@ -562,6 +595,6 @@ test("the refusal is unconditional for the path form, and no list licenses one",
   // The count is right-padded, so a bare `0` would also match 10, 20 and every other multiple.
   assert.match(out, /(?<!\d)0 {2}refused: a citation names no line/);
   assert.doesNotMatch(out, /stale: an entry no scan finds/);
-  // The staged count sizes the work #2120 opened, and an empty one is what retires the stage.
+  // An empty staged count is what retires the stage, so the line is read, not decorative (§8.2).
   assert.match(out, /\d+ {2}line anchor\(s\) the conversion of #2120 has not reached/);
 });

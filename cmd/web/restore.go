@@ -417,9 +417,7 @@ func replayArchive(
 	}
 
 	// No private half for the archived keys exists here, so the fleet must re-pin (ADR-0124).
-	if _, err := tx.Exec(ctx,
-		"UPDATE vantage SET public_key = NULL, host_key = NULL, availability = 'pending', latency_ms = NULL",
-	); err != nil {
+	if _, err := tx.Exec(ctx, resetProberKeysSQL); err != nil {
 		return fmt.Errorf("restore: reset prober keys: %w", err)
 	}
 
@@ -440,6 +438,15 @@ func replayArchive(
 
 	return nil
 }
+
+const resetProberKeysSQL = `
+UPDATE vantage
+SET public_key = NULL,
+    host_key = NULL,
+    latency_ms = NULL,
+    -- 'available' asserts the host key this statement drops, and every other value is a
+    -- conclusion this replay re-read nothing to move (ADR-0108, #2200).
+    availability = CASE WHEN availability = 'available' THEN 'pending' ELSE availability END`
 
 const resyncIdentitySequencesSQL = `
 DO $$

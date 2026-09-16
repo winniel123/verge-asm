@@ -29,7 +29,7 @@ corpus, zone cadence and zone-file status — plus the blanketed-reach and unava
 which have since left `server.coveragePage` for another declaration in the same file and are
 degraded here to `cmd/web/cold.go` alone. Nothing states the rule at any of them. **#1360's three "unswept residue" sites are gone too** —
 `exposure.go`, `drift.go` and `custodycensus.go` carry no statement of it today, and
-`custodycensus.go` is 130 lines with no line 237.
+`custodycensus.go` is 123 lines with no line 237.
 
 **#1339's two are compressed rather than gone**, and both survive uncited: `cmd/web/seeds.go` —
 *"A failed count degrades the block; refusing the act would leave no route to the withdrawal"* — and
@@ -130,8 +130,9 @@ the act read the same shape."* That is a claim about ADR-0133's exclusion design
 and read carelessly it argues against this limb. §5 supports the ruling only by the route above, and
 never as a fact about the preview. The citation is now this ADR.
 
-**The act's own write is not advisory.** `seeds.go:291` 500s when `WithdrawSeed` fails. A silent
-failure there would tell the operator a scope was withdrawn when it was not.
+**The act's own write is not advisory.** `cmd/web/seeds.go#server.deleteSeed` 500s when
+`WithdrawSeed` fails. A silent failure there would tell the operator a scope was withdrawn when it
+was not.
 
 ### 4. The boundary: what is not best-effort
 
@@ -140,14 +141,14 @@ each with its shipped example.
 
 | Class | Example | Why loud |
 | --- | --- | --- |
-| **The page's own subject** | `cmd/web/cold.go#server.coveragePage`, `ListSeeds` on Coverage; `seeds.go:408`–`:411`, `ListSeeds` on Scope | Every meter and card on both screens is one `Seed`. Degrading it renders *no scopes declared* — a lie about the operator's own declaration, and one they may act on |
-| **A subject fetched by key** | `cmd/web/subjects.go#server.endpointPage`–`:231` | `pgx.ErrNoRows` renders a distinct missing-subject page; any other error 500s. **No rows and the read failed are different facts**, and the handler keeps them apart |
-| **The act** | `seeds.go:291`, the `serverError` calls in `cmd/web/cold.go#server.setColdScope` | A write reported as done when it was not is unrecoverable by reload |
+| **The page's own subject** | `cmd/web/cold.go#server.coveragePage`, `ListSeeds` on Coverage; `cmd/web/seeds.go#server.renderSeeds`, `ListSeeds` on Scope | Every meter and card on both screens is one `Seed`. Degrading it renders *no scopes declared* — a lie about the operator's own declaration, and one they may act on |
+| **A subject fetched by key** | `cmd/web/subjects.go#server.endpointPage`–`:231` | `pgx.ErrNoRows` renders a distinct missing-subject page; any other error answers 503 through the unresolved-subject page (#2170). **No rows and the read failed are different facts**, and the handler keeps them apart |
+| **The act** | `cmd/web/seeds.go#server.deleteSeed`, the `serverError` calls in `cmd/web/cold.go#server.setColdScope` | A write reported as done when it was not is unrecoverable by reload |
 
-The test is not the surface. `apiCoverage` (`cmd/web/api_v1.go`) makes the identical split on the
-identical data: `ListSeeds` reaches `apiReadError` at `:262`, while the zone and subject reads at
-`:266` and `:272` degrade with a log line. The split follows the **subject**, so it holds wherever
-that page's data is projected. `dashboardData` is the limiting case the other way: it has no subject,
+The test is not the surface. `apiCoverage` (`cmd/web/api_v1.go#server.apiCoverage`) makes the
+identical split on the identical data: `ListSeeds` reaches `apiReadError`, while the zone and
+subject reads degrade with a log line. The split follows the **subject**, so it holds wherever that
+page's data is projected. `dashboardData` is the limiting case the other way: it has no subject,
 being a summary of several, so no read on it is loud — consistent with this rule, not an exception.
 
 ## Consequences
@@ -166,9 +167,10 @@ being a summary of several, so no read on it is loud — consistent with this ru
 - **Three Scope reads are loud where §1 makes them region reads:** `ListExclusions` (`seeds.go:413`
   → `Exclusions`), `ListVantages` (`:418` → `CoverageMsgs`, through `coverageMessages`) and
   `proposalLookups` (`:433` → `Proposals`). Each takes the whole screen down for one card.
-- **`seeds.go:251` and `:448` get their citation rather than a rewrite.** A comment beside a
-  best-effort read is otherwise redundant under the comment policy's gate 1, unless it carries a fact
-  the shape does not, as the shared-edges comment in `cmd/web/cold.go#server.coveragePage` does.
+- **`cmd/web/seeds.go#server.previewSeedWithdrawal` and `cmd/web/seeds.go#server.renderSeeds` get
+  their citation rather than a rewrite.** A comment beside a best-effort read is otherwise redundant
+  under the comment policy's gate 1, unless it carries a fact the shape does not, as the
+  shared-edges comment in `cmd/web/cold.go#server.coveragePage` does.
 - **This ADR licenses nothing about writes, exports or the act.** Every 500 named in §4 stays.
 
 ## Alternatives rejected

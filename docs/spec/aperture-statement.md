@@ -32,7 +32,7 @@ Consult the `verge-asm-design` skill before you write any markup.
 2. Read §2 for the frame. Every line obeys it.
 3. Read §3 and §4 for the two lines whose copy is fixed.
 4. Read §5 and §6 for the computed value and the tests.
-5. Read §7 for the four repairs that ride with the statement.
+5. Read §7 for the five repairs that ride with the statement.
 6. Read §8 for the acceptance criteria an implementation must meet.
 7. Read a decision ticket for the reasoning behind any one rule.
 
@@ -405,8 +405,8 @@ computation. An HTML-only statement moves #1854's silence rather than ending it.
 
 ### 5.1 The home
 
-`cmd/web/cold.go#server.coveragePage` holds `apertureMeters`, the shipped precedent for exactly this shape. Build a
-sibling of it that returns the seven rows as a typed slice.
+`cmd/web/cold.go#apertureMeters` is the shipped precedent for exactly this shape. It takes the read
+rows and returns a typed slice. Build a sibling of it that returns the seven rows.
 
 One function feeds both renderers today. `cmd/web/cold.go#server.coveragePage` renders the meters into the
 template, and `cmd/web/api_v1.go#server.apiCoverage` renders them into JSON.
@@ -489,8 +489,8 @@ figure.**
 
 ## 7. The five repairs that ride with the statement
 
-Two are prose and land in this document's own pull request. Three are markup or template copy and
-land as implementation tickets.
+Three are prose and landed in this document's own pull request. Two are markup or template copy and
+landed as implementation tickets.
 
 ### 7.1 ADR-0044's figure-constancy claim is struck — **landed here**
 

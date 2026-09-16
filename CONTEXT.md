@@ -1227,8 +1227,9 @@ transition is the event rather than the column value — a resolver-only vantage
 still transitions. The same write closes **every open span the vantage fed, whatever
 the facet**, and opens a `Gap` carrying the cause `vantage-unavailable`
 behind each one. **Every facet, never `Reach` alone**: one per-vantage scalar moves, and every
-facet is read per vantage, so a facet added later needs no edit here and none at the write
-(ADR-2087, #2137, #2144). The exclusion lives at that write and nowhere else
+facet is read per vantage, so a facet added later needs no edit here and none at the **outage**
+write (ADR-2087, #2137, #2144). The **recovery** write names its facets, and a new one is an edit
+there — see below. The exclusion lives at the outage write and nowhere else
 — **no composition read carries an availability predicate**, because filtering the cross-class
 denominator would conclude from the survivor, the reading
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md) refuses. So `Exposure` that would
@@ -1237,7 +1238,15 @@ the `Vantage` it belongs to is Declared — we
 never measured the vantage, we inferred it from what failed. **The derivation is produced from
 terminal `Batch` outcomes** ([ADR-0108](./docs/adr/0108-a-batch-whose-instrument-could-not-reach-its-position-covers-nothing-and-the-failure-is-the-vantages.md)).
 A **completed** `Batch` restores it to `available` and a **dead-lettered** one opens it to
-`unavailable`, in the same transaction that writes the batch. Two scopings keep the single per-vantage
+`unavailable`, in the same transaction that writes the batch. The two writes are **not symmetric in
+reach**. The outage closes every open span whatever the facet; the recovery retires the
+`vantage-unavailable` `Gap` **only on the facets the recovering batch re-measured** — a
+`resolution-walk` re-reads `resolution` and `dns-record`, and nothing else — because a resolver
+signal must not retire a `reachability`, `certificate`, `tls-acceptance` or `http-identity` `Gap`
+that nothing looked at again. So a timeline that receives no further batch of its own facet
+**holds its outage `Gap` open** after
+the vantage has recovered, until a batch of that facet writes over it
+([#2189](https://github.com/winniel123/verge-asm/issues/2189)). Two scopings keep the single per-vantage
 scalar honest. It moves only where the batch carries a real `Vantage` — the worker-read `zone` and
 `ct` `Scan`s have none and move it nowhere. And it moves only from a **`resolution-walk` (`dns`) `Batch`**, the
 one `Scan` that exercises the resolver. A completing **port probe** (`hot`/`cold`/`tls-acceptance`) at
@@ -1735,14 +1744,31 @@ compare.
 _Avoid_: seam (reserved for architectural boundaries), fault, discontinuity, version bump
 
 **Gap**:
-A `Span` holding no value — the period over which we could not say. Opened by a dead-lettered
-`Batch`'s empty scope, by a `Vantage` becoming `unavailable` — one write closing **every
+A `Span` holding no value — the period over which we could not say. Opened ~~by a dead-lettered
+`Batch`'s empty scope,~~ by a `Vantage` becoming `unavailable` — one write closing **every
 open span it fed, whatever the facet**, and opening the gap behind each, never a predicate on the
-read side (ADR-2087, #2137, #2144) — by evidence absent where a
-`Signal` would be `not-evaluable`, by an observation ageing past its currency bound, and by an
+read side (ADR-2087, #2137, #2144) — ~~by evidence absent where a
+`Signal` would be `not-evaluable`, by an observation ageing past its currency bound,~~ and by an
 answer we cannot read — a truncated RRset no fallback transport recovered, or a `resolution` we
 could not discriminate because the control probe under the name's parent did not complete, or a
-`reachability` we could not discriminate from a **blanket responder**. A blanket responder is an
+`reachability` we could not discriminate from a **blanket responder**. **Three openers are
+withdrawn here, at the site that specifies them**
+([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)),
+because no opener as written has a writer, which leaves the two
+[`docs/spec/v1-spec.md` §5.1](./docs/spec/v1-spec.md) also keeps. A dead-lettered `Batch` records an
+**empty** recorded scope, so it touches no timeline and leaves no span to hold — the argument this
+entry already makes below for a timeline that never existed. Such a batch can still write gap
+spans, but through the `Vantage` clause above and under that clause's cause, because only a
+dead-lettered **`resolution-walk`** batch moves availability at all; a dead letter on any other
+kind concludes nothing about the vantage and writes nothing. The currency **bound** reaches a
+**retention delete** over observation rows and the reads that filter on it, never a span writer, so
+nothing ages a stored value into a gap. A `Signal` verdict is a
+**read** over span values and opens no span, and the span fold sets its gap flag from an emitted
+observation's outcome alone, consulting no rule. A `Gap` value is one of several things that render
+a `Signal` `not-evaluable`; **no `not-evaluable` verdict renders a `Gap`**. The withdrawals leave
+the register count below **unmoved**, because no withdrawn opener named a register of its own or a
+gap cause ([#2136](https://github.com/winniel123/verge-asm/issues/2136),
+[#2143](https://github.com/winniel123/verge-asm/issues/2143)). A blanket responder is an
 address that answers TCP on every port, so a `reached` witnesses no listener and cannot be
 attributed to the origin
 ([ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md)).

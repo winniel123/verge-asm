@@ -338,3 +338,25 @@ func TestIntegrationsAdminGatedAndDistinctFromSources(t *testing.T) {
 		t.Errorf("the Sources tab bled the integration tiles in; body: %s", src)
 	}
 }
+
+func TestIntegrationChannelOptionsUnboundHintNamesTheChannel(t *testing.T) {
+	f := newFakeStore()
+	f.channels = append(f.channels, fakeChannel{id: 7, url: "https://ops.example.test/hook", enabled: true})
+	s := newServer(f, testKey, "", fixedClock())
+
+	opts := s.integrationChannelOptions(t.Context())
+	if len(opts) != 2 {
+		t.Fatalf("integrationChannelOptions returned %d options, want the unbound option plus the one channel", len(opts))
+	}
+	if opts[0].Value != "" {
+		t.Fatalf("opts[0].Value = %q, want the unbound option first", opts[0].Value)
+	}
+	if opts[0].Hint != "no channel bound" {
+		t.Errorf("unbound hint = %q, want %q (#2138)", opts[0].Hint, "no channel bound")
+	}
+	for i, o := range opts {
+		if strings.Contains(strings.ToLower(o.Hint), "delivery target") {
+			t.Errorf("opts[%d].Hint = %q names a delivery target; the guardrail term is channel (#2138)", i, o.Hint)
+		}
+	}
+}
