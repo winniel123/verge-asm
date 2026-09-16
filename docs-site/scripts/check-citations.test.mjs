@@ -500,7 +500,7 @@ test("no document inside the boundary holds a path-form line anchor", () => {
   assert.deepEqual(refused.map((a) => `${a.file}:${a.line} -> ${a.token}`), []);
 });
 
-// The two forms #2120 reached are staged behind their conversion, and the count sizes it (§8.2).
+// The check defers §5 for the two forms #2120 reached, and the count is every one of them (§8.2).
 test("the staged forms are reported, and the boundary still holds them", () => {
   const { lineAnchors } = wholeTree();
   const staged = lineAnchors.filter((a) => a.form !== "path");
@@ -562,6 +562,6 @@ test("the refusal is unconditional for the path form, and no list licenses one",
   // The count is right-padded, so a bare `0` would also match 10, 20 and every other multiple.
   assert.match(out, /(?<!\d)0 {2}refused: a citation names no line/);
   assert.doesNotMatch(out, /stale: an entry no scan finds/);
-  // The staged count sizes the work #2120 opened, and an empty one is what retires the stage.
+  // An empty staged count is what retires the stage, so the line is read, not decorative (§8.2).
   assert.match(out, /\d+ {2}line anchor\(s\) the conversion of #2120 has not reached/);
 });
