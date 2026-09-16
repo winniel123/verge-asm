@@ -489,8 +489,8 @@ figure.**
 
 ## 7. The five repairs that ride with the statement
 
-Two are prose and land in this document's own pull request. Three are markup or template copy and
-land as implementation tickets.
+Three are prose and landed in this document's own pull request. Two are markup or template copy and
+landed as implementation tickets.
 
 ### 7.1 ADR-0044's figure-constancy claim is struck — **landed here**
 
