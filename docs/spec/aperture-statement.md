@@ -32,7 +32,7 @@ Consult the `verge-asm-design` skill before you write any markup.
 2. Read §2 for the frame. Every line obeys it.
 3. Read §3 and §4 for the two lines whose copy is fixed.
 4. Read §5 and §6 for the computed value and the tests.
-5. Read §7 for the four repairs that ride with the statement.
+5. Read §7 for the five repairs that ride with the statement.
 6. Read §8 for the acceptance criteria an implementation must meet.
 7. Read a decision ticket for the reasoning behind any one rule.
 
