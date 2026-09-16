@@ -387,3 +387,56 @@ func TestRestorePreflightEvictsThePreviousStage(t *testing.T) {
 		t.Fatal("a new pre-flight left the previous archive staged")
 	}
 }
+
+// The replay re-opens the archive's spans, so the prober reset runs beside an outage's Gaps.
+
+func restoreProberReset(t *testing.T) string {
+	t.Helper()
+	tx := &fakeTx{}
+	if err := replayTestArchive(t, tx); err != nil {
+		t.Fatalf("replayArchive: %v", err)
+	}
+	at := stepOf(tx.trail, "UPDATE vantage")
+	if at < 0 {
+		t.Fatal("the replay reset no prober column, so this test proves nothing")
+	}
+	return stripSQLComments(tx.trail[at])
+}
+
+func TestTheRestoreLeavesAnOutageStandingForARecoveringBatchToClear(t *testing.T) {
+	stmt := restoreProberReset(t)
+
+	if strings.Contains(stmt, "availability = 'pending'") {
+		t.Errorf("the reset writes availability over every row, so an archived 'unavailable' "+
+			"vantage keeps the outage Gaps the archive replayed while no read lists it and "+
+			"nothing closes them (ADR-2087, #2200); got:\n%s", stmt)
+	}
+	if !strings.Contains(stmt, "else availability end") {
+		t.Errorf("every value but 'available' is a conclusion this replay re-read nothing to "+
+			"move, so it must stand, including the NULL of a resolver-only vantage that owns "+
+			"no prober to be pending on (ADR-2087 section 6, #2200); got:\n%s", stmt)
+	}
+}
+
+func TestTheRestoreStillDropsTheKeysAndTheLatency(t *testing.T) {
+	stmt := restoreProberReset(t)
+
+	for _, col := range []string{"public_key = null", "host_key = null", "latency_ms = null"} {
+		if !strings.Contains(stmt, col) {
+			t.Errorf("the archive carries no private half, so the fleet must re-pin and %q "+
+				"must go (ADR-0124); got:\n%s", col, stmt)
+		}
+	}
+}
+
+func TestTheRestoreClosesNoSpanOfTheCorpusItJustReplayed(t *testing.T) {
+	stmt := restoreProberReset(t)
+
+	// Recovery retires the Gaps on the facets the recovering batch re-read, and a restore reads
+	// no position. A reset that closed spans would end readings nothing replaces (ADR-2087).
+	for _, writing := range []string{"span", "closed_at"} {
+		if strings.Contains(stmt, writing) {
+			t.Errorf("the prober reset measures nothing, so it touches no span; got:\n%s", stmt)
+		}
+	}
+}
