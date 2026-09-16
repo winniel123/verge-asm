@@ -418,15 +418,18 @@ type fixtureExposurePackage struct {
 		Exposed         int    `json:"exposed"`
 		HasDeltas       bool   `json:"has_deltas"`
 		ExposedDelta    int    `json:"exposed_delta"`
+		EdgeOnly        int    `json:"edge_only"`
 		Firewalled      int    `json:"firewalled"`
-		NotReached      int    `json:"not_reached"`
+		Unreachable     int    `json:"unreachable"`
+		OneLegged       int    `json:"one_legged"`
 		WithheldVariant string `json:"withheld_variant"`
 		Rows            []struct {
-			Asset    string `json:"asset"`
-			Svc      string `json:"svc"`
-			Internal string `json:"internal"`
-			Internet string `json:"internet"`
-			Since    string `json:"since"`
+			Asset         string `json:"asset"`
+			Svc           string `json:"svc"`
+			Internal      string `json:"internal"`
+			InternalSince string `json:"internal_since"`
+			Internet      string `json:"internet"`
+			InternetSince string `json:"internet_since"`
 		} `json:"rows"`
 	} `json:"exposure"`
 }
@@ -451,25 +454,38 @@ func TestExposureFixtureMatchesPackage(t *testing.T) {
 	if e.ExposedDelta != devExposureExposedDelta {
 		t.Errorf("exposed_delta drift: fixtures.json = %d, pinned = %d", e.ExposedDelta, devExposureExposedDelta)
 	}
-	if e.Firewalled != devExposureFirewalled {
-		t.Errorf("firewalled drift: fixtures.json = %d, pinned = %d", e.Firewalled, devExposureFirewalled)
-	}
-	if e.NotReached != devExposureNotReached {
-		t.Errorf("not_reached drift: fixtures.json = %d, pinned = %d", e.NotReached, devExposureNotReached)
-	}
 	if e.WithheldVariant != devExposureWithheldVariant {
 		t.Errorf("withheld_variant drift: fixtures.json = %q, pinned = %q", e.WithheldVariant, devExposureWithheldVariant)
 	}
 
-	if len(e.Rows) != len(devExposureRows) {
-		t.Fatalf("rows length drift: fixtures.json = %d, pinned = %d", len(e.Rows), len(devExposureRows))
-	}
-	for i, r := range e.Rows {
-		p := devExposureRows[i]
-		if r.Asset != p.asset || r.Svc != p.svc || r.Internal != p.internal || r.Internet != p.internet || r.Since != p.since {
-			t.Errorf("row %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, r, p)
+	t.Run("#2161 every band count", func(t *testing.T) {
+		if e.EdgeOnly != devExposureEdgeOnly {
+			t.Errorf("edge_only drift: fixtures.json = %d, pinned = %d", e.EdgeOnly, devExposureEdgeOnly)
 		}
-	}
+		if e.Firewalled != devExposureFirewalled {
+			t.Errorf("firewalled drift: fixtures.json = %d, pinned = %d", e.Firewalled, devExposureFirewalled)
+		}
+		if e.Unreachable != devExposureUnreachable {
+			t.Errorf("unreachable drift: fixtures.json = %d, pinned = %d", e.Unreachable, devExposureUnreachable)
+		}
+		if e.OneLegged != devExposureOneLegged {
+			t.Errorf("one_legged drift: fixtures.json = %d, pinned = %d", e.OneLegged, devExposureOneLegged)
+		}
+	})
+
+	t.Run("#2161 every row leg and its date", func(t *testing.T) {
+		if len(e.Rows) != len(devExposureRows) {
+			t.Fatalf("rows length drift: fixtures.json = %d, pinned = %d", len(e.Rows), len(devExposureRows))
+		}
+		for i, r := range e.Rows {
+			p := devExposureRows[i]
+			if r.Asset != p.asset || r.Svc != p.svc ||
+				r.Internal != p.internal || r.InternalSince != p.internalDate ||
+				r.Internet != p.internet || r.InternetSince != p.internetDate {
+				t.Errorf("row %d drift:\n fixtures.json = %+v\n pinned        = %+v", i, r, p)
+			}
+		}
+	})
 }
 
 func TestAssetFixturePortsCarryKnownLegStates(t *testing.T) {

@@ -393,7 +393,7 @@ const (
 	devExposureEdgeOnly     = 3
 	devExposureFirewalled   = 41
 	devExposureUnreachable  = 9
-	devExposureNotReached   = 7
+	devExposureOneLegged    = 7
 	devExposureHasDeltas    = true
 
 	devExposureWithheldVariant = "no-internet-vantage"
@@ -406,19 +406,18 @@ type devExposureRow struct {
 	internalDate string
 	internet     string
 	internetDate string
-	since        string
 }
 
 // The board dates a leg to the day, so these carry exposureSinceDateFmt and not spanTimeFmt.
 
 var devExposureRows = []devExposureRow{
-	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "reached", internalDate: "2026-09-15", internet: "reached", internetDate: "2026-09-15", since: "4m"},
-	{asset: "api.acmecorp.io", svc: ":443 https", internal: "reached", internalDate: "2026-07-08", internet: "reached", internetDate: "2026-07-08", since: "69d"},
-	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "reached", internalDate: "2026-08-05", internet: "reached", internetDate: "2026-09-11", since: "41d"},
-	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "reached", internalDate: "2026-09-03", internet: "not-reached", internetDate: "2026-08-28", since: "12d"},
-	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "reached", internalDate: "2026-08-20", internet: "not-reached", internetDate: "2026-08-20", since: "26d"},
-	{asset: "mail.acmecorp.io", svc: ":25 smtp", internal: "reached", internalDate: "2026-09-07", internet: "gap", internetDate: "2026-09-12", since: "8d"},
-	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internalDate: "2026-06-30", internet: "never-looked", since: "—"},
+	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "reached", internalDate: "2026-09-15", internet: "reached", internetDate: "2026-09-15"},
+	{asset: "api.acmecorp.io", svc: ":443 https", internal: "reached", internalDate: "2026-07-08", internet: "reached", internetDate: "2026-07-08"},
+	{asset: "vpn.acmecorp.io", svc: ":1194 openvpn", internal: "reached", internalDate: "2026-08-05", internet: "reached", internetDate: "2026-09-11"},
+	{asset: "build-07.acmecorp.io", svc: ":22 ssh", internal: "reached", internalDate: "2026-09-03", internet: "not-reached", internetDate: "2026-08-28"},
+	{asset: "grafana.acmecorp.io", svc: ":3000 http", internal: "reached", internalDate: "2026-08-20", internet: "not-reached", internetDate: "2026-08-20"},
+	{asset: "mail.acmecorp.io", svc: ":25 smtp", internal: "reached", internalDate: "2026-09-07", internet: "gap", internetDate: "2026-09-12"},
+	{asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internalDate: "2026-06-30", internet: "never-looked"},
 }
 
 func devScopeActs() []scopeActRow {
@@ -478,7 +477,7 @@ func (s *server) exposureFixtureData(acct db.Account, variant string) map[string
 	data["EdgeOnly"] = devExposureEdgeOnly
 	data["Firewalled"] = devExposureFirewalled
 	data["Unreachable"] = devExposureUnreachable
-	data["OneLegged"] = devExposureNotReached
+	data["OneLegged"] = devExposureOneLegged
 	if devExposureHasDeltas {
 		data["HasDeltas"] = true
 		data["ExposedDelta"] = map[string]any{"Change": devExposureExposedDelta}
