@@ -475,7 +475,7 @@ enforces §5 for every form, and one deletion retires both arms.
 The retired list was a ratchet: a token the list did not hold was refused the day it was written.
 The stage replaced the list with a report, and a report stops nothing. So a document merged during
 the stage may mint a `file` or a `bare` token freely, and the count rises again. It stood at 986
-when the stage landed and at 990 when F11 was measured, and ADR-2159 minted the difference. Any
+when the stage landed and at 990 when F11 was first measured, and ADR-2159 minted the difference. Any
 sequence that empties the count in one pull request and deletes the split function in a later one
 lets a third pull request re-open the stage in between.
 
@@ -487,7 +487,7 @@ lets a third pull request re-open the stage in between.
    degradation would write a citation with no path at all. A reader names the path, or rewords the
    sentence. That work is [#2156](https://github.com/winniel123/verge-asm/issues/2156).
 3. **A matcher repair.** The token is no citation, so no edit to the document is correct. The
-   scanner stops matching it. A port number in prose is the measured instance, fact F11 counts it,
+   scanner stops matching it. A port number in prose is the measured instance, fact F11 records it,
    and that repair is [#2185](https://github.com/winniel123/verge-asm/issues/2185).
 
 **Naming the three routes is what makes zero reachable.** Conversion alone can never empty the
@@ -629,12 +629,13 @@ commit and on `main`. One drifted by two lines, from a comment line to a type de
 moved from a `continue` statement to the `for` statement above it. A third of the four is the pull
 request that converted ADR-0144's line anchors, and its own body minted a fresh line anchor.
 
-**F11. The staged population is 990 tokens across 63 files, and 4 of them are no citation.** 522
-spell the `file` form and 468 spell the `bare` form. The tokens divide 818 in `docs/adr`, 168 in
-`docs/spec`, 3 in `docs/guides` and 1 in `README.md`. A dry run of the sweep derives an anchor for
-306, degrades 140, and holds 544. Every one of the 4 tokens outside `docs/adr` and `docs/spec`
-names port 8080 of the `web` service, and no conversion repairs a port. So §8.2 route 3 has a live
-population, and the `docs/guides` and `README.md` families hold nothing else.
+**F11. The staged population is 986 tokens across 60 files.** 522 spell the `file` form and 464
+spell the `bare` form. The tokens divide 818 in `docs/adr` and 168 in `docs/spec`. A dry run of the
+sweep derives an anchor for 306, degrades 140, and holds 540. The count read 990 across 63 files
+until the matcher stopped counting 4 tokens that were no citation. Each of those 4 sat outside
+`docs/adr` and `docs/spec`, and each named port 8080 of the `web` service. No conversion repairs a
+port, so §8.2 route 3 took them. The `docs/guides` and `README.md` families now hold no staged
+token.
 
 **F11 is the one fact to re-measure.** §8.2 makes retirement conditional on reading the staged
 count as zero, and §8.2 also rules that the count rises with every document merged during the

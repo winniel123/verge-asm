@@ -20,7 +20,7 @@ const WITHDRAWAL = /\bWITHDRAWN\b|\bWITHDRAWAL\b|\bSUPERSEDED\b/;
 const REF_BRANCH = /^[a-z][a-z0-9]*\/[A-Za-z0-9._-]+$/;
 const REF_SHA = /^[0-9a-f]{7,40}$/;
 
-function textOf(node) {
+export function textOf(node) {
   if (node.value != null && typeof node.value === "string") return node.value;
   if (!node.children) return "";
   return node.children.map(textOf).join(" ");

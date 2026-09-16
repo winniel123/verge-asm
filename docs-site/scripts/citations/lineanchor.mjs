@@ -1,6 +1,6 @@
 import { visitParents } from "unist-util-visit-parents";
 import { parse } from "../doclint/engine.mjs";
-import { inOpaque, nearestBlock, refTokensOf, snippetAfter } from "./extract.mjs";
+import { inOpaque, nearestBlock, refTokensOf, snippetAfter, textOf } from "./extract.mjs";
 
 const SEGMENT = "[A-Za-z0-9_.@+-]";
 const DIR_PATH = `[A-Za-z0-9_.@]${SEGMENT}*(?:/${SEGMENT}+)+`;
@@ -20,6 +20,9 @@ const LINE_ANCHOR = new RegExp(
   `(?<![A-Za-z0-9_.@/+:\\]-])(${PATH}${LINE}|${BARE_LINE})(?![0-9A-Za-z_.])`,
   "g",
 );
+
+// A listen address spells `:8080` as a bare anchor spells `:45`, so only prose parts them (#2185).
+const LISTENER = /\blisten(?:ing|ers?|ed|s)?\b/i;
 
 // classify.mjs reads these two the same way, so both arms judge one set of paths (#1450).
 const HOSTNAME = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i;
@@ -62,6 +65,57 @@ function linkTarget(url) {
   return raw;
 }
 
+const SENTENCE_END = /[.!?](?:\s|$)/;
+
+function lastSentence(text) {
+  let cut = 0;
+  for (const m of text.matchAll(new RegExp(SENTENCE_END.source, "g"))) cut = m.index + m[0].length;
+  return text.slice(cut);
+}
+
+function firstSentence(text) {
+  const m = SENTENCE_END.exec(text);
+  return m === null ? text : text.slice(0, m.index + 1);
+}
+
+// A word qualifies the sentence that holds it, so a second sentence may not borrow it (#2185).
+function sentenceAround(block, node) {
+  let before = "";
+  let after = "";
+  let passed = false;
+  visitParents(block, (n, ancestors) => {
+    if (n === node || ancestors.includes(node)) {
+      passed = true;
+      return;
+    }
+    if (n.type !== "text" && n.type !== "inlineCode") return;
+    if (passed) after += n.value;
+    else before += n.value;
+  });
+  return lastSentence(before) + textOf(node) + firstSentence(after);
+}
+
+function holdsProse(node) {
+  if (node.type === "text") return /[A-Za-z]/.test(node.value);
+  return (node.children ?? []).some(holdsProse);
+}
+
+// A code-only table cell writes no sentence of its own, so its row is the smallest one (#2185).
+function addressText(node, ancestors) {
+  const chain = [...ancestors, node];
+  let cell = null;
+  let row = null;
+  for (const a of chain) {
+    if (a.type === "tableCell") cell = a;
+    if (a.type === "tableRow") row = a;
+  }
+  if (cell !== null) return textOf(holdsProse(cell) ? cell : (row ?? cell));
+  const block = nearestBlock(ancestors);
+  // The root is the whole document, and a word anywhere in it qualifies nothing here.
+  if (block === null || block.type === "root") return "";
+  return sentenceAround(block, node);
+}
+
 // One pattern, so a rewrite can never touch a token this scan did not find (#1975).
 export function lineAnchorPattern() {
   return new RegExp(LINE_ANCHOR.source, LINE_ANCHOR.flags);
@@ -90,7 +144,10 @@ export function scanLineAnchorsFromTree(tree, { refPin = true, knownFile = null 
       kind = "link";
     }
     if (value == null) return;
-    const tokens = tokensIn(value, knownFile);
+    let tokens = tokensIn(value, knownFile);
+    if (tokens.some((t) => formOf(t) === "bare") && LISTENER.test(addressText(node, ancestors))) {
+      tokens = tokens.filter((t) => formOf(t) !== "bare");
+    }
     if (tokens.length === 0) return;
     // A line pinned to a named ref cannot drift, so it is the one carve-out (SPEC §5).
     if (refPin && refsByBlock.has(nearestBlock(ancestors))) return;
