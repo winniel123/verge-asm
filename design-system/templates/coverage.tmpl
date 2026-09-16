@@ -41,6 +41,10 @@
 .cv-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
 .cv-table tbody tr:first-child td { border-top: none; }
 .cv-table td.mono { font: 400 12.5px var(--font-mono); }
+.cv-more { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; border-top: 1px solid var(--border-default); background: var(--surface-sunken); }
+.cv-more .ic { color: var(--text-secondary); display: inline-flex; margin-top: 1px; flex: none; }
+.cv-more .tx { font: 400 12.5px/1.55 var(--font-ui); color: var(--text-body); }
+.cv-body > .cv-more { margin-top: 12px; border: 1px solid var(--border-default); border-radius: var(--r-md); }
 .cv-rules { display: flex; flex-direction: column; gap: 12px; }
 .cv-rule { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .cv-rulechip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; line-height: 1; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-body); font: 500 11.5px var(--font-mono); cursor: default; }
@@ -186,6 +190,8 @@
 </div>
 {{end}}
 </div>
+{{if .GapsOmitted}}<div class="cv-more"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="tx">Showing the first {{.GapListCap}} services with no reading. {{if eq .GapsOmitted 1}}1 more is not listed.{{else}}{{.GapsOmitted}} more are not listed.{{end}}</span></div>{{end}}
 {{end}}
 {{if .MessagesFailed}}
 <div class="cv-empty"><span class="msg">Coverage messages did not resolve</span>
@@ -216,6 +222,8 @@
 </tr>{{end}}
 </tbody>
 </table>
+{{if .GapsOmitted}}<div class="cv-more"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="tx">Showing the first {{.GapListCap}} services with no reading. {{if eq .GapsOmitted 1}}1 more is not listed.{{else}}{{.GapsOmitted}} more are not listed.{{end}}</span></div>{{end}}
 {{else}}
 <div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
 <span class="msg">No gaps this batch</span>
