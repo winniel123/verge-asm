@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-// TestEveryCiterReadTakesTheGapFallback holds the three citer reads to one answer about a
-// Gap. internal/dbtest runs the statements, but that tier is advisory and skips wherever no
-// DSN is set, so the shape is also matched here, inside a required check (ADR-0006, #2164).
 func TestEveryCiterReadTakesTheGapFallback(t *testing.T) {
+	// The weaker of the two guards, and never the proof: a text match cannot see
+	// all three reads move together, and internal/dbtest runs them against a
+	// database inside the same required job now (ADR-0006, #2164, #2255).
 	for _, read := range []struct {
 		name, query string
 	}{

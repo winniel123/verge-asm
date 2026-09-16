@@ -35,8 +35,12 @@ jobs:
           POSTGRES_DB: verge
         ports:
           - 5432:5432
+        # -h 127.0.0.1 rather than the default socket: the entrypoint's temporary
+        # init server answers the socket while it runs with listen_addresses='',
+        # so a socket probe reports healthy while the mapped port still refuses.
+        # dbtest.Pool connects once and fails the run, and this job is required.
         options: >-
-          --health-cmd "pg_isready -U verge"
+          --health-cmd "pg_isready -h 127.0.0.1 -U verge"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
@@ -63,10 +67,12 @@ jobs:
       - run: go test ./...
       - name: prove the database tier ran
         run: |
-          # `go test ./...` above is what binds the tier, and it reports `ok` for a
-          # package whose every case skipped. It also discards a passing package's
-          # output, so the skip leaves no trace. This step re-runs the tier alone
-          # under -v and reads the log, which is the only place a skip is visible.
+          # This step, not the `go test ./...` above, is what binds the tier. That
+          # run reports `ok` for a package whose every case skipped, discards a
+          # passing package's output so the skip leaves no trace, and is cacheable:
+          # Go's test cache does not track a TCP connection, so a re-run of the same
+          # commit can report `ok (cached)` without reaching the database. -count=1
+          # and -v here defeat both, and the log is the only place a skip is visible.
           set -o pipefail
           go test ./internal/dbtest/... -count=1 -v 2>&1 | tee "$RUNNER_TEMP/harness.log"
           scripts/assert-dbtest-ran.sh "$RUNNER_TEMP/harness.log"

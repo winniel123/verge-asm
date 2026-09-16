@@ -5,9 +5,12 @@
 set -euo pipefail
 
 image="postgres:16-bookworm@sha256:60f4761b9035e0b8d5218f701a8c3382f641bf12b1604822574cf5be3baeb537"
-container="verge-dbtest"
 # Not 5432: a developer's own PostgreSQL, and the compose stack's, already hold it.
 port="${VERGE_DBTEST_PORT:-5442}"
+# Named after the port, because the port is what two runs actually contend for. A
+# fixed name would let a second worktree's `docker rm -f` below destroy the first
+# one's database mid-run, and this repo runs parallel worktree sessions.
+container="verge-dbtest-$port"
 password="dbtest-only-password"
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
