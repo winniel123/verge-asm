@@ -2692,6 +2692,11 @@
           "kind": "amends",
           "from": 1644,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2086,
+          "clause": null
         }
       ],
       "sections": [],
@@ -12449,6 +12454,48 @@
       "decision": {
         "words": 141,
         "text": "**An Address holds no facet of its own. No producer writes an address-kind span, and its\nmembership projects from the Services and Endpoints beneath it.**\n\nEvery read that needs the estate's Addresses derives them from those subject keys. The\ninventory renders one facet-less Address row per distinct host beneath a Service or an\nEndpoint. A withdrawal closes the timelines beneath an Address and counts the Address as a\nsubject that left, holding none of its own.\n\nA reader asks why a listed subject carries no row. Nothing at the connect layer separates\nan Address from the Services on it, which ADR-0104 settled when it made a blanket\nresponder a gap cause on the Service rather than a value about the Address.\n\nRejected: an address-scoped facet, which needs a measurement that does not exist.\n\nReversal returns five reads that silently answer nothing."
+      }
+    },
+    {
+      "number": 2086,
+      "file": "docs/adr/2086-an-anchor-that-moved-keeps-its-meaning-only-while-it-names-the-same-declaration.md",
+      "title": "An anchor that moved keeps its meaning only while it names the same declaration",
+      "slug": "an-anchor-that-moved-keeps-its-meaning-only-while-it-names-the-same-declaration",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2080
+      },
+      "ticket": 2086,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "rests-on",
+          "adr": 58
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 146,
+        "text": "> **An anchor that moved keeps its meaning only while it names the same declaration.** Repointing it\n> to the same declaration is a factual repair: it needs no relation, and a tool may do it. Repointing\n> it to a different declaration changes what the document asserts, so it runs through a later ADR\n> under `docs/spec/adr-governance.md` §4, and a human does it.\n>\n> A reader asks which of two SPECs governs. §3 called every repoint a repair, and\n> `docs/spec/citation-anchor-repair.md` §6.3 says a suspect anchor degrades and is never repointed.\n> Neither narrowed the other.\n>\n> Rejected: letting §3 win outright. It authorises 803 anchors inside landed ADRs with no relation\n> and no marker, and a history-arm run finds 71 that cross declarations.\n>\n> Reversal lets a tool move what a landed ADR asserts, leaving no record that it moved."
       }
     },
     {
