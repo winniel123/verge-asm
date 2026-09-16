@@ -157,8 +157,7 @@ function absolutePath(match, docFile) {
   return parts.join("/");
 }
 
-// A document that writes `cold.go:153` wrote `cmd/web/cold.go` somewhere, and that is what
-// disambiguates a basename several directories carry (#2120).
+// The document's own full paths disambiguate a basename several directories carry (#2120).
 export function pathsNamedIn(markdown, env, docFile = null) {
   const out = new Set();
   if (!env?.tracked?.files) return out;

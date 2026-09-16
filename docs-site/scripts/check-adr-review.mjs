@@ -54,8 +54,7 @@ function withoutAttribution(prBody) {
 
 export function bodyDecision(prBody) {
   if (typeof prBody !== "string") return null;
-  // The harness ends every PR body with an attribution trailer, and a last-position ## Decision
-  // would otherwise absorb it and never match the file (#2101).
+  // A last-position ## Decision would absorb the PR body's attribution trailer (#2101).
   const body = withoutAttribution(prBody);
   const has = headings(body).some((h) => h.level === 2 && h.title === "Decision");
   return has ? normalise(decisionBlock(body).text) : null;

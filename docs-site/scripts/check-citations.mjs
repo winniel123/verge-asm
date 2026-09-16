@@ -72,8 +72,7 @@ export function formatLineAnchor(a) {
   return `${a.file}:${a.line}  ->  ${a.token}  (a citation names no line: this ${where} must name the enclosing declaration)`;
 }
 
-// The refusal lands behind the conversion, so a form the scanner has just reached is sized
-// rather than refused (SPEC docs/spec/citation-anchors.md §8.2, #2120).
+// A newly scanned form is sized, never refused (docs/spec/citation-anchors.md §8.2, #2120).
 export function stageOf(anchor) {
   return anchor.form === "path" ? "refused" : "staged";
 }

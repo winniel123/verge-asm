@@ -18,17 +18,11 @@ export function splitToken(token) {
   return { value: m[1], fromLine: start, toLine: end === undefined ? start : Number(end) };
 }
 
-/**
- * Resolve a slashless `cold.go:153` against the tree, and never against a guess.
- *
- * The tree decides where one file of that name lives. Where several do, the document's own
- * full-path citations decide, because a document that writes the short form wrote the long form
- * somewhere. Anything else resolves to nothing, and the caller holds the token (#2120).
- */
 export function resolveBasename(env, base, namedInDocument) {
   const candidates = env.basenames?.get(base) ?? [];
   if (candidates.length === 1) return { path: candidates[0] };
   if (candidates.length === 0) return { reason: `the tree holds no file named ${base}` };
+  // A document that writes the short form wrote the long form somewhere (#2120).
   const named = candidates.filter((c) => namedInDocument.has(c));
   if (named.length === 1) return { path: named[0] };
   const why = named.length === 0 ? "and the document names none of them" : "and the document names several";
@@ -138,7 +132,7 @@ export function derive(repoRoot, env, found, rows = ROWS) {
       continue;
     }
     const base = { ...hit, value: parts.value, fromLine: parts.fromLine, toLine: parts.toLine };
-    // A path-less `:147` degrades to an empty string, and that is prose repair, not a sweep (#2120).
+    // A path-less token derives an empty value, so the sweep holds rather than writes (#2120).
     if (parts.value === "") {
       done.push(held(base, "the token spells no path, so only a reader can repair it"));
       continue;

@@ -5,8 +5,7 @@ import { inOpaque, nearestBlock, refTokensOf, snippetAfter } from "./extract.mjs
 const SEGMENT = "[A-Za-z0-9_.@+-]";
 const DIR_PATH = `[A-Za-z0-9_.@]${SEGMENT}*(?:/${SEGMENT}+)+`;
 
-// A dot-extension opening with a letter is what separates a slashless file from a ratio,
-// a version or a clock time, and the caller's tree decides the rest (#2120).
+// A dot-extension opening with a letter separates a slashless file from a ratio (#2120).
 const FILE_NAME = `[A-Za-z0-9_@]${SEGMENT}*\\.[A-Za-z][A-Za-z0-9]*`;
 const PATH = `(?:${DIR_PATH}|${FILE_NAME})`;
 
