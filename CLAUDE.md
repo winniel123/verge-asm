@@ -202,6 +202,12 @@ That is the job's own command, less `--github`. Exit 1 is a violation and exit 2
 
 `commentlint verify --base <ref>` is a different tool with a different job. It proves a diff moved no non-comment byte, so it reports `changed` for any file that also carries a code edit. It fits a pure comment sweep and nothing else.
 
+**`internal/dbtest` runs nowhere on this machine, and its skip is silent.** That package executes generated queries against a real Postgres. Every case calls `dbtest.Queries(t)`, which skips when `VERGE_TEST_DATABASE_URL` is unset. So `go test ./...` reports `ok` for it having run nothing, and a green local suite says nothing about those cases.
+
+The variable is deliberately not `DATABASE_URL`: the package applies migrations and writes rows, and `DATABASE_URL` is the name a developer and every container already point at a live instance.
+
+There is no local Postgres here and the user is not in the `docker` group (#2226), so reaching a database needs a human. CI runs the package in the `query-harness` job, which is **advisory, not required** — so a behavioural proof written there cannot block a merge. Promoting it is a repository-settings change no pull request can make.
+
 **The Node doc gates.** Put Node on `PATH`, keep Go on it too, and give the worktree a `docs-site/node_modules` the way "Building docs-site locally" above describes. `check:citations` shells out to `go run ./cmd/godecls` for its Go anchors, and an absent toolchain makes it exit 2 rather than return a verdict.
 
 ```sh
