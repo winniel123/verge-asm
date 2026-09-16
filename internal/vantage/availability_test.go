@@ -45,10 +45,92 @@ func namedQuery(t *testing.T, file, name string) string {
 		t.Fatalf("%s declares no query named %s", file, name)
 	}
 	rest := string(body)[i:]
-	if j := strings.Index(rest, ";"); j >= 0 {
-		return rest[:j+1]
+	end := statementEnd(rest)
+	if end < 0 {
+		t.Fatalf("%s.%s reaches the end of the file with no terminating semicolon outside a "+
+			"comment or a literal", file, name)
 	}
-	return rest
+	return rest[:end]
+}
+
+func statementEnd(sql string) int {
+	for i := 0; i < len(sql); {
+		switch {
+		case strings.HasPrefix(sql[i:], "--"):
+			j := strings.IndexByte(sql[i:], '\n')
+			if j < 0 {
+				return -1
+			}
+			i += j + 1
+		case strings.HasPrefix(sql[i:], "/*"):
+			// Postgres nests a block comment, so the first */ need not end it.
+			depth := 1
+			i += 2
+			for depth > 0 {
+				switch {
+				case i >= len(sql):
+					return -1
+				case strings.HasPrefix(sql[i:], "/*"):
+					depth++
+					i += 2
+				case strings.HasPrefix(sql[i:], "*/"):
+					depth--
+					i += 2
+				default:
+					i++
+				}
+			}
+		case sql[i] == '\'' || sql[i] == '"':
+			// A doubled quote reads as a close and a reopen, so the run stays quoted.
+			j := strings.IndexByte(sql[i+1:], sql[i])
+			if j < 0 {
+				return -1
+			}
+			i += j + 2
+		case sql[i] == ';':
+			return i + 1
+		default:
+			i++
+		}
+	}
+	return -1
+}
+
+func TestStatementEndReadsNoSemicolonInsideACommentOrALiteral(t *testing.T) {
+	// A cut at the first semicolon returned a fragment, and every negative assertion over the
+	// tail passed because the text it forbids sat past the cut (#2187).
+	for _, tc := range []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"bare statement", "SELECT 1;\n-- name: Next :one\nSELECT 2;\n", "SELECT 1;"},
+		{"line comment", "-- retires the Gap; the caller names the facets\nSELECT 1;\nSELECT 2;",
+			"-- retires the Gap; the caller names the facets\nSELECT 1;"},
+		{"trailing comment", "SELECT 1\n  AND a = 'b' -- one; two\n  AND c = 'd';\nSELECT 2;",
+			"SELECT 1\n  AND a = 'b' -- one; two\n  AND c = 'd';"},
+		{"block comment", "/* one;\ntwo */\nSELECT 1;\nSELECT 2;", "/* one;\ntwo */\nSELECT 1;"},
+		{"nested block comment", "/* one /* two; */ three; */\nSELECT 1;", "/* one /* two; */ three; */\nSELECT 1;"},
+		{"literal", "SELECT ';';\nSELECT 2;", "SELECT ';';"},
+		{"doubled quote in a literal", "SELECT 'it''s; here';\nSELECT 2;", "SELECT 'it''s; here';"},
+		{"quoted identifier", "SELECT \"a;b\";\nSELECT 2;", "SELECT \"a;b\";"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			end := statementEnd(tc.sql)
+			if end < 0 {
+				t.Fatalf("statementEnd found no end in:\n%s", tc.sql)
+			}
+			if got := tc.sql[:end]; got != tc.want {
+				t.Errorf("statementEnd cut\n%q\nwant\n%q", got, tc.want)
+			}
+		})
+	}
+	for _, unterminated := range []string{"SELECT 1\n", "-- one; two\nSELECT 1\n", "SELECT ';\n", "/* one;\n"} {
+		if end := statementEnd(unterminated); end >= 0 {
+			t.Errorf("an unterminated statement ends nowhere, so the helper must say so; got %d for %q",
+				end, unterminated)
+		}
+	}
 }
 
 func TestMarkVantageUnavailableClosesTheVantagesOpenSpans(t *testing.T) {
