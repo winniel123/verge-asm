@@ -161,7 +161,9 @@ ORDER BY sp.subject_key, sp.id;
 -- One row per position, never one per service: an outage Gaps thousands at once (#2180).
 SELECT v.name AS vantage,
        -- span_open_timeline_idx admits one service twice under two sources (#2180).
-       count(DISTINCT sp.subject_key)::bigint AS services
+       count(DISTINCT sp.subject_key)::bigint AS services,
+       -- A projection, never a predicate: filtering a recovered vantage out hides the Gap (#2189).
+       bool_and(v.availability IS NOT DISTINCT FROM 'available')::boolean AS recovered
 FROM span sp
 JOIN vantage v ON v.id = sp.vantage_id
 WHERE sp.subject_kind = 'service'
