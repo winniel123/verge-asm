@@ -6032,6 +6032,11 @@
           "kind": "rests-on",
           "from": 2114,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2171,
+          "clause": null
         }
       ],
       "sections": [
@@ -12606,7 +12611,7 @@
       "date": "2026-09-15",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "grilling",
       "proof": {
@@ -12635,7 +12640,13 @@
           "adr": 1644
         }
       ],
-      "incoming": [],
+      "incoming": [
+        {
+          "kind": "amends",
+          "from": 2171,
+          "clause": "2"
+        }
+      ],
       "sections": [
         "1",
         "2",
@@ -12647,7 +12658,13 @@
         "8",
         "9"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2171,
+          "clause": "2"
+        }
+      ],
       "decision": {
         "words": 109,
         "text": "> **The `Exposure` screen's address-scope act reader covers every act class that moves\n> `addressScopeCovered`**: `seed.declared`, `seed.withdrawn`, `proposal.confirmed`, and the\n> address-kind `exclusion.declared` and `exclusion.lifted`. The seven-day window, the five-row cap\n> and the newest-first order are unchanged.\n>\n> A reader asks why a panel beside the `Exposure` figure lists one of the five classes that move it.\n> The panel's empty state is a statement, and a withdrawal or a confirmed proposal makes it false.\n>\n> Rejected: narrowing the panel's copy instead, which leaves it honest and useless.\n>\n> Reversal returns a panel that reports no address-scope edit while one has just moved the figure."
@@ -12740,6 +12757,53 @@
       "decision": {
         "words": 135,
         "text": "> **A legacy hand-written marker is prose, so a falsified sentence inside it may be corrected.**\n> ADR-1644 §4 keeps such a marker in place as prose. *In place* exempts it from the tool. It does not\n> freeze its text. A human may remove a sentence an already-recorded withdrawal falsified. Two bounds\n> hold together: the blockquote carries no `adr-marker` sentinel, and the correction never changes\n> what the ADR decided.\n>\n> A reader asks how ADR-0110 says no clause of its Decision stands and, three times beneath, that the\n> rest stands.\n>\n> Rejected: a later ADR carrying `supersedes` on ADR-0110. That is whole-ADR scope, so it would\n> retire a live ADR to fix three sentences.\n>\n> Reversal leaves a landed ADR asserting both a claim and its withdrawal."
+      }
+    },
+    {
+      "number": 2171,
+      "file": "docs/adr/2171-declining-an-address-proposal-moves-the-covered-predicate-so-the-act-reader-covers-seven-classes.md",
+      "title": "Declining an address proposal moves the covered predicate, so the act reader covers seven classes",
+      "slug": "declining-an-address-proposal-moves-the-covered-predicate-so-the-act-reader-covers-seven-classes",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2169
+      },
+      "ticket": 2171,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 2114,
+          "clause": "2"
+        },
+        {
+          "kind": "rests-on",
+          "adr": 133
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 127,
+        "text": "> **Declining an address proposal moves the covered predicate, so the `Exposure` act reader covers\n> seven classes.** `proposal.declined` and `proposal.decline.undone` join the five ADR-2114 names.\n> The seven-day window, the five-row cap and the newest-first order are unchanged, and each class\n> renders its own verb.\n>\n> A reader asks why ADR-2114's principle says every act class that moves `addressScopeCovered`, and\n> its table lists five. The enumeration is wrong, not the principle.\n>\n> Rejected: narrowing the principle to an operator scope edit. That leaves an operator looking at a\n> moved figure beside a panel reporting no address-scope edit, which is the defect ADR-2114 removed.\n>\n> Reversal returns a panel that reports no edit while a decline has just moved the figure."
       }
     }
   ]
