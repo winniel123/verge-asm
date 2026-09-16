@@ -583,6 +583,9 @@ func (f *fakeStore) vantageName(id pgtype.Int8) pgtype.Text {
 }
 
 func (f *fakeStore) GetServiceSubject(_ context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error) {
+	if f.getServiceSubjectErr != nil {
+		return db.GetServiceSubjectRow{}, f.getServiceSubjectErr
+	}
 	key := arg.SubjectKey
 	o, ok := f.latestReachabilityByService(f.liveObservations(arg.AsOf.Time))[key]
 	if !ok {
@@ -592,6 +595,9 @@ func (f *fakeStore) GetServiceSubject(_ context.Context, arg db.GetServiceSubjec
 }
 
 func (f *fakeStore) GetEndpointSubject(_ context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error) {
+	if f.getEndpointSubjectErr != nil {
+		return db.GetEndpointSubjectRow{}, f.getEndpointSubjectErr
+	}
 	key := arg.SubjectKey
 	o, ok := f.latestHTTPIdentityByEndpoint(f.liveObservations(arg.AsOf.Time))[key]
 	if !ok {
@@ -630,6 +636,9 @@ func (f *fakeStore) FindNameCitingAddress(_ context.Context, arg db.FindNameCiti
 }
 
 func (f *fakeStore) GetNameSubject(_ context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error) {
+	if f.getNameSubjectErr != nil {
+		return db.GetNameSubjectRow{}, f.getNameSubjectErr
+	}
 	key := arg.SubjectKey
 	o, ok := f.latestResolutionByName(f.liveObservations(arg.AsOf.Time))[key]
 	if !ok {

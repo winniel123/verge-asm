@@ -144,6 +144,10 @@ type fakeStore struct {
 	nameSubjectsErr     error
 	dispatchProgressErr error
 
+	getNameSubjectErr     error
+	getServiceSubjectErr  error
+	getEndpointSubjectErr error
+
 	subjectSpansEmpty bool
 
 	nameResolutionsErr  error
