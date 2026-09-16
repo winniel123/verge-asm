@@ -2692,6 +2692,11 @@
           "kind": "amends",
           "from": 1644,
           "clause": null
+        },
+        {
+          "kind": "bounds",
+          "from": 2157,
+          "clause": null
         }
       ],
       "sections": [],
@@ -12504,6 +12509,48 @@
       "decision": {
         "words": 109,
         "text": "> **The `Exposure` screen's address-scope act reader covers every act class that moves\n> `addressScopeCovered`**: `seed.declared`, `seed.withdrawn`, `proposal.confirmed`, and the\n> address-kind `exclusion.declared` and `exclusion.lifted`. The seven-day window, the five-row cap\n> and the newest-first order are unchanged.\n>\n> A reader asks why a panel beside the `Exposure` figure lists one of the five classes that move it.\n> The panel's empty state is a statement, and a withdrawal or a confirmed proposal makes it false.\n>\n> Rejected: narrowing the panel's copy instead, which leaves it honest and useless.\n>\n> Reversal returns a panel that reports no address-scope edit while one has just moved the figure."
+      }
+    },
+    {
+      "number": 2157,
+      "file": "docs/adr/2157-a-consequences-section-is-a-dated-record-never-a-live-assertion.md",
+      "title": "A Consequences section is a dated record, never a live assertion",
+      "slug": "a-consequences-section-is-a-dated-record-never-a-live-assertion",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2127
+      },
+      "ticket": 2157,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "bounds",
+          "adr": 58
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 139,
+        "text": "> **A Consequences section is a dated record, never a live assertion.** It states what the session\n> saw when it decided. Production then moves, and the record does not become false — it becomes\n> historical. So a Consequences section is never amended, and a reference inside it that no longer\n> resolves degrades rather than being repointed.\n>\n> A reader asks what to do when a landed ADR describes a predicate that ships differently, as\n> ADR-0186 and ADR-0185 do.\n>\n> Rejected: amending both through a later ADR. `docs/spec/adr-governance.md` §4 cannot express it —\n> a clause is required wherever the target numbers any heading, and no numbered clause carries the\n> claim.\n>\n> Reversal makes every Consequences section editable in place, so the record of what was decided\n> stops being a record."
       }
     }
   ]
