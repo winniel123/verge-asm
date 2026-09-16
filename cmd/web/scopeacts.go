@@ -24,7 +24,8 @@ const (
 	scopeActWindow = 7 * 24 * time.Hour
 	scopeActRows   = 5
 
-	scopeActReadCap int32 = 50
+	// One ANY() read now spans seven classes, and a bulk decline can fill it alone (#2221).
+	scopeActReadCap int32 = 350
 
 	exclusionKindAddress = "address"
 )

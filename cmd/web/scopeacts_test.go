@@ -390,6 +390,40 @@ func TestExposureFoldReadsNoActInput(t *testing.T) {
 	}
 }
 
+// #2167 made one LIMIT bound every class at once, so a bulk class can evict the others (#2221).
+// declineLookup records one act per checked proposal and ListPendingProposals has no LIMIT, so
+// proposal.declined is the class that can do it.
+
+func TestABulkDeclineDoesNotEvictEveryOtherScopeActClass2221(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	exposureBoardFixture(t, f, now)
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	// The address scope is the oldest act, so only a cap wide enough to hold the burst reaches it.
+	recordActAt(t, f, now.Add(-6*time.Hour), who,
+		act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "198.51.100.7/32"}})
+
+	// Name scopes carry no address scope, so they render nothing and only consume the read.
+	const burst = 200
+	for i := range burst {
+		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
+			fmt.Sprintf("host-%d.acmecorp.io", i))
+	}
+
+	if int(scopeActReadCap) <= burst {
+		t.Fatalf("scopeActReadCap = %d, want more than the %d-act burst: one class would evict the rest",
+			scopeActReadCap, burst)
+	}
+
+	base := startAt(t, f, now)
+	page := getBody(t, login(t, base, "admin", "hunter2hunter2"), base+"/exposure", http.StatusOK)
+
+	if !strings.Contains(page, "198.51.100.7/32") {
+		t.Error("a bulk decline evicted the address scope, so the panel hid an act the cap should reach")
+	}
+}
+
 // A name-scope burst fills the read, and the empty panel may not then claim no scope was declared.
 
 func TestExposurePanelNamesACappedRead(t *testing.T) {
@@ -404,7 +438,7 @@ func TestExposurePanelNamesACappedRead(t *testing.T) {
 	base := startAt(t, f, now)
 	page := getBody(t, login(t, base, "admin", "hunter2hunter2"), base+"/exposure", http.StatusOK)
 
-	if !strings.Contains(page, "No address scope is among the 50 newest scope acts") {
+	if !strings.Contains(page, fmt.Sprintf("No address scope is among the %d newest scope acts", scopeActReadCap)) {
 		t.Error("a capped read claimed more than it read")
 	}
 	if strings.Contains(page, "named an address scope") {
@@ -466,7 +500,7 @@ func TestExposurePanelNamesACappedReadBesideFiveRows(t *testing.T) {
 	base := startAt(t, f, now)
 	page := getBody(t, login(t, base, "admin", "hunter2hunter2"), base+"/exposure", http.StatusOK)
 
-	if !strings.Contains(page, "This read stopped at the 50 newest scope acts") {
+	if !strings.Contains(page, fmt.Sprintf("This read stopped at the %d newest scope acts", scopeActReadCap)) {
 		t.Error("a full list claimed a completeness its capped read cannot support, and the " +
 			"operator is told nothing (#2188)")
 	}
