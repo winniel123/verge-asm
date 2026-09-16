@@ -268,6 +268,46 @@ func (q *Queries) ListOpenReachGapServices(ctx context.Context) ([]ListOpenReach
 	return items, nil
 }
 
+const listOutageReachGapVantages = `-- name: ListOutageReachGapVantages :many
+SELECT v.name AS vantage,
+       count(*)::bigint AS services
+FROM span sp
+JOIN vantage v ON v.id = sp.vantage_id
+WHERE sp.subject_kind = 'service'
+  AND sp.facet = 'reachability'
+  AND sp.closed_at IS NULL
+  AND sp.is_gap = TRUE
+  AND sp.value ->> 'cause' = 'vantage-unavailable'
+GROUP BY v.name
+ORDER BY v.name
+`
+
+type ListOutageReachGapVantagesRow struct {
+	Vantage  string `json:"vantage"`
+	Services int64  `json:"services"`
+}
+
+// One row per position, never one per service: an outage Gaps thousands at once (#2180).
+func (q *Queries) ListOutageReachGapVantages(ctx context.Context) ([]ListOutageReachGapVantagesRow, error) {
+	rows, err := q.db.Query(ctx, listOutageReachGapVantages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOutageReachGapVantagesRow{}
+	for rows.Next() {
+		var i ListOutageReachGapVantagesRow
+		if err := rows.Scan(&i.Vantage, &i.Services); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listServiceReachabilitySpansByClass = `-- name: ListServiceReachabilitySpansByClass :many
 SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
     sp.subject_key AS subject_key,

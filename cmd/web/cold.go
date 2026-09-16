@@ -33,6 +33,7 @@ type coldStore interface {
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
 	ListOpenReachGapServices(ctx context.Context) ([]db.ListOpenReachGapServicesRow, error)
+	ListOutageReachGapVantages(ctx context.Context) ([]db.ListOutageReachGapVantagesRow, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
@@ -256,6 +257,12 @@ func (s *server) readCoverageGapLedger(ctx context.Context) coverageGapLedger {
 	} else {
 		l.GapsFailed, l.MessagesFailed = true, true
 		log.Printf("web: coverage: open reach gap services: %v", err)
+	}
+	if rows, err := s.coldStore.ListOutageReachGapVantages(ctx); err == nil {
+		l.Gaps = append(l.Gaps, outageGapViews(rows)...)
+	} else {
+		l.GapsFailed = true
+		log.Printf("web: coverage: outage reach gap vantages: %v", err)
 	}
 	if rows, err := s.coldStore.ListUnavailableVantages(ctx); err == nil {
 		l.Messages = append(l.Messages, unavailableVantageMessages(rows)...)
@@ -504,6 +511,24 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 		})
 	}
 	return gaps, msgs
+}
+
+func outageGapViews(rows []db.ListOutageReachGapVantagesRow) []coverageGapView {
+	out := make([]coverageGapView, 0, len(rows))
+	for _, v := range rows {
+		unit := "services"
+		if v.Services == 1 {
+			unit = "service"
+		}
+		out = append(out, coverageGapView{
+			Subject: "vantage " + v.Vantage,
+			// The badge names the cause the span recorded, not the vantage's present availability.
+			Gap:      "outage",
+			Expected: fmt.Sprintf("a reach reading for %d %s", v.Services, unit),
+			Since:    "—",
+		})
+	}
+	return out
 }
 
 func unavailableVantageMessages(rows []db.ListUnavailableVantagesRow) []coverageMessageView {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
@@ -232,6 +234,56 @@ func TestReachGapsAndMessagesDoNotLetABlanketedAddressSwallowAnotherPort(t *test
 	}
 	if !strings.Contains(messageFor(msgs, "104.21.61.6:8443 tcp").Text, "the control probe did not complete") {
 		t.Errorf("the second service's recorded reason never rendered: %+v", msgs)
+	}
+}
+
+func TestCoverageDoesNotClaimNoGapsWhileAnOutageGapStandsOpen(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "local", Class: "internet", Resolver: "127.0.0.11:53",
+		Availability: pgtype.Text{String: "unavailable", Valid: true},
+	})
+	f.vantageNextID = 2
+	for _, svc := range []string{"198.51.100.9:443/tcp", "198.51.100.10:443/tcp"} {
+		f.addClassReachability(t, svc, "internet", obsClock, unavailableGap)
+	}
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	if strings.Contains(page, "No gaps this batch") {
+		t.Errorf("Coverage claimed no gaps while two outage Gaps stood open (#2180); body: %s", page)
+	}
+	if !strings.Contains(page, "2 services") {
+		t.Errorf("the outage row must count the services beneath the dark vantage (#2180); body: %s", page)
+	}
+}
+
+type outageReadStore struct {
+	coldStore
+	err error
+}
+
+func (o outageReadStore) ListOutageReachGapVantages(context.Context) ([]db.ListOutageReachGapVantagesRow, error) {
+	return nil, o.err
+}
+
+func TestCoverageNamesAFailedOutageGapRead(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	buf := captureLog(t)
+
+	srv := newServer(f, testKey, "", fixedClock())
+	srv.useTranscriptKey(testTranscriptKey)
+	srv.coldStore = outageReadStore{coldStore: f, err: errors.New("list outage reach gap vantages: connection reset")}
+	ledger := srv.readCoverageGapLedger(t.Context())
+
+	if !ledger.GapsFailed {
+		t.Error("a failed outage read must raise GapsFailed, not render an empty gap ledger (#2180)")
+	}
+	if !strings.Contains(buf.String(), "connection reset") {
+		t.Errorf("a degradation the operator cannot see must log; log: %q", buf.String())
 	}
 }
 
