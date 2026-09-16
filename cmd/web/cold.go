@@ -480,7 +480,7 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 			continue
 		}
 		if decodeReachability(row.Value).Cause == vantageUnavailableCause {
-			// unavailableVantageMessages carries this cause off its own read (#2090).
+			// outageGapViews carries this cause per vantage off its own read (#2180).
 			continue
 		}
 		others = append(others, row)
