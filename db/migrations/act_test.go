@@ -1,8 +1,6 @@
 package migrations
 
 import (
-	"regexp"
-	"sort"
 	"strings"
 	"testing"
 )
@@ -94,75 +92,10 @@ func TestActPayloadColumnsAreJSONB(t *testing.T) {
 	}
 }
 
-type actIndex struct {
-	cols    []string
-	partial bool
-}
-
-func (ix actIndex) String() string {
-	s := "(" + strings.Join(ix.cols, ", ") + ")"
-	if ix.partial {
-		s += " partial"
-	}
-	return s
-}
-
-var (
-	createActIndex = regexp.MustCompile(
-		`create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?` +
-			`(\w+)\s+on\s+(?:public\.)?act\s*\((.*)`)
-	dropActIndex = regexp.MustCompile(
-		`drop\s+index\s+(?:concurrently\s+)?(?:if\s+exists\s+)?(?:public\.)?(\w+)`)
-)
-
-func parseActIndex(body string) actIndex {
-	cols, rest := body, ""
-	if i := strings.Index(body, ")"); i >= 0 {
-		cols, rest = body[:i], body[i+1:]
-	}
-	ix := actIndex{partial: strings.Contains(rest, "where")}
-	for _, c := range strings.Split(cols, ",") {
-		ix.cols = append(ix.cols, strings.Join(strings.Fields(c), " "))
-	}
-	return ix
-}
-
-// upMigrations strips every -- comment, so prose cannot satisfy the tests below. It also
-// concatenates every Up, so a later DROP INDEX is what decides whether an index stands.
-
-func actIndexes(t *testing.T) map[string]actIndex {
-	t.Helper()
-	out := map[string]actIndex{}
-	for _, s := range strings.Split(strings.ToLower(upMigrations(t)), ";") {
-		if m := createActIndex.FindStringSubmatch(s); m != nil {
-			out[m[1]] = parseActIndex(m[2])
-			continue
-		}
-		if m := dropActIndex.FindStringSubmatch(s); m != nil {
-			delete(out, m[1])
-		}
-	}
-	return out
-}
-
-func actIndexesLeadingOn(t *testing.T, col string) (map[string]actIndex, []string) {
-	t.Helper()
-	idx := actIndexes(t)
-	var names []string
-	for name, ix := range idx {
-		if len(ix.cols) > 0 && ix.cols[0] == col {
-			names = append(names, name)
-		}
-	}
-	// A map ranges in no fixed order, so a second matching index must not decide the run.
-	sort.Strings(names)
-	return idx, names
-}
-
 func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
 	// One ANY() read runs on every admin Exposure load, and an index leading on
 	// created_at makes it walk the whole window to return its matches (#2073).
-	idx, names := actIndexesLeadingOn(t, "action")
+	idx, names := indexesLeadingOn(t, "act", "action")
 
 	if len(names) == 0 {
 		t.Fatalf("no act index leads on action; ListActsOfClassesSince filters on it and "+
@@ -180,7 +113,7 @@ func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
 			}
 		}
 		// A partial index needs a migration per class added, and the set already moved (#2169).
-		if ix.partial {
+		if ix.partial() {
 			t.Errorf("%s is partial; the act class set is not fixed (#2169), got: %v", name, ix)
 		}
 	}
@@ -189,7 +122,7 @@ func TestActIndexesTheClassTheScopePanelFiltersOn(t *testing.T) {
 func TestActKeepsItsDateRangeIndex(t *testing.T) {
 	// ListActsInRange carries no action predicate, so an index leading on action cannot
 	// serve it: the action index is an addition and never a replacement (#2073).
-	idx, names := actIndexesLeadingOn(t, "created_at desc")
+	idx, names := indexesLeadingOn(t, "act", "created_at desc")
 
 	if len(names) == 0 {
 		t.Fatalf("no act index leads on created_at desc; ListActsInRange filters on the "+
