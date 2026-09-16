@@ -11,6 +11,9 @@ const DIR_CITATION = /\/$/;
 const HOSTNAME = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i;
 const TLD = /\.[a-z]{2,}$/i;
 
+// The sweep reads this verdict as a foreign signal, so no caller repeats the sentence (#2160).
+export const URL_WITHOUT_SCHEME = "a URL written without its scheme";
+
 // @ds/tokens/ and @astrojs/react are npm scopes, not directories.
 const NPM_SCOPE = /^@/;
 
@@ -196,7 +199,7 @@ function ignoreReason(citation, value, tracked, extensions) {
   if (!value.includes("/")) return "not a path";
   if (NPM_SCOPE.test(value)) return "npm scope";
   const first = value.slice(0, value.indexOf("/"));
-  if (HOSTNAME.test(first) && TLD.test(first)) return "a URL written without its scheme";
+  if (HOSTNAME.test(first) && TLD.test(first)) return URL_WITHOUT_SCHEME;
   if (DIR_CITATION.test(value)) return null;
   const base = value.slice(value.lastIndexOf("/") + 1);
   const dot = base.lastIndexOf(".");

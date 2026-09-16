@@ -18,10 +18,14 @@ export function splitToken(token) {
   return { value: m[1], fromLine: start, toLine: end === undefined ? start : Number(end) };
 }
 
-export function resolveBasename(env, base, namedInDocument) {
+export function resolveBasename(env, base, namedInDocument, foreignInDocument = new Set()) {
   const candidates = env.basenames?.get(base) ?? [];
-  if (candidates.length === 1) return { path: candidates[0] };
   if (candidates.length === 0) return { reason: `the tree holds no file named ${base}` };
+  // The document spells this basename against another tree, so a repoint is unrecoverable (#2160).
+  if (foreignInDocument.has(base)) {
+    return { reason: `the document spells ${base} against a path outside this tree` };
+  }
+  if (candidates.length === 1) return { path: candidates[0] };
   // A document that writes the short form wrote the long form somewhere (#2120).
   const named = candidates.filter((c) => namedInDocument.has(c));
   if (named.length === 1) return { path: named[0] };
@@ -180,7 +184,12 @@ export function derive(repoRoot, env, found, rows = ROWS) {
       continue;
     }
     if (formOf(hit.token) === "file") {
-      const named = resolveBasename(env, basenameOf(parts.value), hit.namedInDocument ?? new Set());
+      const named = resolveBasename(
+        env,
+        basenameOf(parts.value),
+        hit.namedInDocument ?? new Set(),
+        hit.foreignInDocument ?? new Set(),
+      );
       if (named.path === undefined) {
         done.push(held(base, named.reason));
         continue;

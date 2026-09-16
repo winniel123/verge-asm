@@ -16,6 +16,8 @@ import {
   planFor,
   scanDocuments,
   pathsNamedIn,
+  foreignBasenamesIn,
+  visibleText,
   reportRecord,
   auditRecord,
   planWrites,
@@ -809,4 +811,102 @@ test("a document places a basename by the full paths it writes, and the tree con
     "internal/queue/cold.go",
   ]);
   assert.deepEqual([...pathsNamedIn(rel, env)], []);
+});
+
+// #2160: the tree answers every basename, so the document's own foreign paths are read first.
+
+test("#2160 a basename the document spells against another tree is held, never repointed", () => {
+  const env = envFor(["a/x/two.go"]);
+  assert.deepEqual(resolveBasename(env, "two.go", new Set()), { path: "a/x/two.go" });
+  assert.match(
+    resolveBasename(env, "two.go", new Set(), new Set(["two.go"])).reason,
+    /spells two\.go against a path outside this tree/,
+  );
+  // A basename the tree never held is answered by the tree, so the reason names the real cause.
+  assert.match(
+    resolveBasename(env, "gone.go", new Set(), new Set(["gone.go"])).reason,
+    /holds no file named gone\.go/,
+  );
+  // The document's own full paths cannot outvote the foreign signal either.
+  const both = envFor(["a/x/one.go", "a/y/one.go"]);
+  const named = new Set(["a/y/one.go"]);
+  assert.deepEqual(resolveBasename(both, "one.go", named), { path: "a/y/one.go" });
+  assert.match(
+    resolveBasename(both, "one.go", named, new Set(["one.go"])).reason,
+    /outside this tree/,
+  );
+});
+
+test("#2160 derive holds a slashless token the document places outside this tree", () => {
+  const paths = fixture({ "go/one.go": "package one\n\nfunc One() {}\n" });
+  const env = envFor(paths);
+  const [converted] = derive(REPO_ROOT, env, [hit("one.go:3")], AT_FIXTURE);
+  assert.equal(converted.outcome, "anchor");
+
+  const flagged = { ...hit("one.go:3"), foreignInDocument: new Set(["one.go"]) };
+  const [result] = derive(REPO_ROOT, env, [flagged], AT_FIXTURE);
+  assert.equal(result.outcome, "held");
+  assert.match(result.reason, /outside this tree/);
+});
+
+test("#2160 a foreign path denies its basename, and a shorthand of the document's own path does not", () => {
+  const env = envFor(["proj/internal/dnsx/message.go", "proj/internal/measure/tls.go"]);
+  const wanted = new Set(["message.go", "tls.go"]);
+
+  // ADR-0143's shape: the library path roots at no entry of this tree, and nothing explains it.
+  const upstream = "`dns/dnsmessage/message.go` holds the table, so `message.go:493` reads it.";
+  assert.deepEqual([...foreignBasenamesIn(upstream, env, "docs/adr/x.md", wanted)], ["message.go"]);
+
+  // ADR-0152's shape: `measure/tls.go` is the tail of a path the document also writes in full.
+  const named = new Set(["proj/internal/measure/tls.go"]);
+  const short = "See `proj/internal/measure/tls.go`, and `measure/tls.go` at `tls.go:3`.";
+  assert.deepEqual([...foreignBasenamesIn(short, env, "docs/adr/x.md", wanted)], ["tls.go"]);
+  assert.deepEqual([...foreignBasenamesIn(short, env, "docs/adr/x.md", wanted, named)], []);
+
+  // A basename no slashless token spells costs no classification at all.
+  assert.deepEqual([...foreignBasenamesIn(upstream, env, "docs/adr/x.md", new Set())], []);
+  assert.deepEqual([...foreignBasenamesIn(upstream, null, "docs/adr/x.md", wanted)], []);
+});
+
+test("#2160 the foreign signal survives a sentence's punctuation and reads a URL too", () => {
+  const env = envFor(["proj/internal/dnsx/message.go"]);
+  const wanted = new Set(["message.go"]);
+  const at = (text) => [...foreignBasenamesIn(text, env, "docs/adr/x.md", wanted)];
+
+  // TREE_PATH takes the full stop with the path, and classify trims it off its target.
+  assert.deepEqual(at("The table lives in dns/dnsmessage/message.go. See `message.go:493`."), [
+    "message.go",
+  ]);
+  assert.deepEqual(at("Compare (dns/dnsmessage/message.go), then `message.go:493`."), ["message.go"]);
+
+  // classify calls a schemeless URL `ignored`, and it names another tree as plainly as a root does.
+  assert.deepEqual(at("https://github.com/golang/net/blob/main/dns/dnsmessage/message.go"), [
+    "message.go",
+  ]);
+});
+
+test("#2160 a path inside a fence or an HTML comment denies nothing", () => {
+  const env = envFor(["proj/internal/dnsx/message.go"]);
+  const wanted = new Set(["message.go"]);
+  const denied = (markdown) =>
+    [...foreignBasenamesIn(visibleText(parse(markdown)), env, "docs/adr/x.md", wanted)];
+
+  assert.deepEqual(denied("Read `dns/dnsmessage/message.go` for the table.\n"), ["message.go"]);
+  assert.deepEqual(denied("```sh\ncp dns/dnsmessage/message.go .\n```\n"), []);
+  assert.deepEqual(denied("<!-- dns/dnsmessage/message.go -->\n\nProse.\n"), []);
+  // A link target is live text, and the scanner reads it, so this scan reads it too.
+  assert.deepEqual(denied("See [the table](dns/dnsmessage/message.go).\n"), ["message.go"]);
+});
+
+test("#2160 scanDocuments carries the foreign basenames the derivation reads", () => {
+  const paths = fixture({
+    "go/one.go": "package one\n\nfunc One() {}\n",
+    "docs/note.md": "Upstream `vendored/pkg/one.go` is the subject, so `one.go:3` names it.\n",
+  });
+  const env = envFor(paths);
+  const doc = `${FIXTURE}/docs/note.md`;
+  const [scanned] = scanDocuments(REPO_ROOT, [doc], env).get(doc).hits;
+  assert.deepEqual([...scanned.foreignInDocument], ["one.go"]);
+  const [result] = derive(REPO_ROOT, env, [scanned], AT_FIXTURE);
+  assert.equal(result.outcome, "held");
 });
