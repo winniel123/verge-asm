@@ -144,7 +144,7 @@ Serve every prototype on port **8090**. Always use that port. `8080` belongs to 
 Bind the server to `127.0.0.1`. Run it from the prototype's own directory:
 
 ```sh
-cd prototype/<name> && python3 -m http.server 8090 --bind 127.0.0.1
+cd prototypes/<name> && python3 -m http.server 8090 --bind 127.0.0.1
 ```
 
 Start it in the background. A foreground server blocks the session.
