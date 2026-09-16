@@ -355,6 +355,11 @@
           "kind": "sibling",
           "from": 198,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2087,
+          "clause": null
         }
       ],
       "sections": [],
@@ -1895,6 +1900,11 @@
         {
           "kind": "rests-on",
           "from": 226,
+          "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2087,
           "clause": null
         }
       ],
@@ -3633,6 +3643,11 @@
           "kind": "rests-on",
           "from": 211,
           "clause": null
+        },
+        {
+          "kind": "rests-on",
+          "from": 2087,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4703,6 +4718,11 @@
           "kind": "sibling",
           "from": 206,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2087,
+          "clause": null
         }
       ],
       "sections": [],
@@ -4710,6 +4730,11 @@
         {
           "kind": "amends",
           "from": 180,
+          "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2087,
           "clause": null
         }
       ],
@@ -12496,6 +12521,60 @@
       "decision": {
         "words": 146,
         "text": "> **An anchor that moved keeps its meaning only while it names the same declaration.** Repointing it\n> to the same declaration is a factual repair: it needs no relation, and a tool may do it. Repointing\n> it to a different declaration changes what the document asserts, so it runs through a later ADR\n> under `docs/spec/adr-governance.md` §4, and a human does it.\n>\n> A reader asks which of two SPECs governs. §3 called every repoint a repair, and\n> `docs/spec/citation-anchor-repair.md` §6.3 says a suspect anchor degrades and is never repointed.\n> Neither narrowed the other.\n>\n> Rejected: letting §3 win outright. It authorises 803 anchors inside landed ADRs with no relation\n> and no marker, and a history-arm run finds 71 that cross declarations.\n>\n> Reversal lets a tool move what a landed ADR asserts, leaving no record that it moved."
+      }
+    },
+    {
+      "number": 2087,
+      "file": "docs/adr/2087-a-vantage-that-becomes-unavailable-closes-every-open-span-it-fed-at-write-time.md",
+      "title": "A vantage that becomes unavailable closes every open span it fed, at write time",
+      "slug": "a-vantage-that-becomes-unavailable-closes-every-open-span-it-fed-at-write-time",
+      "date": "2026-09-16",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "grilling",
+      "proof": {
+        "ticket": 2137
+      },
+      "ticket": 2087,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 108
+        },
+        {
+          "kind": "rests-on",
+          "adr": 80
+        },
+        {
+          "kind": "rests-on",
+          "adr": 6
+        },
+        {
+          "kind": "rests-on",
+          "adr": 41
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 148,
+        "text": "> **A vantage that becomes unavailable closes every open span it fed, at write time**, and opens a\n> `Gap` carrying the cause `vantage-unavailable` behind each. The transition is the event, not the\n> column value, so a resolver-only vantage holding no value still transitions. The closure names no\n> facet, so one added later needs no query edit. No composition read gains an availability\n> predicate, and `ListVantagesForDispatch` keeps every row.\n>\n> A reader asks why a class-scoped composition trusts a prober that stopped answering. ADR-0080\n> decision rule 1 says it must not, and no read implemented that predicate.\n>\n> Rejected: a predicate on each composition read. `applyAvailability` clears a vantage only from a\n> completed resolution-walk, so filtering the dispatch query would strand it unavailable forever.\n>\n> Reversal returns a dead prober's open span to the fold, pinning its class to `reached`."
       }
     },
     {
