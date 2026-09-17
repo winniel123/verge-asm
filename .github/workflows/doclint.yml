@@ -162,6 +162,28 @@ jobs:
         working-directory: docs-site
         run: npm run test:citations
 
+      # THE SWEEP SUITES (#2279). `test:sweep` ran in no workflow, so no required check ever
+      # executed its cases. Three ADRs name a case in
+      # docs-site/scripts/sweep-line-anchors.test.mjs as their `proof`: ADR-2155, ADR-2277 and
+      # ADR-2283. A later PR could contradict any of those rulings with every required check
+      # green.
+      #
+      # #1975 keeps the sweep TOOL out of a required check's path, because a `--write` run
+      # rewrites documents. These are the tool's unit tests, and they run no such conversion.
+      # They import the modules and assert on return values. Their only residue is an
+      # untracked `.sweep-fixture-<pid>` directory, which `test.after` removes, and the gate
+      # below enumerates the TRACKED tree, so a leftover fixture reaches no verdict. Two cases
+      # do spawn the CLI, and each asserts a refusal that exits 2 before the tool reads a
+      # document.
+      #
+      # THIS JOB, not `adr-sections`. The suite shells out to `go run ./cmd/godecls` for its
+      # Go row, as Arm B above does, and `citations` is the only job in this workflow with
+      # setup-go. A step inside a job the ruleset already requires needs no ruleset change. A
+      # new job would sit on `Expected` until a human registered it.
+      - name: Sweep derivation tests
+        working-directory: docs-site
+        run: npm run test:sweep
+
       # GITHUB_TOKEN is for the Site arm (SPEC docs/spec/citation-anchors.md §6, #1974). The
       # step reads the PR body from the REST API, never from GITHUB_EVENT_PATH: `gh run
       # rerun` replays a stale payload, so a body edit could otherwise never clear the gate.
