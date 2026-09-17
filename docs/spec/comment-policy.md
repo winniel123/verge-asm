@@ -192,6 +192,16 @@ that before #1218 swept it: the block above `func logSafe` carried the literal
 site, not at this one. The temptation is highest in the block that explains where a waiver goes.
 State the rule and name the directive without writing it.
 
+**A comment in `db/migrations/` may never contain the token `+goose`.** goose reads any comment
+line that holds the marker as an annotation, quoted or not. It then refuses the whole file, because
+the rest of the line is not one of its seven annotations. `26500_span_vantage_open_index.sql`
+spelled `NO TRANSACTION` inside backticks while it explained why it rejected that annotation.
+`goose.Up` runs inside the `web` binary, so the container restarted instead of serving (#2261). Name
+the annotation in words, and never write the marker. This is the `#nosec` rule above in a second
+surface, and the hazard is worse: a `#nosec` survivor creates a waiver, while a `+goose` survivor
+stops the deploy. `TestEveryMigrationCarriesAnnotationsGooseAccepts` holds it in the required `test`
+job, over every file the binary embeds.
+
 **Where a waiver tail must keep its justification, one placement gives both the prose and zero
 flags.** #1215 probed three arrangements. Only prose, then a blank line, then the directive, then
 the declaration satisfies §2.3's withhold and §7.7's condition 2 together, with `gosec` still

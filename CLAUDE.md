@@ -114,6 +114,8 @@ Never delete a workflow job without running that first. A required check that no
 
 New goose migrations race on their number. The `compose` CI job boots the real `web` binary, which runs `goose.Up`; a duplicate goose version panics the binary and `compose` fails at "wait for a healthy stack" (look for `panic: goose: duplicate version NNNNN`). CI tests your branch merged with `main`. Before pushing, `git fetch origin main` and number your migration above `origin/main`'s current max in `db/migrations/` (they increment by ~100).
 
+In a migration comment, name a goose annotation and never spell it. goose reads any comment line holding `+goose` as an annotation, quoted or not, and refuses the file. The refusal panics the same `web` binary (#2261). `TestEveryMigrationCarriesAnnotationsGooseAccepts` in the required `test` job catches it before CI does.
+
 New ADRs race on their number in the same way, and no check catches it. `docs/adr/` numbers sequentially, and every branch cuts from `origin/main`. Two concurrent branches read the same max and claim the same next number. A fetch of `origin/main` cannot reveal the clash, because neither ADR has merged. The first merge wins and the second conflicts on the file.
 
 Before you write an ADR, read the number every open PR already claims:
