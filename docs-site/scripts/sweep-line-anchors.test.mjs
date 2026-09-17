@@ -69,16 +69,19 @@ const AT_FIXTURE = ROWS.map((row) => ({
   matches: (p) => p.startsWith(`${FIXTURE}/`) && row.matches(p.slice(FIXTURE.length + 1)),
 }));
 
-// One span per line, because a window is an offset range and two lines never share one.
+// Wider than any fixture token, so one line's span never reaches the next line's (#2249).
+const LINE_SPAN = 1000;
+
 function hit(token, { file = "docs/spec/fixture.md", line = 1, lineText, namedInDocument } = {}) {
-  const start = (line - 1) * (token.length + 2);
+  const start = (line - 1) * LINE_SPAN;
   return { token, file, line, kind: "code", start, end: start + token.length + 2, lineText, namedInDocument };
 }
 
 function run(files, tokens) {
   const paths = fixture(files);
   const env = envFor(paths);
-  return derive(REPO_ROOT, env, tokens.map((t) => hit(t)), AT_FIXTURE);
+  // One token per line, because a hold reads a span and two of these would otherwise share one.
+  return derive(REPO_ROOT, env, tokens.map((t, i) => hit(t, { line: i + 1 })), AT_FIXTURE);
 }
 
 // The citing line is an argument here, so one fixture serves every corroboration case.
@@ -542,6 +545,35 @@ test("a link reads the glue of its target, not of its label (#2249)", () => {
   const hits = scanLineAnchorsFromTree(parse(md));
   assert.deepEqual(hits.map((h) => h.kind), ["link", "code"]);
   assert.deepEqual(hits.map((h) => trailingGlue(h)), ["", ",9"]);
+});
+
+// The rewrite merges a nested range into its enclosing one, so a hold must read that span too.
+test("a label and the target it nests in hold together when they disagree (#2249)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  for (const md of [
+    `See [\`${token},997\`](${token}) here.\n`,
+    `See [\`${token}\`](${token},997) here.\n`,
+  ]) {
+    const { found, hits } = inMemory({ "docs/spec/nested.md": md }, env);
+    assert.deepEqual(hits.map((h) => h.kind), ["link", "code"]);
+    const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+    assert.deepEqual(results.map((r) => r.outcome), ["held", "held"]);
+    // A throw here would abort the write plan for every sound document beside this one.
+    assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
+  }
+});
+
+test("a held bare line inside a label holds the target that nests it (#2249)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  const md = `See [\`${token}, :160\`](${token}) here.\n`;
+  const { found, hits } = inMemory({ "docs/spec/nested.md": md }, env);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["held", "held", "held"]);
+  assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
 });
 
 test("a token one window spells two ways holds every copy of it (#2249)", () => {

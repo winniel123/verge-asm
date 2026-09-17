@@ -123,17 +123,48 @@ function deriveOne(token, inventory, env) {
   return { ...token, outcome: "anchor", anchor: region.name, ...(review ? { review } : {}) };
 }
 
-// The scan carries the enclosing node's offsets, so every token inside one span keys the same.
-function windowOf(result) {
-  return `${result.start}:${result.end}:${result.file}`;
+function spanOf(result) {
+  return { start: result.start ?? 0, end: result.end ?? 0 };
+}
+
+// The rewrite merges an enclosed range into its enclosing one, so a nested pair is one span.
+function mergedWindows(results) {
+  const byFile = new Map();
+  for (const r of results) {
+    if (!byFile.has(r.file)) byFile.set(r.file, []);
+    byFile.get(r.file).push(r);
+  }
+  const keys = new Map();
+  for (const [file, members] of byFile) {
+    const sorted = [...members].sort(
+      (a, b) => spanOf(a).start - spanOf(b).start || spanOf(b).end - spanOf(a).end,
+    );
+    const groups = [];
+    for (const r of sorted) {
+      const { start, end } = spanOf(r);
+      const open = groups[groups.length - 1];
+      if (open && start < open.end) {
+        open.end = Math.max(open.end, end);
+        open.members.push(r);
+        continue;
+      }
+      groups.push({ start, end, members: [r] });
+    }
+    for (const g of groups) {
+      for (const r of g.members) keys.set(r, `${file}:${g.start}:${g.end}`);
+    }
+  }
+  return keys;
 }
 
 // The rewrite eats the glue whole, so converting would delete a held token with it (#2158).
 export function withholdSwallowed(results) {
+  const windows = mergedWindows(results);
   const byWindow = new Map();
   for (const r of results) {
-    if (!byWindow.has(windowOf(r))) byWindow.set(windowOf(r), []);
-    byWindow.get(windowOf(r)).push(r);
+    const key = windows.get(r);
+    if (!byWindow.has(key)) byWindow.set(key, []);
+    byWindow.get(key).push(r);
   }
   const swallowed = new Map();
   for (const members of byWindow.values()) {
@@ -156,9 +187,10 @@ export function withholdSwallowed(results) {
 
 // The rewrite keys an edit by token text, so one window rewrites every copy alike (#2249).
 export function withholdSplit(results) {
+  const windows = mergedWindows(results);
   const byToken = new Map();
   for (const r of results) {
-    const key = `${windowOf(r)}:${r.token}`;
+    const key = `${windows.get(r)}:${r.token}`;
     if (!byToken.has(key)) byToken.set(key, []);
     byToken.get(key).push(r);
   }
