@@ -3,7 +3,7 @@ import { CONTAINMENT_ROW } from "../citations/rows/containment.mjs";
 import { ANCHOR } from "../citations/extract.mjs";
 import { holdsSnippet } from "../citations/armb.mjs";
 import { classify } from "../citations/classify.mjs";
-import { namesAnotherSite } from "./rewrite.mjs";
+import { namesAnotherSite, replacementFor } from "./rewrite.mjs";
 import { rivalName } from "./corroborate.mjs";
 import { basenameOf, formOf } from "../citations/lineanchor.mjs";
 
@@ -140,19 +140,8 @@ export function withholdSwallowed(results) {
     // Only a path-less token ever sits in the glue, and the derivation holds every one of them.
     const bare = members.filter((m) => m.outcome === "held" && m.token.startsWith(":"));
     if (bare.length === 0) continue;
-    const seen = new Set();
-    const repeated = new Set();
-    for (const m of members) {
-      if (seen.has(m.token)) repeated.add(m.token);
-      seen.add(m.token);
-    }
     for (const m of members) {
       if (m.outcome === "held") continue;
-      // trailingGlue reads the first occurrence, so a repeat carries a glue not its own.
-      if (repeated.has(m.token)) {
-        swallowed.set(m, bare[0].token);
-        continue;
-      }
       const eaten = bare.find((h) => (m.glue ?? "").includes(h.token));
       if (eaten) swallowed.set(m, eaten.token);
     }
@@ -161,6 +150,29 @@ export function withholdSwallowed(results) {
   return results.map((r) =>
     swallowed.has(r)
       ? held(r, `converting it may swallow \`${swallowed.get(r)}\`, and that token is held back`)
+      : r,
+  );
+}
+
+// The rewrite keys an edit by token text, so one window rewrites every copy alike (#2249).
+export function withholdSplit(results) {
+  const byToken = new Map();
+  for (const r of results) {
+    const key = `${windowOf(r)}:${r.token}`;
+    if (!byToken.has(key)) byToken.set(key, []);
+    byToken.get(key).push(r);
+  }
+  const split = new Set();
+  for (const members of byToken.values()) {
+    if (members.length < 2) continue;
+    const verdicts = new Set(members.map((m) => (m.outcome === "held" ? null : replacementFor(m))));
+    if (verdicts.size < 2) continue;
+    for (const m of members) split.add(m);
+  }
+  if (split.size === 0) return results;
+  return results.map((r) =>
+    split.has(r)
+      ? held(r, `converting it rewrites every copy of \`${r.token}\` here, and the copies differ`)
       : r,
   );
 }
@@ -276,7 +288,8 @@ export function derive(repoRoot, env, found, rows = ROWS) {
     for (const token of tokens) done.push(deriveOne(token, inventory, env));
   }
 
-  return withholdCollapsed(withholdSwallowed(done)).sort(
+  // Last, because an earlier hold can leave one window's copies of a token disagreeing (#2249).
+  return withholdSplit(withholdCollapsed(withholdSwallowed(done))).sort(
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.token.localeCompare(b.token),
   );
 }

@@ -50,10 +50,12 @@ function hosted(token) {
 
 function tokensIn(value, knownFile) {
   // A URL names no path in this repository, and a registry tag is no line either.
-  const found = [...value.matchAll(LINE_ANCHOR)].map((m) => m[1]).filter((t) => !hosted(t));
+  const found = [...value.matchAll(LINE_ANCHOR)]
+    .map((m) => ({ token: m[1], at: m.index }))
+    .filter((o) => !hosted(o.token));
   if (knownFile === null) return found;
   // `admin.example.com:443` is a host and a port, and the tree holds no file of that name (#2120).
-  return found.filter((t) => formOf(t) !== "file" || knownFile(basenameOf(t)));
+  return found.filter((o) => formOf(o.token) !== "file" || knownFile(basenameOf(o.token)));
 }
 
 function linkTarget(url) {
@@ -184,13 +186,13 @@ export function scanLineAnchorsFromTree(tree, { refPin = true, knownFile = null 
     }
     if (value == null) return;
     let tokens = tokensIn(value, knownFile);
-    if (tokens.some((t) => formOf(t) === "bare") && LISTENER.test(addressText(node, ancestors))) {
-      tokens = tokens.filter((t) => formOf(t) !== "bare");
+    if (tokens.some((o) => formOf(o.token) === "bare") && LISTENER.test(addressText(node, ancestors))) {
+      tokens = tokens.filter((o) => formOf(o.token) !== "bare");
     }
     if (tokens.length === 0) return;
     // A line pinned to a named ref cannot drift, so it is the one carve-out (SPEC §5).
     if (refPin && refsByBlock.has(nearestBlock(ancestors))) return;
-    for (const token of tokens) {
+    for (const { token, at } of tokens) {
       // The sweep rewrites inside the node this scan read, so no second scanner drifts (#1975).
       out.push({
         token,
@@ -199,6 +201,9 @@ export function scanLineAnchorsFromTree(tree, { refPin = true, knownFile = null 
         line: node.position?.start?.line ?? 1,
         start: node.position?.start?.offset,
         end: node.position?.end?.offset,
+        // The value, not the source span: a link label spells a token the target never did (#2249).
+        text: value,
+        at,
         scope: addressScope(node, ancestors),
         // A converted token turns the next code span into a snippet claim (SPEC §3.4, #1975).
         snippet: snippetAfter(node, ancestors),

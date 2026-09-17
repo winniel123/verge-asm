@@ -258,7 +258,7 @@ export function scanDocuments(repoRoot, files, env = null) {
     const hits = scan.map((h) => ({
       ...h,
       file,
-      glue: trailingGlue(markdown, h),
+      glue: trailingGlue(h),
       // The derivation reads the citing line for a name, so the scan carries it (#1977).
       lineText: lines[h.line - 1] ?? "",
       namedInDocument,
