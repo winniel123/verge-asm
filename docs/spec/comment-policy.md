@@ -193,14 +193,24 @@ site, not at this one. The temptation is highest in the block that explains wher
 State the rule and name the directive without writing it.
 
 **A comment in `db/migrations/` may never contain the token `+goose`.** goose reads any comment
-line that holds the marker as an annotation, quoted or not. It then refuses the whole file, because
-the rest of the line is not one of its seven annotations. `26500_span_vantage_open_index.sql`
-spelled `NO TRANSACTION` inside backticks while it explained why it rejected that annotation.
-`goose.Up` runs inside the `web` binary, so the container restarted instead of serving (#2261). Name
-the annotation in words, and never write the marker. This is the `#nosec` rule above in a second
-surface, and the hazard is worse: a `#nosec` survivor creates a waiver, while a `+goose` survivor
-stops the deploy. `TestEveryMigrationCarriesAnnotationsGooseAccepts` holds it in the required `test`
-job, over every file the binary embeds.
+line that holds the marker as an annotation, quoted or not. `26500_span_vantage_open_index.sql`
+spelled `NO TRANSACTION` inside backticks while it explained why it rejected that annotation. goose
+refused the whole file. `goose.Up` runs inside the `web` binary, which calls `log.Fatalf` on that
+error, so the container restarted instead of serving (#2261). Name the annotation in words, and
+never write the marker. This is the `#nosec` rule above in a second surface, and the hazard is
+worse: a `#nosec` survivor creates a waiver, while a `+goose` survivor stops the deploy.
+
+**Two gates hold that rule, and they do not hold all of it.** Both live in `db/migrations`, both run
+in the required `test` job, and both read every file the binary embeds.
+`TestEveryMigrationParsesUnderGoose` applies goose's own parsing rules. A marker inside a sentence
+always fails there: goose strips every `--` and the first `+goose`, and the surrounding words then
+leave no annotation it knows. **The shape that escapes is a line that does leave one**, and goose
+honours such a line wherever it sits. A second `Up` reports as a duplicate, and a lone
+`StatementBegin` reports as an unterminated block, so the first gate still names those.
+`TestNoMigrationSpellsABehaviourChangingAnnotation` covers `NO TRANSACTION`, `ENVSUB ON` and
+`ENVSUB OFF`, which change how a migration runs and move no SQL. The residual gap is a lone `Down`:
+it moves every statement below it into the down direction, and the first gate names that only when a
+real `-- +goose Down` follows it.
 
 **Where a waiver tail must keep its justification, one placement gives both the prose and zero
 flags.** #1215 probed three arrangements. Only prose, then a blank line, then the directive, then
