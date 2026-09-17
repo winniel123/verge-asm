@@ -210,7 +210,7 @@ export function scanLineAnchorsFromTree(tree, { refPin = true, knownFile = null 
       tokens = tokens.filter((o) => formOf(o.token) !== "bare");
     }
     if (tokens.length === 0) return;
-    // A line pinned to a named ref cannot drift, so it is the one carve-out (SPEC §5).
+    // A line pinned to a named ref cannot drift, so it is exempt (SPEC §5).
     if (refPin && refsByBlock.has(nearestBlock(ancestors))) return;
     if (hashScopes.has(addressScope(node, ancestors))) return;
     for (const { token, at } of tokens) {

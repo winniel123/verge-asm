@@ -243,8 +243,8 @@ That hash pins nothing, and its token stays staged.
 
 **That arm reaches one address, never the whole block.** A lead word introduces the ref it names,
 and a bare hash introduces nothing. So the hash pins the address it is spelled in: the sentence, or
-a table cell that writes no sentence of its own. A block-scoped reading exempts 21 tokens, and 9 of
-them sit in another sentence than the hash. See fact F12.
+a table cell, or the row where that cell writes no prose of its own. A block-scoped reading exempts
+21 tokens, and 9 of them sit in another sentence than the hash. See fact F12.
 
 **Arm A alone widens.** Arm B resolves a citation `on-ref` against the ref it finds, and that
 reading still asks for the lead word. A hexadecimal span that names no object would otherwise take a
@@ -263,18 +263,27 @@ whose address spells a form of *listen*. The carve-out reaches the `bare` form a
 whole block, on the rule above: the sentence for prose, and the table cell, or the row where that
 cell writes no prose of its own.
 
-**This carve-out is route 3 of §8.2, and it is the only instance measured.** It stopped counting
-four tokens. Each one spells port 8080 of the `web` service, in `README.md`,
-`docs/guides/running.md` and `docs/guides/troubleshooting.md`. Fact F11 records the drop.
-[#2185](https://github.com/winniel123/verge-asm/issues/2185) reported the defect: no conversion
-repairs a port, so a counted port holds the staged count above zero forever, and §8.2's retirement
-condition is then unreachable.
+**This carve-out is route 3 of §8.2, and it is the only instance the burn-down measured.** When it
+landed it stopped counting four tokens. Each one spelled port 8080 of the `web` service, in
+`README.md`, `docs/guides/running.md` and `docs/guides/troubleshooting.md`. Fact F11 records that
+drop. [#2185](https://github.com/winniel123/verge-asm/issues/2185) reported the defect: no
+conversion repairs a port, so a counted port holds the staged count above zero forever, and §8.2's
+retirement condition is then unreachable.
+
+**The carve-out reaches this section too, and the two example tokens above prove it.** They sit in
+the §1.2 boundary, their sentence spells *listener*, and the scanner therefore counts neither. So
+the live suppressed set is larger than the four tokens F11 froze, and one member of it is no port.
+**That is the carve-out's false-negative class, stated plainly**: a real `bare` anchor whose
+sentence happens to name a listener leaves the count with no report. The cost is a token the check
+would refuse after retirement and does not report today, which is the opposite direction from
+§8.4's accepted cost. [#2302](https://github.com/winniel123/verge-asm/issues/2302) owns the class.
+No measurement sizes it, and a reader who needs one measures it.
 
 **Rewording those three documents was rejected.** A port mention in an operator guide is correct
 prose, and the gate holds the defect rather than the document. **A third bucket for an ambiguous
-token was rejected too.** The measured population is one port number, so a prose test is provable as
-it stands, and a bucket the retirement condition ignores is the permanent exemption §8.2 rule 3
-already refuses.
+token was rejected too.** The corpus spells one port number, so a prose test is provable as it
+stands, and a bucket the retirement condition ignores is the permanent exemption §8.2 refuses when
+it rules that the stage retires on zero and on no other condition.
 
 A commit-pinned permalink stays an escape hatch for the narrow historical case. **It is not the
 form.** It resolves forever and it is wrong forever, and no check can report that the live code
@@ -548,9 +557,13 @@ and a gate that reports an unreachable target teaches a reader to ignore it.
 **The held figure bounds routes 2 and 3 together. It is not the staged count.** A dry run of
 `npm run sweep:line-anchors` splits the staged population into derived, degraded and held. Held is
 every token the derivation writes nothing for, so it holds route 2 and route 3 in one bucket. A
-reader who wants route 2 alone subtracts the route-3 population F11 measures. A reader reads the
-held figure from the sweep, never from the check, and it is a component of the staged count rather
-than a rival to it.
+reader reads the held figure from the sweep, never from the check, and it is a component of the
+staged count rather than a rival to it.
+
+**A route-3 token performed leaves the held figure with the staged count, so a reader subtracts it
+once.** §5's listener carve-out took the four tokens F11 froze, and the sweep no longer sees them.
+So the held figure holds route 2 alone today, and F11's four are already gone from it. **Subtract a
+route-3 population only while the scanner still counts it.**
 
 **Excluding a held token from the staged count was rejected.** The count would then read zero while
 tokens the check refuses after retirement were still in the tree, and the instrument would certify
@@ -647,8 +660,9 @@ reaches it. `docs-site/scripts/citations/lineanchor.mjs` drops a `file` token wh
 tree does not hold, before the derivation runs.
 
 **§8.2's rule that the held figure bounds routes 2 and 3 together still stands.** A held token that
-is no citation is route 3, and a reader subtracts it. This section widens no route. It says which
-hold sentences prove that the reader, and not the sweep, owns the token.
+is no citation is route 3, and a reader subtracts it while the scanner still counts it. The four
+tokens §5's carve-out took are in no row below. This section widens no route. It says which hold
+sentences prove that the reader, and not the sweep, owns the token.
 
 A dry run of `npm run sweep:line-anchors` on `main` at `5c3db31` read those figures, over 555 held
 tokens and a staged count of 976. **The other 18 held tokens fail a different test.** They are
