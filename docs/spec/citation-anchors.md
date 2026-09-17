@@ -483,9 +483,11 @@ lets a third pull request re-open the stage in between.
 
 1. **Conversion.** §8.3's derivation reads an anchor out of the token, and the sweep writes it.
 2. **A reader's repair.** The token is a citation, and the derivation holds it because the document
-   alone does not prove the path. The derivation holds every `bare` token, because §8.4's
-   degradation would write a citation with no path at all. A reader names the path, or rewords the
-   sentence. That work is [#2156](https://github.com/winniel123/verge-asm/issues/2156).
+   alone does not prove the path. That covers every `bare` token, because §8.4's degradation would
+   write a citation with no path at all. It covers a `file` token too, whose slashless name the
+   document does not resolve. A reader names the path, or rewords the sentence. §8.6 rules what the
+   reader writes and what proves it, and §8.5 rules one class of its own. That work is
+   [#2156](https://github.com/winniel123/verge-asm/issues/2156).
 3. **A matcher repair.** The token is no citation, so no edit to the document is correct. The
    scanner stops matching it. A port number in prose is the measured instance, fact F11 records it,
    and that repair is [#2185](https://github.com/winniel123/verge-asm/issues/2185).
@@ -573,6 +575,71 @@ Two alternatives were rejected.
    ADR-0188 the prose then refers to two targets a reader cannot tell apart.
 2. **Hold on the source line rather than the address.** A Markdown line is a wrap position, not a
    unit of meaning. ADR-0188's sentence wraps, so a line rule misses the case that proves the rule.
+
+### 8.6 What a reader's repair writes, and what proves the path
+
+§8.2 route 2 sends a held citation to a reader. This section says which held tokens the route
+reaches, what the reader writes, and what proves the writing. It repairs no token, and it changes
+neither §5 nor the staged count.
+
+**Route 2 reaches every held citation, whatever sentence the derivation gives.** The route's own
+test is that the document alone does not prove the path.
+[`docs-site/scripts/sweep/derive.mjs#resolveBasename`](../../docs-site/scripts/sweep/derive.mjs)
+writes that failure four ways, and all four fail the same test.
+
+| The derivation's sentence | Form | Tokens |
+| --- | --- | --- |
+| the token spells no path, so only a reader can repair it | `bare` | 459 |
+| the tree holds N files named F, and the document names several | `file` | 41 |
+| the tree holds N files named F, and the document names none of them | `file` | 35 |
+| the document spells F against a path outside this tree | `file` | 2 |
+
+A dry run of `npm run sweep:line-anchors` on `main` at `5c3db31` read those figures, over 555 held
+tokens and a staged count of 976. The remaining 18 held tokens are §8.5's collapsing groups, which
+are route 2 as well. Read the split again before you size work against it, exactly as F11 directs.
+
+**[#2156](https://github.com/winniel123/verge-asm/issues/2156)'s ruling reads "read every path-less
+token", and that sentence is narrower than the route it implements.** It owns row 1 alone. The 78
+tokens of rows 2 to 4 are held for the route's own reason, and no sentence of that ruling reaches
+them. The 76 tokens of rows 2 and 3 sit in 18 documents, and eleven ADRs numbered 0199 and above
+hold at least one. One such token blocks its whole document under that ruling's document-at-a-time
+bar. **Route 2 owns all four rows, and the work stays #2156's.**
+
+**The reader writes a whole path, or rewords the sentence.** A `file` token loses its slashless name
+and gains the whole path. ADR-0213 is the shape: 23 tokens spell `cttail.go`, the document names
+`internal/queue/cttail.go` and `internal/scan/cttail.go`, and the reader decides each token against
+its own sentence. A `bare` token gains a whole path the same way. Each is a `path`
+token afterwards, and §8.3's derivation converts it on the next sweep.
+
+**The reader supplies the path and nothing else.** The line number stays as the document wrote it,
+and the derivation reads the anchor out of it. A line that has drifted degrades under §8.4, and
+[`docs-site/scripts/sweep/corroborate.mjs#rivalName`](../../docs-site/scripts/sweep/corroborate.mjs)
+already judges that case. One token per repair keeps the repair reviewable.
+
+**What proves the path is the reader's evidence, never a scope rule.** The reader reads the claim
+the citing sentence makes, and keeps the one candidate the claim is true of. §3.3 rule 3 binds the
+sweep and the author of a new anchor: neither may guess. It does not forbid a reader from writing a
+path the document never spells, because the reader holds evidence the derivation cannot read.
+ADR-0211's fold table is the measured shape. One row carries a line anchor on `membership.go`, the
+tree holds three files of that name, and the lede one line above the table names
+[`internal/queue/worker.go`](../../internal/queue/worker.go). That row's own `foldEstateTransitions`
+is declared in [`internal/queue/membership.go`](../../internal/queue/membership.go) and nowhere
+else. A reader who cannot make the claim true of exactly one candidate rewords instead.
+
+**A narrower proof test inside the derivation was rejected.** `resolveBasename` already filters the
+candidates to those the document names in full, which is a document-wide reading of the
+same-sentence test §3.4 uses elsewhere. A line-scoped test proves less, except where the document
+names several candidates and one line names one. Measured over the 76 tokens of rows 2 and 3: the
+citing line names exactly one candidate path for 6 of the 41, and exactly one candidate directory
+for 5 of the 35. Such a test converts 11 tokens, leaves 65 for the same reader, and adds a scope
+rule to a derivation that must stay conservative. The reader reads all 76.
+
+**Degrading a held `file` token to its slashless name was rejected.**
+[`docs-site/scripts/citations/classify.mjs#ignoreReason`](../../docs-site/scripts/citations/classify.mjs)
+returns "not a path" for a value that holds no `/`, so the check judges no slashless token. Such a
+degradation drops the token out of the staged count and into no other count, and nothing verifies it
+again. §8.4's degradation keeps a path a required check still reads, and a slashless name is not
+one. Route 2's reword is the escape for an undecidable token, because it leaves no token behind.
 
 ---
 
