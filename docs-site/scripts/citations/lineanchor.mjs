@@ -167,7 +167,7 @@ function hashPinnedScopes(tree) {
   const scopes = new Set();
   visitParents(tree, (node, ancestors) => {
     if (inOpaque([...ancestors, node]) || node.type !== "inlineCode") return;
-    if (!spellsCommitHash(node.value.trim())) return;
+    if (!spellsCommitHash(node.value)) return;
     const scope = addressScope(node, ancestors);
     if (scope !== null) scopes.add(scope);
   });

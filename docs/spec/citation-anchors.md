@@ -234,9 +234,12 @@ carve-out is narrow, and it is machine-detectable. The extractor requires the wo
 `auth.go:1833` on `c068bb9`"*. The paragraph above passes over that hash, because the lead word is a
 preposition, so a dry run planned `cmd/web/auth.go#validatePassword` for a sentence about
 `injectChrome` ([#2284](https://github.com/winniel123/verge-asm/issues/2284)). So Arm A reads a span
-of 7 to 40 lowercase hexadecimal characters with at least one digit as a pin of its own. The digit
-keeps that reading off `defaced`, which is seven hexadecimal characters and also a word, exactly as
-`docs/spec/citation-anchor-repair.md` §5.2 rule 4 does.
+of 7 to 40 lowercase hexadecimal characters as a pin of its own. The span spells at least one digit
+and at least one letter. The digit keeps the reading off `defaced`, which is seven hexadecimal
+characters and also a word, exactly as `docs/spec/citation-anchor-repair.md` §5.2 rule 4 does. The
+letter keeps it off a decimal such as `16777216`, which would otherwise mute Arm A for its whole
+address. The letter costs roughly 1 seven-character hash in 27, the share that spells digits alone.
+That hash pins nothing, and its token stays staged.
 
 **That arm reaches one address, never the whole block.** A lead word introduces the ref it names,
 and a bare hash introduces nothing. So the hash pins the address it is spelled in: the sentence, or
@@ -246,6 +249,12 @@ them sit in another sentence than the hash. See fact F12.
 **Arm A alone widens.** Arm B resolves a citation `on-ref` against the ref it finds, and that
 reading still asks for the lead word. A hexadecimal span that names no object would otherwise take a
 passing citation to `ref-unknown`.
+
+**The address is only as exact as the sentence split.**
+[#2298](https://github.com/winniel123/verge-asm/issues/2298) reports two defects in that split. A
+sentence ending in a one- or two-letter word joins the next one, and an abbreviation at a wrap
+position splits where it should not. Each one lets a hash pin an address it does not belong to. The
+cost is an exempted token that stays staged, which is the direction §8.4 already accepts.
 
 A commit-pinned permalink stays an escape hatch for the narrow historical case. **It is not the
 form.** It resolves forever and it is wrong forever, and no check can report that the live code

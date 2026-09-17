@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { extractCitations, refTokensOf } from "./citations/extract.mjs";
+import { extractCitations, refTokensOf, spellsCommitHash } from "./citations/extract.mjs";
 import { classify } from "./citations/classify.mjs";
 import { loadExemptions } from "./citations/exempt.mjs";
 import { isInScope, inScopeFiles } from "./citations/scope.mjs";
@@ -406,6 +406,13 @@ test("a bare commit hash pins the sentence that spells it (#2284)", () => {
   assert.deepEqual(tokens("| a | `x.go:12` read on `c068bb9` |\n| --- | --- |\n"), []);
   // Seven hex characters that spell a word are a word, so the digit parts them (#2257).
   assert.deepEqual(tokens("The read at `x.go:12` on `defaced`."), ["x.go:12"]);
+  // A decimal spells no hash, and a pin read from one would mute Arm A for the sentence.
+  assert.deepEqual(tokens("The cache holds `16777216` bytes, and the read is `x.go:12`."), [
+    "x.go:12",
+  ]);
+  // The corroborator reads a padded span, so one trim serves both callers.
+  assert.equal(spellsCommitHash(" c068bb9 "), true);
+  assert.equal(spellsCommitHash("16777216"), false);
   // Arm A alone widens. Arm B's on-ref resolution still asks for the lead word (SPEC §5).
   const markdown = "The decision read like this, at `auth.go:1833` on `c068bb9`:";
   assert.equal(refTokensOf(parse(markdown)).refsByBlock.size, 0);
