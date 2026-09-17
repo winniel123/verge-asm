@@ -6,6 +6,9 @@ const SPAN = /`([^`\n]*)`/g;
 // A retired token spells its line two ways, and both hide the path from the path class (#1968).
 const LINE_SUFFIX = /(?::\d+(?:-\d+)?|#L\d+(?:-[Ll]?\d+)?)$/;
 
+// The digit keeps this off `defaced`, seven hex characters and also a word (#2257).
+const COMMIT_HASH = /^(?=[0-9a-f]*\d)[0-9a-f]{7,40}$/;
+
 // `retention.Retirer.Run` and `Retirer.Run` name one declaration, because a citing document
 // qualifies a Go name by package and the row's inventory does not.
 function sameName(a, b) {
@@ -50,6 +53,7 @@ function reads(body, token, env) {
   // The citation's own span spells the path, and a path must corroborate nothing.
   if (body.includes(token)) return false;
   if (citesPath(body, env)) return false;
+  if (COMMIT_HASH.test(body)) return false;
   return !routeSpan(body);
 }
 
