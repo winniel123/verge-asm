@@ -20,6 +20,14 @@ const WITHDRAWAL = /\bWITHDRAWN\b|\bWITHDRAWAL\b|\bSUPERSEDED\b/;
 const REF_BRANCH = /^[a-z][a-z0-9]*\/[A-Za-z0-9._-]+$/;
 const REF_SHA = /^[0-9a-f]{7,40}$/;
 
+// Both a digit and a letter, so `defaced` and a decimal `16777216` pin nothing (#2257, #2284).
+const COMMIT_HASH = /^(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}$/;
+
+// One spelling, so the corroborator and Arm A's pin cannot read one span two ways (#2284).
+export function spellsCommitHash(value) {
+  return COMMIT_HASH.test(value.trim());
+}
+
 export function textOf(node) {
   if (node.value != null && typeof node.value === "string") return node.value;
   if (!node.children) return "";

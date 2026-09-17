@@ -1,6 +1,13 @@
 import { visitParents } from "unist-util-visit-parents";
 import { parse } from "../doclint/engine.mjs";
-import { inOpaque, nearestBlock, refTokensOf, snippetAfter, textOf } from "./extract.mjs";
+import {
+  inOpaque,
+  nearestBlock,
+  refTokensOf,
+  snippetAfter,
+  spellsCommitHash,
+  textOf,
+} from "./extract.mjs";
 
 const SEGMENT = "[A-Za-z0-9_.@+-]";
 const DIR_PATH = `[A-Za-z0-9_.@]${SEGMENT}*(?:/${SEGMENT}+)+`;
@@ -157,6 +164,18 @@ function addressText(node, ancestors) {
   return sentenceAround(block, node);
 }
 
+// A hash carries no lead word to bind it, so it pins its address, never the block (#2284).
+function hashPinnedScopes(tree) {
+  const scopes = new Set();
+  visitParents(tree, (node, ancestors) => {
+    if (inOpaque([...ancestors, node]) || node.type !== "inlineCode") return;
+    if (!spellsCommitHash(node.value)) return;
+    const scope = addressScope(node, ancestors);
+    if (scope !== null) scopes.add(scope);
+  });
+  return scopes;
+}
+
 // One pattern, so a rewrite can never touch a token this scan did not find (#1975).
 export function lineAnchorPattern() {
   return new RegExp(LINE_ANCHOR.source, LINE_ANCHOR.flags);
@@ -170,6 +189,7 @@ export function scanLineAnchors(markdown, options) {
 export function scanLineAnchorsFromTree(tree, { refPin = true, knownFile = null } = {}) {
   // Arm A reads one on-ref implementation rather than a second copy (SPEC §5).
   const { refsByBlock } = refTokensOf(tree);
+  const hashScopes = refPin ? hashPinnedScopes(tree) : new Set();
   const out = [];
 
   visitParents(tree, (node, ancestors) => {
@@ -192,6 +212,7 @@ export function scanLineAnchorsFromTree(tree, { refPin = true, knownFile = null 
     if (tokens.length === 0) return;
     // A line pinned to a named ref cannot drift, so it is the one carve-out (SPEC §5).
     if (refPin && refsByBlock.has(nearestBlock(ancestors))) return;
+    if (hashScopes.has(addressScope(node, ancestors))) return;
     for (const { token, at } of tokens) {
       // The sweep rewrites inside the node this scan read, so no second scanner drifts (#1975).
       out.push({
