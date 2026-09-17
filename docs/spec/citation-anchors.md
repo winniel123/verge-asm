@@ -230,6 +230,23 @@ named ref cannot drift, because the ref is frozen. That is not the defect this S
 carve-out is narrow, and it is machine-detectable. The extractor requires the words *branch*,
 *commit*, *ref*, *revision* or *tag* in the same block. It exports the helper that finds them.
 
+**A bare commit hash pins with no lead word before it.** ADR-0221 spells its pin *"at
+`auth.go:1833` on `c068bb9`"*. The paragraph above passes over that hash, because the lead word is a
+preposition, so a dry run planned `cmd/web/auth.go#validatePassword` for a sentence about
+`injectChrome` ([#2284](https://github.com/winniel123/verge-asm/issues/2284)). So Arm A reads a span
+of 7 to 40 lowercase hexadecimal characters with at least one digit as a pin of its own. The digit
+keeps that reading off `defaced`, which is seven hexadecimal characters and also a word, exactly as
+`docs/spec/citation-anchor-repair.md` §5.2 rule 4 does.
+
+**That arm reaches one address, never the whole block.** A lead word introduces the ref it names,
+and a bare hash introduces nothing. So the hash pins the address it is spelled in: the sentence, or
+a table cell that writes no sentence of its own. A block-scoped reading exempts 21 tokens, and 9 of
+them sit in another sentence than the hash. See fact F12.
+
+**Arm A alone widens.** Arm B resolves a citation `on-ref` against the ref it finds, and that
+reading still asks for the lead word. A hexadecimal span that names no object would otherwise take a
+passing citation to `ref-unknown`.
+
 A commit-pinned permalink stays an escape hatch for the narrow historical case. **It is not the
 form.** It resolves forever and it is wrong forever, and no check can report that the live code
 moved on.
@@ -714,7 +731,8 @@ Facts F1 to F8 were measured during triage of
 [#1916](https://github.com/winniel123/verge-asm/issues/1916), on `main` at `072ff24`. F9 was
 measured when map [#1931](https://github.com/winniel123/verge-asm/issues/1931) was cut. F10 was
 measured on 2026-09-14. **Do not re-measure F1 to F10.** F11 was measured on 2026-09-16, and it is
-the one fact below that a later session re-reads. Its own paragraph says why.
+the one fact below that a later session re-reads. Its own paragraph says why. F12 was measured on
+2026-09-17, and it sized one decision rather than the burn-down. **Do not re-measure F12 either.**
 
 **F1. The extractor never sees a line anchor.** The citation extractor gates every inline-code
 candidate through one path pattern, and that pattern's character classes hold no colon. So a
@@ -770,6 +788,20 @@ token.
 count as zero, and §8.2 also rules that the count rises with every document merged during the
 stage. The figure above was 986 when the stage landed. Read it from the check, and read the split
 from a dry run of the sweep. **Every other fact above stays frozen.**
+
+**F12. A bare commit hash pins 12 staged tokens, and a block-scoped reading would pin 21.** Measured
+on 2026-09-17, over the boundary on `main` at `9b1707e`, against a staged count of 976. Those 21
+tokens sit in nine blocks, and every hash in them resolves to a commit in this repository. The
+address rule of §5 exempts 12 of the 21. The other nine stay staged.
+
+A hand-read of the 12 finds 6 the hash really pins, and 6 that share an address with a pin about
+another claim. ADR-0179 holds both shapes in one sentence. It cites two stale sites *"read against
+`f9bc284`"*, and it names the true sites after a semicolon.
+[#2297](https://github.com/winniel123/verge-asm/issues/2297) carries the 6 for a reader to reword.
+
+**The over-exemption costs a staged token that stays staged.** The defect it replaces writes a wrong
+anchor into a landed document, and §3.3 of `docs/spec/citation-anchor-repair.md` says no later run
+raises that one.
 
 **A method note.** A later re-derivation found 1,067 tokens, where F2 states a total of 1,070
 tokens. It counted 46 `.sql` targets and 23 `.md` targets, where F5 states 47 and 25 of them. A

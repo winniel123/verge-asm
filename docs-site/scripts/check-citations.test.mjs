@@ -395,6 +395,22 @@ test("a line anchor beside a named ref cannot drift, so it passes", () => {
   assert.equal(refTokensOf(parse(markdown)).refsByBlock.size, 1);
 });
 
+test("a bare commit hash pins the sentence that spells it (#2284)", () => {
+  // ADR-0221's own shape: the pin is a hash, and the lead word is a preposition.
+  assert.deepEqual(tokens("The decision read like this, at `auth.go:1833` on `c068bb9`:"), []);
+  // A hash the next sentence spells pins nothing here, as the listener word does not (#2185).
+  assert.deepEqual(tokens("The gate sits at `auth.go:1833`. The header went at `c068bb9`."), [
+    "auth.go:1833",
+  ]);
+  // A cell writes no sentence of its own, so the whole cell is one address (#2185, #2286).
+  assert.deepEqual(tokens("| a | `x.go:12` read on `c068bb9` |\n| --- | --- |\n"), []);
+  // Seven hex characters that spell a word are a word, so the digit parts them (#2257).
+  assert.deepEqual(tokens("The read at `x.go:12` on `defaced`."), ["x.go:12"]);
+  // Arm A alone widens. Arm B's on-ref resolution still asks for the lead word (SPEC §5).
+  const markdown = "The decision read like this, at `auth.go:1833` on `c068bb9`:";
+  assert.equal(refTokensOf(parse(markdown)).refsByBlock.size, 0);
+});
+
 test("a fenced block is sample text for Arm A too", () => {
   assert.deepEqual(tokens("```sh\nsed -n 247p docs/spec/v1-spec.md:247\n```\n"), []);
 });
