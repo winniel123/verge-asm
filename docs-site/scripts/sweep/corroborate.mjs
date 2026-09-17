@@ -73,6 +73,14 @@ function identifiersOn(lineText, token, env) {
   return out;
 }
 
+// A name every member of a sealed union declares picks out none (SPEC §5.2 rule 5, #2285).
+function rivalFor(ident, declared, region) {
+  const named = declared.filter((name) => name !== region && sameName(ident, name));
+  if (named.length <= 1) return named[0] ?? null;
+  // The line spells one declaration whole, so the twins that merely end with it yield to it.
+  return named.includes(ident) ? ident : null;
+}
+
 const UNPROVEN = { verdict: "unproven", rival: null, position: null };
 const CORROBORATED = { verdict: "corroborated", rival: null, position: null };
 
@@ -97,10 +105,8 @@ export function rivalName(lineText, token, names, region, env) {
   const before = new Set();
   const after = new Set();
   for (const { ident, before: leads } of idents) {
-    for (const name of declared) {
-      if (name === region) continue;
-      if (sameName(ident, name)) (leads ? before : after).add(name);
-    }
+    const rival = rivalFor(ident, declared, region);
+    if (rival !== null) (leads ? before : after).add(rival);
   }
   // A sorted pick keeps one run's report byte-identical to the next.
   const pick = (set) => [...set].sort()[0];

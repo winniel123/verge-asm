@@ -963,6 +963,53 @@ test("a hex-shaped word and a real name are untouched by the hash guard", () => 
   assert.equal(good.rival, "Beta");
 });
 
+// A sealed union puts one marker method on every member, so the name names no one (#2285).
+test("a name several declarations share picks out no rival", () => {
+  const env = envFor(["internal/wire/transcript.go"]);
+  const line = "Each carries a marker method — `isCTOutcome()` (`x.go:64`).";
+  const shared = ["CTOutcome", "CTHTTP.isCTOutcome", "CTContextCancelled.isCTOutcome"];
+  const many = rivalName(line, "x.go:64", shared, "CTOutcome", env);
+  assert.equal(many.verdict, "unproven");
+  assert.equal(many.rival, null);
+  // One receiver spells one declaration, so rule 1 keeps its reach.
+  const one = rivalName(line, "x.go:64", ["CTOutcome", "CTHTTP.isCTOutcome"], "CTOutcome", env);
+  assert.equal(one.verdict, "suspect");
+  assert.equal(one.rival, "CTHTTP.isCTOutcome");
+  assert.equal(one.position, "before");
+});
+
+// The line spells one declaration in full, and the qualified twin does not blur it (#2285).
+test("a name a declaration spells whole outranks the twins that end with it", () => {
+  const env = envFor(["cmd/web/signals.go"]);
+  const judged = rivalName("`Alpha` moved `x.go:1`", "x.go:1", ["AAA.Alpha", "Alpha"], "Beta", env);
+  assert.equal(judged.verdict, "suspect");
+  assert.equal(judged.rival, "Alpha");
+});
+
+const UNION_LINES = [
+  "package fixture",
+  "",
+  "type CTOutcome interface{ isCTOutcome() }",
+  "",
+  "type CTHTTP struct{ Status int }",
+  "",
+  "type CTContextCancelled struct{}",
+  "",
+  "func (CTHTTP) isCTOutcome()             {}",
+  "func (CTContextCancelled) isCTOutcome() {}",
+  "",
+];
+
+// ADR-0209 line 57 cites the interface that declares the marker its members share (#2285).
+test("a marker method the members share leaves the union's own anchor standing", () => {
+  const token = `${FIXTURE}/go/union.go:${UNION_LINES.indexOf("type CTOutcome interface{ isCTOutcome() }") + 1}`;
+  const line = `The unions are sealed — \`isCTOutcome()\` (\`${token}\`). Only this package adds a member.`;
+  const [r] = runCiting({ "go/union.go": UNION_LINES.join("\n") }, token, line);
+  assert.equal(r.outcome, "anchor");
+  assert.equal(r.anchor, "CTOutcome");
+  assert.equal(r.review, undefined);
+});
+
 // `sameName` serves both arms, so a prefix arm moves both at once (ADR-2277 §3).
 test("a field access on the anchor's own type corroborates nothing", () => {
   const env = envFor(["cmd/web/signals.go"]);

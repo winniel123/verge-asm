@@ -231,6 +231,10 @@ drifts.
 4. **An identifier cut out of a bare commit hash is not a declaration name.** A span whose whole
    body is 7 to 40 lowercase hexadecimal characters, at least one of them a digit, yields no
    candidate name.
+5. **A name several declarations share picks out no rival.** An identifier that matches several
+   declared names of the target picks out none of them, and the guard picks none either. Where one
+   of those names is the identifier itself, the line spells that declaration whole, and that name
+   is the rival.
 
 Rule 3 closes class B. Rule 2 bounds class A rather than closing it.
 
@@ -260,6 +264,18 @@ names one site of that shape: `docs/spec/audit-act.md` line 19 spells `fillAudit
 ADR-2155 rules that the verdict stays `unproven`. It rejects the repair on §9 fact F12's rate, not
 on the inversion, which it records as real. §5.3 states the boundary any such repair would have to
 respect, and F12 states what is left inside it.
+
+**Rule 5 answers the sealed union.** A Go interface declares a marker method, and every member of
+the union declares the same method. ADR-0209 line 57 cites three such interfaces, and the citing
+line spells `isCTOutcome()`. `internal/wire/transcript.go` declares that method on three receivers.
+So `sameName` matched three names, the guard took the first in sort order, and it called
+`CTContextCancelled.isCTOutcome` the rival of the interface that declares the method.
+[#2285](https://github.com/winniel123/verge-asm/issues/2285) records the three sound anchors that
+pick destroys. A rival is one declaration the target really has, and an arbitrary pick between twins is
+not one. §3.3 rule 3 already refuses to pick between two names on one declaration line, and rule 5
+is that refusal on the citing line. The exact-name arm holds rule 1's reach where the line spells a
+declaration whole: `Alpha` beside `AAA.Alpha` still names `Alpha`. One receiver still rivals,
+because one name picks out one declaration. §9 fact F13 measures the reach.
 
 ### 5.3 What the refinement must not do
 
@@ -697,3 +713,25 @@ record of the method. The tree index took every tracked file under the four decl
 holds 9,163 names from 737 Go files, 298 from the `-- name:` queries, and 86 from the `{{define}}`
 templates. It also holds 4,447 heading slugs from 480 markdown files. Limb 1 is a token search over
 every tracked file the markdown row does not claim.
+
+A run on 2026-09-17 produced fact F13. It ran against `main` at `9b1707e`, plus the branch that
+ships §5.2 rule 5. Two commands reproduce it, both from `docs-site/`:
+`npm run sweep:line-anchors -- --audit --report <file>` and
+`npm run sweep:line-anchors -- --report <file>`.
+
+**F13 — no verdict on today's corpus turns on a name several declarations share.** The audit judges
+633 written anchors, and the rival scan reads 533 of them. The dry run reads 976 tokens, and the
+rival scan reads 297 of them. A shared name arises in none of the 830 scans. The audit report and
+the conversion plan are byte-identical either side of rule 5.
+
+The 100 anchors the audit's rival scan never reaches are the corroborated ones, which return before
+the scan. The dry run holds 555 tokens before it reads a target, and it degrades others on the
+path. So 297 tokens reach a target's declaration set.
+
+**The shape is real, and it sits in the population no arm reads today.** ADR-0209 line 57 spells
+three path-less tokens, and the sweep holds each one for a reader. Supplied with the three proven paths, the
+guard before rule 5 degrades all three, naming `CTContextCancelled.isCTOutcome` the rival each
+time. After rule 5 the same three derive `ProberOutcome`, `CTOutcome` and `ZoneOutcome`. How many of
+the 459 path-less tokens sit on such a line is unmeasured.
+[#2156](https://github.com/winniel123/verge-asm/issues/2156) supplies the paths that would count
+them.
