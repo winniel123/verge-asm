@@ -27,7 +27,7 @@ relations:
 // Entries are in declaration order, so one render matches the next.
 ```
 
-Four lines above it, at `scopecensus.go:93`, the same comment block carried the duplicate rule:
+Four lines above it, at `internal/custody/scopecensus.go`, the same comment block carried the duplicate rule:
 
 ```go
 // The same scope declared twice is one entry — two identical
@@ -79,7 +79,7 @@ scopes in the reverse of the operator's declaration order. The census's own sequ
 `internal/custody/scopecensus_test.go#TestAddressScopeCensusCountsSharedEdgesInScope` declares `93.184.216.0/24` then `93.184.217.0/24` and
 asserts row 0 and row 1 in that sequence. That sequence is declaration order **and** sorted order at
 once, so the assertion passes under either rule.
-`scopecensus_test.go:110` declares one prefix twice and asserts `len(got) != 1`. It asserts the
+`internal/custody/scopecensus_test.go#TestAddressScopeCensusCollapsesADuplicateScope` declares one prefix twice and asserts `len(got) != 1`. It asserts the
 count and never the surviving entry's position. Twelve tests cover this function and none of them
 separates this ADR's rule from its rejected alternative.
 
@@ -178,7 +178,7 @@ it ships as its own ticket. It is not fixed here.
   meters by ascending `seed.id` for the address-scope half, or have the Coverage handler read the
   census rows rather than the reduced map. The second is the larger change, because the meters
   interleave name scopes and address scopes and the census carries address scopes alone.
-- **No test separates this rule from a sorted order.** `scopecensus_test.go:19` declares its two
+- **No test separates this rule from a sorted order.** `internal/custody/scopecensus_test.go#TestAddressScopeCensusCountsSharedEdgesInScope` declares its two
   scopes in an order that is sorted and declared at once, so it passes under either rule. It ships as
   its own ticket: declare the scopes out of sorted order and assert the declared sequence, and assert
   that a collapsed duplicate keeps the first occurrence's position.
