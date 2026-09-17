@@ -12729,8 +12729,8 @@
       ],
       "markers": [],
       "decision": {
-        "words": 137,
-        "text": "> **A rival the target no longer declares keeps the verdict `unproven`.** `rivalName` scores an\n> identifier against the target's current inventory. A withdrawn name matches nothing, and that\n> verdict stands.\n>\n> A reader asks why, because the scoring inverts. A name the target still declares scores `suspect`\n> and degrades the token. Withdrawing that declaration scores weaker.\n> `docs/spec/citation-anchor-repair.md` §5.2 records the inversion.\n>\n> Rejected: raise the withdrawn name to `suspect`, position `before`, where no inventory in the tree\n> carries it. §9 fact F12 measures what §5.3's rails leave that rule: 13 occurrences over 11\n> anchors, every one a false positive, over an empty true-positive population.\n>\n> Reversal degrades those anchors to a bare path. §6.3 forbids repointing one, so each loses the\n> line a later repair would read."
+        "words": 146,
+        "text": "> **A rival the target no longer declares keeps the verdict `unproven`.** `rivalName` scores an\n> identifier against the target's current inventory. A withdrawn name matches nothing, and that\n> verdict stands.\n>\n> A reader asks why, because the scoring inverts. A name the target still declares scores `suspect`\n> and degrades the token. Withdrawing that declaration scores weaker.\n> `docs/spec/citation-anchor-repair.md` §5.2 records the inversion.\n>\n> Rejected: raise the withdrawn name to `suspect`, position `before`, where no inventory in the tree\n> carries it. §9 fact F12 measures what §5.3's rails leave that rule: 13 occurrences over 11\n> anchors, every one a false positive, over an empty true-positive population.\n>\n> Reversal degrades six of those anchors to a bare path, and queues the other five. §6.3 forbids\n> repointing one, so each degraded site loses the line a later repair would read."
       }
     },
     {

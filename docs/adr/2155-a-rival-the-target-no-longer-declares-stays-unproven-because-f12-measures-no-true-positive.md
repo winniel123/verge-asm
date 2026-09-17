@@ -27,8 +27,8 @@ relations:
 > carries it. §9 fact F12 measures what §5.3's rails leave that rule: 13 occurrences over 11
 > anchors, every one a false positive, over an empty true-positive population.
 >
-> Reversal degrades those anchors to a bare path. §6.3 forbids repointing one, so each loses the
-> line a later repair would read.
+> Reversal degrades six of those anchors to a bare path, and queues the other five. §6.3 forbids
+> repointing one, so each degraded site loses the line a later repair would read.
 
 ## 1. Context
 
@@ -51,7 +51,9 @@ The inversion is measured. One citing line, varying only the declared set:
 
 `cmd/web/deltas.go` is the site. It declared `certExpiryWindow` at `80198db`, and no Go file
 declares that name now. ADR-0186 names that path and spells that name, and the sweep wrote
-`#deltasStore` there.
+`cmd/web/deltas.go#deltasStore` there. [#2011](https://github.com/winniel123/verge-asm/pull/2011)
+degraded that anchor by hand at `c66da05`, so the site carries a bare path today. The guard is why
+a hand had to: it read the withdrawal as no evidence, and the token converted.
 
 ## 2. What the tree test is, and what shipped before this ruling
 
@@ -88,10 +90,16 @@ in a span the guard reads. Those 208 sit on 195 citing lines and spell 459 such 
 measured it. §5.2 rule 4 has since dropped one shape-D occurrence, the `fa97` cut out of the commit
 hash `860fa97`, so the reach against the guard the tree ships is 13 occurrences over 11 anchors.
 
+**The reach is not all degrades.** Six of the 11 anchors spell the name before the citation, so
+§5.2 rule 1 degrades them. The other five spell one only afterwards, so they enter rule 2's review
+queue and convert as they do today. The rule's whole effect on the corpus is those six degrades and
+five queue entries.
+
 **A hand read finds every one of them a false positive.** F12 tabulates the sites. A table column
 header. A database column. A struct field of the anchor's own type. A withdrawn local whose
-declaration still computes the stat. Eight retired line anchors spelled as a bare basename, where
-`artifactdoc.go` folds on its extension onto a declared `Go`.
+declaration still computes the stat. Then shape B, which is eight occurrences over six anchors,
+each a retired line anchor spelled as a bare basename, where `artifactdoc.go` folds on its
+extension onto a declared `Go`.
 
 **The true-positive population on this boundary is empty.** The true positives left the corpus
 before it was measured. [#2011](https://github.com/winniel123/verge-asm/pull/2011) degraded the
@@ -107,17 +115,17 @@ degrades to a bare path and that no tool repoints it, and §8 rules that no chec
 path. So a wrong degrade reds no gate.
 
 **That trade assumes a miss exists to prevent.** After §5.3's two rails, on this corpus, none does.
-The rule would create 13 degrades and recover no fact. A trade that spends only on one side is not
-a trade.
+The rule would raise 13 occurrences, degrade six anchors under rule 1, queue five more under rule
+2, and recover no fact. A trade that spends only on one side is not a trade.
 
 Two narrower forms were weighed and refused with it.
 
 **Ship it narrowed to shape D alone.** Six occurrences, five after rule 4. All are false positives
 under the same hand read, so the narrowing changes the rate and not the verdict.
 
-**Ship it and wait for shape B.** Shape B needs no rule. All eight are retired line anchors, and
-the conversion of [#2120](https://github.com/winniel123/verge-asm/issues/2120) empties the shape on
-its own.
+**Ship it and wait for shape B.** Shape B needs no rule. Its eight occurrences, over six anchors,
+are retired line anchors, and the conversion of
+[#2120](https://github.com/winniel123/verge-asm/issues/2120) empties the shape on its own.
 
 ## 5. What this ADR does not rule
 
@@ -127,13 +135,18 @@ rules that the repair costs more than the defect on the corpus as measured, and 
 
 **Which reading limb 1 takes.** F12 records a second reading, which asks whether the tree spells a
 dotted name's tail rather than the whole name. Under it the raised population falls to three
-occurrences, and the rate reads 3 of 3. ADR-2277 §5 handed that reading here. It has no live rule
-to serve now, so it lapses with the tree test, and this ADR declares `{kind: bounds, adr: 2277,
-clause: "5"}` to record where that hand-off stops. `bounds` derives no status and writes no marker,
-so ADR-2277 is untouched.
+occurrences, and the rate reads 3 of 3. ADR-2277 §5 handed that reading here, and this ADR does not
+take it. There is no live rule for it to serve, so it waits on a re-measurement rather than on this
+ruling. This ADR declares `{kind: bounds, adr: 2277, clause: "5"}` to record where that hand-off
+stops. `bounds` derives no status and writes no marker, so ADR-2277 is untouched.
 
-**§2's Terms table.** It defines a rival as a declaration the target really has, and a suspect
-anchor as one with a rival. The tree test would have awarded `suspect` with no rival in the target,
+**The matcher defects.** [#2257](https://github.com/winniel123/verge-asm/issues/2257) holds three,
+and shape B is the third of them. Each stands on its own merits, and no verdict here turns on one.
+A repair to any of them changes F12's inputs, so it is one of the corpus changes §6 asks a reader
+to re-measure after.
+
+**The Terms table of `docs/spec/citation-anchor-repair.md` §2.** It defines a rival as a
+declaration the target really has, and a suspect anchor as one with a rival. The tree test would have awarded `suspect` with no rival in the target,
 so the ruling's pull request owed §2 a repair. The refusal discharges that debt. The table
 describes the tree as it stands.
 
@@ -155,6 +168,9 @@ fact F9 records the arm naming `certExpiryWindow` among the 17 anchors it reprod
 
 `docs/spec/citation-anchor-repair.md` §5.3 no longer holds a rule pending. It states a boundary,
 and this ADR is the reading of F12's rate that the same section asks a reader to take.
+
+[#2014](https://github.com/winniel123/verge-asm/issues/2014)'s rule half is withdrawn with the
+refusal. Its measurement half landed as fact F12, and F12 stands on its own.
 
 **If the corpus changes, re-measure before re-opening.** F12 names the two commands that reproduce
 its inputs. The decision rests on a rate over one corpus, so a corpus that grows a true positive

@@ -254,7 +254,8 @@ still declares is a rival, so rule 1 degrades the token where the line spells it
 target has **dropped** matches no inventory entry, so it is no rival under §2 and the verdict is
 `unproven`. The token then converts. So withdrawing the declaration scores weaker than keeping it,
 and the strongest drift evidence the corroborator can hold reads as no evidence at all. §9 fact F11
-names two sites of that shape, and F9 records the history arm reaching one of them.
+names one site of that shape: `docs/spec/audit-act.md` line 19 spells `fillAuditSection`, and
+`cmd/web/settings.go` no longer declares it.
 
 ADR-2155 rules that the verdict stays `unproven`. It rejects the repair on §9 fact F12's rate, not
 on the inversion, which it records as real. §5.3 states the boundary any such repair would have to
@@ -319,9 +320,13 @@ against the repaired guard, and the rate reads as 13 of 13. Either rate is every
 the verdict `unproven`. The rule that
 [#2155](https://github.com/winniel123/verge-asm/issues/2155) proposed would have raised 13
 occurrences over 11 anchors, every one a false positive, and would have recovered no fact. §4.3's
-trade prices a false positive against a miss, and this boundary holds no miss to prevent. The rails
-this section states are what closed the shapes where the rule would have caught something true, so
-they stand as the reason rather than as an obstacle.
+trade prices a false positive against a miss, and this boundary holds no miss to prevent.
+
+**Two separate things emptied the true-positive population, and neither is a defect of this
+section.** The rails above closed shapes A and C, which are 445 of the 459 names and are false
+positives by construction. The names that would have been true positives left the corpus before the
+run: [#2011](https://github.com/winniel123/verge-asm/pull/2011) degraded the ADR-0186 rows by hand,
+so none of them is a written anchor's rival today. F12 records both.
 
 So §2 needs no repair. A suspect anchor still takes its name from a rival, and a rival is still a
 declaration the target really has. No verdict this SPEC rules awards `suspect` without one.

@@ -957,7 +957,7 @@ test("a field access on the anchor's own type corroborates nothing", () => {
   assert.equal(rivalName(qualified, "x.go:1", ["signalRow"], "signalRow", env).verdict, "corroborated");
 });
 
-// ADR-2155 refuses to repair this inversion, because §9 fact F12 finds nothing true behind it.
+// The tree test would flip the first row, and its measured rate refused it (ADR-2155 §3).
 test("a rival the target no longer declares stays unproven", () => {
   const env = envFor(["cmd/web/deltas.go"]);
   const line = "`certExpiryWindow` bounds it (`x.go:1`)";
