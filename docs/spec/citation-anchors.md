@@ -582,21 +582,32 @@ Two alternatives were rejected.
 reaches, what the reader writes, and what proves the writing. It repairs no token, and it changes
 neither §5 nor the staged count.
 
-**Route 2 reaches every held citation, whatever sentence the derivation gives.** The route's own
-test is that the document alone does not prove the path.
-[`docs-site/scripts/sweep/derive.mjs#resolveBasename`](../../docs-site/scripts/sweep/derive.mjs)
-writes that failure four ways, and all four fail the same test.
+**Route 2 reaches every held citation whose hold is a path-proof failure, whatever its form.** The
+route's own test is that the document alone does not prove the path. Four hold sentences in
+[`docs-site/scripts/sweep/derive.mjs#derive`](../../docs-site/scripts/sweep/derive.mjs) fail that
+test, and `resolveBasename` writes the last three of them.
 
-| The derivation's sentence | Form | Tokens |
-| --- | --- | --- |
-| the token spells no path, so only a reader can repair it | `bare` | 459 |
-| the tree holds N files named F, and the document names several | `file` | 41 |
-| the tree holds N files named F, and the document names none of them | `file` | 35 |
-| the document spells F against a path outside this tree | `file` | 2 |
+| The hold sentence | Written by | Form | Tokens |
+| --- | --- | --- | --- |
+| the token spells no path, so only a reader can repair it | `derive` | `bare` | 459 |
+| the tree holds N files named F, and the document names several | `resolveBasename` | `file` | 41 |
+| the tree holds N files named F, and the document names none of them | `resolveBasename` | `file` | 35 |
+| the document spells F against a path outside this tree | `resolveBasename` | `file` | 2 |
+
+`resolveBasename` writes a fifth sentence, "the tree holds no file named F", and no scanned token
+reaches it. `docs-site/scripts/citations/lineanchor.mjs` drops a `file` token whose basename the
+tree does not hold, before the derivation runs.
+
+**§8.2's rule that the held figure bounds routes 2 and 3 together still stands.** A held token that
+is no citation is route 3, and a reader subtracts it. This section widens no route. It says which
+hold sentences prove that the reader, and not the sweep, owns the token.
 
 A dry run of `npm run sweep:line-anchors` on `main` at `5c3db31` read those figures, over 555 held
-tokens and a staged count of 976. The remaining 18 held tokens are §8.5's collapsing groups, which
-are route 2 as well. Read the split again before you size work against it, exactly as F11 directs.
+tokens and a staged count of 976. **The other 18 held tokens fail a different test.** They are
+§8.5's collapsing groups, whose path resolves and whose anchor derives. §8.5 rules them route 2 and
+gives their own remedy, which is not the one below. Read the split again before you size work
+against it, exactly as F11 directs. F11 froze 986, 306, 140 and 540 on 2026-09-16, and this
+paragraph re-measures it rather than correcting it.
 
 **[#2156](https://github.com/winniel123/verge-asm/issues/2156)'s ruling reads "read every path-less
 token", and that sentence is narrower than the route it implements.** It owns row 1 alone. The 78
@@ -609,12 +620,7 @@ bar. **Route 2 owns all four rows, and the work stays #2156's.**
 and gains the whole path. ADR-0213 is the shape: 23 tokens spell `cttail.go`, the document names
 `internal/queue/cttail.go` and `internal/scan/cttail.go`, and the reader decides each token against
 its own sentence. A `bare` token gains a whole path the same way. Each is a `path`
-token afterwards, and §8.3's derivation converts it on the next sweep.
-
-**The reader supplies the path and nothing else.** The line number stays as the document wrote it,
-and the derivation reads the anchor out of it. A line that has drifted degrades under §8.4, and
-[`docs-site/scripts/sweep/corroborate.mjs#rivalName`](../../docs-site/scripts/sweep/corroborate.mjs)
-already judges that case. One token per repair keeps the repair reviewable.
+token afterwards, and §8.3's derivation reads it on the next sweep.
 
 **What proves the path is the reader's evidence, never a scope rule.** The reader reads the claim
 the citing sentence makes, and keeps the one candidate the claim is true of. §3.3 rule 3 binds the
@@ -625,6 +631,22 @@ tree holds three files of that name, and the lede one line above the table names
 [`internal/queue/worker.go`](../../internal/queue/worker.go). That row's own `foldEstateTransitions`
 is declared in [`internal/queue/membership.go`](../../internal/queue/membership.go) and nowhere
 else. A reader who cannot make the claim true of exactly one candidate rewords instead.
+
+**A supplied path buys a reading, never a conversion.** The line number stays as the document wrote
+it, and a line that has drifted degrades under §8.4. A whole document may degrade that way. That
+same ADR-0211 row spells line 38, which sits in `readMembershipInputs`, while
+`foldEstateTransitions` is declared at line 45. All seven of that document's `membership.go` anchors
+miss their declaration the same way.
+
+**The degrade rests on a guard narrower than the drift.**
+[`docs-site/scripts/sweep/corroborate.mjs#rivalName`](../../docs-site/scripts/sweep/corroborate.mjs)
+judges a line suspect where the citing line names the rival **before** the citation. A rival named
+after it leaves the derivation to write the anchor and to flag a review instead. So a reader who
+supplies a path reads the sweep's next verdict, and never assumes a conversion.
+
+**The reader decides one token at a time, and #2156's bar still decides when a document converts.**
+The two rules measure different things. One bounds the judgement a reader makes, and the other
+bounds the pull request.
 
 **A narrower proof test inside the derivation was rejected.** `resolveBasename` already filters the
 candidates to those the document names in full, which is a document-wide reading of the
