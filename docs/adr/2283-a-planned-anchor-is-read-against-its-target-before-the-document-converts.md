@@ -15,12 +15,12 @@ proof: {test: "docs-site/scripts/sweep-line-anchors.test.mjs::a rival wrapped on
 
 > **A document converts only after a human reads every planned anchor against its target and against
 > the citing prose.** [#2156](https://github.com/winniel123/verge-asm/issues/2156)'s zero-held bar
-> gains a fourth test. A token the read rejects degrades to a bare path, and the rest of the document
-> converts. The `--history` arm runs per slice as evidence for the read, never in place of it.
+> gains a fourth test. A rejected token degrades to a bare path, and the rest of the document
+> converts. The `--history` arm runs per slice as evidence, never in place of the read.
 >
-> A reader asks why a mechanical sweep needs a hand. Because both instruments passed ADR-0212's one
+> A reader asks why a sweep needs a hand. Because both instruments passed ADR-0212's one
 > wrong anchor. The guard reads the citation's own source line, and a wrap put the rival above it.
-> The arm found no change, because the number was wrong when it landed.
+> The arm found no drift, because a later edit to the citing line reset its witness past it.
 >
 > Rejected: hold the whole document when one anchor fails the read. That freezes its sound tokens in
 > the form the conversion retires.
@@ -53,40 +53,44 @@ look.
 
 The ADR-0177 to ADR-0198 slice, [#2282](https://github.com/winniel123/verge-asm/issues/2282), is
 where the gap surfaced. Its reader read every planned anchor of the documents that reached the bar,
-and landed one of them.
+and [#2288](https://github.com/winniel123/verge-asm/pull/2288) landed the one that passed.
 
-This section re-ran both mechanical instruments over the four documents that slice held on the
-wrong-anchor ground. The run was taken on 2026-09-17, from `docs-site/`, against `main` at
-`584ca10`. It reads 32 tokens.
+This section re-ran both mechanical instruments over the documents that slice held, and read every
+planned anchor of the three that reach the bar. The runs were taken on 2026-09-17, from
+`docs-site/`, against `main` at `7ff158c`, which is this pull request's base.
 
-| Document | Tokens | Held, no path | Degraded by the guard | Planned anchors | Wrong on the hand read | Reported by the history arm |
+| Document | Tokens | Held, no path | Degraded by the guard | Planned anchors | Wrong on the read | Reported by the history arm |
 | --- | --- | --- | --- | --- | --- | --- |
-| ADR-0184 | 23 | 2 | 8 | 13 | 2 | 0 of the 2 |
 | ADR-0197 | 5 | 0 | 2 | 3 | 3 | 3 |
 | ADR-0212 | 1 | 0 | 0 | 1 | 1 | 0 |
 | ADR-0221 | 3 | 0 | 2 | 1 | 1 | 1 |
 
-**The guard reports none of the 7, and it cannot.** A planned anchor is by definition a token the
-guard passed, so the column would be zero whatever the corpus held. The finding is not the count. It
-is that the bar's three tests read the guard's output and nothing else, and §4 of
+**Every planned anchor of all three is wrong.** The bar passes all three documents today. §3 takes
+ADR-0212, which is the one both instruments pass.
+
+**The guard reports none of the 5, and it cannot.** A planned anchor is by definition a token the
+guard passed, so the column would read zero whatever the corpus held. The finding is not the count.
+It is that the bar's three tests read the guard's output and nothing else, and §4 of
 `docs/spec/citation-anchor-repair.md` states the bounds that let a wrong anchor through it. Three of
-those bounds account for the 7.
+those bounds account for the 5.
 
 1. **The rival is declared in another file.** ADR-0197 §3 tabulates the producer's steps, and each
    row's first cell names a query or a method of `db.Queries`. `internal/queue/produce.go` declares
-   none of them, so there is no rival to report. §7 states the bound: the guard needs the citing
-   document to spell a declaration **of the target**.
+   none of them, so there is no rival to report. The three cited lines hold two struct fields and an
+   error return. §7 states the bound: the guard needs the citing document to spell a declaration
+   **of the target**.
 2. **The rival sits on the source line above.** §4.1 property 2 bounds the guard's reach to the
    citation's own source line, because a wider block collects a name from a sentence about another
    target. A paragraph wrapped at 100 columns splits the pair. ADR-0212 does exactly that: line 61
-   spells `fanOut`, and line 62 carries the citation.
-3. **The prose names no live declaration.** ADR-0184's two wrong anchors sit in a marker sentence
-   about what a pull request **deleted**. Both names it spells left the tree, so the target declares
-   neither, and there is nothing for the guard to match.
+   spells `fanOut`, and line 62 carries the citation. §8 proves the mechanism.
+3. **The citation is pinned to a commit.** ADR-0221 line 24 cites a line of `cmd/web/auth.go` *"on
+   `c068bb9`"*, and the sentence quotes the code that stood there. The number is true of that
+   commit and of no other. The sweep reads it against the tree as the tree stands, and the guard
+   has no rule that reads a pin.
 
-**ADR-0184 also holds 2 path-less tokens, so it fails #2156's bar on the first test as well.** It is
-in this table because supplying those two paths is the reader's ordinary first step, and the bar
-would then pass the document with its 2 wrong anchors intact.
+**ADR-0184 is the fourth document that slice held, and it is out of this table.** It holds 2
+path-less tokens, so it fails the bar's first test and the other three questions never arise. §3
+uses it anyway, because its 13 planned anchors defeat the history arm in two further ways.
 
 **The history arm reads a planned anchor already.** `historyCitations` in
 `docs-site/scripts/sweep-line-anchors.mjs` pushes every token the conversion arm would convert into
@@ -95,35 +99,56 @@ command.
 
 ## 3. Why the history arm is not the fourth test
 
-The arm asks whether the cited number named the same declaration at the commit that wrote it. That
-question has an answer only where the number was right when it landed.
+The arm asks which declaration enclosed the cited number at the **witness**, the newest commit whose
+revision of the citing line still spelled a number for that path. Two things defeat that question,
+and ADR-0212 and ADR-0184 measure one each.
 
-**ADR-0212 is the counter-example, and it is measured.** Line 62 reads *"calls `fanOut` — which
-routes the cold kind to the streamed fan-out"*, and the citation is a line number on
-`internal/queue/queue.go`. The witness commit is `39d00e9b`. At that commit the cited line was the
-declaration line of `internal/queue/queue.go#Dispatcher.settleDue`, and it still is. The arm reports
-`consistent`. The sweep's dry run derives `Dispatcher.settleDue`, with no degradation and no review
-queue entry.
+### 3.1 An edit to the citing line resets the witness past the drift
 
-Both instruments are green, and the anchor names a method the sentence is not about. The sentence
-means `internal/queue/queue.go#Dispatcher.fanOutStreamed`, which stands far from the cited line. The
-number was wrong on the day it was written, so there is no change for the arm to find. This is shape
-3 of `docs/spec/citation-anchor-repair.md` §7, and it is the first instance of that shape the tree
-measures.
+ADR-0212 lines 61 and 62 read *"calls `fanOut` — which routes the cold kind to the streamed
+fan-out"*, and the citation sits on line 62 as a line number on `internal/queue/queue.go`. The
+sentence names `internal/queue/queue.go#Dispatcher.fanOut`, which is the declaration that routes the
+cold kind onward. The sweep derives `internal/queue/queue.go#Dispatcher.settleDue`, with no
+degradation and no review queue entry. The arm reports `consistent`.
 
-**ADR-0184's two wrong anchors defeat the arm a second way.** One cited number is past the end of
-the target at the witness commit, so the arm reports `unreadable`. The other sits on a line whose
-citation count and witness count disagree, which is shape 2, so the arm reports `unwitnessed`. The
-arm judges neither, and the sweep would convert both onto live declarations —
-`internal/message/render.go#artifactPeriod` and `internal/message/render.go#changeFamily`.
+**The number was right when it was written.** `fa2c312` wrote the citation. At that commit the cited
+line sat inside `func (d *Dispatcher) fanOut`, two lines below its declaration line. The citation
+drifted afterwards, exactly as ADR-2086 describes.
 
-So the arm reports nothing on 3 of the 7 anchors the hand read rejects. A bar resting on the arm
-alone converts ADR-0212 and ADR-0184.
+**The arm cannot see that, because a later commit rewrote the citing line.** `39d00e9` converted a
+second token on line 62, a line number on `cmd/web/scantrigger.go`, to a bare path under
+[#1979](https://github.com/winniel123/verge-asm/issues/1979). That edit re-wrote the line while the
+`queue.go` number stayed on it, so the line's newest numbered revision is now `39d00e9` and not
+`fa2c312`. By `39d00e9` the number had already drifted onto `settleDue`. The arm compares the anchor
+against the drifted state and finds no change.
+
+**`docs/spec/citation-anchor-repair.md` §7 lists five shapes that defeat the arm, and this is not
+one of them.** It is a sixth: an edit to the citing line that leaves the number standing moves the
+witness forward, and any drift before that edit becomes unreadable. The line-anchor conversion is
+itself such an edit, so the effort erases its own evidence as it runs.
+
+### 3.2 A witness the arm cannot read at all
+
+ADR-0184 plans 13 anchors. This session read 8 of them and rejected 6. Two of the 6 sit in a marker
+sentence about what a pull request **deleted**, and those two are where the arm fails. One
+cited number is past the end of the target at the witness, so the arm reports `unreadable`. The
+other sits on a line whose citation count and witness count disagree, which is §7 shape 2, so the
+arm reports `unwitnessed`. The arm judges neither, and the sweep would convert both onto live
+declarations — `internal/message/render.go#artifactPeriod` and
+`internal/message/render.go#changeFamily`. Both names the sentence spells left the tree, so the
+guard has nothing to match either.
+
+### 3.3 What the two measurements leave
+
+A read of this session rejects 11 anchors across the four documents: 3 in ADR-0197, 1 in ADR-0212, 1
+in ADR-0221, and 6 of the 8 it read in ADR-0184. The arm reports 8 of the 11. It reports nothing on
+ADR-0212's one and on ADR-0184's two, so a bar resting on the arm alone converts both documents.
 
 ## 4. The arm still runs, and it runs per slice
 
-The arm named 6 drift candidates in ADR-0184 that #2283's hand read had not, and all 3 of ADR-0197's.
-That is the complementarity `docs/spec/citation-anchor-repair.md` §9 fact F9 records, where the guard
+The arm named all 3 of ADR-0197's wrong anchors, ADR-0221's one, and 6 drift candidates in ADR-0184,
+4 of which a read confirms. It is the only instrument that reached any of them. That is the
+complementarity `docs/spec/citation-anchor-repair.md` §9 fact F9 records, where the guard
 and the arm together reach all 18 wrong anchors of
 [#2011](https://github.com/winniel123/verge-asm/pull/2011) and neither reaches them alone.
 
@@ -158,9 +183,12 @@ document carries, so there is nothing to hide. And a hold freezes that document'
 line-number form no check judges at all, which is the form
 [#2120](https://github.com/winniel123/verge-asm/issues/2120) staged for retirement.
 
-ADR-0184 is the one document in §2 where the two rulings differ. It plans 13 anchors and 2 are wrong,
-so a hold refuses 2 wrong conversions at the price of 11 sound ones. On the other three every planned
-anchor is wrong, and the two rulings do the same thing.
+**The two rulings do the same thing on the three documents of §2, and they differ on ADR-0184.**
+Every planned anchor of ADR-0197, ADR-0212 and ADR-0221 is wrong, so a hold and a degrade both leave
+those three converting nothing. ADR-0184 plans 13. This session read 8 of them: 6 are wrong and 2 are
+right. A hold refuses all 13 to refuse the 6, and a degrade refuses the 6. The 5 anchors this session
+did not read are the reader's remaining work, and neither ruling converts the document before that
+work is done.
 
 A path-less token is the one case that still holds the document, and #2156's bar already rules it.
 The reader supplies its path first, or the document does not convert.
@@ -182,6 +210,10 @@ count reaches zero. This ADR changes no count.
 Widening the guard's reach past one source line would collect a name from a sentence about another
 target, which §4.1 property 2 rejects on its own ground.
 
+**Whether §3.1's sixth shape is written into
+`docs/spec/citation-anchor-repair.md` §7.** That SPEC amends itself in place, and this ADR governs
+`docs/adr` files alone. A session that edits §7 carries the measurement in its own pull request.
+
 **Whether a slice may batch its reading.** #2156 slices by family and by range, and a reader may read
 a whole slice at once. The rule is that every planned anchor is read, not that each one is read
 alone.
@@ -192,8 +224,8 @@ A slice of #2156 now carries three steps before `--write`: supply every path, ru
 the range, and read every planned anchor against its target and its prose. The pull request records
 the reading, the same way #2282's acceptance already asks.
 
-The read costs a reader one open file per distinct target. The 18 planned anchors of §2 reach 11
-targets, and ADR-0184 alone reaches 8 of them.
+The read costs a reader one open file per distinct target. The 5 planned anchors of §2 reach 3
+targets. ADR-0184's 13 reach 8, and that document is the expensive shape.
 
 **No check enforces this.** The `citations` gate asserts that an anchor names a real declaration, and
 §3.2 rule 3 is the whole of it. A session that skips the read still merges green. That is the
@@ -208,13 +240,18 @@ Reversal writes an anchor no check will ever question, on a document that reads 
 ## 8. Proof
 
 The proof names `a rival wrapped onto the source line above is out of the guard's reach`, in
-`docs-site/scripts/sweep-line-anchors.test.mjs`. It runs one citing sentence twice against one
-fixture, and the two runs differ only in where the sentence breaks.
+`docs-site/scripts/sweep-line-anchors.test.mjs`. It writes one fixture document twice, with the same
+sentence and the same target, and the two writes differ only in where the sentence breaks. Both runs
+go through `scanDocuments` and `planFor`, so the scan sets the citing line the guard reads rather
+than the test handing it one.
 
-| The citing line the guard reads | Outcome | What it locks |
+| The fixture document | Outcome | What it locks |
 | --- | --- | --- |
-| the rival and the citation together | `degraded` | the guard reports the rival when it reaches it |
-| the citation alone, the rival above | `anchor` | §2 bound 2, which is ADR-0212's shape |
+| the sentence on one line | `degraded` | the guard reports the rival when it reaches it |
+| the sentence wrapped, the citation on line 2 | `anchor` | §2 bound 2, which is ADR-0212's shape |
+
+A reach widened to the preceding source line turns the second row red. That is the assertion the
+first row cannot make, and it is why the proof builds a document rather than a string.
 
 **This suite is not run by any required check.** `test:sweep` appears in no workflow, because
 [#1975](https://github.com/winniel123/verge-asm/issues/1975) keeps the sweep tool out of the required

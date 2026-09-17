@@ -206,17 +206,25 @@ test("a name outside a code span is prose, so it corroborates nothing", () => {
 });
 
 test("a rival wrapped onto the source line above is out of the guard's reach", () => {
-  // A wrap puts the rival on the line above, which is ADR-0212's shape (ADR-2283 §2).
+  // One paragraph, wrapped where ADR-0212 wraps it, so the scan sets lineText (ADR-2283 §2).
   const token = goToken("return 1");
-  const whole = "`Delta.Epsilon` routes the cold kind to the streamed fan-out (`x.go:1`)";
-  const [joined] = runCiting({ "go/decls.go": GO_SOURCE }, token, whole);
+  const names = "`Delta.Epsilon` routes the cold kind to the";
+  const cites = `streamed fan-out (\`${token}\`).`;
+  const doc = `${FIXTURE}/docs/wrap.md`;
+  const plan = (markdown) => {
+    const paths = fixture({ "go/decls.go": GO_SOURCE, "docs/wrap.md": markdown });
+    const env = envFor(paths);
+    return planFor(REPO_ROOT, env, scanDocuments(REPO_ROOT, [doc], env), AT_FIXTURE);
+  };
+
+  const [joined] = plan(`${names} ${cites}\n`);
   assert.equal(joined.outcome, "degraded");
   assert.match(joined.reason, /Delta\.Epsilon/);
 
-  const wrapped = "routes the cold kind to the streamed fan-out (`x.go:1`)";
-  const [split] = runCiting({ "go/decls.go": GO_SOURCE }, token, wrapped);
-  assert.equal(split.outcome, "anchor");
-  assert.equal(split.anchor, "Alpha");
+  const [wrapped] = plan(`${names}\n${cites}\n`);
+  assert.equal(wrapped.line, 2);
+  assert.equal(wrapped.outcome, "anchor");
+  assert.equal(wrapped.anchor, "Alpha");
 });
 
 test("a hit carrying no citing line derives exactly as it did before the guard", () => {

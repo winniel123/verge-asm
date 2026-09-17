@@ -12985,6 +12985,9 @@
         "1",
         "2",
         "3",
+        "3.1",
+        "3.2",
+        "3.3",
         "4",
         "5",
         "6",
@@ -12994,7 +12997,7 @@
       "markers": [],
       "decision": {
         "words": 150,
-        "text": "> **A document converts only after a human reads every planned anchor against its target and against\n> the citing prose.** [#2156](https://github.com/winniel123/verge-asm/issues/2156)'s zero-held bar\n> gains a fourth test. A token the read rejects degrades to a bare path, and the rest of the document\n> converts. The `--history` arm runs per slice as evidence for the read, never in place of it.\n>\n> A reader asks why a mechanical sweep needs a hand. Because both instruments passed ADR-0212's one\n> wrong anchor. The guard reads the citation's own source line, and a wrap put the rival above it.\n> The arm found no change, because the number was wrong when it landed.\n>\n> Rejected: hold the whole document when one anchor fails the read. That freezes its sound tokens in\n> the form the conversion retires.\n>\n> Reversal writes an anchor no check will ever question."
+        "text": "> **A document converts only after a human reads every planned anchor against its target and against\n> the citing prose.** [#2156](https://github.com/winniel123/verge-asm/issues/2156)'s zero-held bar\n> gains a fourth test. A rejected token degrades to a bare path, and the rest of the document\n> converts. The `--history` arm runs per slice as evidence, never in place of the read.\n>\n> A reader asks why a sweep needs a hand. Because both instruments passed ADR-0212's one\n> wrong anchor. The guard reads the citation's own source line, and a wrap put the rival above it.\n> The arm found no drift, because a later edit to the citing line reset its witness past it.\n>\n> Rejected: hold the whole document when one anchor fails the read. That freezes its sound tokens in\n> the form the conversion retires.\n>\n> Reversal writes an anchor no check will ever question."
       }
     }
   ]
