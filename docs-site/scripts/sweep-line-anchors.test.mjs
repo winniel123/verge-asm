@@ -991,3 +991,74 @@ test("a rival the target no longer declares stays unproven", () => {
   assert.equal(present.rival, "certExpiryWindow");
   assert.equal(present.position, "before");
 });
+
+test("two citations one sentence names collapse to one anchor, so both are held (#2286)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const first = goToken("func Alpha() int {");
+  const second = goToken("return 1");
+  const markdown = `The repo writes it at \`${first}\` and \`${second}\`. The first is the clear.\n`;
+  const { found, hits } = inMemory({ "docs/spec/pair.md": markdown }, env);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["held", "held"]);
+  assert.match(results[0].reason, /repeats `.*#Alpha`/);
+  assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
+});
+
+test("the sentence wraps across two source lines, and the collapse is still held (#2286)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const first = goToken("func Alpha() int {");
+  const second = goToken("return 1");
+  const markdown = `The repo writes it at \`${first}\` and\n\`${second}\`. The first is the clear.\n`;
+  const { hits } = inMemory({ "docs/spec/wrapped.md": markdown }, env);
+  assert.deepEqual(hits.map((h) => h.line), [1, 2]);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["held", "held"]);
+});
+
+test("one anchor cited in two sentences parts the two, so both convert (#2286)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const first = goToken("func Alpha() int {");
+  const second = goToken("return 1");
+  const markdown = `It enters at \`${first}\`. It returns at \`${second}\`.\n`;
+  const { hits } = inMemory({ "docs/spec/apart.md": markdown }, env);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["anchor", "anchor"]);
+});
+
+test("two anchors in one sentence differ, so neither is held (#2286)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const alpha = goToken("return 1");
+  const gamma = goToken("\tGamma = 3");
+  const markdown = `It reads \`${alpha}\` and \`${gamma}\` together.\n`;
+  const { hits } = inMemory({ "docs/spec/differ.md": markdown }, env);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  const byToken = new Map(results.map((r) => [r.token, r]));
+  assert.equal(byToken.get(alpha).anchor, "Alpha");
+  assert.equal(byToken.get(gamma).anchor, "Gamma");
+  assert.deepEqual(results.map((r) => r.outcome), ["anchor", "anchor"]);
+});
+
+test("a table row that cites one declaration twice is held, and its neighbour converts (#2286)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const first = goToken("func Alpha() int {");
+  const second = goToken("return 1");
+  const gamma = goToken("\tGamma = 3");
+  const table = [
+    "| Site | Drop |",
+    "| --- | --- |",
+    `| \`${first}\` and \`${second}\` | the CIDR |`,
+    `| \`${gamma}\` | the domain |`,
+    "",
+  ].join("\n");
+  const { hits } = inMemory({ "docs/spec/table.md": table }, env);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  const byToken = new Map(results.map((r) => [r.token, r]));
+  assert.equal(byToken.get(first).outcome, "held");
+  assert.equal(byToken.get(second).outcome, "held");
+  assert.equal(byToken.get(gamma).outcome, "anchor");
+});

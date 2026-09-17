@@ -78,8 +78,7 @@ function firstSentence(text) {
   return m === null ? text : text.slice(0, m.index + 1);
 }
 
-// A word qualifies the sentence that holds it, so a second sentence may not borrow it (#2185).
-function sentenceAround(block, node) {
+function sentenceParts(block, node) {
   let before = "";
   let after = "";
   let passed = false;
@@ -92,7 +91,18 @@ function sentenceAround(block, node) {
     if (passed) after += n.value;
     else before += n.value;
   });
+  return { before, after };
+}
+
+// A word qualifies the sentence that holds it, so a second sentence may not borrow it (#2185).
+function sentenceAround(block, node) {
+  const { before, after } = sentenceParts(block, node);
   return lastSentence(before) + textOf(node) + firstSentence(after);
+}
+
+function sentenceIndex(block, node) {
+  const { before } = sentenceParts(block, node);
+  return [...before.matchAll(new RegExp(SENTENCE_END.source, "g"))].length;
 }
 
 function holdsProse(node) {
@@ -101,15 +111,28 @@ function holdsProse(node) {
 }
 
 // A code-only table cell writes no sentence of its own, so its row is the smallest one (#2185).
-function addressText(node, ancestors) {
-  const chain = [...ancestors, node];
+function addressNode(chain) {
   let cell = null;
   let row = null;
   for (const a of chain) {
     if (a.type === "tableCell") cell = a;
     if (a.type === "tableRow") row = a;
   }
-  if (cell !== null) return textOf(holdsProse(cell) ? cell : (row ?? cell));
+  return cell === null ? null : holdsProse(cell) ? cell : (row ?? cell);
+}
+
+// The span a reader reads the token in, named so two tokens sharing one can be compared (#2286).
+export function addressScope(node, ancestors) {
+  const cell = addressNode([...ancestors, node]);
+  if (cell !== null) return `cell@${cell.position?.start?.offset ?? 0}`;
+  const block = nearestBlock(ancestors);
+  if (block === null || block.type === "root") return null;
+  return `block@${block.position?.start?.offset ?? 0}#${sentenceIndex(block, node)}`;
+}
+
+function addressText(node, ancestors) {
+  const cell = addressNode([...ancestors, node]);
+  if (cell !== null) return textOf(cell);
   const block = nearestBlock(ancestors);
   // The root is the whole document, and a word anywhere in it qualifies nothing here.
   if (block === null || block.type === "root") return "";
@@ -160,6 +183,7 @@ export function scanLineAnchorsFromTree(tree, { refPin = true, knownFile = null 
         line: node.position?.start?.line ?? 1,
         start: node.position?.start?.offset,
         end: node.position?.end?.offset,
+        scope: addressScope(node, ancestors),
         // A converted token turns the next code span into a snippet claim (SPEC §3.4, #1975).
         snippet: snippetAfter(node, ancestors),
       });
