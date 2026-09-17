@@ -236,8 +236,11 @@ Plain `go test ./...` here still skips every case and still reports `ok`. Do not
 export PATH=$HOME/.nvm/versions/node/v22.23.2/bin:$PATH
 cd docs-site
 npm run -s check:citations
+npm run -s test:sweep
 npm run -s check:adr-sections && npm run -s check:adr-index && npm run -s check:adr-markers
 ```
+
+The `citations` job runs `test:sweep` as of 2026-09-17, so that suite blocks a merge (#2279). It holds the `proof` of ADR-2155, ADR-2277 and ADR-2283. It needs Go on `PATH` for the same reason `check:citations` does. Run it for any change under `docs-site/scripts/sweep/`, and for any change to the anchor rows the sweep and the gate share.
 
 The `adr-sections` job runs all three of those, so `check:adr-sections` alone leaves a stale `docs/adr/index.json` or a hand-edited marker to fail the merge. Regenerate the index with `npm run write:adr-index`.
 
