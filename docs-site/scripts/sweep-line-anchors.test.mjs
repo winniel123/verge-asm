@@ -940,3 +940,13 @@ test("a hex-shaped word and a real name are untouched by the hash guard", () => 
   assert.equal(good.verdict, "suspect");
   assert.equal(good.rival, "Beta");
 });
+
+// `sameName` serves both arms, so a prefix arm moves both at once (ADR-2277 §3).
+test("a field access on the anchor's own type corroborates nothing", () => {
+  const env = envFor(["cmd/web/signals.go"]);
+  const field = "`signalRow.seenAge` is stale (`x.go:1`)";
+  assert.equal(rivalName(field, "x.go:1", ["signalRow"], "signalRow", env).verdict, "unproven");
+  const qualified = "`web.signalRow` is it (`x.go:1`)";
+  const q = rivalName(qualified, "x.go:1", ["signalRow"], "signalRow", env);
+  assert.equal(q.verdict, "corroborated");
+});

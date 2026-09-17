@@ -12877,6 +12877,42 @@
         "words": 127,
         "text": "> **Declining an address proposal moves the covered predicate, so the `Exposure` act reader covers\n> seven classes.** `proposal.declined` and `proposal.decline.undone` join the five ADR-2114 names.\n> The seven-day window, the five-row cap and the newest-first order are unchanged, and each class\n> renders its own verb.\n>\n> A reader asks why ADR-2114's principle says every act class that moves `addressScopeCovered`, and\n> its table lists five. The enumeration is wrong, not the principle.\n>\n> Rejected: narrowing the principle to an operator scope edit. That leaves an operator looking at a\n> moved figure beside a panel reporting no address-scope edit, which is the defect ADR-2114 removed.\n>\n> Reversal returns a panel that reports no edit while a decline has just moved the figure."
       }
+    },
+    {
+      "number": 2277,
+      "file": "docs/adr/2277-a-field-access-corroborates-nothing-and-samename-keeps-its-suffix-only-test.md",
+      "title": "A field access corroborates nothing, and `sameName` keeps its suffix-only test",
+      "slug": "a-field-access-corroborates-nothing-and-samename-keeps-its-suffix-only-test",
+      "date": "2026-09-17",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "docs-site/scripts/sweep-line-anchors.test.mjs::a field access on the anchor's own type corroborates nothing"
+      },
+      "ticket": 2277,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 143,
+        "text": "> **A field access on a declared type corroborates nothing, and `sameName` keeps its suffix-only\n> test.** A citing `signalRow.seenAge` neither corroborates the anchor `signalRow` nor rivals it. It\n> scores `unproven`, and the dotted-name question moves to limb 1 of the tree test, which\n> [#2155](https://github.com/winniel123/verge-asm/issues/2155) owns.\n>\n> A reader asks why the most ordinary way prose names a declaration fails to support it. Because\n> `sameName` serves both arms of `rivalName`. Corroboration returns before the rival scan, so one\n> prefix arm would suppress rivals that rule 1 reaches and manufacture rivals at the same time.\n>\n> Rejected: a prefix arm on `sameName`. `docs/spec/citation-anchor-repair.md` §5.3 bars relaxing\n> rule 1, forbids a second matcher, and the tree holds no harness to measure the net.\n>\n> Reversal moves an unmeasured number of sound anchors, in both directions at once."
+      }
     }
   ]
 }
