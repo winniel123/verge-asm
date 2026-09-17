@@ -534,6 +534,46 @@ puts the repair itself out of scope.
 
 Hand-repairing each one was rejected. It turns a mechanical sweep into 129 or more judgement calls.
 
+### 8.5 A conversion that repeats an anchor in the token's own address is held
+
+A region is coarser than a line, so two lines inside one declaration derive one anchor. Where both
+tokens sit in one address, the pair collapses. The document keeps its claim, and the two citations
+stop supporting it.
+
+ADR-0188 is the measured case. Its sentence names two statements in `EdgeFanout.overExtension`, and
+the next two sentences read *the first* and *the second*. Both words lose their referent when the
+pair collapses.
+
+**The address is the span the listener carve-out of #2185 already reads**: the sentence for prose,
+and the table cell, or the row where that cell holds no prose.
+`docs-site/scripts/citations/lineanchor.mjs#addressScope` names it, and one walk serves both rules.
+A repeat across two addresses is not held. Each address states its own claim, and a reader reads one
+at a time.
+
+**The sweep holds every token in a collapsing group, never one of them.** Converting one member does
+part the pair. It also writes an address that is half converted, and no rule asks for that.
+
+**One token spelled twice in one address collapses nothing.** The source already names one line
+twice, so the conversion takes a reader nothing it had. A group holds only where it spells two
+tokens or more. A third token that repeats the pair's anchor still collapses against it, and the
+whole group then holds.
+
+**An abbreviation ends no sentence here.** The address index is a grouping key, not the text window
+the listener carve-out reads, so a wrong split drops a hold this section requires. The prose arm
+therefore splits less often than the carve-out does. `e.g.` and `cf.` open no new address, while a
+citation that closes a sentence, such as `` `pdf.go:113`. ``, still does.
+
+This is route 2 of §8.2. A reader names a different target, or rewords the sentence, and the tokens
+then leave the staged count. The reader performs that rewrite. The sweep may not, because §8.2's
+route 1 converts anchors and asserts nothing new.
+
+Two alternatives were rejected.
+
+1. **Convert and accept the repeat.** The claim stays true, and the citations stop proving it. In
+   ADR-0188 the prose then refers to two targets a reader cannot tell apart.
+2. **Hold on the source line rather than the address.** A Markdown line is a wrap position, not a
+   unit of meaning. ADR-0188's sentence wraps, so a line rule misses the case that proves the rule.
+
 ---
 
 ## 9. Non-goals

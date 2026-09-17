@@ -165,6 +165,38 @@ export function withholdSwallowed(results) {
   );
 }
 
+// A region is coarser than a line, so two lines in one declaration write one anchor (#2286).
+export function withholdCollapsed(results) {
+  const byScope = new Map();
+  for (const r of results) {
+    if (r.outcome !== "anchor" || r.scope == null) continue;
+    const key = `${r.file}|${r.scope}`;
+    if (!byScope.has(key)) byScope.set(key, []);
+    byScope.get(key).push(r);
+  }
+  const collapsed = new Map();
+  for (const members of byScope.values()) {
+    const byAnchor = new Map();
+    for (const m of members) {
+      const target = `${m.path}#${m.anchor}`;
+      if (!byAnchor.has(target)) byAnchor.set(target, []);
+      byAnchor.get(target).push(m);
+    }
+    for (const [target, sharing] of byAnchor) {
+      // The source already spells one line twice, so a repeat of one token loses a reader nothing.
+      if (new Set(sharing.map((m) => m.token)).size < 2) continue;
+      // One converted token still parts the two, so the whole group holds or none of it does.
+      for (const m of sharing) collapsed.set(m, target);
+    }
+  }
+  if (collapsed.size === 0) return results;
+  return results.map((r) =>
+    collapsed.has(r)
+      ? held(r, `converting it repeats \`${collapsed.get(r)}\`, and only a reader can part the two`)
+      : r,
+  );
+}
+
 // One derivation for all four conversion tickets, so no batch re-invents the conversion (#1975).
 export function derive(repoRoot, env, found, rows = ROWS) {
   const pending = [];
@@ -244,7 +276,7 @@ export function derive(repoRoot, env, found, rows = ROWS) {
     for (const token of tokens) done.push(deriveOne(token, inventory, env));
   }
 
-  return withholdSwallowed(done).sort(
+  return withholdCollapsed(withholdSwallowed(done)).sort(
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.token.localeCompare(b.token),
   );
 }
