@@ -170,11 +170,12 @@ jobs:
       #
       # #1975 keeps the sweep TOOL out of a required check's path, because a `--write` run
       # rewrites documents. These are the tool's unit tests, and they run no such conversion.
-      # They import the modules and assert on return values. Their only residue is an
-      # untracked `.sweep-fixture-<pid>` directory, which `test.after` removes, and the gate
-      # below enumerates the TRACKED tree, so a leftover fixture reaches no verdict. Two cases
-      # do spawn the CLI, and each asserts a refusal that exits 2 before the tool reads a
-      # document.
+      # They import the modules and assert on return values. Their only residue is a
+      # `.sweep-fixture-<pid>` directory, which `test.after` removes. It sits at the repo
+      # ROOT, outside the six family directories the gate below walks (SPEC
+      # docs/spec/citation-anchors.md §1.2), so a leftover fixture document reaches no
+      # verdict even on the run that left it. Two cases do spawn the CLI, and each asserts a
+      # refusal that exits 2 before the tool reads a document.
       #
       # THIS JOB, not `adr-sections`. The suite shells out to `go run ./cmd/godecls` for its
       # Go row, as Arm B above does, and `citations` is the only job in this workflow with
