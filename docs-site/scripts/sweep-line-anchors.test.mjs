@@ -956,3 +956,16 @@ test("a field access on the anchor's own type corroborates nothing", () => {
   const qualified = "`web.signalRow` is it (`x.go:1`)";
   assert.equal(rivalName(qualified, "x.go:1", ["signalRow"], "signalRow", env).verdict, "corroborated");
 });
+
+// The tree test would flip the first row, and its measured rate refused it (ADR-2155 §3).
+test("a rival the target no longer declares stays unproven", () => {
+  const env = envFor(["cmd/web/deltas.go"]);
+  const line = "`certExpiryWindow` bounds it (`x.go:1`)";
+  const withdrawn = rivalName(line, "x.go:1", ["Alpha"], "Alpha", env);
+  assert.equal(withdrawn.verdict, "unproven");
+  assert.equal(withdrawn.rival, null);
+  const present = rivalName(line, "x.go:1", ["Alpha", "certExpiryWindow"], "Alpha", env);
+  assert.equal(present.verdict, "suspect");
+  assert.equal(present.rival, "certExpiryWindow");
+  assert.equal(present.position, "before");
+});

@@ -249,6 +249,18 @@ is seven hexadecimal characters and also a word. The cost is a hash that spells 
 Six of the sixteen hexadecimal characters are letters. That costs about 1 seven-character hash in
 960. A longer abbreviation is rarer still, at about 1 in 2600 for eight characters.
 
+**Every rule above reads the target's own inventory, and that scoring inverts.** A name the target
+still declares is a rival, so rule 1 degrades the token where the line spells it first. A name the
+target has **dropped** matches no inventory entry, so it is no rival under §2 and the verdict is
+`unproven`. The token then converts. So withdrawing the declaration scores weaker than keeping it,
+and the strongest drift evidence the corroborator can hold reads as no evidence at all. §9 fact F11
+names one site of that shape: `docs/spec/audit-act.md` line 19 spells `fillAuditSection`, and
+`cmd/web/settings.go` no longer declares it.
+
+ADR-2155 rules that the verdict stays `unproven`. It rejects the repair on §9 fact F12's rate, not
+on the inversion, which it records as real. §5.3 states the boundary any such repair would have to
+respect, and F12 states what is left inside it.
+
 ### 5.3 What the refinement must not do
 
 **It must not lower the bias toward degrading.** Rule 2 applies to one measured shape. A builder who
@@ -297,21 +309,30 @@ to `suspect` moves the bias the other way. Such a rule reaches only the shape wh
 rate a §9 fact records. A shape whose rate is assumed rather than counted stays `unproven`, and §5.2
 rule 2 is where an uncertain one goes.
 
-**§9 fact F12 measures the tree test, and this section still states a boundary and no rule.** F3
-and F5 measure the position guard, F8 the audit, F11 the history arm, and F12 the tree test's
-false-positive rate on this boundary. The rule itself is
-[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s, and that ruling binds it to ship in
-one pull request with its own §9 measurement. F12 is that measurement, and it landed first, because
-[#2155](https://github.com/winniel123/verge-asm/issues/2155)'s own third fact assigns the breakdown
-to the implementing session as its first step. **The rate F12 records is 14 false positives in 14,
-over an empty true-positive population.** The two shapes this section leaves open are a retired
-line anchor and a residue of five names. Rule 4 takes one of the five. So the residue reads as four
-names against the repaired guard, and the rate reads as 13 of 13. Either rate is every raised name.
-A reader of that rate decides what the rule may reach.
+**§9 fact F12 measures the tree test, and this section states a boundary and no rule.** F3 and F5
+measure the position guard, F8 the audit, F11 the history arm, and F12 the tree test's
+false-positive rate on this boundary. **The rate F12 records is 14 false positives in 14, over an
+empty true-positive population.** The two shapes this section leaves open are a retired line anchor
+and a residue of five names. Rule 4 takes one of the five. So the residue reads as four names
+against the repaired guard, and the rate reads as 13 of 13. Either rate is every raised name.
 
-The pull request that ships the rule also owns §2, where a suspect anchor takes its name from its
-rival. A rival is a declaration the target really has. So a verdict the tree test awards has no
-rival under the term as it stands.
+**ADR-2155 read that rate, and no tree test ships.** A rival the target no longer declares keeps
+the verdict `unproven`. The rule that
+[#2155](https://github.com/winniel123/verge-asm/issues/2155) proposed would have raised 13
+occurrences over 11 anchors, every one a false positive, and would have recovered no fact. §4.3's
+trade prices a false positive against a miss, and this boundary holds no miss to prevent.
+
+**Two separate things emptied the true-positive population, and neither is a defect of this
+section.** The rails above closed shapes A and C, which are 445 of the 459 names and are false
+positives by construction. The names that would have been true positives left the corpus before the
+run: [#2011](https://github.com/winniel123/verge-asm/pull/2011) degraded the ADR-0186 rows by hand,
+so none of them is a written anchor's rival today. F12 records both.
+
+So §2 needs no repair. A suspect anchor still takes its name from a rival, and a rival is still a
+declaration the target really has. No verdict this SPEC rules awards `suspect` without one.
+
+**A later run may reopen it.** The refusal rests on a rate over one corpus. F12 names the two
+commands that reproduce its inputs, and a corpus that grows a true positive puts the question back.
 
 ---
 
