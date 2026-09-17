@@ -225,9 +225,9 @@ line fragment:
 The installed base outside the code span is zero. The `#L` form is the one to expect next, because
 GitHub's own "copy permalink" produces it.
 
-**One carve-out.** A citation the gate resolves as `on-ref` is exempt. A line number pinned to a
-named ref cannot drift, because the ref is frozen. That is not the defect this SPEC repairs. The
-carve-out is narrow, and it is machine-detectable. The extractor requires the words *branch*,
+**The first carve-out.** A citation the gate resolves as `on-ref` is exempt. A line number pinned
+to a named ref cannot drift, because the ref is frozen. That is not the defect this SPEC repairs.
+The carve-out is narrow, and it is machine-detectable. The extractor requires the words *branch*,
 *commit*, *ref*, *revision* or *tag* in the same block. It exports the helper that finds them.
 
 **A bare commit hash pins with no lead word before it.** ADR-0221 spells its pin *"at
@@ -255,6 +255,26 @@ passing citation to `ref-unknown`.
 sentence ending in a one- or two-letter word joins the next one, and an abbreviation at a wrap
 position splits where it should not. Each one lets a hash pin an address it does not belong to. The
 cost is an exempted token that stays staged, which is the direction §8.4 already accepts.
+
+**A second carve-out. A listen address is no line anchor.** A listener spells `:8080` exactly as a
+`bare` token spells `:45`, and the token alone cannot part the two. So Arm A drops a `bare` token
+whose address spells a form of *listen*. The carve-out reaches the `bare` form alone, because a
+`path` or a `file` token names a file and never an address. It reaches one address and never the
+whole block, on the rule above: the sentence for prose, and the table cell, or the row where that
+cell writes no prose of its own.
+
+**This carve-out is route 3 of §8.2, and it is the only instance measured.** It stopped counting
+four tokens. Each one spells port 8080 of the `web` service, in `README.md`,
+`docs/guides/running.md` and `docs/guides/troubleshooting.md`. Fact F11 records the drop.
+[#2185](https://github.com/winniel123/verge-asm/issues/2185) reported the defect: no conversion
+repairs a port, so a counted port holds the staged count above zero forever, and §8.2's retirement
+condition is then unreachable.
+
+**Rewording those three documents was rejected.** A port mention in an operator guide is correct
+prose, and the gate holds the defect rather than the document. **A third bucket for an ambiguous
+token was rejected too.** The measured population is one port number, so a prose test is provable as
+it stands, and a bucket the retirement condition ignores is the permanent exemption §8.2 rule 3
+already refuses.
 
 A commit-pinned permalink stays an escape hatch for the narrow historical case. **It is not the
 form.** It resolves forever and it is wrong forever, and no check can report that the live code
@@ -515,8 +535,10 @@ lets a third pull request re-open the stage in between.
    reader writes and what proves it, and §8.5 rules one class of its own. That work is
    [#2156](https://github.com/winniel123/verge-asm/issues/2156).
 3. **A matcher repair.** The token is no citation, so no edit to the document is correct. The
-   scanner stops matching it. A port number in prose is the measured instance, fact F11 records it,
-   and that repair is [#2185](https://github.com/winniel123/verge-asm/issues/2185).
+   scanner stops matching it. A port number in prose is the measured instance, and §5's listener
+   carve-out is that repair. It removed four tokens, and fact F11 records the drop.
+   [#2185](https://github.com/winniel123/verge-asm/issues/2185) reported it. The route stays open
+   for a second instance, and no measurement names one today.
 
 **Naming the three routes is what makes zero reachable.** Conversion alone can never empty the
 count. The derivation holds every `bare` token, and a port is no citation that any conversion can
@@ -572,7 +594,7 @@ ADR-0188 is the measured case. Its sentence names two statements in `EdgeFanout.
 the next two sentences read *the first* and *the second*. Both words lose their referent when the
 pair collapses.
 
-**The address is the span the listener carve-out of #2185 already reads**: the sentence for prose,
+**The address is the span §5's listener carve-out already reads**: the sentence for prose,
 and the table cell, or the row where that cell holds no prose.
 `docs-site/scripts/citations/lineanchor.mjs#addressScope` names it, and one walk serves both rules.
 A repeat across two addresses is not held. Each address states its own claim, and a reader reads one
