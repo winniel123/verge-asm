@@ -21,11 +21,11 @@ function gluedPattern() {
   return new RegExp(`${source}${GLUE}${SITES}`, flags);
 }
 
-export function trailingGlue(markdown, hit) {
-  const slice = markdown.slice(hit.start, hit.end);
-  const at = slice.indexOf(hit.token);
-  if (at < 0) return "";
-  return new RegExp(`^${GLUE}${SITES}`).exec(slice.slice(at + hit.token.length))?.[0] ?? "";
+// The glue follows this occurrence, and a search hands every copy the first one's glue (#2249).
+export function trailingGlue(hit) {
+  if (hit.text == null || hit.at == null) return "";
+  const after = hit.text.slice(hit.at + hit.token.length);
+  return new RegExp(`^${GLUE}${SITES}`).exec(after)?.[0] ?? "";
 }
 
 // `internal/x.go:4` is a prefix of `internal/x.go:42`, so the scan's own pattern bounds the edit.

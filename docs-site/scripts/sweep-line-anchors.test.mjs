@@ -69,14 +69,19 @@ const AT_FIXTURE = ROWS.map((row) => ({
   matches: (p) => p.startsWith(`${FIXTURE}/`) && row.matches(p.slice(FIXTURE.length + 1)),
 }));
 
+// Wider than any fixture token, so one line's span never reaches the next line's (#2249).
+const LINE_SPAN = 1000;
+
 function hit(token, { file = "docs/spec/fixture.md", line = 1, lineText, namedInDocument } = {}) {
-  return { token, file, line, kind: "code", start: 0, end: token.length + 2, lineText, namedInDocument };
+  const start = (line - 1) * LINE_SPAN;
+  return { token, file, line, kind: "code", start, end: start + token.length + 2, lineText, namedInDocument };
 }
 
 function run(files, tokens) {
   const paths = fixture(files);
   const env = envFor(paths);
-  return derive(REPO_ROOT, env, tokens.map((t) => hit(t)), AT_FIXTURE);
+  // One token per line, because a hold reads a span and two of these would otherwise share one.
+  return derive(REPO_ROOT, env, tokens.map((t, i) => hit(t, { line: i + 1 })), AT_FIXTURE);
 }
 
 // The citing line is an argument here, so one fixture serves every corroboration case.
@@ -392,7 +397,7 @@ test("a token this run does not convert keeps its line", () => {
 test("a suffix the anchor class would swallow is consumed by the rewrite", () => {
   const md = "See `a/b.go:265+` here.\n";
   const hits = scanLineAnchorsFromTree(parse(md));
-  assert.equal(trailingGlue(md, hits[0]), "+");
+  assert.equal(trailingGlue(hits[0]), "+");
   const out = rewriteDocument(md, [
     { ...hits[0], outcome: "anchor", value: "a/b.go", anchor: "Apply" },
   ]);
@@ -402,9 +407,9 @@ test("a suffix the anchor class would swallow is consumed by the rewrite", () =>
 test("a second line reference goes with the token it qualifies", () => {
   const md = "See `a/b.go:978,997` and `c/d.md:37,:41` here.\n";
   const hits = scanLineAnchorsFromTree(parse(md));
-  assert.equal(trailingGlue(md, hits[0]), ",997");
-  assert.equal(trailingGlue(md, hits[1]), ",:41");
-  assert.ok(namesAnotherSite(trailingGlue(md, hits[0])));
+  assert.equal(trailingGlue(hits[0]), ",997");
+  assert.equal(trailingGlue(hits[1]), ",:41");
+  assert.ok(namesAnotherSite(trailingGlue(hits[0])));
   assert.ok(!namesAnotherSite("+"));
   const out = rewriteDocument(md, [
     { ...hits[0], outcome: "degraded", value: "a/b.go" },
@@ -488,7 +493,7 @@ function inMemory(documents, env) {
     const scanned = scanLineAnchorsFromTree(parse(markdown), { knownFile: env.knownFile }).map((h) => ({
       ...h,
       file,
-      glue: trailingGlue(markdown, h),
+      glue: trailingGlue(h),
       lineText: lines[h.line - 1] ?? "",
       namedInDocument: new Set(),
     }));
@@ -520,11 +525,84 @@ test("a token the span repeats beside a held bare line is held back too (#2158)"
     { "docs/spec/twice.md": `See \`${token} and ${token}, :160\` here.\n` },
     env,
   );
-  // trailingGlue reads the first occurrence, so neither copy records the glue that is really there.
-  assert.deepEqual(hits.map((h) => h.glue), ["", "", ""]);
+  assert.deepEqual(hits.map((h) => h.glue), ["", ", :160", ""]);
   const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
   assert.deepEqual(results.map((r) => r.outcome), ["held", "held", "held"]);
   assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
+});
+
+test("a span spelling one token twice gives each copy its own glue (#2249)", () => {
+  const md = "See `a/b.go:978 and a/b.go:978,997` here.\n";
+  const hits = scanLineAnchorsFromTree(parse(md));
+  assert.deepEqual(hits.map((h) => h.token), ["a/b.go:978", "a/b.go:978"]);
+  assert.deepEqual(hits.map((h) => trailingGlue(h)), ["", ",997"]);
+  assert.ok(!namesAnotherSite(trailingGlue(hits[0])));
+  assert.ok(namesAnotherSite(trailingGlue(hits[1])));
+});
+
+test("a link reads the glue of its target, not of its label (#2249)", () => {
+  const md = "See [`a/b.go:4,9`](a/b.go:4) here.\n";
+  const hits = scanLineAnchorsFromTree(parse(md));
+  assert.deepEqual(hits.map((h) => h.kind), ["link", "code"]);
+  assert.deepEqual(hits.map((h) => trailingGlue(h)), ["", ",9"]);
+});
+
+// The rewrite merges a nested range into its enclosing one, so a hold must read that span too.
+test("a label and the target it nests in hold together when they disagree (#2249)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  for (const md of [
+    `See [\`${token},997\`](${token}) here.\n`,
+    `See [\`${token}\`](${token},997) here.\n`,
+  ]) {
+    const { found, hits } = inMemory({ "docs/spec/nested.md": md }, env);
+    assert.deepEqual(hits.map((h) => h.kind), ["link", "code"]);
+    const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+    assert.deepEqual(results.map((r) => r.outcome), ["held", "held"]);
+    // A throw here would abort the write plan for every sound document beside this one.
+    assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
+  }
+});
+
+test("a held bare line inside a label holds the target that nests it (#2249)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  const md = `See [\`${token}, :160\`](${token}) here.\n`;
+  const { found, hits } = inMemory({ "docs/spec/nested.md": md }, env);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["held", "held", "held"]);
+  assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
+});
+
+test("a token one window spells two ways holds every copy of it (#2249)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  const { found, hits } = inMemory(
+    { "docs/spec/twice.md": `See \`${token} and ${token},997\` here.\n` },
+    env,
+  );
+  assert.deepEqual(hits.map((h) => h.glue), ["", ",997"]);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["held", "held"]);
+  assert.match(results[0].reason, /rewrites every copy/);
+  // The rewrite runs over no conversion, so `,997` is still in the document.
+  assert.deepEqual(planWrites(results.filter((r) => r.outcome !== "held"), found, env), []);
+});
+
+test("a token one window repeats on one verdict still converts (#2249)", () => {
+  const paths = fixture({ "go/decls.go": GO_SOURCE });
+  const env = envFor(paths);
+  const token = goToken("return 1");
+  const file = "docs/spec/twice.md";
+  const { found, hits } = inMemory({ [file]: `See \`${token} and ${token}\` here.\n` }, env);
+  const results = derive(REPO_ROOT, env, hits, AT_FIXTURE);
+  assert.deepEqual(results.map((r) => r.outcome), ["anchor", "anchor"]);
+  const [write] = planWrites(results, found, env);
+  const anchored = `${FIXTURE}/go/decls.go#Alpha`;
+  assert.equal(write.next, `See \`${anchored} and ${anchored}\` here.\n`);
 });
 
 test("a glued document no longer aborts the write plan for a sound one (#2158)", () => {

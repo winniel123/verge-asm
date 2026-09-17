@@ -689,6 +689,39 @@ degradation drops the token out of the staged count and into no other count, and
 again. §8.4's degradation keeps a path a required check still reads, and a slashless name is not
 one. Route 2's reword is the escape for an undecidable token, because it leaves no token behind.
 
+### 8.7 A token one span spells two ways is held whole
+
+The rewrite edits inside the span the scan read, and it keys each edit by the token's text. One span
+therefore rewrites every copy of a token alike. Two copies can nonetheless earn two verdicts,
+because a verdict reads the glue that follows the copy, and each copy carries its own. A copy
+converts where nothing follows it, and degrades under §3.3 rule 3 where a second line number does.
+
+**Where the copies disagree, the sweep holds every one of them.** Converting on a split verdict
+writes one copy's verdict over the other's, and the losing copy's line numbers leave the document
+with nothing to report them.
+[`docs-site/scripts/sweep/derive.mjs#withholdSplit`](../../docs-site/scripts/sweep/derive.mjs) names
+the rule. **Copies that agree still convert**, because one verdict written twice is the verdict each
+copy earned.
+
+**The span is the range the rewrite edits, never the node the scan read.**
+[`docs-site/scripts/sweep/rewrite.mjs#rewriteDocument`](../../docs-site/scripts/sweep/rewrite.mjs)
+merges an enclosed range into its enclosing one, so a link and a code span inside its label are one
+span and not two. A hold keyed on the node alone leaves that pair unheld, and the rewrite then
+refuses the whole run.
+
+**The class is latent.** A dry run over the whole tree reads 976 tokens, and no span in it spells
+one token two ways. The rule stands on the shape the rewrite can reach, not on a site it has found.
+
+Two alternatives were rejected.
+
+1. **Rewrite each copy on its own verdict.** The scan addresses a copy inside the node's value, and
+   the rewrite edits the source. A code span drops its fence and may drop one space, and a multi-line
+   span folds its line endings, so the two addresses do not map onto one another. The hold needs no
+   such map.
+2. **Let the rewrite refuse.** It refuses the whole batch, not the one document, which is the abort
+   [#2158](https://github.com/winniel123/verge-asm/issues/2158) removed. A hold leaves every sound
+   document beside it convertible.
+
 ---
 
 ## 9. Non-goals
