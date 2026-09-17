@@ -11,6 +11,7 @@ import { rewriteDocument, replacementFor, trailingGlue, namesAnotherSite } from 
 import { auditAnchors, countByFamily } from "./sweep/audit.mjs";
 import { familyOf } from "./citations/scope.mjs";
 import { trackedBasenames, trackedExtensions } from "./citations/classify.mjs";
+import { rivalName } from "./sweep/corroborate.mjs";
 import {
   selectFiles,
   planFor,
@@ -909,4 +910,33 @@ test("#2160 scanDocuments carries the foreign basenames the derivation reads", (
   assert.deepEqual([...scanned.foreignInDocument], ["one.go"]);
   const [result] = derive(REPO_ROOT, env, [scanned], AT_FIXTURE);
   assert.equal(result.outcome, "held");
+});
+
+// The identifier pattern cuts `fa97` out of `860fa97`, and F12 counts that site (#2257).
+test("a bare hex commit hash spells no candidate name", () => {
+  const env = envFor(["cmd/web/signals.go"]);
+  const line = "`860fa97`: the commit that moved `x.go:1`";
+  assert.equal(rivalName(line, "x.go:1", ["fa97"], "Alpha", env).verdict, "unproven");
+});
+
+test("a hash of every git width spells no candidate name", () => {
+  const env = envFor(["cmd/web/signals.go"]);
+  const full = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+  for (const hash of ["860fa97", "860fa9712c", full, "deadb33f"]) {
+    const line = `\`${hash}\` moved \`x.go:1\``;
+    const names = [...hash.matchAll(/[A-Za-z_][A-Za-z0-9_.]*/g)].map(([m]) => m);
+    assert.equal(names.length > 0, true, `${hash} yields no identifier to suppress`);
+    assert.equal(rivalName(line, "x.go:1", names, "Alpha", env).verdict, "unproven", hash);
+  }
+});
+
+// A word that is hex by accident is still prose, and a name is still a name (#2257).
+test("a hex-shaped word and a real name are untouched by the hash guard", () => {
+  const env = envFor(["cmd/web/signals.go"]);
+  const bad = rivalName("`defaced` moved `x.go:1`", "x.go:1", ["defaced"], "Alpha", env);
+  assert.equal(bad.verdict, "suspect");
+  assert.equal(bad.rival, "defaced");
+  const good = rivalName("`Beta` moved `x.go:1`", "x.go:1", ["Beta"], "Alpha", env);
+  assert.equal(good.verdict, "suspect");
+  assert.equal(good.rival, "Beta");
 });

@@ -225,11 +225,29 @@ drifts.
    would without the guard, and the tool records the pair for a human to read. A silent degrade
    here would drop a sound anchor, and a silent conversion would keep a wrong one. Neither is
    honest, so the tool reports rather than decides.
-3. **An identifier inside a route span is not a declaration name.** A span holding a space or a
-   leading `/` spells a route, a header or a command. It corroborates nothing and it contradicts
-   nothing.
+3. **An identifier inside a route span is not a declaration name.** A span holding a leading `/`,
+   or holding both a space and a `/`, spells a route, a header or a command. It corroborates
+   nothing and it contradicts nothing.
+4. **An identifier cut out of a bare commit hash is not a declaration name.** A span whose whole
+   body is 7 to 40 lowercase hexadecimal characters, at least one of them a digit, yields no
+   candidate name.
 
 Rule 3 closes class B. Rule 2 bounds class A rather than closing it.
+
+**A space alone does not spell a route, and rule 3 said it did when it shipped.** The rule as
+written read `` `func Alpha() int` `` as a route, so a signature stopped corroborating and the next
+rival degraded a sound anchor.
+[#2010](https://github.com/winniel123/verge-asm/pull/2010) narrowed the test to ask for both a
+space and a slash, and recorded the cause in its own body. The sentence above kept the wider
+wording until [#2257](https://github.com/winniel123/verge-asm/issues/2257) found the two
+disagreeing. The code is the record of that decision, and this sentence now matches it.
+
+**Rule 4 answers a shape §9 fact F12 measured.** The identifier pattern starts on a letter, so it
+cuts `fa97` out of `860fa97` and offers the tail as a candidate. §5.3 delegates a new
+false-positive class to a builder, and this is one. The digit keeps the rule off `defaced`, which
+is seven hexadecimal characters and also a word. The cost is a hash that spells no digit at all.
+Six of the sixteen hexadecimal characters are letters. That costs about 1 seven-character hash in
+960. A longer abbreviation is rarer still, at about 1 in 2600 for eight characters.
 
 ### 5.3 What the refinement must not do
 
@@ -287,7 +305,9 @@ one pull request with its own §9 measurement. F12 is that measurement, and it l
 [#2155](https://github.com/winniel123/verge-asm/issues/2155)'s own third fact assigns the breakdown
 to the implementing session as its first step. **The rate F12 records is 14 false positives in 14,
 over an empty true-positive population.** The two shapes this section leaves open are a retired
-line anchor and a residue of five names. A reader of that rate decides what the rule may reach.
+line anchor and a residue of five names. Rule 4 takes one of the five. So the residue reads as four
+names against the repaired guard, and the rate reads as 13 of 13. Either rate is every raised name.
+A reader of that rate decides what the rule may reach.
 
 The pull request that ships the rule also owns §2, where a suspect anchor takes its name from its
 rival. A rival is a declaration the target really has. So a verdict the tree test awards has no
@@ -593,6 +613,16 @@ own lines into the population it counts.
 
 So the tree test's measured false-positive rate on this boundary is 14 of 14. Its measured
 true-positive population on this boundary is empty.
+
+**The `fa97` row no longer reaches the population, and this fact keeps its figures.** §5.2 rule 4
+now drops a span that spells a bare commit hash, so the `comment-policy.md` site yields no
+candidate name. That site is one occurrence of shape D, on one anchor, and the hash is spelled
+before the citation. Read against the repaired guard, the raised population is 13 occurrences over
+11 anchors. Shape D falls to 5 occurrences and 4 distinct names. Six of the 11 spell their name
+before the citation. This paragraph is arithmetic over the table above, not a second run. No rule
+of [#2155](https://github.com/winniel123/verge-asm/issues/2155)'s shape turns on it. The
+false-positive rate stays every raised name, at 13 of 13. The true-positive population stays empty.
+A run that re-measures this fact supersedes both readings.
 
 **Shape B is a retired line anchor, spelled as a bare basename.** §8.4 of
 [citation anchors](citation-anchors.md) stages that form, and the conversion of
