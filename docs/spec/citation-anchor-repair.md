@@ -245,8 +245,9 @@ disagreeing. The code is the record of that decision, and this sentence now matc
 **Rule 4 answers a shape §9 fact F12 measured.** The identifier pattern starts on a letter, so it
 cuts `fa97` out of `860fa97` and offers the tail as a candidate. §5.3 delegates a new
 false-positive class to a builder, and this is one. The digit keeps the rule off `defaced`, which
-is seven hexadecimal characters and a word; the cost is the roughly 1 short hash in 700 that spells
-no digit.
+is seven hexadecimal characters and also a word. The cost is a hash that spells no digit at all.
+Six of the sixteen hexadecimal characters are letters. That costs about 1 seven-character hash in
+960. A longer abbreviation is rarer still, at about 1 in 2600 for eight characters.
 
 ### 5.3 What the refinement must not do
 
@@ -304,7 +305,7 @@ one pull request with its own §9 measurement. F12 is that measurement, and it l
 [#2155](https://github.com/winniel123/verge-asm/issues/2155)'s own third fact assigns the breakdown
 to the implementing session as its first step. **The rate F12 records is 14 false positives in 14,
 over an empty true-positive population.** The two shapes this section leaves open are a retired
-line anchor and a residue of five names. Rule 4 takes one of the five, so the residue reads as four
+line anchor and a residue of five names. Rule 4 takes one of the five. So the residue reads as four
 names against the repaired guard, and the rate reads as 13 of 13. Either rate is every raised name.
 A reader of that rate decides what the rule may reach.
 
@@ -616,12 +617,12 @@ true-positive population on this boundary is empty.
 **The `fa97` row no longer reaches the population, and this fact keeps its figures.** §5.2 rule 4
 now drops a span that spells a bare commit hash, so the `comment-policy.md` site yields no
 candidate name. That site is one occurrence of shape D, on one anchor, and the hash is spelled
-before the citation. Read against the repaired guard the raised population is 13 occurrences over
-11 anchors, shape D falls to 5 occurrences and 4 distinct names, and six of the 11 spell their name
+before the citation. Read against the repaired guard, the raised population is 13 occurrences over
+11 anchors. Shape D falls to 5 occurrences and 4 distinct names. Six of the 11 spell their name
 before the citation. This paragraph is arithmetic over the table above, not a second run. No rule
-of [#2155](https://github.com/winniel123/verge-asm/issues/2155)'s shape turns on it: the
-false-positive rate stays every raised name, at 13 of 13, and the true-positive population stays
-empty. A run that re-measures this fact supersedes both readings.
+of [#2155](https://github.com/winniel123/verge-asm/issues/2155)'s shape turns on it. The
+false-positive rate stays every raised name, at 13 of 13. The true-positive population stays empty.
+A run that re-measures this fact supersedes both readings.
 
 **Shape B is a retired line anchor, spelled as a bare basename.** §8.4 of
 [citation anchors](citation-anchors.md) stages that form, and the conversion of
