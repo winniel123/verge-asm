@@ -14,16 +14,17 @@ proof: {test: "docs-site/scripts/sweep-line-anchors.test.mjs::a field access on 
 ## Decision
 
 > **A field access on a declared type corroborates nothing, and `sameName` keeps its suffix-only
-> test.** A citing `signalRow.seenAge` neither corroborates the anchor `signalRow` nor rivals it. It
-> scores `unproven`, and the dotted-name question moves to limb 1 of the tree test, which
-> [#2155](https://github.com/winniel123/verge-asm/issues/2155) owns.
+> test.** A citing `signalRow.seenAge` does not corroborate the anchor `signalRow`. It scores
+> `unproven` where the target declares no `seenAge`, and the dotted-name question moves to limb 1 of
+> the tree test, which [#2155](https://github.com/winniel123/verge-asm/issues/2155) owns.
 >
 > A reader asks why the most ordinary way prose names a declaration fails to support it. Because
-> `sameName` serves both arms of `rivalName`. Corroboration returns before the rival scan, so one
-> prefix arm would suppress rivals that rule 1 reaches and manufacture rivals at the same time.
+> `sameName` serves both arms of `rivalName`. Corroboration returns before the rival scan, so
+> widening it suppresses rivals that rule 1 reaches, and that is the relaxation §5.3 forbids.
 >
-> Rejected: a prefix arm on `sameName`. `docs/spec/citation-anchor-repair.md` §5.3 bars relaxing
-> rule 1, forbids a second matcher, and the tree holds no harness to measure the net.
+> Rejected: a prefix arm on `sameName`, at either call site.
+> `docs/spec/citation-anchor-repair.md` §5.3 bars relaxing rule 1, and the tree holds no harness to
+> measure what the widening costs.
 >
 > Reversal moves an unmeasured number of sound anchors, in both directions at once.
 
@@ -31,7 +32,8 @@ proof: {test: "docs-site/scripts/sweep-line-anchors.test.mjs::a field access on 
 
 `docs-site/scripts/sweep/corroborate.mjs#sameName` answers true when two names are equal, or when
 one ends with a dot and the other. It matches a **suffix** and not a prefix. So
-`retention.Retirer.Run` names the declaration `Retirer.Run`, and `signalRow.seenAge` names nothing.
+`retention.Retirer.Run` names the declaration `Retirer.Run`, and `signalRow.seenAge` names `seenAge`
+but never `signalRow`.
 
 [#2257](https://github.com/winniel123/verge-asm/issues/2257) filed that asymmetry as a defect. A
 field access on a declared type is an ordinary way for prose to name that declaration, and the
@@ -39,17 +41,19 @@ citing line at ADR-0179 line 33 spells exactly that pair. The name falls between
 corroborates nothing, and `docs/spec/citation-anchor-repair.md` §5.3 does not close it to the tree
 test either.
 
-§9 fact F12 counts it. `signalRow.seenAge` is one of the 14 raised occurrences, and the fact's site
-table records it as a false positive, "a struct field of the anchor's own type, so the prose
-supports the anchor rather than rivalling it".
+§9 fact F12 counts it. `signalRow.seenAge` is one of the 14 occurrences the run raised, and the
+fact's site table records it as a false positive, "a struct field of the anchor's own type, so the
+prose supports the anchor rather than rivalling it". **That 14 is the run's own figure, taken
+before §5.2 rule 4.** Against the repaired guard the raised population is 13 over 11 anchors, and
+this site is one of the 13 either way. Every figure below states which reading it takes.
 
 The obvious repair is one clause: give `sameName` a prefix arm. This ADR rules that the clause is
 not available.
 
-## 2. Why the obvious repair is not local
+## 2. Where a prefix arm could go, and why the arms are coupled
 
-`sameName` has two callers inside `docs-site/scripts/sweep/corroborate.mjs#rivalName`, and they
-want opposite things.
+`sameName` has two callers inside `docs-site/scripts/sweep/corroborate.mjs#rivalName`, and they want
+opposite things.
 
 | Arm | What it asks | What a match does |
 | --- | --- | --- |
@@ -59,13 +63,24 @@ want opposite things.
 The corroboration arm runs first and returns. So the two arms are not independent: every extra
 corroboration is a rival that never gets scanned for.
 
-One test predicate serves both. `docs/spec/citation-anchor-repair.md` §5.3 requires that, in as many
-words: *It must not reimplement `rivalName`. One derivation serves every caller.* So a prefix arm
-cannot be given to one arm and withheld from the other.
+A prefix arm can be written at one call site alone. Nothing in the code forbids it, and
+`docs/spec/citation-anchor-repair.md` §5.3's *It must not reimplement `rivalName`* does not reach
+that far — it forbids a second derivation of the verdict, which a widened predicate inside the one
+derivation is not. So the choice is real, and there are three of them. Each fails on rule 1.
+
+| Where the prefix arm goes | Effect on rule 1 |
+| --- | --- |
+| Corroboration only | pure suppression: rivals rule 1 reaches today stop being picked |
+| Rival only | pure manufacture: names that score `unproven` today degrade, on an unmeasured shape |
+| Both | suppression and manufacture at once, with no way to read the net |
+
+The first is the one that answers §1's defect, and it is the one that relaxes rule 1 outright. The
+second does not answer the defect at all. §4 takes each in turn.
 
 ## 3. The two directions, and why the net is unreadable
 
-A prefix arm widens both arms at once.
+A prefix arm inside `sameName` itself reaches both call sites, and widens them at once. This is the
+form §2's third row names, and it is what "give `sameName` a prefix arm" means read literally.
 
 - **Fewer degradations.** A citing line spelling `signalRow.seenAge` beside an anchor on `signalRow`
   now corroborates. The verdict returns early, so a rival that rule 1 would have reached is never
@@ -83,24 +98,31 @@ run was hand-instrumented, it blanked every other span per probe, and the tree h
 it. §5.3 forbids writing a second matcher to measure the first. So the measurement that would settle
 this cannot be taken with the tools the tree has.
 
-## 4. The rejected alternative
+## 4. The rejected alternatives
 
 **Give `sameName` a prefix arm, and take the widening as an improvement on its face.**
 
 The argument for it is real. A field access genuinely names its type. Raising it to `corroborated`
 removes a measured false positive from F12, and it is one clause of code.
 
-It is rejected on three grounds, and the first is decisive.
+§2 splits it into three. Each is rejected, and the ground differs.
 
-1. **§5.3 bars it.** *It must not lower the bias toward degrading* and *A builder never relaxes rule
-   1*. Widening corroboration suppresses rivals that rule 1 would otherwise reach. That is the
-   relaxation the sentence names, whatever the intent behind it.
-2. **It is unmeasured in the direction that matters.** §5.3 also rules that a rule raising a verdict
-   reaches only a shape whose false-positive rate a §9 fact records. No fact records the rate for
-   the rival half of this widening, because no run has taken it.
-3. **It buys one occurrence.** Against the repaired guard, F12's raised population is 13 occurrences
-   over 11 anchors. `signalRow.seenAge` is one of them. The clause spends the matcher's central
-   contract on a single site.
+**At the corroboration site alone.** This is the repair §1's defect asks for, and it is the one
+§5.3 names outright: *It must not lower the bias toward degrading*, and *A builder never relaxes
+rule 1*. Every corroboration it adds is a rival that rule 1 reaches today and would stop reaching.
+The relaxation is the whole of the effect, not a side effect of it.
+
+**At the rival site alone.** It answers none of §1. `signalRow.seenAge` still fails to corroborate
+`signalRow`, so the F12 site is untouched. What it does instead is degrade names that score
+`unproven` today. §5.3 rules that a rule moving a verdict reaches only a shape whose false-positive
+rate a §9 fact records, and no fact records this one.
+
+**At both.** The two effects run in opposite directions, and §3 shows the net is unreadable from the
+source and unmeasurable with the tools the tree has.
+
+**And it buys one occurrence.** Against the repaired guard, F12's raised population is 13
+occurrences over 11 anchors. `signalRow.seenAge` is one of them. Any of the three spends the
+matcher's central contract on a single site.
 
 ## 5. The cheaper reading, and why it is not this ADR's to take
 
@@ -108,9 +130,10 @@ It is rejected on three grounds, and the first is decisive.
 the tree spells a dotted name's **tail** — `seenAge` of `signalRow.seenAge`, `password_hash` of
 `account.password_hash` — rather than the whole name.
 
-That reading reaches further than a prefix arm and costs less. It empties shape B, drops shape D
-from 6 occurrences to 3, and cuts the raised population from 14 occurrences to 3. It touches
-`sameName` not at all, so it moves neither arm of `rivalName`.
+That reading reaches further than a prefix arm and costs less. Read against the run's own figures,
+it empties shape B, drops shape D from 6 occurrences to 3, and cuts the raised population from 14
+to 3. Those three numbers are all pre-rule-4, because F12 states the limb-1 arithmetic over its
+original table. It touches `sameName` not at all, so it moves neither arm of `rivalName`.
 
 It is out of scope here for one reason: the tree test is unimplemented.
 [#2155](https://github.com/winniel123/verge-asm/issues/2155) owns it, and that ruling binds it to
@@ -142,10 +165,16 @@ repair, because the line-anchor conversion of
 No code changes. The matcher behaves today as this ADR rules it should, and the ruling is what was
 missing.
 
-A citing line that names a declaration through a field access keeps scoring `unproven`. The anchor
-converts, and the guard reports nothing. That is the honest verdict while the question is open: the
-line is evidence the matcher cannot read, and §5.2 rule 2 exists because a silent decision either way
-is worse than a report.
+A citing line that names a declaration through a field access keeps scoring `unproven`, where the
+target declares no name matching the tail. The anchor converts, and the guard reports nothing. That
+is the honest verdict while the question is open: the line is evidence the matcher cannot read, and
+§5.2 rule 2 exists because a silent decision either way is worse than a report.
+
+**The suffix arm already reaches the tail, where the target declares it.** `signalRow.seenAge` ends
+with `.seenAge`, so a target that declares `seenAge` takes it as a rival before the citation, and
+rule 1 degrades the token. The §8 proof measures that. It is not a new effect of this ADR, and it is
+why the Decision scopes its `unproven` claim rather than asserting the name rivals nothing. It is
+also why limb 1's tail reading in §5 is the shape that fits this evidence, and a prefix arm is not.
 
 F12 keeps its figures. Nothing here changes the matcher, so nothing here needs a re-measurement.
 
@@ -155,6 +184,20 @@ say how many, or which way.
 ## 8. Proof
 
 The proof names `a field access on the anchor's own type corroborates nothing`, in
-`docs-site/scripts/sweep-line-anchors.test.mjs`. That test locks both halves. `signalRow.seenAge` against the region `signalRow`
-scores `unproven`, and `web.signalRow` against the same region still scores `corroborated`. The
-first is the prefix arm this ADR rejects. The second is the suffix arm it keeps.
+`docs-site/scripts/sweep-line-anchors.test.mjs`. It asserts four verdicts on one citing line
+spelling `signalRow.seenAge`, against the region `signalRow`.
+
+| The target declares | Verdict | What it locks |
+| --- | --- | --- |
+| `signalRow` | `unproven` | the prefix arm this ADR rejects, at the corroboration site |
+| `signalRow`, `Other` | `unproven`, no rival | the same, with the rival loop reached and matching nothing |
+| `signalRow`, `seenAge` | `suspect`, rival `seenAge` | the suffix arm reaching the tail, per §7 |
+| `signalRow`, cited as `web.signalRow` | `corroborated` | the suffix arm this ADR keeps |
+
+**This suite is not run by any required check, and the guard is therefore manual.** `test:sweep`
+appears in no workflow, because [#1975](https://github.com/winniel123/verge-asm/issues/1975) keeps
+the sweep tool out of the required checks' path. Every other `test` proof in the index names a suite
+`test` or `doclint` runs. This one does not, so a later PR could contradict this ADR with all 17
+required checks green. [#2279](https://github.com/winniel123/verge-asm/issues/2279) holds that gap.
+It is not repaired here, because wiring a new suite into a required check is a change to CI and not
+to this ruling.
