@@ -100,9 +100,22 @@ function sentenceAround(block, node) {
   return lastSentence(before) + textOf(node) + firstSentence(after);
 }
 
+// Letters only, so `x.go:4.` still closes the sentence a citation ends.
+const ABBREVIATION = /^(?:[A-Za-z]{1,2}(?:\.[A-Za-z]{1,2})*|etc|fig|no|pp|ch|eq|vol|sec|al)$/i;
+
+// A wrong split drops a hold, so this arm splits less often than the carve-out (#2286).
+function endsSentence(before, at) {
+  const run = before.slice(0, at + 1);
+  return !ABBREVIATION.test(run.slice(run.lastIndexOf(" ") + 1, -1));
+}
+
 function sentenceIndex(block, node) {
   const { before } = sentenceParts(block, node);
-  return [...before.matchAll(new RegExp(SENTENCE_END.source, "g"))].length;
+  let count = 0;
+  for (const m of before.matchAll(new RegExp(SENTENCE_END.source, "g"))) {
+    if (endsSentence(before, m.index)) count++;
+  }
+  return count;
 }
 
 function holdsProse(node) {
@@ -124,7 +137,10 @@ function addressNode(chain) {
 // The span a reader reads the token in, named so two tokens sharing one can be compared (#2286).
 export function addressScope(node, ancestors) {
   const cell = addressNode([...ancestors, node]);
-  if (cell !== null) return `cell@${cell.position?.start?.offset ?? 0}`;
+  // remark opens a row and its first cell at one offset, so the type and the end part them.
+  if (cell !== null) {
+    return `${cell.type}@${cell.position?.start?.offset ?? 0}:${cell.position?.end?.offset ?? 0}`;
+  }
   const block = nearestBlock(ancestors);
   if (block === null || block.type === "root") return null;
   return `block@${block.position?.start?.offset ?? 0}#${sentenceIndex(block, node)}`;

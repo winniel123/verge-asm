@@ -183,8 +183,10 @@ export function withholdCollapsed(results) {
       byAnchor.get(target).push(m);
     }
     for (const [target, sharing] of byAnchor) {
+      // The source already spells one line twice, so a repeat of one token loses a reader nothing.
+      if (new Set(sharing.map((m) => m.token)).size < 2) continue;
       // One converted token still parts the two, so the whole group holds or none of it does.
-      if (sharing.length > 1) for (const m of sharing) collapsed.set(m, target);
+      for (const m of sharing) collapsed.set(m, target);
     }
   }
   if (collapsed.size === 0) return results;

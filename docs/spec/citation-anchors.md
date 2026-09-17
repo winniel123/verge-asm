@@ -553,6 +553,16 @@ at a time.
 **The sweep holds every token in a collapsing group, never one of them.** Converting one member does
 part the pair. It also writes an address that is half converted, and no rule asks for that.
 
+**One token spelled twice in one address collapses nothing.** The source already names one line
+twice, so the conversion takes a reader nothing it had. A group holds only where it spells two
+tokens or more. A third token that repeats the pair's anchor still collapses against it, and the
+whole group then holds.
+
+**An abbreviation ends no sentence here.** The address index is a grouping key, not the text window
+the listener carve-out reads, so a wrong split drops a hold this section requires. The prose arm
+therefore splits less often than the carve-out does. `e.g.` and `cf.` open no new address, while a
+citation that closes a sentence, such as `` `pdf.go:113`. ``, still does.
+
 This is route 2 of §8.2. A reader names a different target, or rewords the sentence, and the tokens
 then leave the staged count. The reader performs that rewrite. The sweep may not, because §8.2's
 route 1 converts anchors and asserts nothing new.
