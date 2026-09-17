@@ -73,12 +73,17 @@ function identifiersOn(lineText, token, env) {
   return out;
 }
 
+const segments = (name) => name.split(".").length;
+
 // A name every member of a sealed union declares picks out none (SPEC §5.2 rule 5, #2285).
 function rivalFor(ident, declared, region) {
   const named = declared.filter((name) => name !== region && sameName(ident, name));
   if (named.length <= 1) return named[0] ?? null;
   // The line spells one declaration whole, so the twins that merely end with it yield to it.
-  return named.includes(ident) ? ident : null;
+  if (named.includes(ident)) return ident;
+  // `act.AccountRef.Run` reaches the method past the bare `Run` the same file declares.
+  const deepest = named.filter((name) => segments(name) === Math.max(...named.map(segments)));
+  return deepest.length === 1 ? deepest[0] : null;
 }
 
 const UNPROVEN = { verdict: "unproven", rival: null, position: null };

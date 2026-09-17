@@ -986,6 +986,20 @@ test("a name a declaration spells whole outranks the twins that end with it", ()
   assert.equal(judged.rival, "Alpha");
 });
 
+// `sameName` reads a qualified name, and a file declares the bare tail beside the method (#2285).
+test("a qualified spelling reaches the deepest name it ends with", () => {
+  const env = envFor(["internal/act/render.go"]);
+  const line = "`act.AccountRef.markedSubject` moved `x.go:1`";
+  const names = ["markedSubject", "AccountRef.markedSubject", "AccountAtRole.markedSubject"];
+  const judged = rivalName(line, "x.go:1", names, "Other", env);
+  assert.equal(judged.verdict, "suspect");
+  assert.equal(judged.rival, "AccountRef.markedSubject");
+  assert.equal(judged.position, "before");
+  // Two methods sit at the same depth, so the bare spelling still picks neither.
+  const bare = rivalName("`markedSubject` moved `x.go:1`", "x.go:1", names.slice(1), "Other", env);
+  assert.equal(bare.verdict, "unproven");
+});
+
 const UNION_LINES = [
   "package fixture",
   "",

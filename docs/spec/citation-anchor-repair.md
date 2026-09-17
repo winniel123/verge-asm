@@ -232,9 +232,10 @@ drifts.
    body is 7 to 40 lowercase hexadecimal characters, at least one of them a digit, yields no
    candidate name.
 5. **A name several declarations share picks out no rival.** An identifier that matches several
-   declared names of the target picks out none of them, and the guard picks none either. Where one
-   of those names is the identifier itself, the line spells that declaration whole, and that name
-   is the rival.
+   declared names of the target picks out none of them, and the guard picks none either. Two
+   spellings of one declaration are not several declarations. Where one matched name is the
+   identifier itself, the line spells that declaration whole. Where one alone is the deepest, a
+   qualified spelling reaches it past its own bare tail. Either one is the rival.
 
 Rule 3 closes class B. Rule 2 bounds class A rather than closing it.
 
@@ -274,8 +275,17 @@ So `sameName` matched three names, the guard took the first in sort order, and i
 pick destroys. A rival is one declaration the target really has, and an arbitrary pick between twins is
 not one. §3.3 rule 3 already refuses to pick between two names on one declaration line, and rule 5
 is that refusal on the citing line. The exact-name arm holds rule 1's reach where the line spells a
-declaration whole: `Alpha` beside `AAA.Alpha` still names `Alpha`. One receiver still rivals,
-because one name picks out one declaration. §9 fact F13 measures the reach.
+declaration whole: `Alpha` beside `AAA.Alpha` still names `Alpha`. A qualified spelling reaches the
+deepest name it ends with. `internal/act/render.go` declares `markedSubject` and
+`AccountRef.markedSubject`, and a citing `act.AccountRef.markedSubject` still names the method. One
+receiver still rivals, because one name picks out one declaration. §9 fact F13 measures the reach.
+
+**Rule 5 reaches the rival arm alone.** The corroboration arm asks another question: does the line
+name the anchor's own region? A member's own anchor is corroborated by the marker method it
+declares, so a shared name supports that anchor rather than blurring it. Tightening the
+corroboration arm would raise the bias toward degrading, and §5.3 closes a raise to a shape §9
+measures. ADR-2277 §2 records the coupling: corroboration returns before the rival scan, so every
+verdict it awards is a rival never scanned for. Rule 5 leaves that cost where it stands.
 
 ### 5.3 What the refinement must not do
 
@@ -720,13 +730,14 @@ ships §5.2 rule 5. Two commands reproduce it, both from `docs-site/`:
 `npm run sweep:line-anchors -- --report <file>`.
 
 **F13 — no verdict on today's corpus turns on a name several declarations share.** The audit judges
-633 written anchors, and the rival scan reads 533 of them. The dry run reads 976 tokens, and the
-rival scan reads 297 of them. A shared name arises in none of the 830 scans. The audit report and
-the conversion plan are byte-identical either side of rule 5.
+633 written anchors, and `rivalName` reads every one. 100 corroborate and return, so the rival scan
+reads 533. The dry run reads 976 tokens and reaches a target for 332 of them. 35 of those
+corroborate, so the rival scan reads 297. A shared name arises in none of the 830 scans.
 
-The 100 anchors the audit's rival scan never reaches are the corroborated ones, which return before
-the scan. The dry run holds 555 tokens before it reads a target, and it degrades others on the
-path. So 297 tokens reach a target's declaration set.
+Either side of rule 5 the audit report and the conversion plan carry the same verdict on every row.
+The two runs that measured it ran before this section's own lines moved, and their reports are
+byte-identical. A later run shifts the line number of a citation this document holds, and nothing
+else.
 
 **The shape is real, and it sits in the population no arm reads today.** ADR-0209 line 57 spells
 three path-less tokens, and the sweep holds each one for a reader. Supplied with the three proven paths, the
