@@ -205,6 +205,20 @@ test("a name outside a code span is prose, so it corroborates nothing", () => {
   assert.equal(r.anchor, "Alpha");
 });
 
+test("a rival wrapped onto the source line above is out of the guard's reach", () => {
+  // A wrap puts the rival on the line above, which is ADR-0212's shape (ADR-2283 §2).
+  const token = goToken("return 1");
+  const whole = "`Delta.Epsilon` routes the cold kind to the streamed fan-out (`x.go:1`)";
+  const [joined] = runCiting({ "go/decls.go": GO_SOURCE }, token, whole);
+  assert.equal(joined.outcome, "degraded");
+  assert.match(joined.reason, /Delta\.Epsilon/);
+
+  const wrapped = "routes the cold kind to the streamed fan-out (`x.go:1`)";
+  const [split] = runCiting({ "go/decls.go": GO_SOURCE }, token, wrapped);
+  assert.equal(split.outcome, "anchor");
+  assert.equal(split.anchor, "Alpha");
+});
+
 test("a hit carrying no citing line derives exactly as it did before the guard", () => {
   const [r] = run({ "go/decls.go": GO_SOURCE }, [goToken("return 1")]);
   assert.equal(r.outcome, "anchor");

@@ -12960,6 +12960,42 @@
         "words": 148,
         "text": "> **A field access on a declared type corroborates nothing, and `sameName` keeps its suffix-only\n> test.** A citing `signalRow.seenAge` does not corroborate the anchor `signalRow`. It scores\n> `unproven` where the target declares no `seenAge`, and the dotted-name question moves to limb 1 of\n> the tree test, which [#2155](https://github.com/winniel123/verge-asm/issues/2155) owns.\n>\n> A reader asks why the most ordinary way prose names a declaration fails to support it. Because\n> `sameName` serves both arms of `rivalName`. Corroboration returns before the rival scan, so\n> widening it suppresses rivals that rule 1 reaches, and that is the relaxation §5.3 forbids.\n>\n> Rejected: a prefix arm on `sameName`, at either call site.\n> `docs/spec/citation-anchor-repair.md` §5.3 bars relaxing rule 1, and the tree holds no harness to\n> measure what the widening costs.\n>\n> Reversal moves an unmeasured number of sound anchors, in both directions at once."
       }
+    },
+    {
+      "number": 2283,
+      "file": "docs/adr/2283-a-planned-anchor-is-read-against-its-target-before-the-document-converts.md",
+      "title": "A planned anchor is read against its target before the document converts",
+      "slug": "a-planned-anchor-is-read-against-its-target-before-the-document-converts",
+      "date": "2026-09-17",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "docs-site/scripts/sweep-line-anchors.test.mjs::a rival wrapped onto the source line above is out of the guard's reach"
+      },
+      "ticket": 2283,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 150,
+        "text": "> **A document converts only after a human reads every planned anchor against its target and against\n> the citing prose.** [#2156](https://github.com/winniel123/verge-asm/issues/2156)'s zero-held bar\n> gains a fourth test. A token the read rejects degrades to a bare path, and the rest of the document\n> converts. The `--history` arm runs per slice as evidence for the read, never in place of it.\n>\n> A reader asks why a mechanical sweep needs a hand. Because both instruments passed ADR-0212's one\n> wrong anchor. The guard reads the citation's own source line, and a wrap put the rival above it.\n> The arm found no change, because the number was wrong when it landed.\n>\n> Rejected: hold the whole document when one anchor fails the read. That freezes its sound tokens in\n> the form the conversion retires.\n>\n> Reversal writes an anchor no check will ever question."
+      }
     }
   ]
 }
