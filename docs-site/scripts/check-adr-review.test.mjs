@@ -72,6 +72,7 @@ function comment(sha, verdict, extra = "") {
 
 const added = (filename, patch) => ({ filename, status: "added", patch });
 const modified = (filename, patch) => ({ filename, status: "modified", patch });
+const renamed = (filename, patch, from) => ({ filename, status: "renamed", patch, previous_filename: from });
 
 function run(overrides = {}) {
   const contents = { [FILE_1700]: ADR_1700, [FILE_1701]: ADR_1700.replace("1700", "1701") };
@@ -164,13 +165,13 @@ test("addedAdrFiles keeps only added ADR files under docs/adr/", () => {
     added(FILE_1700),
     modified(FILE_1701),
     { filename: "docs/adr/0227-x.md", status: "removed" },
-    { filename: "docs/adr/0226-y.md", status: "renamed" },
+    renamed("docs/adr/0226-y.md", "@@ -1 +1 @@", "docs/adr/0226-x.md"),
     added("docs/adr/index.json"),
     added("docs/spec/1702-not-an-adr.md"),
     added("docs/adr/README.md"),
   ];
   assert.deepEqual(addedAdrFiles(files), [FILE_1700]);
-  assert.deepEqual(modifiedAdrFiles(files), [FILE_1701]);
+  assert.deepEqual(modifiedAdrFiles(files), ["docs/adr/0226-y.md", FILE_1701]);
 });
 
 test("the added and modified sets stay distinct", () => {
@@ -179,6 +180,8 @@ test("the added and modified sets stay distinct", () => {
   assert.deepEqual(modifiedAdrFiles(files), [FILE_1701]);
   assert.deepEqual(addedAdrFiles([modified(FILE_1700)]), []);
   assert.deepEqual(modifiedAdrFiles([added(FILE_1700)]), []);
+  assert.deepEqual(addedAdrFiles([renamed(FILE_1700, "@@ -1 +1 @@", FILE_1701)]), []);
+  assert.deepEqual(modifiedAdrFiles([renamed(FILE_1700, "@@ -1 +1 @@", FILE_1701)]), [FILE_1700]);
 });
 
 test("bodyDecision runs from the first ## Decision to the next heading of any level", () => {
@@ -326,15 +329,19 @@ const PATCH_MARKER = [
   " ## Decision",
 ].join("\n");
 
-function runModified(file, patch, contents, overrides = {}) {
+function runFiles(files, contents, overrides = {}) {
   return evaluate({
     headSha: HEAD,
-    files: [modified(file, patch), modified("docs/adr/index.json")],
+    files,
     comments: [comment(HEAD, "pass")],
     prBody: "Closes #2300",
     readAdr: (path) => contents[path] ?? null,
     ...overrides,
   });
+}
+
+function runModified(file, patch, contents, overrides = {}) {
+  return runFiles([modified(file, patch), modified("docs/adr/index.json")], contents, overrides);
 }
 
 test("legacyQuoteRuns keeps a sentinel-free blockquote run and drops one that carries a sentinel", () => {
@@ -401,6 +408,64 @@ test("a modified ADR above 227 with no diff fails closed", () => {
   const r = runModified(FILE_2300, undefined, { [FILE_2300]: ADR_2300 });
   assert.equal(r.code, 1);
   assert.match(r.problems.join("\n"), /carries no diff, so row M1 cannot be judged/);
+});
+
+const FILE_2300_RENAMED = "docs/adr/2300-a-rule-under-a-new-slug.md";
+
+function runRenamed(patch, contents, overrides = {}) {
+  const files = [renamed(FILE_2300_RENAMED, patch, FILE_2300), modified("docs/adr/index.json")];
+  return runFiles(files, contents, overrides);
+}
+
+test("a renamed ADR above 227 edited in the same commit is judged, not dropped", () => {
+  const prose = runRenamed(PATCH_PROSE, { [FILE_2300_RENAMED]: ADR_2300_PROSE });
+  assert.equal(prose.code, 1);
+  assert.deepEqual(prose.modified, [FILE_2300_RENAMED]);
+  const text = prose.problems.join("\n");
+  assert.match(text, /2300-a-rule-under-a-new-slug\.md:23 deletes a line outside a standing legacy marker/);
+  assert.match(text, /\{kind: amends, adr: 2300\}/);
+  assert.deepEqual(prose.reviewed, []);
+
+  const contents = { [FILE_2300_RENAMED]: ADR_2300_CORRECTED };
+  const ok = runRenamed(PATCH_CORRECTION, contents);
+  assert.deepEqual(ok.problems, []);
+  assert.equal(ok.code, 0);
+  assert.deepEqual(ok.reviewed, [FILE_2300_RENAMED]);
+
+  const none = runRenamed(PATCH_CORRECTION, contents, { comments: [] });
+  assert.equal(none.code, 1);
+  assert.match(none.problems.join("\n"), /no adr-review marker for head 0123456/);
+});
+
+test("a rename above 227 that repairs the front-matter slug is an in-place edit, which row M1 refuses", () => {
+  const stem = "a-rule-under-a-new-slug";
+  const patch = [
+    "@@ -2,5 +2,5 @@",
+    " number: 2300",
+    ' title: "A rule"',
+    "-slug: a-rule",
+    `+slug: ${stem}`,
+    " date: 2026-09-17",
+  ].join("\n");
+  const r = runRenamed(patch, { [FILE_2300_RENAMED]: ADR_2300.replace("slug: a-rule", `slug: ${stem}`) });
+  assert.equal(r.code, 1);
+  const text = r.problems.join("\n");
+  assert.match(text, /2300-a-rule-under-a-new-slug\.md:4 deletes a line outside a standing legacy marker/);
+  assert.match(text, /\{kind: amends, adr: 2300\}/);
+  assert.deepEqual(r.reviewed, []);
+});
+
+test("a rename above 227 that carries no content change fails closed on the absent diff", () => {
+  const r = runRenamed(undefined, { [FILE_2300_RENAMED]: ADR_2300 }, { comments: [] });
+  assert.equal(r.code, 1);
+  assert.match(r.problems.join("\n"), /2300-a-rule-under-a-new-slug\.md carries no diff, so row M1 cannot be judged/);
+  assert.deepEqual(r.reviewed, []);
+
+  const legacy = runFiles([renamed("docs/adr/0110-a-new-slug.md", undefined, FILE_0110)], {}, { comments: [] });
+  assert.deepEqual(legacy.problems, []);
+  assert.equal(legacy.code, 0);
+  assert.deepEqual(legacy.modified, ["docs/adr/0110-a-new-slug.md"]);
+  assert.deepEqual(legacy.reviewed, []);
 });
 
 test("a modified ADR above 227 the checkout cannot read fails", () => {
