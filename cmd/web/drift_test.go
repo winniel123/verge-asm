@@ -398,22 +398,90 @@ func TestDriftTransitionDelta(t *testing.T) {
 		driftOpenedRow(1, prevAt, "c.example.com", `{"outcome":"Resolved"}`, ""),
 	}
 
-	if got := driftTransitionDelta(5, prevRows, oldEnough, prevStart, now); got != "+2" {
+	if got := driftTransitionDelta(5, prevRows, false, oldEnough, prevStart, now); got != "+2" {
 		t.Errorf("signed delta = %q, want %q", got, "+2")
 	}
 	// The want string is U+2212, not an ASCII hyphen — signedCount renders the true minus.
-	if got := driftTransitionDelta(1, prevRows, oldEnough, prevStart, now); got != "−2" {
+	if got := driftTransitionDelta(1, prevRows, false, oldEnough, prevStart, now); got != "−2" {
 		t.Errorf("negative delta = %q, want %q", got, "−2")
 	}
-	if got := driftTransitionDelta(3, prevRows, oldEnough, prevStart, now); got != "0" {
+	if got := driftTransitionDelta(3, prevRows, false, oldEnough, prevStart, now); got != "0" {
 		t.Errorf("zero delta = %q, want %q", got, "0")
 	}
-	if got := driftTransitionDelta(5, prevRows, pgtype.Timestamptz{}, prevStart, now); got != "" {
+	if got := driftTransitionDelta(5, prevRows, false, pgtype.Timestamptz{}, prevStart, now); got != "" {
 		t.Errorf("no-batch delta = %q, want empty", got)
 	}
 	tooYoung := pgtype.Timestamptz{Time: now.Add(-9 * 24 * time.Hour), Valid: true}
-	if got := driftTransitionDelta(5, prevRows, tooYoung, prevStart, now); got != "" {
+	if got := driftTransitionDelta(5, prevRows, false, tooYoung, prevStart, now); got != "" {
 		t.Errorf("young-install delta = %q, want empty", got)
+	}
+}
+
+func TestDriftTransitionDeltaIsSuppressedWhenABoundBindsAWindow(t *testing.T) {
+	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+	prevStart := now.Add(-14 * 24 * time.Hour)
+	prevAt := now.Add(-10 * 24 * time.Hour)
+	oldEnough := pgtype.Timestamptz{Time: now.Add(-30 * 24 * time.Hour), Valid: true}
+	prevRows := foldRows(1, prevAt, "p", 3)
+
+	if got := driftTransitionDelta(3, prevRows, true, oldEnough, prevStart, now); got != "" {
+		t.Errorf("capped delta = %q, want empty: a difference of two floors is not a difference", got)
+	}
+	if got := driftTransitionDelta(3, prevRows, false, oldEnough, prevStart, now); got != "0" {
+		t.Errorf("unbounded delta = %q, want %q: the guard must bind on a bound alone", got, "0")
+	}
+
+	bounded := foldRows(1, prevAt, "q", int(driftBatchLimit)+1)
+	if got := driftTransitionDelta(3, bounded, false, oldEnough, prevStart, now); got != "" {
+		t.Errorf("per-batch-bounded delta = %q, want empty: the fold listed fewer changes than it held", got)
+	}
+}
+
+func TestDriftPageSuppressesTheDeltaWhenABoundBindsAWindow(t *testing.T) {
+	render := func(t *testing.T, prevSizes []int, curSize int) string {
+		t.Helper()
+		f := newFakeStore()
+		admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+		addNameSeed(t, f, admin.ID, "example.com")
+
+		now := fixedClock()()
+		// The estate must have seen the previous window, or the chip is suppressed for that.
+		f.addFoldedBatch(t, now.AddDate(0, 0, -30), "seen", 1)
+		// A 7d period's previous window is 14d to 7d back.
+		for b, n := range prevSizes {
+			f.addFoldedBatch(t, now.AddDate(0, 0, -10).Add(time.Duration(b)*time.Minute),
+				fmt.Sprintf("p%02d-", b), n)
+		}
+		f.addFoldedBatch(t, now.AddDate(0, 0, -2), "cur", curSize)
+
+		base := start(t, f, "")
+		ac := login(t, base, "admin", "hunter2hunter2")
+		return getBody(t, ac, base+"/drift?period=7d", http.StatusOK)
+	}
+
+	feedCap := make([]int, int(driftFeedLimit/driftBatchLimit)+1)
+	for i := range feedCap {
+		feedCap[i] = int(driftBatchLimit)
+	}
+
+	if page := render(t, []int{int(driftBatchLimit)}, 3); !strings.Contains(page, `class="dr-delta"`) {
+		t.Fatalf("two windows inside every bound rendered no delta, so the cases below prove nothing; body: %s", page)
+	}
+
+	for _, tc := range []struct {
+		name string
+		prev []int
+		cur  int
+	}{
+		{"the feed cap bounds the previous window", feedCap, 3},
+		{"the per-batch bound binds the previous window", []int{int(driftBatchLimit) + 1}, 3},
+		{"the per-batch bound binds the current window", []int{3}, int(driftBatchLimit) + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if page := render(t, tc.prev, tc.cur); strings.Contains(page, `class="dr-delta"`) {
+				t.Errorf("a bounded window rendered a delta chip, which reads as an exact figure; body: %s", page)
+			}
+		})
 	}
 }
 

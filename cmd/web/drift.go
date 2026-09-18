@@ -196,9 +196,12 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	groups, movement := buildDriftFeed(rows, s.now())
 
 	transitionCount := 0
+	currentCapped := truncated
 	// JS toggles a group open, so the whole period feed ships, never a filtered one (ADR-0178 §4).
 	for i := range groups {
 		transitionCount += len(groups[i].Events)
+		// A bounded fold lists fewer changes than it holds, so its count is a floor (ADR-2356).
+		currentCapped = currentCapped || groups[i].Truncated
 		if i >= 2 {
 			groups[i].Collapsed = true
 		}
@@ -221,11 +224,11 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		"BatchID":         batchID,
 		"BatchLabel":      batchLabel,
 		"TransitionCount": transitionCount,
-		"TransitionDelta": s.transitionDelta(r.Context(), since, until, transitionCount),
+		"TransitionDelta": s.transitionDelta(r.Context(), since, until, transitionCount, currentCapped),
 	}))
 }
 
-func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timestamptz, currentCount int) string {
+func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timestamptz, currentCount int, currentCapped bool) string {
 	if !since.Valid {
 		return ""
 	}
@@ -257,11 +260,12 @@ func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timest
 		log.Printf("web: drift: previous-window drift events: %v", err)
 		return ""
 	}
-	rows, _ = capDriftFeed(rows)
-	return driftTransitionDelta(currentCount, rows, earliest, prevStart, s.now())
+	rows, prevCapped := capDriftFeed(rows)
+	return driftTransitionDelta(currentCount, rows, currentCapped || prevCapped, earliest, prevStart, s.now())
 }
 
-func driftTransitionDelta(currentCount int, prevRows []db.ListRecentDriftEventsRow, earliest pgtype.Timestamptz, prevStart, now time.Time) string {
+func driftTransitionDelta(currentCount int, prevRows []db.ListRecentDriftEventsRow, capped bool,
+	earliest pgtype.Timestamptz, prevStart, now time.Time) string {
 	if !earliest.Valid || earliest.Time.After(prevStart) {
 		return ""
 	}
@@ -270,6 +274,11 @@ func driftTransitionDelta(currentCount int, prevRows []db.ListRecentDriftEventsR
 	prevCount := 0
 	for i := range prevGroups {
 		prevCount += len(prevGroups[i].Events)
+		capped = capped || prevGroups[i].Truncated
+	}
+	// A bounded count is a floor, so the delta is unknown, not zero (ADR-0110, #2361).
+	if capped {
+		return ""
 	}
 	text, _ := signedCount(currentCount - prevCount)
 	return text
