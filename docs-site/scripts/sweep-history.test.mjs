@@ -68,6 +68,21 @@ const THEN = [
   "",
 ].join("\n");
 
+const MOVED = [
+  "package fixture",
+  "",
+  "func Gamma() int {",
+  "\treturn 3",
+  "}",
+  "",
+  "func Alpha() int {",
+  "\treturn 1",
+  "}",
+  "",
+  "var Zeta, Eta = 1, 2",
+  "",
+].join("\n");
+
 function log(revisions) {
   return revisions
     .map(({ commit, subject, added }) => [`${BLOCK}${commit} ${subject}`, ...added.map((a) => `+${a}`)].join("\n"))
@@ -152,6 +167,30 @@ test("witnessFor takes the newest revision that still spells a number", () => {
     witness.cited.map((c) => c.fromLine),
     [8],
   );
+});
+
+test("SPEC §7 shape 6 — an unrelated edit to the citing line hides a drift before it", () => {
+  const wrote = { commit: "a".repeat(40), subject: "docs: cite the fan-out", added: [`\`${TARGET}:4\` holds it`] };
+  const touched = {
+    commit: "d".repeat(40),
+    subject: "docs: convert a second token on the line",
+    added: [`\`${TARGET}:4\` holds it, and \`${TARGET}#Gamma\``],
+  };
+  const trees = new Map([
+    [wrote.commit, THEN],
+    [touched.commit, MOVED],
+  ]);
+  const show = (_repoRoot, commit) => trees.get(commit);
+
+  const [atWrite] = judge([citation("Gamma")], [wrote], { show });
+  assert.equal(atWrite.witness.commit, wrote.commit);
+  assert.equal(atWrite.verdict, "drifted");
+  assert.equal(atWrite.then, "Alpha");
+
+  const [afterEdit] = judge([citation("Gamma")], [touched, wrote], { show });
+  assert.equal(afterEdit.witness.commit, touched.commit);
+  assert.equal(afterEdit.verdict, "consistent");
+  assert.equal(afterEdit.then, "Gamma");
 });
 
 test("an anchor the cited line did not sit in is a drift candidate", () => {

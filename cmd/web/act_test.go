@@ -318,12 +318,13 @@ func TestRecordRefusesAnUnregisteredActor(t *testing.T) {
 // The restore binds the same Record to its transaction, spec §7.6's one exception (#1834).
 
 type fakeTx struct {
-	sql    string
-	args   []any
-	trail  []string
-	ctxErr error
-	err    error
-	failOn string
+	sql        string
+	args       []any
+	trail      []string
+	ctxErr     error
+	err        error
+	failOn     string
+	vantageIDs []int64
 }
 
 func (tx *fakeTx) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
@@ -337,9 +338,41 @@ func (tx *fakeTx) Exec(ctx context.Context, sql string, args ...any) (pgconn.Com
 	return pgconn.CommandTag{}, tx.err
 }
 
-func (tx *fakeTx) Query(context.Context, string, ...any) (pgx.Rows, error) {
-	return nil, errors.New("fakeTx: Query is out of this test's reach")
+func (tx *fakeTx) Query(ctx context.Context, sql string, _ ...any) (pgx.Rows, error) {
+	tx.trail = append(tx.trail, sql)
+	tx.ctxErr = ctx.Err()
+	if tx.err != nil && (tx.failOn == "" || strings.Contains(sql, tx.failOn)) {
+		return nil, tx.err
+	}
+	return &fakeIDRows{ids: tx.vantageIDs}, nil
 }
+
+type fakeIDRows struct {
+	pgx.Rows
+	ids []int64
+	at  int
+}
+
+func (r *fakeIDRows) Next() bool {
+	r.at++
+	return r.at <= len(r.ids)
+}
+
+func (r *fakeIDRows) Scan(dest ...any) error {
+	if len(dest) != 1 {
+		return errors.New("fakeIDRows: a row holds one id")
+	}
+	p, ok := dest[0].(*int64)
+	if !ok {
+		return errors.New("fakeIDRows: an id scans into *int64")
+	}
+	*p = r.ids[r.at-1]
+	return nil
+}
+
+func (r *fakeIDRows) Close() {}
+
+func (r *fakeIDRows) Err() error { return nil }
 
 func (tx *fakeTx) QueryRow(context.Context, string, ...any) pgx.Row {
 	return nil

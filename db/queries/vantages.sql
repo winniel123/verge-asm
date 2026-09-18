@@ -36,6 +36,12 @@ FROM vantage
 WHERE availability = 'unavailable'
 ORDER BY name;
 
+-- name: ListAvailableProberVantageIDs :many
+SELECT id
+FROM vantage
+WHERE availability = 'available' AND host IS NOT NULL
+ORDER BY id;
+
 -- name: ListVantagesNeedingKey :many
 SELECT id, name, class, resolver, host, port, username, availability,
        public_key, host_key, created_by, created_at, latency_ms, platform, egress,

@@ -416,6 +416,12 @@ func replayArchive(
 		return fmt.Errorf("restore: read archive: %w", err)
 	}
 
+	// The statement below takes these rows off 'available', so the set is read first (#2200).
+	dark, err := db.New(tx).ListAvailableProberVantageIDs(ctx)
+	if err != nil {
+		return fmt.Errorf("restore: list available prober vantages: %w", err)
+	}
+
 	// No private half for the archived keys exists here, so the fleet must re-pin (ADR-0124).
 	if _, err := tx.Exec(ctx, resetProberKeysSQL); err != nil {
 		return fmt.Errorf("restore: reset prober keys: %w", err)
@@ -430,12 +436,28 @@ func replayArchive(
 		return fmt.Errorf("restore: resync sequences: %w", err)
 	}
 
+	// The Gap this opens takes a generated id, so it follows the resync above (ADR-0124, #1834).
+	if err := markReplayedVantagesUnavailable(ctx, tx, dark); err != nil {
+		return err
+	}
+
 	// The apply truncated the corpus and reset its sequence, so this row is written last.
 	// created_at defaults to now(), transaction-start, so the row marks where the break began.
 	if err := txRecorder(tx).Record(ctx, actor, act.RestoreApplied{RestoreRef: ref}); err != nil {
 		return fmt.Errorf("restore: record the discontinuity: %w", err)
 	}
 
+	return nil
+}
+
+func markReplayedVantagesUnavailable(ctx context.Context, tx db.DBTX, ids []int64) error {
+	q := db.New(tx)
+	for _, id := range ids {
+		// The one writer of that transition, so the restore opens no second Gap path (ADR-2087).
+		if err := q.MarkVantageUnavailable(ctx, id); err != nil {
+			return fmt.Errorf("restore: mark vantage %d unavailable: %w", id, err)
+		}
+	}
 	return nil
 }
 
