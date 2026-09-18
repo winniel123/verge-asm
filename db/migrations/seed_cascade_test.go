@@ -9,6 +9,20 @@ import (
 
 var seedReference = regexp.MustCompile(`references\s+seed\s*\(`)
 
+// A multi-action ALTER holds one clause per FK, so a clause ends at the next REFERENCES.
+
+func seedClause(decl string) string {
+	loc := seedReference.FindStringIndex(decl)
+	if loc == nil {
+		return ""
+	}
+	clause := decl[loc[0]+len("references"):]
+	if next := seedReference.FindStringIndex(clause); next != nil {
+		clause = clause[:next[0]]
+	}
+	return clause
+}
+
 func TestSeedForeignKeysCascadeOnDelete(t *testing.T) {
 	// R4-R2 (#752): a seed-referencing FK at the default NO ACTION turns a Seed delete into a 500.
 	schema := effectiveSchema(t)
@@ -34,16 +48,11 @@ func TestSeedForeignKeysCascadeOnDelete(t *testing.T) {
 		sort.Strings(names)
 		for _, name := range names {
 			decl := schema[table].constraints[name]
-			loc := seedReference.FindStringIndex(decl)
-			if loc == nil {
+			clause := seedClause(decl)
+			if clause == "" {
 				continue
 			}
 			carriers[table] = true
-			// A multi-action ALTER holds one clause per FK, so the clause ends at the next REFERENCES.
-			clause := decl[loc[0]+len("references"):]
-			if next := seedReference.FindStringIndex(clause); next != nil {
-				clause = clause[:next[0]]
-			}
 			if !strings.Contains(clause, "on delete cascade") {
 				t.Errorf("%s on %s must be ON DELETE CASCADE; without it, deleting a Seed that "+
 					"has a dependent %[2]s row returns a 500 (R4-R2 #752), got: %s", name, table, decl)

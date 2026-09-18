@@ -71,6 +71,9 @@ func mergeBase(t *testing.T) (string, string) {
 	if _, err := exec.LookPath("git"); err != nil {
 		return "", "git is not on PATH, so the floor this gate measures against cannot be read"
 	}
+	if _, err := gitOutput("rev-parse", "--git-dir"); err != nil {
+		return "", "this tree is no git checkout, so the floor this gate measures against is absent"
+	}
 	for _, ref := range []string{"refs/remotes/origin/main", "refs/heads/main"} {
 		if _, err := gitOutput("rev-parse", "--verify", "--quiet", ref); err != nil {
 			continue

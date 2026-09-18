@@ -63,8 +63,9 @@ func TestRetentionInstantIsNullable(t *testing.T) {
 		t.Errorf("the never-moved retention row must carry no instant, so updated_at must stay "+
 			"nullable, got: %s", decl)
 	}
-	// A backfill is a one-time write and never a schema fact, so the statement text is the proof.
 	const backfill = "update retention_settings set updated_at = null where updated_by is null"
+
+	// A backfill is a one-time write and never a schema fact, so the statement text is the proof.
 	if !strings.Contains(flatUpMigrations(t), backfill) {
 		t.Errorf("the seeded row must be cleared of the instant nobody wrote; no statement "+
 			"matches %q", backfill)
