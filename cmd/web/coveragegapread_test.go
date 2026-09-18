@@ -324,13 +324,13 @@ func TestOutageGapViewsQualifiesEveryAvailabilityState(t *testing.T) {
 		{Vantage: "back", Services: 1, Availability: "available"},
 		{Vantage: "fresh", Services: 3, Availability: "pending"},
 		{Vantage: "proberless", Services: 4, Availability: "unknown"},
-	})
+	}, map[string]bool{"vantage dark": true})
 
 	if len(gaps) != 4 {
 		t.Fatalf("every position still holds an open Gap, so every state takes a row (#2254): %+v", gaps)
 	}
 	want := map[string]string{
-		"vantage dark":       "a reach reading for 2 services",
+		"vantage dark":       "a reach reading for 2 services, not evaluable",
 		"vantage back":       "a reach reading for 1 service, pending",
 		"vantage fresh":      "a reach reading for 3 services, unconfirmed",
 		"vantage proberless": "a reach reading for 4 services, unconfirmed",
@@ -345,7 +345,8 @@ func TestOutageGapViewsQualifiesEveryAvailabilityState(t *testing.T) {
 		}
 	}
 	if m := messageFor(msgs, "vantage dark"); m.Text != "" {
-		t.Errorf("unavailableVantageMessages owns a dark position's message (#2254): %+v", m)
+		t.Errorf("unavailableVantageMessages still names this position, so its richer message "+
+			"owns the card and the row writes none (#2254, #2363): %+v", m)
 	}
 	if m := messageFor(msgs, "vantage back"); !strings.Contains(m.Text, "has recovered") {
 		t.Errorf("a recovered position's row must say the reading is pending (#2189): %+v", m)
@@ -367,7 +368,7 @@ func TestOutageGapViewsReturnsARowForEveryStateMix(t *testing.T) {
 				rows = append(rows, db.ListOutageReachGapVantagesRow{Vantage: s, Services: 1, Availability: s})
 			}
 		}
-		gaps, _ := outageGapViews(rows)
+		gaps, _ := outageGapViews(rows, nil)
 		if len(gaps) != len(rows) {
 			t.Fatalf("mix %04b: read %d rows and returned %d gap rows (#2254)", mix, len(rows), len(gaps))
 		}
@@ -393,5 +394,154 @@ func TestCoverageQualifiesAPendingVantagesOutageGap(t *testing.T) {
 	}
 	if !strings.Contains(page, "no pinned host key") {
 		t.Errorf("a pending position must read as neither recovered nor dark (#2254); body: %s", page)
+	}
+}
+
+func TestOutageGapViewsMessagesADarkPositionTheSilentReadMissed(t *testing.T) {
+	// No snapshot spans the two reads, so the row must not delegate blind: here the silent read
+	// names no position and the row alone knows this one is dark (#2363).
+	gaps, msgs := outageGapViews([]db.ListOutageReachGapVantagesRow{
+		{Vantage: "dark", Services: 2, Availability: "unavailable"},
+	}, map[string]bool{})
+
+	if len(gaps) != 1 || gaps[0].Expected != "a reach reading for 2 services, not evaluable" {
+		t.Fatalf("a dark position's row must qualify its own state, never read bare (#2363): %+v", gaps)
+	}
+	m := messageFor(msgs, "vantage dark")
+	if !strings.Contains(m.Text, "not evaluable") {
+		t.Errorf("the row must write its own message where the silent read no longer names the "+
+			"position, or it renders with nothing beside it (#2254, #2363): %+v", msgs)
+	}
+	if m.Badge != "outage" || m.Kind != "gap" {
+		t.Errorf("the fallback message belongs to the outage row, so it carries that row's badge: %+v", m)
+	}
+}
+
+func TestCoverageGivesADarkPositionOneMessageUnderTheRowsSubject(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "dark", Class: "internet", Resolver: "127.0.0.11:53",
+		Availability: pgtype.Text{String: "unavailable", Valid: true},
+	})
+	f.vantageNextID = 2
+	f.addClassReachability(t, "198.51.100.9:443/tcp", "internet", obsClock, unavailableGap)
+
+	srv := newServer(f, testKey, "", fixedClock())
+	ledger := srv.readCoverageGapLedger(t.Context())
+
+	if len(ledger.Gaps) != 1 || ledger.Gaps[0].Subject != "vantage dark" {
+		t.Fatalf("the outage row must name the position whose outage opened the Gap (#2180): %+v", ledger.Gaps)
+	}
+	var subjects []string
+	for _, m := range ledger.Messages {
+		subjects = append(subjects, m.Subject)
+	}
+	// One position takes one message: both reads name it, so the richer one stands alone (#2363).
+	if len(subjects) != 1 || subjects[0] != ledger.Gaps[0].Subject {
+		t.Fatalf("the message card and the Gaps table must agree on the subject, and neither read "+
+			"may double it (#2363); row %q, messages %v", ledger.Gaps[0].Subject, subjects)
+	}
+	if !strings.Contains(ledger.Messages[0].Text, "127.0.0.11:53") {
+		t.Errorf("the surviving message must be the one naming the resolver (#2363): %+v", ledger.Messages[0])
+	}
+}
+
+type ledgerRaceStore struct {
+	coldStore
+	outage []db.ListOutageReachGapVantagesRow
+	silent []db.ListUnavailableVantagesRow
+}
+
+func (s ledgerRaceStore) ListOutageReachGapVantages(context.Context) ([]db.ListOutageReachGapVantagesRow, error) {
+	return s.outage, nil
+}
+
+func (s ledgerRaceStore) ListUnavailableVantages(context.Context) ([]db.ListUnavailableVantagesRow, error) {
+	return s.silent, nil
+}
+
+func raceLedger(t *testing.T, outage []db.ListOutageReachGapVantagesRow, silent []db.ListUnavailableVantagesRow) coverageGapLedger {
+	t.Helper()
+	f := newFakeStore()
+	srv := newServer(f, testKey, "", fixedClock())
+	srv.coldStore = ledgerRaceStore{coldStore: f, outage: outage, silent: silent}
+	return srv.readCoverageGapLedger(t.Context())
+}
+
+func TestCoverageMessagesADarkOutageRowTheVantageReadNoLongerNames(t *testing.T) {
+	// The two reads disagree: the silent read names no position, and the outage read projects
+	// one as dark. No snapshot spans them, so the row cannot delegate its message and wait.
+	ledger := raceLedger(t,
+		[]db.ListOutageReachGapVantagesRow{{Vantage: "dark", Services: 2, Availability: "unavailable"}},
+		nil)
+
+	if len(ledger.Gaps) != 1 {
+		t.Fatalf("the outage row stands whatever the other read says (#2147): %+v", ledger.Gaps)
+	}
+	if m := messageFor(ledger.Messages, ledger.Gaps[0].Subject); m.Text == "" {
+		t.Errorf("a dark position the silent read does not name leaves its outage row with "+
+			"nothing beside it, which is the failure #2254 closed (#2363): %+v", ledger)
+	}
+}
+
+func TestCoverageDoesNotContradictItselfWhenAPositionRecoversBetweenTheReads(t *testing.T) {
+	// The mirror window: the silent read still named the position, and the later outage read
+	// projects the recovery. Both would otherwise write a message under the one subject.
+	ledger := raceLedger(t,
+		[]db.ListOutageReachGapVantagesRow{{Vantage: "dark", Services: 2, Availability: "available"}},
+		[]db.ListUnavailableVantagesRow{{Name: "dark", Resolver: "127.0.0.11:53"}})
+
+	if len(ledger.Messages) != 1 {
+		t.Fatalf("one position took %d messages, so the card states a recovery and an outage at "+
+			"once (#2363): %+v", len(ledger.Messages), ledger.Messages)
+	}
+	if !strings.Contains(ledger.Messages[0].Text, "has recovered") {
+		t.Errorf("the later of the two reads saw the recovery, so its message is the one that "+
+			"stands (#2363): %+v", ledger.Messages[0])
+	}
+}
+
+func TestEveryOutageRowTakesExactlyOneMessageUnderItsOwnSubject(t *testing.T) {
+	// The invariant the two un-snapshotted reads must hold between them: whichever of the two
+	// names the position, and whichever state the row projects, the row takes one message.
+	for _, state := range []string{"available", "unavailable", "pending", "unknown", "surprise"} {
+		for _, stillDark := range []bool{false, true} {
+			var silent []db.ListUnavailableVantagesRow
+			if stillDark {
+				silent = []db.ListUnavailableVantagesRow{{Name: "p", Resolver: "127.0.0.11:53"}}
+			}
+			ledger := raceLedger(t,
+				[]db.ListOutageReachGapVantagesRow{{Vantage: "p", Services: 1, Availability: state}},
+				silent)
+
+			if len(ledger.Gaps) != 1 {
+				t.Fatalf("%s/%v: one row read must render one row (#2254): %+v", state, stillDark, ledger.Gaps)
+			}
+			if len(ledger.Messages) != 1 {
+				t.Fatalf("%s/%v: the row took %d messages, want 1 (#2363): %+v",
+					state, stillDark, len(ledger.Messages), ledger.Messages)
+			}
+			if ledger.Messages[0].Subject != ledger.Gaps[0].Subject {
+				t.Errorf("%s/%v: message %q sits under a subject its Gap row does not use (#2363)",
+					state, stillDark, ledger.Messages[0].Subject)
+			}
+		}
+	}
+}
+
+func TestCoverageUnavailableVantageMessageCarriesTheGapsTableSubject(t *testing.T) {
+	msgs := unavailableVantageMessages([]db.ListUnavailableVantagesRow{{Name: "dark", Resolver: "127.0.0.11:53"}})
+	gaps, _ := outageGapViews([]db.ListOutageReachGapVantagesRow{
+		{Vantage: "dark", Services: 1, Availability: "unavailable"},
+	}, nil)
+
+	if len(msgs) != 1 || len(gaps) != 1 {
+		t.Fatalf("one position must take one row and one message: gaps %+v messages %+v", gaps, msgs)
+	}
+	// sortCoverageMessages orders on Subject, so a disagreement also splits the two apart (#2363).
+	if msgs[0].Subject != gaps[0].Subject {
+		t.Errorf("the message reads %q and its Gap row reads %q, so a reader scanning the card "+
+			"for the row's subject finds nothing (#2363)", msgs[0].Subject, gaps[0].Subject)
 	}
 }
