@@ -21,7 +21,8 @@ func TestTheUnsettledScanIsProportionalToWhatIsUnsettled(t *testing.T) {
 	// One queue job is one Batch, so every row of the largest operational record is a candidate.
 	idx := tableIndexes(t, "batch")
 	for _, ix := range idx {
-		if ix.keys("id") && ix.where == "repoint_settled_at is null" {
+		// An equality and not a prefix: a trailing key column would widen what the poll reads.
+		if len(ix.cols) == 1 && ix.cols[0] == "id" && ix.where == "repoint_settled_at is null" {
 			return
 		}
 	}

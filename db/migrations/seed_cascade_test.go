@@ -23,6 +23,21 @@ func seedClause(decl string) string {
 	return clause
 }
 
+func TestEverySeedReferenceReachesTheSchemaReader(t *testing.T) {
+	// A statement shape effectiveSchema skips carries its FK past the gate below in silence.
+	for _, raw := range strings.Split(strings.ToLower(upMigrations(t)), ";") {
+		stmt := normSQL(raw)
+		if !seedReference.MatchString(stmt) {
+			continue
+		}
+		if createTableStmt.MatchString(stmt) || alterTableStmt.MatchString(stmt) {
+			continue
+		}
+		t.Errorf("a statement references seed(id) in a shape the schema reader skips, so "+
+			"TestSeedForeignKeysCascadeOnDelete never sees it: %s", stmt)
+	}
+}
+
 func TestSeedForeignKeysCascadeOnDelete(t *testing.T) {
 	// R4-R2 (#752): a seed-referencing FK at the default NO ACTION turns a Seed delete into a 500.
 	schema := effectiveSchema(t)

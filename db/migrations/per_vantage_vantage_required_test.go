@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -38,7 +39,7 @@ func perVantageCheck(t *testing.T, table string) string {
 }
 
 func TestPerVantageRowRequiresAVantage(t *testing.T) {
-	for _, table := range []string{"span", "observation"} {
+	for _, table := range perVantageTables() {
 		pred := perVantageCheck(t, table)
 		if !strings.Contains(pred, "vantage_id is not null") {
 			t.Errorf("%s: the predicate must require a vantage, got: %s", table, strings.TrimSpace(pred))
@@ -48,7 +49,7 @@ func TestPerVantageRowRequiresAVantage(t *testing.T) {
 
 func TestPerVantageCheckIsADenyList(t *testing.T) {
 	// An allow-list admits a new per-vantage facet in silence (ADR-1985 §4).
-	for _, table := range []string{"span", "observation"} {
+	for _, table := range perVantageTables() {
 		pred := perVantageCheck(t, table)
 		for _, facet := range []string{"reachability", "resolution", "tls-acceptance", "http-identity"} {
 			if strings.Contains(pred, facet) {
@@ -61,7 +62,7 @@ func TestPerVantageCheckIsADenyList(t *testing.T) {
 }
 
 func TestPerVantageCheckAdmitsItsTwoExceptions(t *testing.T) {
-	for _, table := range []string{"span", "observation"} {
+	for _, table := range perVantageTables() {
 		pred := perVantageCheck(t, table)
 		// The zone reader restates a file from no network position (ADR-0027).
 		if !strings.Contains(pred, "source = 'zone'") {
@@ -76,10 +77,19 @@ func TestPerVantageCheckAdmitsItsTwoExceptions(t *testing.T) {
 	}
 }
 
+func perVantageTables() []string {
+	tables := make([]string, 0, len(perVantageConstraints))
+	for table := range perVantageConstraints {
+		tables = append(tables, table)
+	}
+	sort.Strings(tables)
+	return tables
+}
+
 func TestPerVantageCheckIsValidated(t *testing.T) {
 	// A NOT VALID constraint is silent about stored rows, which is the weaker
 	// guarantee and the harder one to reason about later (ADR-1985 §6).
-	for _, table := range []string{"span", "observation"} {
+	for _, table := range perVantageTables() {
 		if decl := perVantageConstraint(t, table); strings.Contains(decl, "not valid") {
 			t.Errorf("%s: %s is NOT VALID and no VALIDATE CONSTRAINT follows; it must validate "+
 				"the stored rows, got: %s", table, perVantageConstraints[table], decl)

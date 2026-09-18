@@ -18,15 +18,31 @@ func newSQLTable() *sqlTable {
 	return &sqlTable{cols: map[string]string{}, constraints: map[string]string{}}
 }
 
-// Postgres spells IF EXISTS before ONLY, and the other order names a table called `only`.
-
 var (
 	createTableStmt = regexp.MustCompile(`(?s)^create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(`)
 	alterTableStmt  = regexp.MustCompile(`(?s)^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:public\.)?(\w+)\s+(.*)`)
-	dropTableStmt   = regexp.MustCompile(`(?s)^drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?(\w+)`)
+	dropTableStmt   = regexp.MustCompile(`(?s)^drop\s+table\s+(?:if\s+exists\s+)?(.*)`)
 	defaultClause   = regexp.MustCompile(`\s+default\s+(?:\([^)]*\)|'[^']*'|[^\s,]+)(?:::[\w.]+(?:\[\])?)*`)
 	parenCols       = regexp.MustCompile(`\(([^)]*)\)`)
+	bareIdentifier  = regexp.MustCompile(`^(?:public\.)?(\w+)`)
 )
+
+// One statement may name several tables, and the whole list goes with it.
+
+func droppedTables(rest string) (names []string, cascade bool) {
+	for _, target := range splitTopLevel(rest) {
+		target = normSQL(target)
+		if strings.HasSuffix(target, " cascade") {
+			cascade = true
+			target = strings.TrimSuffix(target, " cascade")
+		}
+		target = strings.TrimSuffix(normSQL(target), " restrict")
+		if m := bareIdentifier.FindStringSubmatch(target); m != nil {
+			names = append(names, m[1])
+		}
+	}
+	return names, cascade
+}
 
 // A greedy regex would run a table's column list on into a trailing WITH or PARTITION BY.
 
@@ -92,12 +108,33 @@ func (tbl *sqlTable) put(name, decl string) {
 	tbl.constraints[key] = decl
 }
 
-func firstParenCol(s string) string {
+// A second key under one derived name means the derivation is wrong, and a later DROP by the
+// real name would then be a no-op (#2238 review).
+
+func (tbl *sqlTable) name(key, decl string) {
+	if _, taken := tbl.constraints[key]; taken {
+		tbl.unmodelled = append(tbl.unmodelled, "two keys derive the name "+key+": "+decl)
+		return
+	}
+	tbl.constraints[key] = decl
+}
+
+// Postgres derives a key's name from every column in it, not from the first (#2238 review).
+
+func parenColsJoined(s string) string {
 	m := parenCols.FindStringSubmatch(s)
 	if m == nil {
 		return ""
 	}
-	return strings.Fields(strings.Split(m[1], ",")[0])[0]
+	var cols []string
+	for _, col := range strings.Split(m[1], ",") {
+		f := strings.Fields(col)
+		if len(f) == 0 {
+			continue
+		}
+		cols = append(cols, f[0])
+	}
+	return strings.Join(cols, "_")
 }
 
 // Postgres derives these names, and 23500 drops an inline REFERENCES by the name it derived.
@@ -171,13 +208,14 @@ func (tbl *sqlTable) createItem(table, item string) {
 		}
 		tbl.constraints[f[1]] = item
 	case "primary":
-		tbl.put(table+"_pkey", item)
+		tbl.constraints[table+"_pkey"] = item
 	case "unique":
-		tbl.put(table+"_"+firstParenCol(item)+"_key", item)
+		tbl.name(table+"_"+parenColsJoined(item)+"_key", item)
 	case "check":
+		// Postgres alone appends a counter to an unnamed CHECK, so a collision is its rule here.
 		tbl.put(table+"_check", item)
 	case "foreign":
-		tbl.put(table+"_"+firstParenCol(item)+"_fkey", item)
+		tbl.name(table+"_"+parenColsJoined(item)+"_fkey", item)
 	case "exclude", "like":
 		tbl.unmodelled = append(tbl.unmodelled, item)
 	default:
@@ -186,14 +224,20 @@ func (tbl *sqlTable) createItem(table, item string) {
 	}
 }
 
-func dropTarget(f []string) string {
+// IF EXISTS says the author knows the target may be absent, so an absent one is not a miss.
+
+func dropTarget(f []string) (target string, guarded bool) {
 	if len(f) >= 2 && f[0] == "if" && f[1] == "exists" {
-		f = f[2:]
+		f, guarded = f[2:], true
 	}
 	if len(f) == 0 {
-		return ""
+		return "", guarded
 	}
-	return f[0]
+	return f[0], guarded
+}
+
+func columnWord(col string) *regexp.Regexp {
+	return regexp.MustCompile(`\b` + regexp.QuoteMeta(col) + `\b`)
 }
 
 func (tbl *sqlTable) alterColumn(f []string, action string) {
@@ -241,10 +285,17 @@ func (tbl *sqlTable) alterAction(table, action string) {
 		tbl.cols[rest[0]] = decl
 		tbl.inlineConstraints(table, rest[0], decl)
 	case "drop column":
-		col := dropTarget(rest)
+		col, guarded := dropTarget(rest)
+		if _, declared := tbl.cols[col]; !declared && !guarded {
+			tbl.unmodelled = append(tbl.unmodelled, action)
+			return
+		}
 		delete(tbl.cols, col)
-		for _, suffix := range []string{"_fkey", "_check", "_key"} {
-			delete(tbl.constraints, table+"_"+col+suffix)
+		// Postgres takes every constraint that names the column with it, whatever it is called.
+		for name, decl := range tbl.constraints {
+			if columnWord(col).MatchString(decl) {
+				delete(tbl.constraints, name)
+			}
 		}
 	case "add constraint":
 		if len(rest) == 0 {
@@ -253,7 +304,11 @@ func (tbl *sqlTable) alterAction(table, action string) {
 		}
 		tbl.constraints[rest[0]] = action
 	case "drop constraint":
-		name := dropTarget(rest)
+		name, guarded := dropTarget(rest)
+		if _, held := tbl.constraints[name]; !held && !guarded {
+			tbl.unmodelled = append(tbl.unmodelled, action)
+			return
+		}
 		delete(tbl.constraints, name)
 		if col, inline := strings.CutSuffix(name, "_check"); inline {
 			col = strings.TrimPrefix(col, table+"_")
@@ -264,7 +319,7 @@ func (tbl *sqlTable) alterAction(table, action string) {
 	case "alter column":
 		tbl.alterColumn(rest, action)
 	case "validate constraint":
-		name := dropTarget(rest)
+		name, _ := dropTarget(rest)
 		if decl, known := tbl.constraints[name]; known {
 			tbl.constraints[name] = normSQL(strings.Replace(decl, " not valid", "", 1))
 		}
@@ -295,7 +350,21 @@ func effectiveSchema(t *testing.T) map[string]*sqlTable {
 			continue
 		}
 		if m := dropTableStmt.FindStringSubmatch(stmt); m != nil {
-			delete(tables, m[1])
+			dropped, cascade := droppedTables(m[1])
+			for _, name := range dropped {
+				delete(tables, name)
+				if !cascade {
+					continue
+				}
+				// CASCADE takes every FK into the dropped table with it (#2238 review).
+				for _, other := range tables {
+					for key, decl := range other.constraints {
+						if regexp.MustCompile(`references\s+` + regexp.QuoteMeta(name) + `\s*\(`).MatchString(decl) {
+							delete(other.constraints, key)
+						}
+					}
+				}
+			}
 			continue
 		}
 		if m := alterTableStmt.FindStringSubmatch(stmt); m != nil {
