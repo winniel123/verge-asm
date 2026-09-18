@@ -25,14 +25,14 @@ const REQUIRED = ["number", "title", "slug", "date", "status", "source", "proof"
 const STATUSES = new Set(["accepted", "withdrawn"]);
 const SOURCES = new Set(["grilling", "fix", "sweep"]);
 const PROOFS = ["test", "ticket", "none"];
-export const CLAUSE_RULE = {
+export const CLAUSE_RULE = Object.freeze({
   amends: "optional",
   retires: "optional",
   supersedes: "forbidden",
   sibling: "forbidden",
   "rests-on": "optional",
   bounds: "optional",
-};
+});
 const DERIVES = { amends: "amended", retires: "amended", supersedes: "superseded" };
 const RANK = { accepted: 0, amended: 1, superseded: 2, withdrawn: 3 };
 const MARKER_ORDER = { withdrawn: 0, supersedes: 1, amends: 2, retires: 2 };
@@ -114,15 +114,16 @@ function checkProof(a, f, repoRoot, fail) {
   }
 }
 
-function checkRelations(a, f, adrs, fail) {
+function checkRelations(a, f, adrs, fail, clauseRule) {
   if (f.relations === undefined) return;
   if (!Array.isArray(f.relations) || f.relations.some((r) => !r || typeof r !== "object")) {
     fail(a, "relations", "relations must be a list of {kind, adr, clause} rows");
     return;
   }
   const seen = new Set();
+  const scopes = new Map();
   for (const r of f.relations) {
-    const rule = CLAUSE_RULE[r.kind];
+    const rule = clauseRule[r.kind];
     if (!rule) {
       fail(a, "relations", `relation kind \`${r.kind}\` is not one of the six`);
       continue;
@@ -144,8 +145,16 @@ function checkRelations(a, f, adrs, fail) {
     if (seen.has(key)) fail(a, "relations", `duplicate relation ${key}`);
     seen.add(key);
     const label = `${r.kind} ${pad(r.adr)}`;
+    if (r.kind === "amends" || r.kind === "retires") {
+      const whole = r.clause === undefined || r.clause === null;
+      const edge = `${r.kind}:${r.adr}`;
+      if (scopes.has(edge) && scopes.get(edge) !== whole) {
+        fail(a, "relations", `${label} is declared at both whole-ADR and clause scope, which renders two identical markers`);
+      }
+      scopes.set(edge, whole);
+    }
     if (r.clause !== undefined && r.clause !== null) {
-      if (rule === "forbidden") fail(a, "relations", `${r.kind} forbids a clause`);
+      if (rule === "forbidden") fail(a, "relations", `${label} forbids a clause`);
       else if (typeof r.clause !== "string") fail(a, "relations", `${label}: clause ${r.clause} must be a string`);
       else if (!CLAUSE.test(r.clause)) {
         fail(a, "relations", `${label}: clause \`${r.clause}\` is not a dotted heading number`);
@@ -178,7 +187,7 @@ function checkWithdrawal(a, f, adrs, repoRoot, fail) {
   else if (!existsSync(join(repoRoot, to))) fail(a, "schema", `moved-to ${to} does not exist`);
 }
 
-export function validate(adrs, repoRoot) {
+export function validate(adrs, repoRoot, clauseRule = CLAUSE_RULE) {
   const problems = [];
   const fail = (a, rule, message) => problems.push({ file: a.file, rule, message: `${a.file}: ${message}` });
 
@@ -231,7 +240,7 @@ export function validate(adrs, repoRoot) {
     }
 
     if (f.status === "withdrawn") checkWithdrawal(a, f, adrs, repoRoot, fail);
-    checkRelations(a, f, adrs, fail);
+    checkRelations(a, f, adrs, fail, clauseRule);
   }
   return problems;
 }

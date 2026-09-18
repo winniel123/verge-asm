@@ -153,12 +153,12 @@ function withRepo(files, fn) {
   }
 }
 
-function problemsOf(files) {
-  return withRepo(files, (root) => validate(loadAdrs(root), root).map((p) => p.message));
+function problemsOf(files, clauseRule = CLAUSE_RULE) {
+  return withRepo(files, (root) => validate(loadAdrs(root), root, clauseRule).map((p) => p.message));
 }
 
-function assertProblem(files, pattern) {
-  const problems = problemsOf(files);
+function assertProblem(files, pattern, clauseRule = CLAUSE_RULE) {
+  const problems = problemsOf(files, clauseRule);
   assert.ok(problems.some((m) => pattern.test(m)), `${pattern} not in:\n  ${problems.join("\n  ")}`);
 }
 
@@ -380,14 +380,14 @@ test("a relation may target only an ADR file on disk", () => {
   assertProblem(withRelations(227, FRONT_227, ["  - {kind: rests-on, adr: 227}"]), /targets itself/);
 });
 
-test("supersedes and sibling refuse a clause", () => {
-  assertProblem(withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "3"}']), /supersedes forbids a clause/);
-  assertProblem(withRelations(227, FRONT_227, ['  - {kind: sibling, adr: 223, clause: "3"}']), /sibling forbids a clause/);
+test("supersedes and sibling refuse a clause, and the message names the target", () => {
+  assertProblem(withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "3"}']), /supersedes ADR-0223 forbids a clause/);
+  assertProblem(withRelations(227, FRONT_227, ['  - {kind: sibling, adr: 223, clause: "3"}']), /sibling ADR-0223 forbids a clause/);
 });
 
 test("a forbidden clause is named as forbidden whatever shape it takes", () => {
-  assertProblem(withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "§3"}']), /supersedes forbids a clause/);
-  assertProblem(withRelations(227, FRONT_227, ["  - {kind: sibling, adr: 223, clause: 3}"]), /sibling forbids a clause/);
+  assertProblem(withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "§3"}']), /supersedes ADR-0223 forbids a clause/);
+  assertProblem(withRelations(227, FRONT_227, ["  - {kind: sibling, adr: 223, clause: 3}"]), /sibling ADR-0223 forbids a clause/);
 });
 
 test("amends and retires take an optional clause", () => {
@@ -396,13 +396,23 @@ test("amends and retires take an optional clause", () => {
 });
 
 test("a kind that requires a clause names the target's clauses when one is missing", () => {
-  const was = CLAUSE_RULE.amends;
-  CLAUSE_RULE.amends = "required";
-  try {
-    assertProblem(withRelations(227, FRONT_227, ["  - {kind: amends, adr: 223}"]), /amends ADR-0223 needs a clause, the target numbers 1, 2, 3, 4/);
-  } finally {
-    CLAUSE_RULE.amends = was;
-  }
+  const rule = { ...CLAUSE_RULE, amends: "required" };
+  const pattern = /amends ADR-0223 needs a clause, the target numbers 1, 2, 3, 4/;
+  assertProblem(withRelations(227, FRONT_227, ["  - {kind: amends, adr: 223}"]), pattern, rule);
+});
+
+test("the rule table is frozen, so no importer rewrites production validation", () => {
+  assert.throws(() => {
+    CLAUSE_RULE.amends = "required";
+  }, TypeError);
+});
+
+test("one edge is declared at one scope, so a whole-ADR amends never doubles a clause-scoped one", () => {
+  const rows = ["  - {kind: amends, adr: 223}", '  - {kind: amends, adr: 223, clause: "1"}'];
+  assertProblem(withRelations(227, FRONT_227, rows), /amends ADR-0223 is declared at both whole-ADR and clause scope/);
+  assertProblem(withRelations(227, FRONT_227, [...rows].reverse()), /amends ADR-0223 is declared at both whole-ADR and clause scope/);
+  const twoClauses = ['  - {kind: rests-on, adr: 223, clause: "1"}', '  - {kind: rests-on, adr: 223, clause: "2"}'];
+  assert.deepEqual(problemsOf(withRelations(227, FRONT_227, twoClauses)), []);
 });
 
 test("an amends or retires with no clause on an above-227 target acts on the whole file", () => {
@@ -626,7 +636,7 @@ test("--check fails with exit 2 on a schema or relation problem, and writes noth
   withRepo(files, (root) => {
     const r = run(root, { write: true });
     assert.equal(r.code, 2);
-    assert.match(r.problems[0].message, /supersedes forbids a clause/);
+    assert.match(r.problems[0].message, /supersedes ADR-0223 forbids a clause/);
     assert.equal(existsSync(join(root, INDEX_FILE)), false);
   });
 });
@@ -635,7 +645,7 @@ test("the schema cases of #1645 §5 that survive the clause ruling each fail wit
   const cases = [
     [bothSides(), /an edge lives once/],
     [withRelations(227, FRONT_227, ['  - {kind: retires, adr: 223, clause: "9"}']), /target numbers 1, 2, 3, 4/],
-    [withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "3"}']), /supersedes forbids a clause/],
+    [withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "3"}']), /supersedes ADR-0223 forbids a clause/],
     [withRelations(227, FRONT_227, ['  - {kind: amends, adr: 3, clause: "1"}']), /ADR-0003 numbers no heading/],
   ];
   for (const [files, pattern] of cases) {
