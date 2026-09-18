@@ -18,13 +18,39 @@ func newSQLTable() *sqlTable {
 	return &sqlTable{cols: map[string]string{}, constraints: map[string]string{}}
 }
 
+// Postgres spells IF EXISTS before ONLY, and the other order names a table called `only`.
+
 var (
-	createTableStmt = regexp.MustCompile(`(?s)^create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\((.*)\)`)
-	alterTableStmt  = regexp.MustCompile(`(?s)^alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?(?:public\.)?(\w+)\s+(.*)`)
+	createTableStmt = regexp.MustCompile(`(?s)^create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(`)
+	alterTableStmt  = regexp.MustCompile(`(?s)^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:public\.)?(\w+)\s+(.*)`)
 	dropTableStmt   = regexp.MustCompile(`(?s)^drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?(\w+)`)
-	defaultClause   = regexp.MustCompile(`\s+default\s+(?:\([^)]*\)|'[^']*'|[^\s,]+(?:\(\))?)`)
+	defaultClause   = regexp.MustCompile(`\s+default\s+(?:\([^)]*\)|'[^']*'|[^\s,]+)(?:::[\w.]+(?:\[\])?)*`)
 	parenCols       = regexp.MustCompile(`\(([^)]*)\)`)
 )
+
+// A greedy regex would run a table's column list on into a trailing WITH or PARTITION BY.
+
+func balancedBody(s string, open int) (string, bool) {
+	depth, quoted := 0, false
+	for i := open; i < len(s); i++ {
+		switch s[i] {
+		case '\'':
+			quoted = !quoted
+		case '(':
+			if !quoted {
+				depth++
+			}
+		case ')':
+			if !quoted {
+				depth--
+				if depth == 0 {
+					return s[open+1 : i], true
+				}
+			}
+		}
+	}
+	return "", false
+}
 
 // Splitting a DDL list on every comma would cut a CHECK's IN-list and a multi-column key.
 
@@ -254,11 +280,17 @@ func effectiveSchema(t *testing.T) map[string]*sqlTable {
 	tables := map[string]*sqlTable{}
 	for _, raw := range strings.Split(strings.ToLower(upMigrations(t)), ";") {
 		stmt := normSQL(raw)
-		if m := createTableStmt.FindStringSubmatch(stmt); m != nil {
+		if m := createTableStmt.FindStringSubmatchIndex(stmt); m != nil {
+			table := stmt[m[2]:m[3]]
 			tbl := newSQLTable()
-			tables[m[1]] = tbl
-			for _, item := range splitTopLevel(m[2]) {
-				tbl.createItem(m[1], normSQL(item))
+			tables[table] = tbl
+			body, closed := balancedBody(stmt, m[1]-1)
+			if !closed {
+				tbl.unmodelled = append(tbl.unmodelled, "an unterminated CREATE TABLE body")
+				continue
+			}
+			for _, item := range splitTopLevel(body) {
+				tbl.createItem(table, normSQL(item))
 			}
 			continue
 		}
