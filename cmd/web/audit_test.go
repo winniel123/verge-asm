@@ -205,6 +205,32 @@ func TestAuditReadsUnderACapAndSaysSo(t *testing.T) {
 	}
 }
 
+// A period filled to the cap with nothing older is read whole, so it omits nothing (#2358).
+
+func TestAuditAtExactlyTheCapClaimsNoTruncation(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	for i := range int(auditFeedLimit) {
+		recordActAt(t, f, now.Add(-time.Duration(i)*time.Minute),
+			act.Account{AccountID: 1, UsernameSnapshot: "admin"},
+			act.ZoneDeclared{ZoneRef: act.ZoneRef{Zone: "z" + strconv.Itoa(i) + ".example.com"}})
+	}
+	if len(f.actRows) != int(auditFeedLimit) {
+		t.Fatalf("the corpus holds %d acts, want exactly the cap of %d", len(f.actRows), auditFeedLimit)
+	}
+
+	base := startAt(t, f, now)
+	page := settingsTabBody(t, login(t, base, "admin", "hunter2hunter2"), base, "audit")
+
+	if got := strings.Count(page, "example.com</td>"); got != int(auditFeedLimit) {
+		t.Errorf("the tab rendered %d rows, want all %d", got, auditFeedLimit)
+	}
+	if strings.Contains(page, "Showing the most recent") {
+		t.Error("a period read whole claims older acts exist, so a reader narrows it for nothing")
+	}
+}
+
 // A reversed pair selects nothing, and the empty state would then read as a fact.
 
 func TestAuditRefusesAReversedCustomRange(t *testing.T) {

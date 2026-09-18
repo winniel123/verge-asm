@@ -26,16 +26,19 @@ export function parseMarker(body) {
   return m ? { sha: m[1], verdict: m[2] } : null;
 }
 
-function adrFilesWithStatus(files, status) {
+function adrFilesWithStatus(files, statuses) {
   return files
-    .filter((f) => f.status === status)
+    .filter((f) => statuses.includes(f.status))
     .map((f) => f.filename)
     .filter((name) => dirname(name) === ADR_DIR && ADR_FILE.test(basename(name)))
     .sort();
 }
 
-export const addedAdrFiles = (files) => adrFilesWithStatus(files, "added");
-export const modifiedAdrFiles = (files) => adrFilesWithStatus(files, "modified");
+export const addedAdrFiles = (files) => adrFilesWithStatus(files, ["added"]);
+
+export const modifiedAdrFiles = (files) =>
+  // GitHub reports a file renamed and edited in one commit as `renamed` (#2340)
+  adrFilesWithStatus(files, ["modified", "renamed"]);
 
 export const adrNumber = (file) => Number(ADR_FILE.exec(basename(file))[1]);
 

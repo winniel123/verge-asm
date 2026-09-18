@@ -261,18 +261,35 @@ func (s *server) readCoverageGapLedger(ctx context.Context) coverageGapLedger {
 		l.GapsFailed, l.MessagesFailed = true, true
 		log.Printf("web: coverage: open reach gap services: %v", err)
 	}
+	var silent []coverageMessageView
+	messaged := map[string]bool{}
+	// The outage row defers to this read and no snapshot spans the two, so read it first (#2363).
+	if rows, err := s.coldStore.ListUnavailableVantages(ctx); err == nil {
+		silent = unavailableVantageMessages(rows)
+		for _, m := range silent {
+			messaged[m.Subject] = true
+		}
+	} else {
+		l.MessagesFailed = true
+		log.Printf("web: coverage: unavailable vantages: %v", err)
+	}
+	outaged := map[string]bool{}
 	if rows, err := s.coldStore.ListOutageReachGapVantages(ctx); err == nil {
-		gaps, msgs := outageGapViews(rows)
+		gaps, msgs := outageGapViews(rows, messaged)
+		for _, m := range msgs {
+			outaged[m.Subject] = true
+		}
 		l.Gaps, l.Messages = append(l.Gaps, gaps...), append(l.Messages, msgs...)
 	} else {
 		l.GapsFailed, l.MessagesFailed = true, true
 		log.Printf("web: coverage: outage reach gap vantages: %v", err)
 	}
-	if rows, err := s.coldStore.ListUnavailableVantages(ctx); err == nil {
-		l.Messages = append(l.Messages, unavailableVantageMessages(rows)...)
-	} else {
-		l.MessagesFailed = true
-		log.Printf("web: coverage: unavailable vantages: %v", err)
+	for _, m := range silent {
+		// The outage read is the later of the two, so its row overrules a stale silent one (#2363).
+		if outaged[m.Subject] {
+			continue
+		}
+		l.Messages = append(l.Messages, m)
 	}
 	return l
 }
@@ -530,7 +547,7 @@ func reachGapsAndMessages(rows []db.ListOpenReachGapServicesRow) ([]coverageGapV
 	return gaps, msgs, omitted
 }
 
-func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView, []coverageMessageView) {
+func outageGapViews(rows []db.ListOutageReachGapVantagesRow, messaged map[string]bool) ([]coverageGapView, []coverageMessageView) {
 	gaps := make([]coverageGapView, 0, len(rows))
 	var msgs []coverageMessageView
 	for _, v := range rows {
@@ -538,10 +555,14 @@ func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView,
 		if v.Services == 1 {
 			unit = "service"
 		}
-		subject := "vantage " + v.Vantage
+		subject := vantageSubject(v.Vantage)
 		expected := fmt.Sprintf("a reach reading for %d %s", v.Services, unit)
 		qualifier, text := outageAvailabilityNote(v.Availability)
 		expected += qualifier
+		if v.Availability == unavailableAvailability && messaged[subject] {
+			// The silent read's message names the resolver, so it wins where it exists (#2363).
+			text = ""
+		}
 		if text != "" {
 			msgs = append(msgs, coverageMessageView{
 				Kind:    "gap",
@@ -561,15 +582,23 @@ func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView,
 	return gaps, msgs
 }
 
+const unavailableAvailability = "unavailable"
+
+func vantageSubject(name string) string {
+	// A service key shares the Subject column with a position, so the prefix tells them apart.
+	return "vantage " + name
+}
+
 func outageAvailabilityNote(availability string) (qualifier, text string) {
 	switch availability {
 	case "available":
 		// Recovery retires the Gap only on the facets it re-read (ADR-2087, #2189).
 		return ", pending", "This position has recovered. The Gap its outage opened stands until the next reach " +
 			"batch writes over it, so the reading is pending rather than one we cannot take."
-	case "unavailable":
-		// unavailableVantageMessages writes this state's message off its own read (#2254).
-		return "", ""
+	case unavailableAvailability:
+		// A bare row is the failure #2254 closed, and the silent read can miss this one (#2363).
+		return ", not evaluable", "We could not look from this position — it is unavailable, so its open " +
+			"spans are not evaluable. Its Gap stands until a reach batch writes over it."
 	case "pending":
 		// A replay drops the pinned host key and moves 'available' here (ADR-0108, #2200).
 		return ", unconfirmed", "This position holds no pinned host key, so whether we can look from it is not " +
@@ -595,7 +624,7 @@ func unavailableVantageMessages(rows []db.ListUnavailableVantagesRow) []coverage
 		out = append(out, coverageMessageView{
 			Kind:    "silent",
 			Badge:   "silent",
-			Subject: v.Name,
+			Subject: vantageSubject(v.Name),
 			Text:    "We could not look from this position — its resolver " + resolver + " was unreachable, so its open spans are not evaluable.",
 		})
 	}
