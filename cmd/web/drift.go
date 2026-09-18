@@ -196,12 +196,11 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	groups, movement := buildDriftFeed(rows, s.now())
 
 	transitionCount := 0
-	currentCapped := truncated
+	// A bounded fold lists fewer changes than it holds, so its count is a floor (ADR-2356).
+	currentCapped := truncated || driftFeedBounded(rows)
 	// JS toggles a group open, so the whole period feed ships, never a filtered one (ADR-0178 §4).
 	for i := range groups {
 		transitionCount += len(groups[i].Events)
-		// A bounded fold lists fewer changes than it holds, so its count is a floor (ADR-2356).
-		currentCapped = currentCapped || groups[i].Truncated
 		if i >= 2 {
 			groups[i].Collapsed = true
 		}
@@ -274,10 +273,9 @@ func driftTransitionDelta(currentCount int, prevRows []db.ListRecentDriftEventsR
 	prevCount := 0
 	for i := range prevGroups {
 		prevCount += len(prevGroups[i].Events)
-		capped = capped || prevGroups[i].Truncated
 	}
-	// A bounded count is a floor, so the delta is unknown, not zero (ADR-0110, #2361).
-	if capped {
+	// A bounded count is a floor, so the delta is unknown, not zero (#2361).
+	if capped || driftFeedBounded(prevRows) {
 		return ""
 	}
 	text, _ := signedCount(currentCount - prevCount)

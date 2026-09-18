@@ -295,3 +295,13 @@ func driftBatchMeta(row db.ListRecentDriftEventsRow) string {
 	}
 	return ""
 }
+
+func driftFeedBounded(rows []db.ListRecentDriftEventsRow) bool {
+	// A batch the classifier empties renders no group, so the bound needs a carrier (#2361).
+	for _, run := range driftBatchRuns(rows) {
+		if run.Truncated {
+			return true
+		}
+	}
+	return false
+}
