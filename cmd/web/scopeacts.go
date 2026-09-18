@@ -26,6 +26,8 @@ const (
 
 	scopeActReadCap int32 = 350
 
+	scopeActReadOverflow int32 = scopeActReadCap + 1
+
 	exclusionKindAddress = "address"
 )
 
@@ -81,13 +83,16 @@ func (s *server) recentAddressScopeActs(ctx context.Context) (out []scopeActRow,
 		Actions:  addressScopeActClasses,
 		FromTime: from,
 		// Only an address scope renders, so the read caps above the render (ADR-1946 §3).
-		MaxActs: scopeActReadCap,
+		MaxActs: scopeActReadOverflow,
 	})
 	if err != nil {
 		return nil, false, err
 	}
-	// A name-scope burst can fill the read, and an empty panel would then read as no edit.
-	capped = len(rows) == int(scopeActReadCap)
+	// Only the extra row tells a truncation from a window holding exactly the cap (#2222).
+	capped = len(rows) > int(scopeActReadCap)
+	if capped {
+		rows = rows[:scopeActReadCap]
+	}
 
 	out = make([]scopeActRow, 0, scopeActRows)
 	for _, row := range rows {

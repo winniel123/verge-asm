@@ -197,17 +197,18 @@ type apiDriftEvent struct {
 func (s *server) apiDrift(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	period := resolvePeriodPreset(defaultPeriodPreset)
 	rows, err := s.apiV1Store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: s.presetSince(period), MaxEvents: driftFeedLimit, MaxPerBatch: driftBatchRead,
+		Since: s.presetSince(period), MaxEvents: driftFeedRead, MaxPerBatch: driftBatchRead,
 	})
 	if err != nil {
 		apiReadError(w, "drift: list recent drift events", err)
 		return
 	}
+	rows, truncated := capDriftFeed(rows)
 	groups, movement := buildDriftFeed(rows, s.now())
 
 	out := apiDriftResponse{
 		Period:     period.Token,
-		Truncated:  int32(len(rows)) >= driftFeedLimit, // #nosec G115 (len(rows) capped at driftFeedLimit=500 via query MaxEvents)
+		Truncated:  truncated,
 		FeedLimit:  driftFeedLimit,
 		BatchLimit: driftBatchLimit,
 		Movement:   movement,

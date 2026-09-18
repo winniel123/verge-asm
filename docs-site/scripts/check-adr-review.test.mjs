@@ -1,6 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addedAdrFiles, bodyDecision, evaluate, gather, parseMarker } from "./check-adr-review.mjs";
+import {
+  addedAdrFiles,
+  bodyDecision,
+  evaluate,
+  gather,
+  headContents,
+  legacyQuoteRuns,
+  modifiedAdrFiles,
+  parseMarker,
+  patchHunks,
+} from "./check-adr-review.mjs";
 
 const HEAD = "0123456789abcdef0123456789abcdef01234567";
 const OLD = "fedcba9876543210fedcba9876543210fedcba98";
@@ -60,8 +70,8 @@ function comment(sha, verdict, extra = "") {
   };
 }
 
-const added = (filename) => ({ filename, status: "added" });
-const modified = (filename) => ({ filename, status: "modified" });
+const added = (filename, patch) => ({ filename, status: "added", patch });
+const modified = (filename, patch) => ({ filename, status: "modified", patch });
 
 function run(overrides = {}) {
   const contents = { [FILE_1700]: ADR_1700, [FILE_1701]: ADR_1700.replace("1700", "1701") };
@@ -160,6 +170,15 @@ test("addedAdrFiles keeps only added ADR files under docs/adr/", () => {
     added("docs/adr/README.md"),
   ];
   assert.deepEqual(addedAdrFiles(files), [FILE_1700]);
+  assert.deepEqual(modifiedAdrFiles(files), [FILE_1701]);
+});
+
+test("the added and modified sets stay distinct", () => {
+  const files = [added(FILE_1700), modified(FILE_1701)];
+  assert.deepEqual(addedAdrFiles(files), [FILE_1700]);
+  assert.deepEqual(modifiedAdrFiles(files), [FILE_1701]);
+  assert.deepEqual(addedAdrFiles([modified(FILE_1700)]), []);
+  assert.deepEqual(modifiedAdrFiles([added(FILE_1700)]), []);
 });
 
 test("bodyDecision runs from the first ## Decision to the next heading of any level", () => {
@@ -235,4 +254,249 @@ test("gather pages through the PR files and comments", async () => {
 test("gather throws on a non-2xx response", async () => {
   const fetchImpl = async () => ({ ok: false, status: 403, json: async () => ({ message: "rate limited" }) });
   await assert.rejects(gather({ repo: "o/r", number: 7, token: "", fetchImpl }), /403/);
+});
+
+const FILE_2300 = "docs/adr/2300-a-rule.md";
+const FILE_0110 = "docs/adr/0110-a-legacy-rule.md";
+const MARKER_2400 =
+  "> **Amended** by [ADR-2400: A later rule](./2400-a-later-rule.md), 2026-09-18. <!-- adr-marker amends 2400 -->";
+
+const adr2300 = (lines) =>
+  [
+    "---",
+    "number: 2300",
+    'title: "A rule"',
+    "slug: a-rule",
+    "date: 2026-09-17",
+    "status: accepted",
+    "source: fix",
+    "ticket: 2300",
+    'proof: {none: "a rule with no test"}',
+    "---",
+    "",
+    "# ADR-2300: A rule",
+    "",
+    ...lines,
+  ].join("\n");
+
+const BODY_2300 = [
+  "## Decision",
+  "",
+  "A rule.",
+  "",
+  "## 1. Context",
+  "",
+  "> **Withdrawn** 2026-09-01: the older rule is gone.",
+  "> The rest of this Decision stands.",
+  "",
+  "Prose line.",
+  "",
+];
+
+const ADR_2300 = adr2300(BODY_2300);
+const ADR_2300_CORRECTED = adr2300(BODY_2300.filter((l) => l !== "> The rest of this Decision stands."));
+const ADR_2300_PROSE = adr2300(BODY_2300.map((l) => (l === "Prose line." ? "Prose line, corrected." : l)));
+const ADR_2300_MARKED = adr2300(["", MARKER_2400, "", ...BODY_2300.slice(1)]);
+
+const PATCH_CORRECTION = [
+  "@@ -18,6 +18,5 @@",
+  " ## 1. Context",
+  " ",
+  " > **Withdrawn** 2026-09-01: the older rule is gone.",
+  "-> The rest of this Decision stands.",
+  " ",
+  " Prose line.",
+].join("\n");
+
+const PATCH_PROSE = [
+  "@@ -20,4 +20,4 @@",
+  " > **Withdrawn** 2026-09-01: the older rule is gone.",
+  " > The rest of this Decision stands.",
+  " ",
+  "-Prose line.",
+  "+Prose line, corrected.",
+].join("\n");
+
+const PATCH_MARKER = [
+  "@@ -12,3 +12,5 @@",
+  " # ADR-2300: A rule",
+  " ",
+  `+${MARKER_2400}`,
+  "+",
+  " ## Decision",
+].join("\n");
+
+function runModified(file, patch, contents, overrides = {}) {
+  return evaluate({
+    headSha: HEAD,
+    files: [modified(file, patch), modified("docs/adr/index.json")],
+    comments: [comment(HEAD, "pass")],
+    prBody: "Closes #2300",
+    readAdr: (path) => contents[path] ?? null,
+    ...overrides,
+  });
+}
+
+test("legacyQuoteRuns keeps a sentinel-free blockquote run and drops one that carries a sentinel", () => {
+  const text = ["a", "> one", "> two", "", "> **Amended** <!-- adr-marker amends 9 -->", "> tail"].join("\n");
+  assert.deepEqual(legacyQuoteRuns(text), [[2, 3]]);
+  assert.deepEqual(legacyQuoteRuns(["```", "> fenced", "```"].join("\n")), []);
+});
+
+test("patchHunks numbers a changed line by its position in the after file", () => {
+  const [h] = patchHunks(PATCH_CORRECTION);
+  assert.deepEqual(h.changes, [{ kind: "-", text: "> The rest of this Decision stands.", at: 21 }]);
+  assert.deepEqual(patchHunks(PATCH_PROSE)[0].changes, [
+    { kind: "-", text: "Prose line.", at: 23 },
+    { kind: "+", text: "Prose line, corrected.", at: 23 },
+  ]);
+});
+
+test("a modified ADR above 227 reaches the review rather than being filtered out", () => {
+  const r = runModified(FILE_2300, PATCH_CORRECTION, { [FILE_2300]: ADR_2300_CORRECTED });
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.added, []);
+  assert.deepEqual(r.modified, [FILE_2300]);
+  assert.deepEqual(r.reviewed, [FILE_2300]);
+});
+
+test("an ADR-2159-shaped marker correction above 227 needs a pass verdict on the head SHA", () => {
+  const contents = { [FILE_2300]: ADR_2300_CORRECTED };
+  const none = runModified(FILE_2300, PATCH_CORRECTION, contents, { comments: [] });
+  assert.equal(none.code, 1);
+  assert.match(none.problems.join("\n"), /no adr-review marker for head 0123456/);
+
+  const fail = runModified(FILE_2300, PATCH_CORRECTION, contents, { comments: [comment(HEAD, "fail")] });
+  assert.equal(fail.code, 1);
+  assert.match(fail.problems.join("\n"), /verdict for head 0123456.* is fail/);
+});
+
+test("a prose edit outside a legacy marker blockquote above 227 fails and names the amends route", () => {
+  const r = runModified(FILE_2300, PATCH_PROSE, { [FILE_2300]: ADR_2300_PROSE });
+  assert.equal(r.code, 1);
+  const text = r.problems.join("\n");
+  assert.match(text, /docs\/adr\/2300-a-rule\.md:23 deletes a line outside a standing legacy marker blockquote/);
+  assert.match(text, /row M1 refuses above 227/);
+  assert.match(text, /\{kind: amends, adr: 2300\}/);
+  assert.deepEqual(r.reviewed, []);
+});
+
+test("a tool-written marker hunk above 227 is check-adr-markers' business, not a modification to review", () => {
+  const r = runModified(FILE_2300, PATCH_MARKER, { [FILE_2300]: ADR_2300_MARKED }, { comments: [] });
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.reviewed, []);
+});
+
+test("at or below 227 a modified ADR keeps the legacy route and passes without the M rows", () => {
+  const r = runModified(FILE_0110, PATCH_PROSE, {}, { comments: [] });
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.modified, [FILE_0110]);
+  assert.deepEqual(r.reviewed, []);
+});
+
+test("a modified ADR above 227 with no diff fails closed", () => {
+  const r = runModified(FILE_2300, undefined, { [FILE_2300]: ADR_2300 });
+  assert.equal(r.code, 1);
+  assert.match(r.problems.join("\n"), /carries no diff, so row M1 cannot be judged/);
+});
+
+test("a modified ADR above 227 the checkout cannot read fails", () => {
+  const r = runModified(FILE_2300, PATCH_PROSE, {});
+  assert.equal(r.code, 1);
+  assert.match(r.problems.join("\n"), /cannot read docs\/adr\/2300-a-rule\.md at the head SHA/);
+});
+
+test("an added ADR file gets the four rows and not the M rows", () => {
+  const patch = ["@@ -0,0 +1,3 @@", "+# ADR-1700: A rule", "+", "+Prose, and no blockquote in sight."].join("\n");
+  const r = run({ files: [added(FILE_1700, patch), modified("docs/adr/index.json")] });
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.reviewed, [FILE_1700]);
+});
+
+test("one added ADR and one reviewable modification above 227 is two ADRs in one PR", () => {
+  const contents = { [FILE_1700]: ADR_1700, [FILE_2300]: ADR_2300_CORRECTED };
+  const r = run({
+    files: [added(FILE_1700), modified(FILE_2300, PATCH_CORRECTION)],
+    readAdr: (path) => contents[path] ?? null,
+  });
+  assert.equal(r.code, 1);
+  assert.match(r.problems.join("\n"), /reviews 2 ADR files .*; one ADR per PR/);
+});
+
+const CONTENTS = "https://api.github.com/repos/o/r/contents";
+const RAW_MEDIA = "application/vnd.github.raw";
+
+const FRESH_LINE = "> Actually this rule is void and the opposite holds.";
+const ADR_2300_FRESH = adr2300(["## Decision", "", "A rule.", "", FRESH_LINE, "", ...BODY_2300.slice(4)]);
+
+const PATCH_FRESH = ["@@ -16,3 +16,5 @@", " A rule.", " ", `+${FRESH_LINE}`, "+", " ## 1. Context"].join("\n");
+
+const ADR_2300_BLANK = adr2300(BODY_2300.filter((l) => l !== "> The rest of this Decision stands.").slice(0, -1));
+
+test("a blockquote this patch wrote whole is not a standing legacy marker, so M1 refuses it", () => {
+  const r = runModified(FILE_2300, PATCH_FRESH, { [FILE_2300]: ADR_2300_FRESH });
+  assert.equal(r.code, 1);
+  const text = r.problems.join("\n");
+  assert.match(text, /docs\/adr\/2300-a-rule\.md:18 adds a line outside a standing legacy marker blockquote/);
+  assert.deepEqual(r.reviewed, []);
+});
+
+test("a blank line beside a named correction is no offence of its own", () => {
+  const patch = [
+    "@@ -18,7 +18,5 @@",
+    " ## 1. Context",
+    " ",
+    " > **Withdrawn** 2026-09-01: the older rule is gone.",
+    "-> The rest of this Decision stands.",
+    "-",
+    " Prose line.",
+  ].join("\n");
+  const r = runModified(FILE_2300, patch, { [FILE_2300]: ADR_2300_BLANK });
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.reviewed, [FILE_2300]);
+});
+
+test("a hunk that changes blank lines alone has no warrant and fails, naming the blank", () => {
+  const patch = ["@@ -21,3 +21,2 @@", " > The rest of this Decision stands.", "-", " Prose line."].join("\n");
+  const r = runModified(FILE_2300, patch, { [FILE_2300]: ADR_2300 });
+  assert.equal(r.code, 1);
+  assert.match(r.problems.join("\n"), /deletes a line outside a standing legacy marker blockquote/);
+  assert.match(r.problems.join("\n"), /\n {2}-<blank>/);
+});
+
+test("legacyQuoteRuns groups a run and drops the one the sentinel sits in, wherever in it", () => {
+  const text = ["a", "> one", "> two", "", "> three", "> **x** <!-- adr-marker amends 9 -->"].join("\n");
+  assert.deepEqual(legacyQuoteRuns(text), [[2, 3]]);
+  assert.deepEqual(legacyQuoteRuns(["> a", "", "> b", "> c"].join("\n")), [[1], [3, 4]]);
+});
+
+test("headContents reads each path at the head SHA and maps a 404 to null", async () => {
+  const seen = [];
+  const fetchImpl = async (url, init) => {
+    seen.push([url, init.headers.Accept, init.headers.Authorization]);
+    if (url.includes("gone")) return { ok: false, status: 404, text: async () => "" };
+    return { ok: true, status: 200, text: async () => "body" };
+  };
+  const out = await headContents({
+    repo: "o/r",
+    sha: HEAD,
+    paths: ["docs/adr/2300-a-rule.md", "docs/adr/gone.md"],
+    token: "tok",
+    fetchImpl,
+  });
+  assert.equal(out.get("docs/adr/2300-a-rule.md"), "body");
+  assert.equal(out.get("docs/adr/gone.md"), null);
+  assert.equal(seen[0][0], `${CONTENTS}/docs/adr/2300-a-rule.md?ref=${HEAD}`);
+  assert.equal(seen[0][1], RAW_MEDIA);
+  assert.equal(seen[0][2], "Bearer tok");
+});
+
+test("headContents throws on a non-2xx that is not a 404", async () => {
+  const fetchImpl = async () => ({ ok: false, status: 500, text: async () => "" });
+  await assert.rejects(headContents({ repo: "o/r", sha: HEAD, paths: ["docs/adr/x.md"], fetchImpl }), /500/);
 });

@@ -71,7 +71,7 @@ func TestDriftExportCSVStatesAPerBatchTruncationApartFromTheWindow(t *testing.T)
 	rows = append(rows, driftOpenedRow(1, at.Add(-time.Hour), "a.example.com", `{"outcome":"Resolved"}`, ""))
 
 	rec := httptest.NewRecorder()
-	s.writeDriftExportCSV(rec, "7d", rows)
+	s.writeDriftExportCSV(rec, "7d", rows, false)
 	out := rec.Body.String()
 
 	note := driftBatchCapNote(driftBatchLabel(rows[0], s.now()))
@@ -148,5 +148,44 @@ func TestAPIv1DriftReportsBothTruncationsApart(t *testing.T) {
 	}
 	if got := len(out.Batches[0].Events); got != int(driftBatchLimit) {
 		t.Errorf("the fold listed %d events, want %d", got, driftBatchLimit)
+	}
+}
+
+func TestAPIv1DriftAtExactlyTheCapClaimsNoTruncation(t *testing.T) {
+	read := func(t *testing.T, batches int) apiDriftResponse {
+		t.Helper()
+		f := newFakeStore()
+		seedAPIToken(t, f, roleViewer)
+		now := fixedClock()()
+		for b := range batches {
+			f.addFoldedBatch(t, now.Add(-time.Duration(b+1)*time.Hour), fmt.Sprintf("b%02d-", b), int(driftBatchLimit))
+		}
+		rec := serveAPI(t, f, http.MethodGet, "/api/v1/drift", "Bearer "+apiTokenPlaintext)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+		}
+		var out apiDriftResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+			t.Fatalf("body is not valid JSON: %v (%q)", err, rec.Body.String())
+		}
+		return out
+	}
+
+	full := int(driftFeedLimit / driftBatchLimit)
+
+	exact := read(t, full)
+	if exact.TransitionCount != int(driftFeedLimit) {
+		t.Fatalf("transition_count = %d, want %d: the window must hold exactly the cap", exact.TransitionCount, driftFeedLimit)
+	}
+	if exact.Truncated {
+		t.Errorf("a window holding exactly %d events reported the window cap", driftFeedLimit)
+	}
+
+	over := read(t, full+1)
+	if !over.Truncated {
+		t.Errorf("a window past %d events reported no window cap", driftFeedLimit)
+	}
+	if over.TransitionCount != int(driftFeedLimit) {
+		t.Errorf("transition_count = %d, want %d: the response renders at most the cap", over.TransitionCount, driftFeedLimit)
 	}
 }

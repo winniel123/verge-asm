@@ -1,10 +1,18 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ADR_DIR, ADR_FILE, decisionBlock, headings, splitFrontMatter } from "./check-adr-sections.mjs";
+import {
+  ADR_DIR,
+  ADR_FILE,
+  FENCE,
+  LEGACY_MAX,
+  MARKER_LINE,
+  decisionBlock,
+  headings,
+  splitFrontMatter,
+} from "./check-adr-sections.mjs";
 
-const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const API = "https://api.github.com";
 const PAGE = 100;
 
@@ -18,12 +26,100 @@ export function parseMarker(body) {
   return m ? { sha: m[1], verdict: m[2] } : null;
 }
 
-export function addedAdrFiles(files) {
+function adrFilesWithStatus(files, status) {
   return files
-    .filter((f) => f.status === "added")
+    .filter((f) => f.status === status)
     .map((f) => f.filename)
     .filter((name) => dirname(name) === ADR_DIR && ADR_FILE.test(basename(name)))
     .sort();
+}
+
+export const addedAdrFiles = (files) => adrFilesWithStatus(files, "added");
+export const modifiedAdrFiles = (files) => adrFilesWithStatus(files, "modified");
+
+export const adrNumber = (file) => Number(ADR_FILE.exec(basename(file))[1]);
+
+const QUOTE = /^\s{0,3}>/;
+const SENTINEL = /<!-- adr-marker\b/;
+
+export function legacyQuoteRuns(text) {
+  const lines = text.split("\n");
+  const runs = [];
+  let run = [];
+  let fenced = false;
+  const flush = () => {
+    if (run.length > 0 && !run.some((i) => SENTINEL.test(lines[i]))) runs.push(run.map((i) => i + 1));
+    run = [];
+  };
+  lines.forEach((line, i) => {
+    if (FENCE.test(line)) {
+      fenced = !fenced;
+      flush();
+    } else if (!fenced && QUOTE.test(line)) run.push(i);
+    else flush();
+  });
+  flush();
+  return runs;
+}
+
+export function patchHunks(patch) {
+  const out = [];
+  let cur = null;
+  for (const line of String(patch).split("\n")) {
+    const at = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (at) {
+      cur = { changes: [] };
+      cur.after = Number(at[1]);
+      out.push(cur);
+      continue;
+    }
+    if (!cur || line.startsWith("\\")) continue;
+    const kind = line[0] ?? " ";
+    if (kind === "+" || kind === "-") cur.changes.push({ kind, text: line.slice(1), at: cur.after });
+    if (kind !== "-") cur.after++;
+  }
+  return out;
+}
+
+function toolWritten(changes) {
+  // check-adr-markers regenerates every sentinel line, so it is the gate on this hunk (#2231)
+  const marker = (c) => MARKER_LINE.test(c.text);
+  return changes.some(marker) && changes.every((c) => c.text === "" || marker(c));
+}
+
+const correctable = (text) => QUOTE.test(text) && !SENTINEL.test(text);
+
+export function markerScope(patch, after) {
+  const hunks = patchHunks(patch);
+  const runs = legacyQuoteRuns(after);
+  const runOf = new Map();
+  runs.forEach((run, i) => run.forEach((line) => runOf.set(line, i)));
+  const fresh = new Set();
+  for (const h of hunks) for (const c of h.changes) if (c.kind === "+") fresh.add(c.at);
+  // ADR-2159 reaches a blockquote that was already there, so a run this patch wrote whole is out
+  const standing = runs.map((run) => run.some((line) => !fresh.has(line)));
+  const inStandingRun = (line) => runOf.has(line) && standing[runOf.get(line)];
+
+  const offences = [];
+  let edits = 0;
+  for (const h of hunks) {
+    if (h.changes.length === 0 || toolWritten(h.changes)) continue;
+    edits++;
+    const named = h.changes.filter((c) => c.text.trim() !== "");
+    // A blank line carries no sentence, so it rides on the named change beside it (#2231)
+    if (named.length === 0) {
+      offences.push(...h.changes.map((c) => ({ line: c.at, kind: c.kind, text: c.text })));
+      continue;
+    }
+    for (const c of named) {
+      const ok =
+        c.kind === "+"
+          ? inStandingRun(c.at)
+          : correctable(c.text) && (inStandingRun(c.at) || inStandingRun(c.at - 1));
+      if (!ok) offences.push({ line: c.at, kind: c.kind, text: c.text });
+    }
+  }
+  return { offences, edits };
 }
 
 function normalise(text) {
@@ -68,12 +164,45 @@ function firstDifference(want, have) {
   return null;
 }
 
+const amendsRoute = (file) =>
+  `change it through a later ADR declaring {kind: amends, adr: ${adrNumber(file)}} (adr-governance §3, §8)`;
+
+function modificationProblems(file, entry, readAdr) {
+  const after = readAdr(file);
+  if (after === null) return { problems: [`cannot read ${file} at the head SHA`], edits: 0 };
+  if (typeof entry.patch !== "string") {
+    return { problems: [`${file} carries no diff, so row M1 cannot be judged; ${amendsRoute(file)}`], edits: 0 };
+  }
+  const { offences, edits } = markerScope(entry.patch, after);
+  const problems = offences.slice(0, 3).map((o) => {
+    const verb = o.kind === "+" ? "adds" : "deletes";
+    const shown = o.text.trim() === "" ? "<blank>" : o.text;
+    return `${file}:${o.line} ${verb} a line outside a standing legacy marker blockquote, which row M1 refuses above ${LEGACY_MAX}: ${amendsRoute(file)}\n  ${o.kind}${shown}`;
+  });
+  if (offences.length > 3) problems.push(`${file}: ${offences.length - 3} further line(s) fail row M1`);
+  return { problems, edits };
+}
+
 export function evaluate({ headSha, files, comments, prBody, readAdr }) {
   const added = addedAdrFiles(files);
+  const modified = modifiedAdrFiles(files);
   const problems = [];
-  if (added.length === 0) return { code: 0, added, problems };
+  const reviewed = [...added];
+
+  for (const file of modified) {
+    // 227 and below keeps the legacy in-file amendment route, so no M row applies (#2231)
+    if (adrNumber(file) <= LEGACY_MAX) continue;
+    const r = modificationProblems(file, files.find((f) => f.filename === file), readAdr);
+    problems.push(...r.problems);
+    if (r.problems.length === 0 && r.edits > 0) reviewed.push(file);
+  }
 
   if (added.length > 1) problems.push(`adds ${added.length} ADR files (${added.join(", ")}); one ADR per PR`);
+  else if (reviewed.length > 1) {
+    problems.push(`reviews ${reviewed.length} ADR files (${reviewed.join(", ")}); one ADR per PR`);
+  }
+
+  if (reviewed.length === 0) return { code: problems.length > 0 ? 1 : 0, added, modified, reviewed, problems };
 
   const markers = comments.map((c) => parseMarker(c.body)).filter((m) => m && m.sha === headSha);
   if (markers.length === 0) {
@@ -89,7 +218,7 @@ export function evaluate({ headSha, files, comments, prBody, readAdr }) {
     const raw = readAdr(file);
     const want = raw === null ? null : normalise(decisionBlock(splitFrontMatter(raw).body).text);
     const have = bodyDecision(prBody);
-    if (want === null) problems.push(`cannot read ${file} from the checkout`);
+    if (want === null) problems.push(`cannot read ${file} at the head SHA`);
     if (have === null) problems.push("the PR body has no ## Decision section");
     if (want !== null && have !== null && want !== have) {
       const d = firstDifference(want, have);
@@ -99,7 +228,7 @@ export function evaluate({ headSha, files, comments, prBody, readAdr }) {
     }
   }
 
-  return { code: problems.length > 0 ? 1 : 0, added, problems };
+  return { code: problems.length > 0 ? 1 : 0, added, modified, reviewed, problems };
 }
 
 async function pages(path, token, fetchImpl) {
@@ -121,6 +250,23 @@ export async function gather({ repo, number, token, fetchImpl = fetch }) {
   return { files, comments };
 }
 
+export async function headContents({ repo, sha, paths, token, fetchImpl = fetch }) {
+  const out = new Map();
+  for (const path of paths) {
+    const headers = { Accept: "application/vnd.github.raw", "X-GitHub-Api-Version": "2022-11-28" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const url = `${API}/repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${sha}`;
+    const res = await fetchImpl(url, { headers });
+    if (res.status === 404) {
+      out.set(path, null);
+      continue;
+    }
+    if (!res.ok) throw new Error(`GET contents/${path}: HTTP ${res.status}`);
+    out.set(path, await res.text());
+  }
+  return out;
+}
+
 async function main() {
   const eventPath = process.env.GITHUB_EVENT_PATH;
   const repo = process.env.GITHUB_REPOSITORY;
@@ -135,26 +281,26 @@ async function main() {
     process.exit(2);
   }
 
+  const token = process.env.GITHUB_TOKEN;
   let gathered;
+  let contents;
   try {
-    gathered = await gather({ repo, number: pr.number, token: process.env.GITHUB_TOKEN });
+    gathered = await gather({ repo, number: pr.number, token });
+    // The patch numbers a line in the head file, and the checkout is the merge ref (#2231)
+    const paths = [...addedAdrFiles(gathered.files), ...modifiedAdrFiles(gathered.files)];
+    contents = await headContents({ repo, sha: pr.head.sha, paths, token });
   } catch (err) {
     console.error(`check:adr-review: ${err.message}`);
     process.exit(2);
   }
 
-  const readAdr = (file) => {
-    try {
-      return readFileSync(join(DEFAULT_ROOT, file), "utf8");
-    } catch {
-      return null;
-    }
-  };
+  const readAdr = (file) => contents.get(file) ?? null;
   const r = evaluate({ headSha: pr.head.sha, prBody: pr.body ?? "", readAdr, ...gathered });
 
   for (const p of r.problems) console.error(`check:adr-review: ${p}`);
   if (r.code === 0) {
-    const what = r.added.length === 0 ? "no ADR file added" : `${r.added[0]} reviewed at ${short(pr.head.sha)}`;
+    const what =
+      r.reviewed.length === 0 ? "no ADR file to review" : `${r.reviewed[0]} reviewed at ${short(pr.head.sha)}`;
     console.log(`check:adr-review OK — PR #${pr.number}, ${what}.`);
   }
   process.exit(r.code);

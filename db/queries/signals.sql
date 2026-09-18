@@ -162,8 +162,8 @@ ORDER BY sp.subject_key, sp.id;
 SELECT v.name AS vantage,
        -- span_open_timeline_idx admits one service twice under two sources (#2180).
        count(DISTINCT sp.subject_key)::bigint AS services,
-       -- A projection, never a predicate: filtering a recovered vantage out hides the Gap (#2189).
-       bool_and(v.availability IS NOT DISTINCT FROM 'available')::boolean AS recovered
+       -- A projection over the one position a UNIQUE name groups, never a predicate (#2189, #2254).
+       coalesce(min(v.availability), 'unknown')::text AS availability
 FROM span sp
 JOIN vantage v ON v.id = sp.vantage_id
 WHERE sp.subject_kind = 'service'

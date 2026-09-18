@@ -534,25 +534,62 @@ func TestDriftTruncationIsStatedWhenTheCapBoundsARange(t *testing.T) {
 	}
 }
 
+func TestDriftAtExactlyTheCapClaimsNoTruncationOnEitherSurface(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+
+	at := time.Now().UTC().AddDate(0, 0, -404)
+	for i := 0; i < int(driftFeedLimit); i++ {
+		f.addResolution(t, admin.ID, fmt.Sprintf("h%03d.example.com", i), "hot", at, `{"outcome":"Resolved"}`)
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	from := time.Now().UTC().AddDate(0, 0, -407)
+	to := time.Now().UTC().AddDate(0, 0, -400)
+	query := fmt.Sprintf("start=%s&end=%s", from.Format("2006-01-02"), to.Format("2006-01-02"))
+	page := getBody(t, ac, base+"/drift?"+query, http.StatusOK)
+
+	for _, want := range []string{"h000.example.com", fmt.Sprintf("h%03d.example.com", driftFeedLimit-1)} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("the window does not hold the whole cap: %s is missing; body: %s", want, page)
+		}
+	}
+	if strings.Contains(page, "Showing the most recent") {
+		t.Errorf("a window holding exactly %d events reported a truncation; body: %s", driftFeedLimit, page)
+	}
+
+	resp, err := ac.Get(base + "/drift/export?" + query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if csv := body(t, resp); strings.Contains(csv, "feed capped at") {
+		t.Errorf("a complete export carried the omission marker, so a parser reads it as incomplete; body:\n%s", csv)
+	}
+}
+
 func TestDriftExportCSVStatesTruncationWhenTheCapBoundsTheRead(t *testing.T) {
 	at := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	s := &server{now: func() time.Time { return at.Add(time.Hour) }}
 	marker := fmt.Sprintf("feed capped at %d most-recent events; older transitions omitted,,,,,,,,", driftFeedLimit)
 
-	rows := make([]db.ListRecentDriftEventsRow, 0, driftFeedLimit)
+	read := make([]db.ListRecentDriftEventsRow, 0, driftFeedRead)
 	// Ten rows a batch, so the window cap binds the read and no batch reaches its own bound.
-	for i := 0; i < int(driftFeedLimit); i++ {
-		rows = append(rows, driftOpenedRow(int64(int(driftFeedLimit)/10-i/10), at,
+	for i := 0; i < int(driftFeedRead); i++ {
+		read = append(read, driftOpenedRow(int64(int(driftFeedRead)/10-i/10), at,
 			fmt.Sprintf("h%03d.example.com", i), `{"outcome":"Resolved"}`, ""))
 	}
 
-	export := func(rows []db.ListRecentDriftEventsRow) []string {
+	export := func(in []db.ListRecentDriftEventsRow) []string {
 		rec := httptest.NewRecorder()
-		s.writeDriftExportCSV(rec, "30d", rows)
+		rows, truncated := capDriftFeed(in)
+		s.writeDriftExportCSV(rec, "30d", rows, truncated)
 		return strings.Split(strings.TrimRight(rec.Body.String(), "\n"), "\n")
 	}
 
-	capped := export(rows)
+	capped := export(read)
 	if got := capped[len(capped)-1]; got != marker {
 		t.Errorf("a capped export's last row = %q, want %q: without it a capped CSV reads as the whole feed", got, marker)
 	}
@@ -560,7 +597,16 @@ func TestDriftExportCSVStatesTruncationWhenTheCapBoundsTheRead(t *testing.T) {
 		t.Errorf("capped export = %d lines, want %d (header, %d events, marker)", len(capped), want, driftFeedLimit)
 	}
 
-	under := export(rows[:len(rows)-1])
+	// A read that exactly fills the cap omits nothing, so the marker would be a false row (#2272).
+	exact := export(read[:driftFeedLimit])
+	if got := exact[len(exact)-1]; strings.Contains(got, "feed capped") {
+		t.Errorf("an export of exactly %d events claimed truncation; last row = %q", driftFeedLimit, got)
+	}
+	if want := int(driftFeedLimit) + 1; len(exact) != want {
+		t.Errorf("an exactly-full export = %d lines, want %d (header, %d events, no marker)", len(exact), want, driftFeedLimit)
+	}
+
+	under := export(read[:driftFeedLimit-1])
 	if got := under[len(under)-1]; strings.Contains(got, "feed capped") {
 		t.Errorf("an export one row under the cap claimed truncation; last row = %q", got)
 	}

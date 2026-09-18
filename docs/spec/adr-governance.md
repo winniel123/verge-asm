@@ -128,6 +128,24 @@ A fresh-context subagent reviews every PR that adds an ADR file. It receives the
 | 3. Proof is real | `test`: the reviewer quotes the assertion. `ticket`: the issue is open and names the rule. `none`: the reviewer accepts the reason. |
 | 4. No prior ruling | The reviewer names the three nearest ADRs from the index and states why each differs. |
 
+A fresh-context subagent also reviews every PR that **modifies** an ADR file numbered above 227. §3
+forbids an in-place amendment, and ADR-2159 permits one narrow correction: a falsified sentence
+inside a legacy hand-written marker, where the blockquote carries no `adr-marker` sentinel and the
+correction changes nothing the ADR decided. Both bounds hold together. These rows ask whether the
+modification is that correction, and the four rows above do not run on it.
+
+| Row | Pass condition |
+| --- | --- |
+| M1. Marker scope | Every changed hunk sits inside a blockquote that carries no `adr-marker` sentinel. |
+| M2. Decision unchanged | The correction does not change what the ADR decided. The reviewer quotes the before and after and states why the decision is the same. |
+| M3. Route named | If either row fails, the verdict names the `amends` route and the ADR number the change should carry instead. |
+
+At 227 and below a modified ADR keeps the legacy in-file amendment route of §3, so no M row reaches
+it. A hunk that only writes or removes an `adr-marker` line belongs to the marker tool, and §9's
+marker check regenerates every such line from front matter, so M1 does not reach it either. Ordinary
+ADR prose outside a legacy marker blockquote is outside ADR-2159, however wrong the sentence is, and
+so is a blockquote the same patch wrote whole: the marker M1 names is one that was already there.
+
 The verdict is one PR comment per reviewed SHA. It opens with
 `<!-- adr-review sha=<40hex> verdict=pass|fail -->`, then one table row per check with a `pass` or
 `fail` cell and one evidence line. Any `fail` row fails the verdict. After three `fail` verdicts the
@@ -138,7 +156,8 @@ then squash-merges. The merge records the reading.
 
 Every check is a Node script in `docs-site/scripts/` that reuses the parser of
 `check-adr-sections.mjs`. The `adr-sections` job grows two steps. `adr-review` is a new required
-check. It runs on every PR, passes when the PR adds no ADR file, and listens to `edited`.
+check. It runs on every PR, passes when the PR neither adds an ADR file nor hand-edits one above
+227, and listens to `edited`.
 
 | Check | Fails when |
 | --- | --- |
@@ -147,7 +166,7 @@ check. It runs on every PR, passes when the PR adds no ADR file, and listens to 
 | Relations | A `clause` does not resolve, or sits on a kind that forbids one. One `amends` or `retires` edge is declared at both clause and whole-ADR scope. An edge is written on both sides. |
 | Decision block | Above 227 it is not the first `##`, or exceeds 150 words. |
 | Index, markers | The committed index or any marker differs from the regeneration. |
-| Review | The PR adds an ADR file and no single `pass` marker matches the head SHA. Two markers share a SHA. Two ADR files. The PR body's `## Decision` differs from the file. |
+| Review | The PR adds an ADR file, or hand-edits one above 227, and no single `pass` marker matches the head SHA. A hand edit above 227 falls outside a legacy marker blockquote, per §8 row M1. Two markers share a SHA. Two reviewed ADR files. The PR body's `## Decision` differs from the file. |
 
 ## 10. Legacy backfill (#1639, #1641, #1645)
 

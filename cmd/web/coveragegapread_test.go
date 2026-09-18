@@ -318,25 +318,80 @@ func TestCoverageSaysARecoveredVantagesOutageGapIsPending(t *testing.T) {
 	}
 }
 
-func TestOutageGapViewsLeaveADarkVantagesRowUnqualified(t *testing.T) {
+func TestOutageGapViewsQualifiesEveryAvailabilityState(t *testing.T) {
 	gaps, msgs := outageGapViews([]db.ListOutageReachGapVantagesRow{
-		{Vantage: "dark", Services: 2, Recovered: false},
-		{Vantage: "back", Services: 1, Recovered: true},
+		{Vantage: "dark", Services: 2, Availability: "unavailable"},
+		{Vantage: "back", Services: 1, Availability: "available"},
+		{Vantage: "fresh", Services: 3, Availability: "pending"},
+		{Vantage: "proberless", Services: 4, Availability: "unknown"},
 	})
 
-	if len(gaps) != 2 {
-		t.Fatalf("both positions still hold an open Gap, so both take a row (#2189): %+v", gaps)
+	if len(gaps) != 4 {
+		t.Fatalf("every position still holds an open Gap, so every state takes a row (#2254): %+v", gaps)
 	}
-	if gaps[0].Expected != "a reach reading for 2 services" {
-		t.Errorf("a position we still cannot look from must not read as pending (#2189): %+v", gaps[0])
+	want := map[string]string{
+		"vantage dark":       "a reach reading for 2 services",
+		"vantage back":       "a reach reading for 1 service, pending",
+		"vantage fresh":      "a reach reading for 3 services, unconfirmed",
+		"vantage proberless": "a reach reading for 4 services, unconfirmed",
 	}
-	if gaps[1].Expected != "a reach reading for 1 service, pending" {
-		t.Errorf("a recovered position's row must say the reading is pending (#2189): %+v", gaps[1])
+	for _, g := range gaps {
+		if g.Gap != "outage" {
+			t.Errorf("the badge names the cause the span recorded, for every state (#2180): %+v", g)
+		}
+		// A dark position must not read as pending, and neither fall-through state may read bare.
+		if g.Expected != want[g.Subject] {
+			t.Errorf("%s reads %q, want %q (#2254)", g.Subject, g.Expected, want[g.Subject])
+		}
 	}
-	if gaps[0].Gap != "outage" || gaps[1].Gap != "outage" {
-		t.Errorf("the badge names the cause the span recorded, for both (#2180): %+v", gaps)
+	if m := messageFor(msgs, "vantage dark"); m.Text != "" {
+		t.Errorf("unavailableVantageMessages owns a dark position's message (#2254): %+v", m)
 	}
-	if len(msgs) != 1 || msgs[0].Subject != "vantage back" {
-		t.Fatalf("only the recovered position earns the pending message (#2189): %+v", msgs)
+	if m := messageFor(msgs, "vantage back"); !strings.Contains(m.Text, "has recovered") {
+		t.Errorf("a recovered position's row must say the reading is pending (#2189): %+v", m)
+	}
+	if m := messageFor(msgs, "vantage fresh"); !strings.Contains(m.Text, "no pinned host key") {
+		t.Errorf("a pending position must name its state rather than render bare (#2254): %+v", m)
+	}
+	if m := messageFor(msgs, "vantage proberless"); !strings.Contains(m.Text, "no availability at all") {
+		t.Errorf("a position with no availability must name that rather than render bare (#2254): %+v", m)
+	}
+}
+
+func TestOutageGapViewsReturnsARowForEveryStateMix(t *testing.T) {
+	states := []string{"available", "unavailable", "pending", "unknown"}
+	for mix := 0; mix < 1<<len(states); mix++ {
+		var rows []db.ListOutageReachGapVantagesRow
+		for i, s := range states {
+			if mix&(1<<i) != 0 {
+				rows = append(rows, db.ListOutageReachGapVantagesRow{Vantage: s, Services: 1, Availability: s})
+			}
+		}
+		gaps, _ := outageGapViews(rows)
+		if len(gaps) != len(rows) {
+			t.Fatalf("mix %04b: read %d rows and returned %d gap rows (#2254)", mix, len(rows), len(gaps))
+		}
+	}
+}
+
+func TestCoverageQualifiesAPendingVantagesOutageGap(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: 1, Name: "local", Class: "internet", Resolver: "127.0.0.11:53",
+		Availability: pgtype.Text{String: "pending", Valid: true},
+	})
+	f.vantageNextID = 2
+	f.addClassReachability(t, "198.51.100.9:443/tcp", "internet", obsClock, unavailableGap)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := coverageBody(t, ac, base)
+	if !strings.Contains(page, "1 service, unconfirmed") {
+		t.Errorf("a pending position's outage row must name the state, not render bare (#2254); body: %s", page)
+	}
+	if !strings.Contains(page, "no pinned host key") {
+		t.Errorf("a pending position must read as neither recovered nor dark (#2254); body: %s", page)
 	}
 }

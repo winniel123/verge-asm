@@ -57,8 +57,10 @@ func TestExposurePanelReadsEveryScopeActClassInOneQuery(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("the one read asked for %v, want %v", got, want)
 	}
-	if spy.args.MaxActs != scopeActReadCap {
-		t.Errorf("MaxActs = %d, want %d: the cap bounds the whole read", spy.args.MaxActs, scopeActReadCap)
+	if spy.args.MaxActs != scopeActReadOverflow {
+		t.Errorf("MaxActs = %d, want %d: the cap bounds the whole read, and the one extra row is "+
+			"what separates a truncation from a window holding exactly the cap",
+			spy.args.MaxActs, scopeActReadOverflow)
 	}
 }
 
@@ -116,7 +118,7 @@ func TestExposurePanelCoversEveryClassThatMovesCovered(t *testing.T) {
 		t.Fatalf("recentAddressScopeActs: %v", err)
 	}
 	if capped {
-		t.Error("six acts filled no 50-row read")
+		t.Errorf("six acts filled no %d-row read", scopeActReadCap)
 	}
 	want := []scopeActRow{
 		{Scope: "192.0.2.128/25", Verb: "exclusion lifted"},
@@ -505,6 +507,72 @@ func TestExposurePanelNamesACappedReadBesideFiveRows(t *testing.T) {
 	}
 	if !strings.Contains(page, "192.0.2.0/32") {
 		t.Fatal("the fixture did not render the five address rows the note sits beside")
+	}
+}
+
+// A window holding exactly the cap truncated nothing, so the equality the flag once read told a
+// reader to go looking for an act that does not exist (#2222).
+
+func TestAWindowHoldingExactlyTheReadCapIsNotCapped2222(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	for i := range scopeActRows {
+		recordActAt(t, f, now.Add(-time.Duration(i+1)*time.Minute), who,
+			act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{
+				Kind: "address", Scope: fmt.Sprintf("192.0.2.%d/32", i)}})
+	}
+	// Name scopes fill the rest of the window, so the read returns the cap and nothing is older.
+	for i := range int(scopeActReadCap) - scopeActRows {
+		declareScopeAct(t, f, now.Add(-time.Duration(i+1+scopeActRows)*time.Minute), "alice",
+			fmt.Sprintf("host-%d.acmecorp.io", i))
+	}
+	if got := len(f.actRows); got != int(scopeActReadCap) {
+		t.Fatalf("the fixture holds %d acts, want exactly %d: this case is the boundary", got, scopeActReadCap)
+	}
+
+	s := &server{scopeActStore: f, now: func() time.Time { return now }}
+	rows, capped, err := s.recentAddressScopeActs(context.Background())
+	if err != nil {
+		t.Fatalf("recentAddressScopeActs: %v", err)
+	}
+	if len(rows) != scopeActRows {
+		t.Fatalf("rows = %d, want %d: the render must fill or this proves nothing", len(rows), scopeActRows)
+	}
+	if capped {
+		t.Error("a window holding exactly the cap reported a truncation, and the note then sends a " +
+			"reader after an older act that does not exist (#2222)")
+	}
+}
+
+// The overflow row is read to tell the two cases apart and is not part of the window the panel
+// may render, so it stays off the page (#2222).
+
+func TestTheOverflowRowProvesTheTruncationAndDoesNotRender2222(t *testing.T) {
+	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+
+	who := act.Account{AccountID: 1, UsernameSnapshot: "alice"}
+	// The one address act is the oldest, so it lands in the overflow row the cap does not cover.
+	recordActAt(t, f, now.Add(-time.Duration(int(scopeActReadCap)+1)*time.Minute), who,
+		act.ExclusionDeclared{ExclusionRef: act.ExclusionRef{Kind: "address", Scope: "198.51.100.7/32"}})
+	for i := range int(scopeActReadCap) {
+		declareScopeAct(t, f, now.Add(-time.Duration(i+1)*time.Minute), "alice",
+			fmt.Sprintf("host-%d.acmecorp.io", i))
+	}
+
+	s := &server{scopeActStore: f, now: func() time.Time { return now }}
+	rows, capped, err := s.recentAddressScopeActs(context.Background())
+	if err != nil {
+		t.Fatalf("recentAddressScopeActs: %v", err)
+	}
+	if !capped {
+		t.Error("a read that returned the overflow row reported no truncation, and an act older than " +
+			"the cap is then hidden with no note (#2188)")
+	}
+	if len(rows) != 0 {
+		t.Errorf("rows = %+v, want none: the overflow row is past the cap and may not render", rows)
 	}
 }
 
