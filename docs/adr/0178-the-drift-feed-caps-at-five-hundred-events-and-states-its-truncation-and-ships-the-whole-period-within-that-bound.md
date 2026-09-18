@@ -16,6 +16,8 @@ relations:
 
 # ADR-0178: the Drift feed caps at 500 events, states its truncation, and ships the whole period within that bound
 
+> **Amended** by [ADR-2356: The Drift feed bounds each batch before its own cap](./2356-the-drift-feed-bounds-each-batch-before-its-own-cap.md), 2026-09-18. <!-- adr-marker amends 2356 -->
+
 - **Not bound by:** [ADR-0105](./0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md), the citation the deleted comment carried. It rules that Inventory is a read over the open-span corpus, *"not a second corpus and not a second thesis"*, and states nothing about view JS and nothing about what a handler ships
 
 ## Context

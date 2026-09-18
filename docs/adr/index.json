@@ -8439,7 +8439,7 @@
       "date": "2026-09-05",
       "status": {
         "set": "accepted",
-        "derived": "accepted"
+        "derived": "amended"
       },
       "source": "sweep",
       "proof": {
@@ -8468,6 +8468,11 @@
           "kind": "rests-on",
           "from": 136,
           "clause": null
+        },
+        {
+          "kind": "amends",
+          "from": 2356,
+          "clause": null
         }
       ],
       "sections": [
@@ -8477,7 +8482,13 @@
         "4",
         "5"
       ],
-      "markers": [],
+      "markers": [
+        {
+          "kind": "amends",
+          "from": 2356,
+          "clause": null
+        }
+      ],
       "decision": {
         "words": 58,
         "text": "> **The Drift transition feed reads and renders at most `driftFeedLimit` = 500 events. The most recent events in the window win, and the page STATES that the cap truncated the view. Within that bound the server carries the WHOLE period feed to the template: the feed is bounded once, by recency, and never by a view predicate.**"
@@ -12998,6 +13009,46 @@
       "decision": {
         "words": 150,
         "text": "> **A document converts only after a human reads every planned anchor against its target and against\n> the citing prose.** [#2156](https://github.com/winniel123/verge-asm/issues/2156)'s zero-held bar\n> gains a fourth test. A rejected token degrades to a bare path, and the rest of the document\n> converts. The `--history` arm runs per slice as evidence, never in place of the read.\n>\n> A reader asks why a sweep needs a hand. Because both instruments passed ADR-0212's one\n> wrong anchor. The guard reads the citation's own source line, and a wrap put the rival above it.\n> The arm found no drift, because a later edit to the citing line reset its witness past it.\n>\n> Rejected: hold the whole document when one anchor fails the read. That freezes its sound tokens in\n> the form the conversion retires.\n>\n> Reversal writes an anchor no check will ever question."
+      }
+    },
+    {
+      "number": 2356,
+      "file": "docs/adr/2356-the-drift-feed-bounds-each-batch-before-its-own-cap.md",
+      "title": "The Drift feed bounds each batch before its own cap",
+      "slug": "the-drift-feed-bounds-each-batch-before-its-own-cap",
+      "date": "2026-09-18",
+      "status": {
+        "set": "accepted",
+        "derived": "accepted"
+      },
+      "source": "fix",
+      "proof": {
+        "test": "internal/dbtest/drift_feed_batch_bound_test.go::TestOneLargeFoldLeavesRoomForEveryOtherBatch2325"
+      },
+      "ticket": 2356,
+      "map": null,
+      "pr": null,
+      "withdrawal": null,
+      "relations": [
+        {
+          "kind": "amends",
+          "adr": 178
+        }
+      ],
+      "incoming": [],
+      "sections": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "markers": [],
+      "decision": {
+        "words": 138,
+        "text": "> **The Drift feed bounds each batch at 50 edges before its own 500-event cap, and states the two\n> truncations apart.** A fold above 50 shows as its own 50 rather than taking the window.\n>\n> A reader asks why ADR-0178 §1's *one bound, one site* gives way. Because §1 and §2 answered\n> volume, and one fold larger than the cap is a different adversary: a dead prober Gaps thousands\n> at once, and `/drift` then shows one batch.\n>\n> §2 refuses a bound that **depends on** batch size. A constant does not. The absence of one let\n> batch size decide the window's contents.\n>\n> Rejected: state the eviction without bounding it. That leaves the feed showing one batch.\n>\n> Reversal returns the window to the first fold that fills it."
       }
     }
   ]
