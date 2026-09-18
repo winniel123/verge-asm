@@ -25,9 +25,9 @@ const REQUIRED = ["number", "title", "slug", "date", "status", "source", "proof"
 const STATUSES = new Set(["accepted", "withdrawn"]);
 const SOURCES = new Set(["grilling", "fix", "sweep"]);
 const PROOFS = ["test", "ticket", "none"];
-const CLAUSE_RULE = {
-  amends: "required",
-  retires: "required",
+export const CLAUSE_RULE = {
+  amends: "optional",
+  retires: "optional",
   supersedes: "forbidden",
   sibling: "forbidden",
   "rests-on": "optional",
@@ -145,17 +145,17 @@ function checkRelations(a, f, adrs, fail) {
     seen.add(key);
     const label = `${r.kind} ${pad(r.adr)}`;
     if (r.clause !== undefined && r.clause !== null) {
-      if (typeof r.clause !== "string") fail(a, "relations", `${label}: clause ${r.clause} must be a string`);
+      if (rule === "forbidden") fail(a, "relations", `${r.kind} forbids a clause`);
+      else if (typeof r.clause !== "string") fail(a, "relations", `${label}: clause ${r.clause} must be a string`);
       else if (!CLAUSE.test(r.clause)) {
         fail(a, "relations", `${label}: clause \`${r.clause}\` is not a dotted heading number`);
-      } else if (rule === "forbidden") fail(a, "relations", `${r.kind} forbids a clause`);
-      else if (target.sections.size === 0) {
+      } else if (target.sections.size === 0) {
         fail(a, "relations", `${label} §${r.clause}: ${pad(r.adr)} numbers no heading, so the relation is whole-ADR`);
       } else if (!target.sections.has(r.clause)) {
         fail(a, "relations", `${label} §${r.clause}: target numbers ${[...target.sections].join(", ")}`);
       }
     } else if (rule === "required" && target.sections.size > 0) {
-      fail(a, "relations", `${label} needs a clause, the target numbers headings`);
+      fail(a, "relations", `${label} needs a clause, the target numbers ${[...target.sections].join(", ")}`);
     }
     const back = (Array.isArray(target.front?.relations) ? target.front.relations : []).some(
       (t) => t && t.kind === r.kind && t.adr === a.number,

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { INDEX_FILE, buildIndex, derivedStatus, loadAdrs, run, validate } from "./check-adr-index.mjs";
+import { CLAUSE_RULE, INDEX_FILE, buildIndex, derivedStatus, loadAdrs, run, validate } from "./check-adr-index.mjs";
 import { decisionBlock, splitFrontMatter } from "./check-adr-sections.mjs";
 
 const SLUG_223 = "a-bar-is-authored-in-the-release";
@@ -347,6 +347,29 @@ function withRelations(number, front, rows) {
   return withFront(number, [...replacing(front, "relations"), ...(rows.length ? ["relations:", ...rows] : [])]);
 }
 
+const SLUG_1800 = "a-clause-less-amends-acts-on-the-whole-file";
+
+const FRONT_1800 = [
+  "number: 1800",
+  'title: "A clause-less amends acts on the whole file"',
+  `slug: ${SLUG_1800}`,
+  "date: 2026-09-17",
+  "status: accepted",
+  "source: grilling",
+  "ticket: 1800",
+  "proof: {ticket: 2233}",
+];
+
+function acting1800(rows) {
+  return corpus({
+    [`docs/adr/1800-${SLUG_1800}.md`]: adr({
+      front: [...FRONT_1800, "relations:", ...rows],
+      h1: "# ADR-1800: A clause-less amends acts on the whole file",
+      body: NEW_BODY,
+    }),
+  });
+}
+
 test("a relation kind is one of the six", () => {
   assertProblem(withRelations(227, FRONT_227, ["  - {kind: replaces, adr: 223}"]), /kind `replaces` is not one of the six/);
 });
@@ -362,9 +385,36 @@ test("supersedes and sibling refuse a clause", () => {
   assertProblem(withRelations(227, FRONT_227, ['  - {kind: sibling, adr: 223, clause: "3"}']), /sibling forbids a clause/);
 });
 
-test("amends and retires need a clause when the target numbers a heading", () => {
-  assertProblem(withRelations(227, FRONT_227, ["  - {kind: retires, adr: 223}"]), /retires ADR-0223 needs a clause/);
-  assertProblem(withRelations(227, FRONT_227, ["  - {kind: amends, adr: 223}"]), /amends ADR-0223 needs a clause/);
+test("a forbidden clause is named as forbidden whatever shape it takes", () => {
+  assertProblem(withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "§3"}']), /supersedes forbids a clause/);
+  assertProblem(withRelations(227, FRONT_227, ["  - {kind: sibling, adr: 223, clause: 3}"]), /sibling forbids a clause/);
+});
+
+test("amends and retires take an optional clause", () => {
+  assert.equal(CLAUSE_RULE.amends, "optional");
+  assert.equal(CLAUSE_RULE.retires, "optional");
+});
+
+test("a kind that requires a clause names the target's clauses when one is missing", () => {
+  const was = CLAUSE_RULE.amends;
+  CLAUSE_RULE.amends = "required";
+  try {
+    assertProblem(withRelations(227, FRONT_227, ["  - {kind: amends, adr: 223}"]), /amends ADR-0223 needs a clause, the target numbers 1, 2, 3, 4/);
+  } finally {
+    CLAUSE_RULE.amends = was;
+  }
+});
+
+test("an amends or retires with no clause on an above-227 target acts on the whole file", () => {
+  assert.deepEqual(problemsOf(acting1800(["  - {kind: amends, adr: 1700}"])), []);
+  assert.deepEqual(problemsOf(acting1800(["  - {kind: retires, adr: 1700}"])), []);
+  assert.deepEqual(problemsOf(withRelations(227, FRONT_227, ["  - {kind: amends, adr: 223}"])), []);
+});
+
+test("a supplied clause still fails when it names no numbered heading of the target", () => {
+  assertProblem(acting1800(['  - {kind: amends, adr: 1700, clause: "Decision"}']), /clause `Decision` is not a dotted heading number/);
+  assertProblem(acting1800(['  - {kind: amends, adr: 1700, clause: "2"}']), /amends ADR-1700 \u00a72: target numbers 1$/);
+  assertProblem(acting1800(['  - {kind: retires, adr: 3, clause: "1"}']), /ADR-0003 numbers no heading/);
 });
 
 test("amends and retires on an unnumbered target act on the whole file", () => {
@@ -581,12 +631,12 @@ test("--check fails with exit 2 on a schema or relation problem, and writes noth
   });
 });
 
-test("the four schema cases of #1645 §5 each fail with the stated message, exit 2", () => {
+test("the schema cases of #1645 §5 that survive the clause ruling each fail with the stated message, exit 2", () => {
   const cases = [
     [bothSides(), /an edge lives once/],
     [withRelations(227, FRONT_227, ['  - {kind: retires, adr: 223, clause: "9"}']), /target numbers 1, 2, 3, 4/],
     [withRelations(227, FRONT_227, ['  - {kind: supersedes, adr: 223, clause: "3"}']), /supersedes forbids a clause/],
-    [withRelations(227, FRONT_227, ["  - {kind: retires, adr: 223}"]), /needs a clause/],
+    [withRelations(227, FRONT_227, ['  - {kind: amends, adr: 3, clause: "1"}']), /ADR-0003 numbers no heading/],
   ];
   for (const [files, pattern] of cases) {
     withRepo(files, (root) => {
