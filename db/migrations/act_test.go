@@ -5,29 +5,9 @@ import (
 	"testing"
 )
 
-func actTable(t *testing.T) string {
-	t.Helper()
-	for _, s := range strings.Split(upMigrations(t), ";") {
-		low := strings.ToLower(s)
-		if strings.Contains(low, "create table act") {
-			return low
-		}
-	}
-	t.Fatal("no CREATE TABLE act found — the corpus is what the Act spec builds (audit-act §4.1)")
-	return ""
-}
-
-// It returns the one declaration line, so a CHECK holding a comma survives the read.
-
 func actColumn(t *testing.T, name string) string {
 	t.Helper()
-	for _, line := range strings.Split(actTable(t), "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), name+" ") {
-			return strings.TrimSpace(line)
-		}
-	}
-	t.Fatalf("act declares no %s column", name)
-	return ""
+	return tableColumn(t, "act", name)
 }
 
 func TestActorKindCarriesTwoTokensAndNoSystem(t *testing.T) {
@@ -59,15 +39,24 @@ func TestActionCarriesNoCheckConstraint(t *testing.T) {
 	if !strings.Contains(col, "not null") {
 		t.Errorf("action must be NOT NULL, got: %s", col)
 	}
+	for name, decl := range constraintsMatching(t, "act", "check") {
+		if strings.Contains(decl, "action") {
+			t.Errorf("%s constrains action; §4.1 diverges from transcript deliberately, got: %s", name, decl)
+		}
+	}
 }
 
 func TestActPinsNoAccount(t *testing.T) {
 	// The shipped attribution columns restrict, so copying them would make an
 	// admin who has ever acted unremovable (audit-act §5.4).
-	stmt := actTable(t)
-
-	if strings.Contains(stmt, "references account") {
-		t.Errorf("act carries an FK into account; §5.4 refuses one and carries the name instead:\n%s", stmt)
+	for name, decl := range tableColumns(t, "act") {
+		if strings.Contains(decl, "references account") {
+			t.Errorf("act.%s references account; §5.4 refuses one and carries the name instead: %s", name, decl)
+		}
+	}
+	for name, decl := range constraintsMatching(t, "act", "references account") {
+		t.Errorf("%s is an FK from act into account; §5.4 refuses one and carries the name "+
+			"instead: %s", name, decl)
 	}
 }
 

@@ -67,15 +67,20 @@ Six kinds, closed. An edge lives once, on the acting ADR.
 
 | Kind | Scope | Derives | `clause` |
 | --- | --- | --- | --- |
-| `amends`, `retires` | clause | `amended` | required when the target numbers a heading |
+| `amends`, `retires` | clause, else whole ADR | `amended` | optional |
 | `supersedes` | whole ADR | `superseded` | forbidden |
 | `rests-on`, `bounds` | either | nothing | optional |
 | `sibling` | whole ADR | nothing | forbidden |
 
-A `clause` never names an unnumbered heading. On a target with no numbered heading, `amends` and
-`retires` omit `clause` and act on the whole file. `amended` and `superseded` derive from incoming
-relations. Precedence: `withdrawn`, `superseded`, `amended`, `accepted`. Every edge counts for the
-life of the file. No file is ever deleted.
+A supplied `clause` resolves to a numbered heading of the target and never names an unnumbered
+heading. An `amends` or `retires` that omits `clause` acts on the whole file, whether or not the
+target numbers a heading. `amended` and `superseded` derive from incoming relations. Precedence:
+`withdrawn`, `superseded`, `amended`, `accepted`. Every edge counts for the life of the file. No file
+is ever deleted.
+
+A Consequences section is a dated record, never a live assertion, so nothing amends one, and a
+reference inside one whose declaration did not survive degrades rather than being repointed, under
+[citation anchor repair](citation-anchor-repair.md) §6.3. ADR-2157 rules it.
 
 ## 5. Markers (#1644)
 
@@ -139,7 +144,7 @@ check. It runs on every PR, passes when the PR adds no ADR file, and listens to 
 | --- | --- |
 | Citation | `ADR-\d{4,}` names no file. A `§` names no numbered heading, or names a heading by word. `ADR-nnnn #nnn` appears above 227. |
 | Schema | A required field is missing. `number` differs from `ticket` above 227. A `test` proof does not resolve. |
-| Relations | A `clause` does not resolve, or is missing where the target numbers a heading. An edge is written on both sides. |
+| Relations | A `clause` does not resolve, or sits on a kind that forbids one. One `amends` or `retires` edge is declared at both clause and whole-ADR scope. An edge is written on both sides. |
 | Decision block | Above 227 it is not the first `##`, or exceeds 150 words. |
 | Index, markers | The committed index or any marker differs from the regeneration. |
 | Review | The PR adds an ADR file and no single `pass` marker matches the head SHA. Two markers share a SHA. Two ADR files. The PR body's `## Decision` differs from the file. |

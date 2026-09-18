@@ -976,7 +976,7 @@ func (f *fakeStore) ListBatchWindows(_ context.Context, batchIds []int64) ([]db.
 
 func (f *fakeStore) ListDriftEventsForBatches(ctx context.Context, batchIds []int64) ([]db.ListDriftEventsForBatchesRow, error) {
 	// No Since and no MaxEvents, so the fake answers the uncapped read the real query is.
-	all, err := f.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{})
+	all, err := f.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{MaxPerBatch: fakeUnboundedPerBatch})
 	if err != nil {
 		return nil, err
 	}
@@ -1076,10 +1076,27 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 		}
 		return a.Facet < b.Facet
 	})
+	rows = fakeBoundPerBatch(rows, arg.MaxPerBatch)
 	if arg.MaxEvents > 0 && int32(len(rows)) > arg.MaxEvents {
 		rows = rows[:arg.MaxEvents]
 	}
 	return rows, nil
+}
+
+const fakeUnboundedPerBatch int64 = 1 << 40
+
+func fakeBoundPerBatch(rows []db.ListRecentDriftEventsRow, perBatch int64) []db.ListRecentDriftEventsRow {
+	// The real query ranks within batch_id before its own LIMIT, so the fake ranks too (#2325).
+	out := make([]db.ListRecentDriftEventsRow, 0, len(rows))
+	seen := map[int64]int64{}
+	for _, row := range rows {
+		seen[row.BatchID]++
+		if seen[row.BatchID] > perBatch {
+			continue
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 func (f *fakeStore) addReachability(t *testing.T, serviceKey string, at time.Time, value string) {

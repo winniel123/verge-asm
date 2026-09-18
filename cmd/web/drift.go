@@ -69,6 +69,7 @@ type driftBatch struct {
 	Label     string
 	Meta      string
 	Collapsed bool
+	Truncated bool
 	Events    []driftEvent
 }
 
@@ -161,6 +162,10 @@ func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since
 
 const driftFeedLimit int32 = 500
 
+const driftBatchLimit int32 = 50
+
+const driftBatchRead = int64(driftBatchLimit) + 1
+
 func (s *server) presetSince(p periodPreset) pgtype.Timestamptz {
 	if p.Window == 0 {
 		return pgtype.Timestamptz{Time: time.Time{}, Valid: true}
@@ -178,7 +183,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	// A 90d window on a mature estate is unbounded, so the feed reads under a cap (ADR-0178 §1).
 	rows, err := s.driftStore.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: since, Until: until, MaxEvents: driftFeedLimit,
+		Since: since, Until: until, MaxEvents: driftFeedLimit, MaxPerBatch: driftBatchRead,
 	})
 	if err != nil {
 		// An empty feed reads as no drift, so Drift's own subject is loud (ADR-0168 §4, #1424).
@@ -210,6 +215,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		"HasEvents":       len(groups) > 0,
 		"Truncated":       truncated,
 		"FeedLimit":       driftFeedLimit,
+		"BatchLimit":      driftBatchLimit,
 		"BatchID":         batchID,
 		"BatchLabel":      batchLabel,
 		"TransitionCount": transitionCount,
@@ -242,7 +248,8 @@ func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timest
 	}
 
 	rows, err := s.driftStore.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
-		Since: pgtype.Timestamptz{Time: prevStart, Valid: true}, Until: since, MaxEvents: driftFeedLimit,
+		Since: pgtype.Timestamptz{Time: prevStart, Valid: true}, Until: since,
+		MaxEvents: driftFeedLimit, MaxPerBatch: driftBatchRead,
 	})
 	if err != nil {
 		log.Printf("web: drift: previous-window drift events: %v", err)
@@ -277,7 +284,7 @@ func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	token, _, since, until := s.resolveDriftWindow(r)
 	rows, err := s.driftStore.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: since, Until: until, MaxEvents: driftFeedLimit,
+		Since: since, Until: until, MaxEvents: driftFeedLimit, MaxPerBatch: driftBatchRead,
 	})
 	if err != nil {
 		s.serverError(w, "drift export: list recent drift events", err)

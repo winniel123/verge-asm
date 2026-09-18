@@ -16,28 +16,53 @@ import (
 
 type driftMovement map[string]int
 
-func buildDriftFeed(rows []db.ListRecentDriftEventsRow, now time.Time) ([]driftBatch, driftMovement) {
+type driftBatchRun struct {
+	Rows      []db.ListRecentDriftEventsRow
+	Truncated bool
+}
+
+func driftBatchRuns(rows []db.ListRecentDriftEventsRow) []driftBatchRun {
+	var runs []driftBatchRun
 	// The query already orders by timeline within a batch, so one pass groups the runs.
+	for i := 0; i < len(rows); {
+		j := i
+		for j < len(rows) && rows[j].BatchID == rows[i].BatchID {
+			j++
+		}
+		run := driftBatchRun{Rows: rows[i:j]}
+		// The read takes one row past the bound, so an overflow is measured (#2325).
+		if len(run.Rows) > int(driftBatchLimit) {
+			run.Rows = run.Rows[:driftBatchLimit]
+			run.Truncated = true
+		}
+		runs = append(runs, run)
+		i = j
+	}
+	return runs
+}
+
+func buildDriftFeed(rows []db.ListRecentDriftEventsRow, now time.Time) ([]driftBatch, driftMovement) {
 	movement := driftMovement{}
 	var groups []driftBatch
-	var cur *driftBatch
-	var curID int64
 
-	for _, row := range rows {
-		ev, ok := classifyDriftEvent(row, now)
-		if !ok {
+	for _, run := range driftBatchRuns(rows) {
+		group := driftBatch{
+			Label:     driftBatchLabel(run.Rows[0], now),
+			Meta:      driftBatchMeta(run.Rows[0]),
+			Truncated: run.Truncated,
+		}
+		for _, row := range run.Rows {
+			ev, ok := classifyDriftEvent(row, now)
+			if !ok {
+				continue
+			}
+			movement[ev.Change]++
+			group.Events = append(group.Events, ev)
+		}
+		if len(group.Events) == 0 {
 			continue
 		}
-		movement[ev.Change]++
-		if cur == nil || row.BatchID != curID {
-			groups = append(groups, driftBatch{
-				Label: driftBatchLabel(row, now),
-				Meta:  driftBatchMeta(row),
-			})
-			cur = &groups[len(groups)-1]
-			curID = row.BatchID
-		}
-		cur.Events = append(cur.Events, ev)
+		groups = append(groups, group)
 	}
 	return groups, movement
 }
@@ -151,32 +176,41 @@ func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, 
 	_ = cw.Write([]string{"batch", "scope", "change", "subject", "detail", "time", "reason", "before", "after"})
 
 	now := s.now()
-	for _, row := range rows {
-		ev, ok := classifyDriftEvent(row, now)
-		if !ok {
-			continue
+	for _, run := range driftBatchRuns(rows) {
+		for _, row := range run.Rows {
+			ev, ok := classifyDriftEvent(row, now)
+			if !ok {
+				continue
+			}
+			before, after := driftExportValues(row, ev.Change)
+			when := row.OpenedAt.Time
+			if row.Role == "closed" {
+				when = row.ClosedAt.Time
+			}
+			_ = cw.Write([]string{
+				csvSafe(driftBatchLabel(row, now)),
+				csvSafe(driftBatchMeta(row)),
+				ev.Change,
+				csvSafe(ev.Subject),
+				csvSafe(facetLabel(row.Facet, row.Discriminator)),
+				when.UTC().Format(time.RFC3339),
+				ev.Reason,
+				csvSafe(before),
+				csvSafe(after),
+			})
 		}
-		before, after := driftExportValues(row, ev.Change)
-		when := row.OpenedAt.Time
-		if row.Role == "closed" {
-			when = row.ClosedAt.Time
+		if run.Truncated {
+			_ = cw.Write([]string{driftBatchCapNote(driftBatchLabel(run.Rows[0], now)), "", "", "", "", "", "", "", ""})
 		}
-		_ = cw.Write([]string{
-			csvSafe(driftBatchLabel(row, now)),
-			csvSafe(driftBatchMeta(row)),
-			ev.Change,
-			csvSafe(ev.Subject),
-			csvSafe(facetLabel(row.Facet, row.Discriminator)),
-			when.UTC().Format(time.RFC3339),
-			ev.Reason,
-			csvSafe(before),
-			csvSafe(after),
-		})
 	}
 
 	if int32(len(rows)) >= driftFeedLimit { // #nosec G115 (len(rows) under driftFeedLimit=500-row cap)
 		_ = cw.Write([]string{"feed capped at " + strconv.Itoa(int(driftFeedLimit)) + " most-recent events; older transitions omitted", "", "", "", "", "", "", "", ""})
 	}
+}
+
+func driftBatchCapNote(batchLabel string) string {
+	return "batch capped at " + strconv.Itoa(int(driftBatchLimit)) + " events for " + batchLabel + "; the rest of this batch is not listed"
 }
 
 func csvSafe(s string) string {

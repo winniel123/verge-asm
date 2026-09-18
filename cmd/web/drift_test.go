@@ -540,8 +540,10 @@ func TestDriftExportCSVStatesTruncationWhenTheCapBoundsTheRead(t *testing.T) {
 	marker := fmt.Sprintf("feed capped at %d most-recent events; older transitions omitted,,,,,,,,", driftFeedLimit)
 
 	rows := make([]db.ListRecentDriftEventsRow, 0, driftFeedLimit)
+	// Ten rows a batch, so the window cap binds the read and no batch reaches its own bound.
 	for i := 0; i < int(driftFeedLimit); i++ {
-		rows = append(rows, driftOpenedRow(1, at, fmt.Sprintf("h%03d.example.com", i), `{"outcome":"Resolved"}`, ""))
+		rows = append(rows, driftOpenedRow(int64(int(driftFeedLimit)/10-i/10), at,
+			fmt.Sprintf("h%03d.example.com", i), `{"outcome":"Resolved"}`, ""))
 	}
 
 	export := func(rows []db.ListRecentDriftEventsRow) []string {

@@ -74,6 +74,8 @@
 .dr-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 12px; font-family: var(--font-ui); margin-bottom: 12px; }
 .dr-callout .ic { color: var(--text-secondary); display: inline-flex; margin-top: 1px; flex: none; }
 .dr-callout span.tx { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.dr-callout.sm { padding: 8px 12px; margin: 8px 0 0; }
+.dr-callout.sm span.tx { font: 400 12px/1.5 var(--font-ui); color: var(--text-secondary); }
 .dr-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .dr-stat .val { display: flex; align-items: baseline; gap: 8px; }
 .dr-stat .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
@@ -157,6 +159,8 @@
 {{end}}
 </div>
 </div></div>
+{{if .Truncated}}<div class="dr-callout sm"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="tx">This batch moved more than the feed lists. It reads at most {{$.BatchLimit}} changes a batch.</span></div>{{end}}
 </div>
 {{end}}
 </div>

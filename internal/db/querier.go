@@ -236,6 +236,7 @@ type Querier interface {
 	ListRePointMovesForBatch(ctx context.Context, batchID int64) ([]ListRePointMovesForBatchRow, error)
 	ListReachedServices(ctx context.Context) ([]ListReachedServicesRow, error)
 	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
+	// Bounded per batch first, because one large fold otherwise took every slot in the feed (#2325).
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
 	// A held row releases on a drained hot dispatch, or where the tier cannot answer (ADR-1806 §6).

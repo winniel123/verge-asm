@@ -214,7 +214,7 @@ func foldProofBatch(t *testing.T, spans *foldSpanStore, msgs *fakeMessageStore, 
 	t.Helper()
 	ctx := context.Background()
 	var changes []spanChange
-	if err := foldObservationsIntoSpans(ctx, spans, batchID, pgInt8(1), at, obs, membershipInputs{}, &changes); err != nil {
+	if err := foldObservationsIntoSpans(ctx, spans, batchID, pgInt8(1), at, obs, membershipInputs{}, false, &changes); err != nil {
 		t.Fatalf("fold batch %d: %v", batchID, err)
 	}
 	var log []routed

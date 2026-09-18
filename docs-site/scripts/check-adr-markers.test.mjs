@@ -284,6 +284,20 @@ test("supersedes, withdrawn, and a clause-less amends sit under the H1", () => {
   ]);
 });
 
+test("a clause-less amends on a target that numbers headings still sits under the H1", () => {
+  const files = corpus({
+    [FILE_227]: adr({ front: withRelations(FRONT_227, ["  - {kind: amends, adr: 1700}"]), h1: H1_227, body: NUMBERED_BODY }),
+    [FILE_1700]: adr({ front: withRelations(FRONT_1700, []), h1: H1_1700, body: NEW_BODY }),
+  });
+  assert.deepEqual(regenerated(files, FILE_1700).slice(1, 6), [
+    H1_1700,
+    "",
+    `> **Amended** by [ADR-0227: ${TITLE_227}](./0227-${SLUG_227}.md), 2026-09-07. <!-- adr-marker amends 227 -->`,
+    "",
+    "## Decision",
+  ]);
+});
+
 test("several markers at one heading are separate blockquotes ordered withdrawn, supersedes, then ascending actor", () => {
   const files = corpus({
     [FILE_223]: adr({ front: withdrawn223("none"), h1: H1_223, body: NUMBERED_BODY }),

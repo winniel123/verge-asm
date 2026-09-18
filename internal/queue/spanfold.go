@@ -32,20 +32,20 @@ type spanFoldStore interface {
 
 var _ spanFoldStore = (*db.Queries)(nil)
 
-func foldObservationsIntoSpans(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation, in membershipInputs, changes *[]spanChange) error {
+func foldObservationsIntoSpans(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation, in membershipInputs, outage bool, changes *[]spanChange) error {
 	// Ingest is an incremental fold over completed batches, never a diff of two runs (ADR-0007).
 	for _, o := range obs {
 		if o.Facet == "" {
 			continue
 		}
-		if err := foldOne(ctx, qtx, batchID, vantageID, observedAt, o, in, changes); err != nil {
+		if err := foldOne(ctx, qtx, batchID, vantageID, observedAt, o, in, outage, changes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func foldOne(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation, in membershipInputs, changes *[]spanChange) error {
+func foldOne(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation, in membershipInputs, outage bool, changes *[]spanChange) error {
 	source := SourceFor(o.Facet)
 	key := drift.TimelineKey{
 		SubjectKind:   subjectKindFor(o.Facet),
@@ -83,6 +83,11 @@ func foldOne(ctx context.Context, qtx spanFoldStore, batchID int64, vantageID pg
 		open = nil
 	default:
 		return err
+	}
+
+	if outage && isOutageGap(open) {
+		// Only a batch that could clear the outage may retire its Gap (ADR-0108, #2250).
+		return nil
 	}
 
 	closeAt, opened, changed := drift.FoldStep(open, key, reading)
@@ -183,6 +188,17 @@ func facetVector(facet string) drift.Vector {
 			drift.Component{Leaf: "wildcard-discrimination", Version: wildcarddiscrim.Version},
 		)
 	}
+}
+
+func isOutageGap(open *drift.Span) bool {
+	if open == nil || !open.IsGap {
+		return false
+	}
+	var v struct {
+		Cause string `json:"cause"`
+	}
+	_ = json.Unmarshal([]byte(open.Value), &v)
+	return v.Cause == outageGapCause
 }
 
 func isGapValue(facet string, data json.RawMessage) bool {
