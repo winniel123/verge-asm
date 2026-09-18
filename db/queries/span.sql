@@ -477,3 +477,101 @@ JOIN span r
       ))
  )
 ORDER BY a.addr, r.subject_key, r.discriminator, r.vantage_id, r.source;
+
+-- name: ListDriftEventsForBatches :many
+-- Uncapped and batch-scoped, because a count read off the feed's LIMIT is partial (#2247).
+SELECT
+    'opened'::text   AS role,
+    b.id             AS batch_id,
+    b.kind           AS batch_kind,
+    b.created_at     AS batch_at,
+    b.recorded_scope AS recorded_scope,
+    sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
+    sp.value, sp.is_gap, sp.derivation,
+    sp.opened_at, sp.closed_at, sp.closure_reason,
+    sp.opened_aperture  AS opened_aperture,
+    pred.value          AS prev_value,
+    pred.derivation     AS prev_derivation,
+    pred.closed_at      AS prev_closed_at,
+    pred.closure_reason AS prev_closure_reason,
+    -- A Break on any resolution witness open at this instant voids returned (ADR-0097).
+    EXISTS (
+        SELECT 1
+        FROM span w
+        WHERE w.subject_kind = sp.subject_kind
+          AND w.subject_key = sp.subject_key
+          AND w.facet = 'resolution'
+          AND w.opened_at <= sp.opened_at
+          AND (w.closed_at IS NULL OR w.closed_at > sp.opened_at)
+          AND w.derivation <> (
+              SELECT wp.derivation
+              FROM span wp
+              WHERE wp.subject_kind = w.subject_kind
+                AND wp.subject_key = w.subject_key
+                AND wp.facet = w.facet
+                AND wp.discriminator = w.discriminator
+                AND wp.vantage_id IS NOT DISTINCT FROM w.vantage_id
+                AND wp.source = w.source
+                AND (wp.opened_at < w.opened_at OR (wp.opened_at = w.opened_at AND wp.id < w.id))
+              ORDER BY wp.opened_at DESC, wp.id DESC
+              LIMIT 1
+          )
+    )::boolean AS witness_broke
+FROM span sp
+JOIN batch b ON b.id = sp.opened_batch_id
+LEFT JOIN LATERAL (
+    SELECT p.value, p.derivation, p.closed_at, p.closure_reason
+    FROM span p
+    WHERE p.subject_kind = sp.subject_kind
+      AND p.subject_key = sp.subject_key
+      AND p.facet = sp.facet
+      AND p.discriminator = sp.discriminator
+      AND p.vantage_id IS NOT DISTINCT FROM sp.vantage_id
+      AND p.source = sp.source
+      AND (p.opened_at < sp.opened_at OR (p.opened_at = sp.opened_at AND p.id < sp.id))
+    ORDER BY p.opened_at DESC, p.id DESC
+    LIMIT 1
+) pred ON true
+WHERE b.id = ANY(sqlc.arg(batch_ids)::bigint[])
+
+UNION ALL
+
+SELECT
+    'closed'::text   AS role,
+    b.id             AS batch_id,
+    b.kind           AS batch_kind,
+    b.created_at     AS batch_at,
+    b.recorded_scope AS recorded_scope,
+    sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
+    sp.value, sp.is_gap, sp.derivation,
+    sp.opened_at, sp.closed_at, sp.closure_reason,
+    FALSE              AS opened_aperture,
+    NULL::jsonb        AS prev_value,
+    NULL::jsonb        AS prev_derivation,
+    NULL::timestamptz  AS prev_closed_at,
+    NULL::text         AS prev_closure_reason,
+    FALSE              AS witness_broke
+FROM span sp
+JOIN batch b ON b.id = sp.closed_batch_id
+WHERE b.id = ANY(sqlc.arg(batch_ids)::bigint[])
+  -- A value-move close rides its successor's opened row, so counting it doubles the transition.
+  AND sp.closure_reason IS NOT NULL
+
+ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at;
+
+-- name: ListBatchWindows :many
+-- The next instant comes off batch, so a fold absent from a feed cannot widen it (#2247).
+SELECT
+    b.id         AS batch_id,
+    b.created_at AS batch_at,
+    nxt.created_at AS next_batch_at
+FROM batch b
+LEFT JOIN LATERAL (
+    SELECT nb.created_at
+    FROM batch nb
+    WHERE nb.created_at > b.created_at
+    ORDER BY nb.created_at
+    LIMIT 1
+) nxt ON true
+WHERE b.id = ANY(sqlc.arg(batch_ids)::bigint[])
+ORDER BY b.created_at, b.id;

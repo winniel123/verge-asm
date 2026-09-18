@@ -428,8 +428,8 @@ func progressRow(id int64, kind string, tick time.Time, total, ready, running, d
 	}
 }
 
-func openedEvent(batchID int64, batchAt, openedAt time.Time) db.ListRecentDriftEventsRow {
-	return db.ListRecentDriftEventsRow{
+func openedEvent(batchID int64, batchAt, openedAt time.Time) db.ListDriftEventsForBatchesRow {
+	return db.ListDriftEventsForBatchesRow{
 		Role:       "opened",
 		BatchID:    batchID,
 		BatchAt:    pgtype.Timestamptz{Time: batchAt, Valid: true},
@@ -438,6 +438,14 @@ func openedEvent(batchID int64, batchAt, openedAt time.Time) db.ListRecentDriftE
 		OpenedAt:   pgtype.Timestamptz{Time: openedAt, Valid: true},
 		PrevValue:  nil,
 	}
+}
+
+func batchWindow(batchID int64, batchAt, nextAt time.Time) db.ListBatchWindowsRow {
+	row := db.ListBatchWindowsRow{BatchID: batchID, BatchAt: pgtype.Timestamptz{Time: batchAt, Valid: true}}
+	if !nextAt.IsZero() {
+		row.NextBatchAt = pgtype.Timestamptz{Time: nextAt, Valid: true}
+	}
+	return row
 }
 
 func sigAt(name string, first time.Time) db.SignalInstance {
@@ -450,13 +458,12 @@ func TestCountRunOutcome(t *testing.T) {
 	nextAt := time.Date(2026, 8, 22, 14, 30, 0, 0, time.UTC)
 	prevAt := time.Date(2026, 8, 22, 8, 0, 0, 0, time.UTC)
 
-	driftRows := []db.ListRecentDriftEventsRow{
-		openedEvent(1500, nextAt, nextAt),
+	driftRows := []db.ListDriftEventsForBatchesRow{
 		openedEvent(1407, batchAt, batchAt),
 		openedEvent(1407, batchAt, batchAt),
 		openedEvent(1407, batchAt, batchAt),
-		openedEvent(1300, prevAt, prevAt),
 	}
+	windows := []db.ListBatchWindowsRow{batchWindow(1407, batchAt, nextAt)}
 	signals := []db.SignalInstance{
 		sigAt("tls-1.0-accepted", batchAt),
 		sigAt("sensitive-port", batchAt.Add(10*time.Minute)),
@@ -464,7 +471,7 @@ func TestCountRunOutcome(t *testing.T) {
 		sigAt("earlier-signal", prevAt),
 	}
 
-	got := countRunOutcome(map[int64]bool{1407: true}, driftRows, signals, now)
+	got := countRunOutcome(map[int64]bool{1407: true}, driftRows, windows, signals, now)
 	if !got.Concluded {
 		t.Fatalf("expected concluded (run committed a batch)")
 	}
@@ -475,9 +482,47 @@ func TestCountRunOutcome(t *testing.T) {
 		t.Errorf("new signals: got %d, want 2", got.NewSignals)
 	}
 
-	empty := countRunOutcome(map[int64]bool{}, driftRows, signals, now)
+	empty := countRunOutcome(map[int64]bool{}, driftRows, windows, signals, now)
 	if empty.Concluded {
 		t.Errorf("expected not-concluded for a run with no batch")
+	}
+}
+
+func TestCountRunOutcomeBoundsTheSignalWindowFromBatch2247(t *testing.T) {
+	now := time.Date(2026, 8, 22, 15, 0, 0, 0, time.UTC)
+	batchAt := time.Date(2026, 8, 22, 14, 0, 0, 0, time.UTC)
+	quietAt := time.Date(2026, 8, 22, 14, 30, 0, 0, time.UTC)
+
+	signals := []db.SignalInstance{
+		sigAt("tls-1.0-accepted", batchAt),
+		sigAt("raised-by-the-quiet-fold", quietAt),
+	}
+
+	// The run raised no transition at all, so nothing about it reaches a drift read.
+	silent := countRunOutcome(
+		map[int64]bool{1407: true},
+		nil,
+		[]db.ListBatchWindowsRow{batchWindow(1407, batchAt, quietAt)},
+		signals,
+		now,
+	)
+	if silent.Transitions != 0 {
+		t.Errorf("transitions: got %d, want 0", silent.Transitions)
+	}
+	if silent.NewSignals != 1 {
+		t.Errorf("new signals: got %d, want 1 (the later signal belongs to the quiet fold)", silent.NewSignals)
+	}
+
+	// No batch followed, so the window runs to the end of the timeline.
+	open := countRunOutcome(
+		map[int64]bool{1407: true},
+		nil,
+		[]db.ListBatchWindowsRow{batchWindow(1407, batchAt, time.Time{})},
+		signals,
+		now,
+	)
+	if open.NewSignals != 2 {
+		t.Errorf("new signals on an unbounded window: got %d, want 2", open.NewSignals)
 	}
 }
 

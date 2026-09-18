@@ -168,6 +168,8 @@ type Querier interface {
 	ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, error)
 	// A dial is not ranked: no staleness sort and no per-rule count (ADR-0073 §3, §4).
 	ListAnnotations(ctx context.Context) ([]Annotation, error)
+	// The next instant comes off batch, so a fold absent from a feed cannot widen it (#2247).
+	ListBatchWindows(ctx context.Context, batchIds []int64) ([]ListBatchWindowsRow, error)
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
 	// The candidate set is what the departed Names ever cited, never every Address (ADR-0198 §1).
@@ -192,6 +194,8 @@ type Querier interface {
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
 	// The sweep keeps the row both release predicates still read (ADR-0041, ADR-1806 §3, #1853).
 	ListDispatchesAPendingReleaseMayRead(ctx context.Context, before pgtype.Timestamptz) ([]int64, error)
+	// Uncapped and batch-scoped, because a count read off the feed's LIMIT is partial (#2247).
+	ListDriftEventsForBatches(ctx context.Context, batchIds []int64) ([]ListDriftEventsForBatchesRow, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error)
 	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]ListEdgeFanoutMeasurementsOverRow, error)
 	ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSOProvidersRow, error)

@@ -927,6 +927,70 @@ func (f *fakeStore) fakeBatchByID(id int64) db.Batch {
 	return db.Batch{}
 }
 
+func (f *fakeStore) fakeBatchInstants() map[int64]time.Time {
+	at := map[int64]time.Time{}
+	for _, o := range f.observations {
+		if !o.ObservedAt.Valid {
+			continue
+		}
+		if cur, seen := at[o.BatchID]; !seen || o.ObservedAt.Time.Before(cur) {
+			at[o.BatchID] = o.ObservedAt.Time
+		}
+	}
+	for _, b := range f.batches {
+		if b.CreatedAt.Valid {
+			at[b.ID] = b.CreatedAt.Time
+		}
+	}
+	return at
+}
+
+func (f *fakeStore) ListBatchWindows(_ context.Context, batchIds []int64) ([]db.ListBatchWindowsRow, error) {
+	instant := f.fakeBatchInstants()
+	all := make([]time.Time, 0, len(instant))
+	for _, t := range instant {
+		all = append(all, t)
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].Before(all[j]) })
+
+	rows := []db.ListBatchWindowsRow{}
+	for _, id := range batchIds {
+		start, ok := instant[id]
+		if !ok {
+			continue
+		}
+		row := db.ListBatchWindowsRow{BatchID: id, BatchAt: pgtype.Timestamptz{Time: start, Valid: true}}
+		for _, t := range all {
+			if t.After(start) {
+				row.NextBatchAt = pgtype.Timestamptz{Time: t, Valid: true}
+				break
+			}
+		}
+		rows = append(rows, row)
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].BatchAt.Time.Before(rows[j].BatchAt.Time) })
+	return rows, nil
+}
+
+func (f *fakeStore) ListDriftEventsForBatches(ctx context.Context, batchIds []int64) ([]db.ListDriftEventsForBatchesRow, error) {
+	// No Since and no MaxEvents, so the fake answers the uncapped read the real query is.
+	all, err := f.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{})
+	if err != nil {
+		return nil, err
+	}
+	want := map[int64]bool{}
+	for _, id := range batchIds {
+		want[id] = true
+	}
+	rows := []db.ListDriftEventsForBatchesRow{}
+	for _, r := range all {
+		if want[r.BatchID] {
+			rows = append(rows, db.ListDriftEventsForBatchesRow(r))
+		}
+	}
+	return rows, nil
+}
+
 func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error) {
 	if f.driftEventsErr != nil {
 		return nil, f.driftEventsErr

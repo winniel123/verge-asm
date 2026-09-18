@@ -174,6 +174,50 @@ func (q *Queries) ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, 
 	return items, nil
 }
 
+const listBatchWindows = `-- name: ListBatchWindows :many
+SELECT
+    b.id         AS batch_id,
+    b.created_at AS batch_at,
+    nxt.created_at AS next_batch_at
+FROM batch b
+LEFT JOIN LATERAL (
+    SELECT nb.created_at
+    FROM batch nb
+    WHERE nb.created_at > b.created_at
+    ORDER BY nb.created_at
+    LIMIT 1
+) nxt ON true
+WHERE b.id = ANY($1::bigint[])
+ORDER BY b.created_at, b.id
+`
+
+type ListBatchWindowsRow struct {
+	BatchID     int64              `json:"batch_id"`
+	BatchAt     pgtype.Timestamptz `json:"batch_at"`
+	NextBatchAt pgtype.Timestamptz `json:"next_batch_at"`
+}
+
+// The next instant comes off batch, so a fold absent from a feed cannot widen it (#2247).
+func (q *Queries) ListBatchWindows(ctx context.Context, batchIds []int64) ([]ListBatchWindowsRow, error) {
+	rows, err := q.db.Query(ctx, listBatchWindows, batchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBatchWindowsRow{}
+	for rows.Next() {
+		var i ListBatchWindowsRow
+		if err := rows.Scan(&i.BatchID, &i.BatchAt, &i.NextBatchAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCitedAddressSpansForNames = `-- name: ListCitedAddressSpansForNames :many
 WITH cited AS (
     SELECT DISTINCT a.addr
@@ -251,6 +295,154 @@ func (q *Queries) ListCitedAddressSpansForNames(ctx context.Context, names []str
 	for rows.Next() {
 		var i ListCitedAddressSpansForNamesRow
 		if err := rows.Scan(&i.SubjectKey, &i.Citers); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDriftEventsForBatches = `-- name: ListDriftEventsForBatches :many
+SELECT
+    'opened'::text   AS role,
+    b.id             AS batch_id,
+    b.kind           AS batch_kind,
+    b.created_at     AS batch_at,
+    b.recorded_scope AS recorded_scope,
+    sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
+    sp.value, sp.is_gap, sp.derivation,
+    sp.opened_at, sp.closed_at, sp.closure_reason,
+    sp.opened_aperture  AS opened_aperture,
+    pred.value          AS prev_value,
+    pred.derivation     AS prev_derivation,
+    pred.closed_at      AS prev_closed_at,
+    pred.closure_reason AS prev_closure_reason,
+    -- A Break on any resolution witness open at this instant voids returned (ADR-0097).
+    EXISTS (
+        SELECT 1
+        FROM span w
+        WHERE w.subject_kind = sp.subject_kind
+          AND w.subject_key = sp.subject_key
+          AND w.facet = 'resolution'
+          AND w.opened_at <= sp.opened_at
+          AND (w.closed_at IS NULL OR w.closed_at > sp.opened_at)
+          AND w.derivation <> (
+              SELECT wp.derivation
+              FROM span wp
+              WHERE wp.subject_kind = w.subject_kind
+                AND wp.subject_key = w.subject_key
+                AND wp.facet = w.facet
+                AND wp.discriminator = w.discriminator
+                AND wp.vantage_id IS NOT DISTINCT FROM w.vantage_id
+                AND wp.source = w.source
+                AND (wp.opened_at < w.opened_at OR (wp.opened_at = w.opened_at AND wp.id < w.id))
+              ORDER BY wp.opened_at DESC, wp.id DESC
+              LIMIT 1
+          )
+    )::boolean AS witness_broke
+FROM span sp
+JOIN batch b ON b.id = sp.opened_batch_id
+LEFT JOIN LATERAL (
+    SELECT p.value, p.derivation, p.closed_at, p.closure_reason
+    FROM span p
+    WHERE p.subject_kind = sp.subject_kind
+      AND p.subject_key = sp.subject_key
+      AND p.facet = sp.facet
+      AND p.discriminator = sp.discriminator
+      AND p.vantage_id IS NOT DISTINCT FROM sp.vantage_id
+      AND p.source = sp.source
+      AND (p.opened_at < sp.opened_at OR (p.opened_at = sp.opened_at AND p.id < sp.id))
+    ORDER BY p.opened_at DESC, p.id DESC
+    LIMIT 1
+) pred ON true
+WHERE b.id = ANY($1::bigint[])
+
+UNION ALL
+
+SELECT
+    'closed'::text   AS role,
+    b.id             AS batch_id,
+    b.kind           AS batch_kind,
+    b.created_at     AS batch_at,
+    b.recorded_scope AS recorded_scope,
+    sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
+    sp.value, sp.is_gap, sp.derivation,
+    sp.opened_at, sp.closed_at, sp.closure_reason,
+    FALSE              AS opened_aperture,
+    NULL::jsonb        AS prev_value,
+    NULL::jsonb        AS prev_derivation,
+    NULL::timestamptz  AS prev_closed_at,
+    NULL::text         AS prev_closure_reason,
+    FALSE              AS witness_broke
+FROM span sp
+JOIN batch b ON b.id = sp.closed_batch_id
+WHERE b.id = ANY($1::bigint[])
+  -- A value-move close rides its successor's opened row, so counting it doubles the transition.
+  AND sp.closure_reason IS NOT NULL
+
+ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
+`
+
+type ListDriftEventsForBatchesRow struct {
+	Role              string             `json:"role"`
+	BatchID           int64              `json:"batch_id"`
+	BatchKind         string             `json:"batch_kind"`
+	BatchAt           pgtype.Timestamptz `json:"batch_at"`
+	RecordedScope     []byte             `json:"recorded_scope"`
+	SubjectKind       string             `json:"subject_kind"`
+	SubjectKey        string             `json:"subject_key"`
+	Facet             string             `json:"facet"`
+	Discriminator     string             `json:"discriminator"`
+	Value             []byte             `json:"value"`
+	IsGap             bool               `json:"is_gap"`
+	Derivation        []byte             `json:"derivation"`
+	OpenedAt          pgtype.Timestamptz `json:"opened_at"`
+	ClosedAt          pgtype.Timestamptz `json:"closed_at"`
+	ClosureReason     pgtype.Text        `json:"closure_reason"`
+	OpenedAperture    bool               `json:"opened_aperture"`
+	PrevValue         []byte             `json:"prev_value"`
+	PrevDerivation    []byte             `json:"prev_derivation"`
+	PrevClosedAt      pgtype.Timestamptz `json:"prev_closed_at"`
+	PrevClosureReason pgtype.Text        `json:"prev_closure_reason"`
+	WitnessBroke      bool               `json:"witness_broke"`
+}
+
+// Uncapped and batch-scoped, because a count read off the feed's LIMIT is partial (#2247).
+func (q *Queries) ListDriftEventsForBatches(ctx context.Context, batchIds []int64) ([]ListDriftEventsForBatchesRow, error) {
+	rows, err := q.db.Query(ctx, listDriftEventsForBatches, batchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDriftEventsForBatchesRow{}
+	for rows.Next() {
+		var i ListDriftEventsForBatchesRow
+		if err := rows.Scan(
+			&i.Role,
+			&i.BatchID,
+			&i.BatchKind,
+			&i.BatchAt,
+			&i.RecordedScope,
+			&i.SubjectKind,
+			&i.SubjectKey,
+			&i.Facet,
+			&i.Discriminator,
+			&i.Value,
+			&i.IsGap,
+			&i.Derivation,
+			&i.OpenedAt,
+			&i.ClosedAt,
+			&i.ClosureReason,
+			&i.OpenedAperture,
+			&i.PrevValue,
+			&i.PrevDerivation,
+			&i.PrevClosedAt,
+			&i.PrevClosureReason,
+			&i.WitnessBroke,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

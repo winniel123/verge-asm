@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -24,11 +25,12 @@ type scansStore interface {
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
 	ListActiveDispatchProgress(ctx context.Context) ([]db.ListActiveDispatchProgressRow, error)
+	ListBatchWindows(ctx context.Context, batchIds []int64) ([]db.ListBatchWindowsRow, error)
 	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
 	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]db.ListConcludedDispatchProgressRow, error)
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListDriftEventsForBatches(ctx context.Context, batchIds []int64) ([]db.ListDriftEventsForBatchesRow, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
-	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
 	ListScans(ctx context.Context) ([]db.Scan, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
@@ -875,12 +877,15 @@ func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) ru
 	if len(batchIDs) == 0 {
 		return runOutcome{Concluded: false}
 	}
-	driftRows, err := s.scansStore.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
-		// A run's batch can be older than any period, so the zero instant excludes none by age.
-		Since: pgtype.Timestamptz{Time: time.Time{}, Valid: true}, MaxEvents: driftFeedLimit,
-	})
+	ids := sortedBatchIDs(batchIDs)
+	driftRows, err := s.scansStore.ListDriftEventsForBatches(ctx, ids)
 	if err != nil {
-		log.Printf("web: run detail: outcome join: list drift events: %v", err)
+		log.Printf("web: run detail: outcome join: list drift events for batches: %v", err)
+		return runOutcome{Concluded: false}
+	}
+	windows, err := s.scansStore.ListBatchWindows(ctx, ids)
+	if err != nil {
+		log.Printf("web: run detail: outcome join: list batch windows: %v", err)
 		return runOutcome{Concluded: false}
 	}
 	signals, err := s.scansStore.ListSignalInstances(ctx)
@@ -888,47 +893,48 @@ func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) ru
 		log.Printf("web: run detail: outcome join: list signal instances: %v", err)
 		return runOutcome{Concluded: false}
 	}
-	return countRunOutcome(batchIDs, driftRows, signals, s.now())
+	return countRunOutcome(batchIDs, driftRows, windows, signals, s.now())
 }
 
-func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEventsRow, signals []db.SignalInstance, now time.Time) runOutcome {
+func sortedBatchIDs(batchIDs map[int64]bool) []int64 {
+	ids := make([]int64, 0, len(batchIDs))
+	for id := range batchIDs {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListDriftEventsForBatchesRow, windows []db.ListBatchWindowsRow, signals []db.SignalInstance, now time.Time) runOutcome {
 	if len(batchIDs) == 0 {
 		return runOutcome{Concluded: false}
 	}
 	out := runOutcome{Concluded: true}
 
-	instantOf := map[int64]time.Time{}
-	for _, row := range driftRows {
-		if row.BatchAt.Valid {
-			instantOf[row.BatchID] = row.BatchAt.Time.UTC()
-		}
-	}
-	allInstants := make([]time.Time, 0, len(instantOf))
-	for _, t := range instantOf {
-		allInstants = append(allInstants, t)
-	}
-	sortTimesAsc(allInstants)
-
 	for _, row := range driftRows {
 		if !batchIDs[row.BatchID] {
 			continue
 		}
-		if _, ok := classifyDriftEvent(row, now); ok {
+		// One classification rule for both reads, so a scoped count cannot part from the feed.
+		if _, ok := classifyDriftEvent(db.ListRecentDriftEventsRow(row), now); ok {
 			out.Transitions++
 		}
 	}
 
-	for id := range batchIDs {
-		start, ok := instantOf[id]
-		if !ok {
-			continue // this batch raised no transition, so we cannot bound its window
+	for _, wnd := range windows {
+		if !batchIDs[wnd.BatchID] || !wnd.BatchAt.Valid {
+			continue
 		}
-		// A signal's first_seen is minted at fold, so it lands in the window of the raising fold.
-		end := nextInstantAfter(allInstants, start)
+		start := wnd.BatchAt.Time.UTC()
+		var end time.Time
+		if wnd.NextBatchAt.Valid {
+			end = wnd.NextBatchAt.Time.UTC()
+		}
 		for _, sig := range signals {
 			if !sig.FirstSeen.Valid {
 				continue
 			}
+			// A signal's first_seen is minted at fold, so it lands in the window of the raising fold.
 			fs := sig.FirstSeen.Time.UTC()
 			if !fs.Before(start) && (end.IsZero() || fs.Before(end)) {
 				out.NewSignals++
@@ -936,23 +942,6 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEven
 		}
 	}
 	return out
-}
-
-func nextInstantAfter(asc []time.Time, t time.Time) time.Time {
-	for _, x := range asc {
-		if x.After(t) {
-			return x
-		}
-	}
-	return time.Time{}
-}
-
-func sortTimesAsc(ts []time.Time) {
-	for i := 1; i < len(ts); i++ {
-		for j := i; j > 0 && ts[j].Before(ts[j-1]); j-- {
-			ts[j], ts[j-1] = ts[j-1], ts[j]
-		}
-	}
 }
 
 func plural(n int, one, many string) string {
