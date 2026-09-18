@@ -193,24 +193,24 @@ func (f *fakeStore) ListOpenReachGapServices(_ context.Context) ([]db.ListOpenRe
 
 func (f *fakeStore) ListOutageReachGapVantages(_ context.Context) ([]db.ListOutageReachGapVantagesRow, error) {
 	counts := map[string]int64{}
-	recovered := map[string]bool{}
+	availability := map[string]string{}
 	for k, o := range f.currentReachByVantage() {
 		if !reachOutcomeIsGap(o.Value) || decodeReachability(o.Value).Cause != vantageUnavailableCause {
 			continue
 		}
 		v := f.vantageByID(k.vantage)
-		if _, seen := counts[v.Name]; !seen {
-			recovered[v.Name] = true
-		}
 		counts[v.Name]++
-		// bool_and over the group: one position not yet available holds the whole name back.
-		if v.Availability.String != "available" {
-			recovered[v.Name] = false
+		// The read coalesces a NULL availability to a value the CHECK bars (#2254).
+		availability[v.Name] = "unknown"
+		if v.Availability.Valid {
+			availability[v.Name] = v.Availability.String
 		}
 	}
 	rows := []db.ListOutageReachGapVantagesRow{}
 	for name, n := range counts {
-		rows = append(rows, db.ListOutageReachGapVantagesRow{Vantage: name, Services: n, Recovered: recovered[name]})
+		rows = append(rows, db.ListOutageReachGapVantagesRow{
+			Vantage: name, Services: n, Availability: availability[name],
+		})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Vantage < rows[j].Vantage })
 	return rows, nil

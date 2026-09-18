@@ -540,15 +540,14 @@ func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView,
 		}
 		subject := "vantage " + v.Vantage
 		expected := fmt.Sprintf("a reach reading for %d %s", v.Services, unit)
-		if v.Recovered {
-			// Recovery retires the Gap only on the facets it re-read (ADR-2087, #2189).
-			expected += ", pending"
+		qualifier, text := outageAvailabilityNote(v.Availability)
+		expected += qualifier
+		if text != "" {
 			msgs = append(msgs, coverageMessageView{
 				Kind:    "gap",
 				Badge:   "outage",
 				Subject: subject,
-				Text: "This position has recovered. The Gap its outage opened stands until the next reach " +
-					"batch writes over it, so the reading is pending rather than one we cannot take.",
+				Text:    text,
 			})
 		}
 		gaps = append(gaps, coverageGapView{
@@ -560,6 +559,30 @@ func outageGapViews(rows []db.ListOutageReachGapVantagesRow) ([]coverageGapView,
 		})
 	}
 	return gaps, msgs
+}
+
+func outageAvailabilityNote(availability string) (qualifier, text string) {
+	switch availability {
+	case "available":
+		// Recovery retires the Gap only on the facets it re-read (ADR-2087, #2189).
+		return ", pending", "This position has recovered. The Gap its outage opened stands until the next reach " +
+			"batch writes over it, so the reading is pending rather than one we cannot take."
+	case "unavailable":
+		// unavailableVantageMessages writes this state's message off its own read (#2254).
+		return "", ""
+	case "pending":
+		// A replay drops the pinned host key and moves 'available' here (ADR-0108, #2200).
+		return ", unconfirmed", "This position holds no pinned host key, so whether we can look from it is not " +
+			"concluded. Its Gap stands until a reach batch writes over it."
+	case "unknown":
+		// ADR-2087 §6 rules a missing availability is never read as unavailable (#2254).
+		return ", unconfirmed", "This position records no availability at all, so we cannot say whether it can " +
+			"be looked from. Its Gap stands either way."
+	default:
+		// A fifth CHECK value would otherwise take a branch that states a fact about it (#2254).
+		return ", unconfirmed", "This position's availability is not one this page reads, so we cannot say " +
+			"whether it can be looked from."
+	}
 }
 
 func unavailableVantageMessages(rows []db.ListUnavailableVantagesRow) []coverageMessageView {
