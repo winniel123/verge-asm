@@ -21,6 +21,14 @@ type driftBatchRun struct {
 	Truncated bool
 }
 
+func capDriftFeed(rows []db.ListRecentDriftEventsRow) ([]db.ListRecentDriftEventsRow, bool) {
+	// The read takes one row past the cap, so a window that exactly fills it omits nothing (#2272).
+	if len(rows) > int(driftFeedLimit) {
+		return rows[:driftFeedLimit], true
+	}
+	return rows, false
+}
+
 func driftBatchRuns(rows []db.ListRecentDriftEventsRow) []driftBatchRun {
 	var runs []driftBatchRun
 	// The query already orders by timeline within a batch, so one pass groups the runs.
@@ -166,7 +174,7 @@ func spanValueIsGap(facet string, raw []byte) bool {
 	}
 }
 
-func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, rows []db.ListRecentDriftEventsRow) {
+func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, rows []db.ListRecentDriftEventsRow, truncated bool) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="drift-`+periodToken+`.csv"`)
 
@@ -204,7 +212,7 @@ func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, 
 		}
 	}
 
-	if int32(len(rows)) >= driftFeedLimit { // #nosec G115 (len(rows) under driftFeedLimit=500-row cap)
+	if truncated {
 		_ = cw.Write([]string{"feed capped at " + strconv.Itoa(int(driftFeedLimit)) + " most-recent events; older transitions omitted", "", "", "", "", "", "", "", ""})
 	}
 }
