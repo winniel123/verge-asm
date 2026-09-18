@@ -168,6 +168,7 @@ type Querier interface {
 	ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, error)
 	// A dial is not ranked: no staleness sort and no per-rule count (ADR-0073 §3, §4).
 	ListAnnotations(ctx context.Context) ([]Annotation, error)
+	ListAvailableProberVantageIDs(ctx context.Context) ([]int64, error)
 	// The next instant comes off batch, so a fold absent from a feed cannot widen it (#2247).
 	ListBatchWindows(ctx context.Context, batchIds []int64) ([]ListBatchWindowsRow, error)
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)

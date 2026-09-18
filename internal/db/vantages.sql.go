@@ -99,6 +99,33 @@ func (q *Queries) GetVantage(ctx context.Context, id int64) (Vantage, error) {
 	return i, err
 }
 
+const listAvailableProberVantageIDs = `-- name: ListAvailableProberVantageIDs :many
+SELECT id
+FROM vantage
+WHERE availability = 'available' AND host IS NOT NULL
+ORDER BY id
+`
+
+func (q *Queries) ListAvailableProberVantageIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listAvailableProberVantageIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUnavailableVantages = `-- name: ListUnavailableVantages :many
 SELECT id, name, class, resolver, availability
 FROM vantage

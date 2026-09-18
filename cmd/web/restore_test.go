@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -396,11 +397,20 @@ func restoreProberReset(t *testing.T) string {
 	if err := replayTestArchive(t, tx); err != nil {
 		t.Fatalf("replayArchive: %v", err)
 	}
-	at := stepOf(tx.trail, "UPDATE vantage")
+	at := stepOf(tx.trail, "SET public_key")
 	if at < 0 {
 		t.Fatal("the replay reset no prober column, so this test proves nothing")
 	}
 	return stripSQLComments(tx.trail[at])
+}
+
+func restoreTrail(t *testing.T, ids []int64) []string {
+	t.Helper()
+	tx := &fakeTx{vantageIDs: ids}
+	if err := replayTestArchive(t, tx); err != nil {
+		t.Fatalf("replayArchive: %v", err)
+	}
+	return tx.trail
 }
 
 func TestTheRestoreLeavesAnOutageStandingForARecoveringBatchToClear(t *testing.T) {
@@ -418,6 +428,59 @@ func TestTheRestoreLeavesAnOutageStandingForARecoveringBatchToClear(t *testing.T
 	}
 }
 
+func TestTheRestoreTakesEveryAvailableProberVantageUnavailable(t *testing.T) {
+	trail := restoreTrail(t, []int64{4, 9})
+
+	read := stepOf(trail, "ListAvailableProberVantageIDs")
+	if read < 0 {
+		t.Fatal("the replay read no vantage, so nothing bounds the transition to the probers")
+	}
+	if read > stepOf(trail, "SET public_key") {
+		t.Error("the reset takes a row off 'available' first, so a later read finds none (#2200)")
+	}
+
+	var marks []string
+	for _, stmt := range trail {
+		if strings.Contains(stmt, "MarkVantageUnavailable") {
+			marks = append(marks, stripSQLComments(stmt))
+		}
+	}
+	if len(marks) != 2 {
+		t.Fatalf("the replay marked %d of the 2 available vantages, so a replayed 'reached' span "+
+			"keeps voting under the existential fold (ADR-0080, ADR-0124)", len(marks))
+	}
+	for _, writing := range []string{"closed_at = now()", "vantage-unavailable", "insert into span"} {
+		if !strings.Contains(marks[0], writing) {
+			t.Errorf("the transition does not %q, so it opens no Gap behind the closure "+
+				"(ADR-2087); got:\n%s", writing, marks[0])
+		}
+	}
+
+	replayed := stepOf(trail, `INSERT INTO "span"`)
+	resynced := stepOf(trail, "pg_get_serial_sequence")
+	if replayed < 0 || resynced < 0 {
+		t.Fatal("the replay inserted no span and resynced no sequence, so this proves no ordering")
+	}
+	at := stepOf(trail, "MarkVantageUnavailable")
+	if at < replayed {
+		t.Error("the transition runs before the replay, so it closes none of the spans it left open")
+	}
+	if at < resynced {
+		t.Error("the Gap takes a generated id, so a transition before the resync collides (#1834)")
+	}
+}
+
+// A read that answered an empty set on failure would leave the fleet voting on replayed spans.
+
+func TestAFailedVantageReadRefusesTheReplay(t *testing.T) {
+	want := errors.New("list vantages: deadlock detected")
+	tx := &fakeTx{failOn: "ListAvailableProberVantageIDs", err: want}
+
+	if err := replayTestArchive(t, tx); !errors.Is(err, want) {
+		t.Fatalf("replayArchive returned %v, want %v; the restore would commit unmarked", err, want)
+	}
+}
+
 func TestTheRestoreStillDropsTheKeysAndTheLatency(t *testing.T) {
 	stmt := restoreProberReset(t)
 
@@ -429,11 +492,11 @@ func TestTheRestoreStillDropsTheKeysAndTheLatency(t *testing.T) {
 	}
 }
 
-func TestTheRestoreClosesNoSpanOfTheCorpusItJustReplayed(t *testing.T) {
+func TestTheProberResetItselfWritesNoSpan(t *testing.T) {
 	stmt := restoreProberReset(t)
 
-	// Recovery retires the Gaps on the facets the recovering batch re-read, and a restore reads
-	// no position. A reset that closed spans would end readings nothing replaces (ADR-2087).
+	// One writer closes a span on an availability transition, and a bare column write is not it,
+	// so a second closure here would open a second Gap path (ADR-2087, #2244).
 	for _, writing := range []string{"span", "closed_at"} {
 		if strings.Contains(stmt, writing) {
 			t.Errorf("the prober reset measures nothing, so it touches no span; got:\n%s", stmt)

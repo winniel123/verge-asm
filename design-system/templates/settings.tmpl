@@ -1186,7 +1186,7 @@
 <section class="st-card">
 <div class="st-cardhead"><div class="hd"><span class="st-micro">Instance · data</span><h3>Restore</h3></div></div>
 <div class="st-body"><div style="display:flex;flex-direction:column;gap:12px">
-<p class="st-lede">Restoring replaces the current estate and configuration with the archive’s — it overwrites what is here now. The archive is pre-flighted before anything is touched, and applying it takes a typed confirmation. Fresh session and prober keys are generated: every session signs in again, and probers re-pin.</p>
+<p class="st-lede">Restoring replaces the current estate and configuration with the archive’s — it overwrites what is here now. The archive is pre-flighted before anything is touched, and applying it takes a typed confirmation. Fresh session and prober keys are generated: every session signs in again, and probers re-pin. Until a vantage re-pins and its next dns scan completes it reads unavailable, its open spans close behind a Gap, and no exposure is constructed from it.</p>
 {{if .RestoreError}}<div class="st-error">{{.RestoreError}}</div>{{end}}
 {{with .Preflight}}
 <div class="st-callout warn">
@@ -1234,7 +1234,7 @@
 <a class="st-scrim" href="/settings?tab=instance" aria-label="Cancel"></a>
 <div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Restore archive">
 <h2>Restore {{.File}}</h2>
-<p class="detail">This overwrites the current estate and configuration with the archive’s ({{.Subjects}} subjects, taken {{.TakenAt}}). Fresh session and prober keys are generated — every session signs in again, and probers re-pin.</p>
+<p class="detail">This overwrites the current estate and configuration with the archive’s ({{.Subjects}} subjects, taken {{.TakenAt}}). Fresh session and prober keys are generated — every session signs in again, and probers re-pin. Until a vantage re-pins and its next dns scan completes it reads unavailable, its open spans close behind a Gap, and no exposure is constructed from it.</p>
 <p class="detail" style="color:var(--text-secondary)">Type <span style="font-family:var(--font-mono);font-size:12.5px">restore</span> to confirm.</p>
 <form method="post" action="/settings/restore" style="margin:16px 0 0;display:flex;flex-direction:column;gap:16px">{{template "backfield" $}}
 <input class="typed" name="confirm" autocomplete="off" spellcheck="false" aria-label="Type restore to confirm" data-typed-confirm="restore">
