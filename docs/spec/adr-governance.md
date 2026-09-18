@@ -143,7 +143,8 @@ modification is that correction, and the four rows above do not run on it.
 At 227 and below a modified ADR keeps the legacy in-file amendment route of §3, so no M row reaches
 it. A hunk that only writes or removes an `adr-marker` line belongs to the marker tool, and §9's
 marker check regenerates every such line from front matter, so M1 does not reach it either. Ordinary
-ADR prose outside a legacy marker blockquote is outside ADR-2159, however wrong the sentence is.
+ADR prose outside a legacy marker blockquote is outside ADR-2159, however wrong the sentence is, and
+so is a blockquote the same patch wrote whole: the marker M1 names is one that was already there.
 
 The verdict is one PR comment per reviewed SHA. It opens with
 `<!-- adr-review sha=<40hex> verdict=pass|fail -->`, then one table row per check with a `pass` or

@@ -281,7 +281,8 @@ jobs:
   # Reads the PR's file list and its comments through the REST API with the job token.
   # `pull-requests: read` is the grant that reads a PR's comments; `issues: read` is named
   # beside it because the comments endpoint is the issues one. The ADR file itself is read
-  # from the checkout, which is the PR's merge ref.
+  # through the contents endpoint at the PR head SHA, because a patch line number indexes
+  # the head file and the checkout is the merge ref (#2231).
   adr-review:
     runs-on: ubuntu-latest
     permissions:

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   ADR_DIR,
@@ -13,7 +13,6 @@ import {
   splitFrontMatter,
 } from "./check-adr-sections.mjs";
 
-const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const API = "https://api.github.com";
 const PAGE = 100;
 
@@ -43,13 +42,13 @@ export const adrNumber = (file) => Number(ADR_FILE.exec(basename(file))[1]);
 const QUOTE = /^\s{0,3}>/;
 const SENTINEL = /<!-- adr-marker\b/;
 
-export function legacyQuoteLines(text) {
+export function legacyQuoteRuns(text) {
   const lines = text.split("\n");
-  const out = new Set();
+  const runs = [];
   let run = [];
   let fenced = false;
   const flush = () => {
-    if (run.length > 0 && !run.some((i) => SENTINEL.test(lines[i]))) for (const i of run) out.add(i + 1);
+    if (run.length > 0 && !run.some((i) => SENTINEL.test(lines[i]))) runs.push(run.map((i) => i + 1));
     run = [];
   };
   lines.forEach((line, i) => {
@@ -60,7 +59,7 @@ export function legacyQuoteLines(text) {
     else flush();
   });
   flush();
-  return out;
+  return runs;
 }
 
 export function patchHunks(patch) {
@@ -91,15 +90,32 @@ function toolWritten(changes) {
 const correctable = (text) => QUOTE.test(text) && !SENTINEL.test(text);
 
 export function markerScope(patch, after) {
-  const legacy = legacyQuoteLines(after);
+  const hunks = patchHunks(patch);
+  const runs = legacyQuoteRuns(after);
+  const runOf = new Map();
+  runs.forEach((run, i) => run.forEach((line) => runOf.set(line, i)));
+  const fresh = new Set();
+  for (const h of hunks) for (const c of h.changes) if (c.kind === "+") fresh.add(c.at);
+  // ADR-2159 reaches a blockquote that was already there, so a run this patch wrote whole is out
+  const standing = runs.map((run) => run.some((line) => !fresh.has(line)));
+  const inStandingRun = (line) => runOf.has(line) && standing[runOf.get(line)];
+
   const offences = [];
   let edits = 0;
-  for (const h of patchHunks(patch)) {
+  for (const h of hunks) {
     if (h.changes.length === 0 || toolWritten(h.changes)) continue;
     edits++;
-    for (const c of h.changes) {
+    const named = h.changes.filter((c) => c.text.trim() !== "");
+    // A blank line carries no sentence, so it rides on the named change beside it (#2231)
+    if (named.length === 0) {
+      offences.push(...h.changes.map((c) => ({ line: c.at, kind: c.kind, text: c.text })));
+      continue;
+    }
+    for (const c of named) {
       const ok =
-        c.kind === "+" ? legacy.has(c.at) : correctable(c.text) && (legacy.has(c.at) || legacy.has(c.at - 1));
+        c.kind === "+"
+          ? inStandingRun(c.at)
+          : correctable(c.text) && (inStandingRun(c.at) || inStandingRun(c.at - 1));
       if (!ok) offences.push({ line: c.at, kind: c.kind, text: c.text });
     }
   }
@@ -153,14 +169,15 @@ const amendsRoute = (file) =>
 
 function modificationProblems(file, entry, readAdr) {
   const after = readAdr(file);
-  if (after === null) return { problems: [`cannot read ${file} from the checkout`], edits: 0 };
+  if (after === null) return { problems: [`cannot read ${file} at the head SHA`], edits: 0 };
   if (typeof entry.patch !== "string") {
     return { problems: [`${file} carries no diff, so row M1 cannot be judged; ${amendsRoute(file)}`], edits: 0 };
   }
   const { offences, edits } = markerScope(entry.patch, after);
   const problems = offences.slice(0, 3).map((o) => {
     const verb = o.kind === "+" ? "adds" : "deletes";
-    return `${file}:${o.line} ${verb} a line outside a legacy marker blockquote, which row M1 refuses above ${LEGACY_MAX}: ${amendsRoute(file)}\n  ${o.kind}${o.text}`;
+    const shown = o.text.trim() === "" ? "<blank>" : o.text;
+    return `${file}:${o.line} ${verb} a line outside a standing legacy marker blockquote, which row M1 refuses above ${LEGACY_MAX}: ${amendsRoute(file)}\n  ${o.kind}${shown}`;
   });
   if (offences.length > 3) problems.push(`${file}: ${offences.length - 3} further line(s) fail row M1`);
   return { problems, edits };
@@ -201,7 +218,7 @@ export function evaluate({ headSha, files, comments, prBody, readAdr }) {
     const raw = readAdr(file);
     const want = raw === null ? null : normalise(decisionBlock(splitFrontMatter(raw).body).text);
     const have = bodyDecision(prBody);
-    if (want === null) problems.push(`cannot read ${file} from the checkout`);
+    if (want === null) problems.push(`cannot read ${file} at the head SHA`);
     if (have === null) problems.push("the PR body has no ## Decision section");
     if (want !== null && have !== null && want !== have) {
       const d = firstDifference(want, have);
@@ -233,6 +250,23 @@ export async function gather({ repo, number, token, fetchImpl = fetch }) {
   return { files, comments };
 }
 
+export async function headContents({ repo, sha, paths, token, fetchImpl = fetch }) {
+  const out = new Map();
+  for (const path of paths) {
+    const headers = { Accept: "application/vnd.github.raw", "X-GitHub-Api-Version": "2022-11-28" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const url = `${API}/repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${sha}`;
+    const res = await fetchImpl(url, { headers });
+    if (res.status === 404) {
+      out.set(path, null);
+      continue;
+    }
+    if (!res.ok) throw new Error(`GET contents/${path}: HTTP ${res.status}`);
+    out.set(path, await res.text());
+  }
+  return out;
+}
+
 async function main() {
   const eventPath = process.env.GITHUB_EVENT_PATH;
   const repo = process.env.GITHUB_REPOSITORY;
@@ -247,21 +281,20 @@ async function main() {
     process.exit(2);
   }
 
+  const token = process.env.GITHUB_TOKEN;
   let gathered;
+  let contents;
   try {
-    gathered = await gather({ repo, number: pr.number, token: process.env.GITHUB_TOKEN });
+    gathered = await gather({ repo, number: pr.number, token });
+    // The patch numbers a line in the head file, and the checkout is the merge ref (#2231)
+    const paths = [...addedAdrFiles(gathered.files), ...modifiedAdrFiles(gathered.files)];
+    contents = await headContents({ repo, sha: pr.head.sha, paths, token });
   } catch (err) {
     console.error(`check:adr-review: ${err.message}`);
     process.exit(2);
   }
 
-  const readAdr = (file) => {
-    try {
-      return readFileSync(join(DEFAULT_ROOT, file), "utf8");
-    } catch {
-      return null;
-    }
-  };
+  const readAdr = (file) => contents.get(file) ?? null;
   const r = evaluate({ headSha: pr.head.sha, prBody: pr.body ?? "", readAdr, ...gathered });
 
   for (const p of r.problems) console.error(`check:adr-review: ${p}`);
