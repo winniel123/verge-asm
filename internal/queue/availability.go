@@ -51,8 +51,14 @@ const (
 	outageGapCause               = "vantage-unavailable"
 )
 
-func vantageAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8) (string, error) {
-	if !vantageID.Valid {
+func outageSurvives(kind string) bool {
+	// A port probe says nothing of resolver health, so it clears no outage (ADR-0108).
+	return availabilityAfterOutcome(true, kind, outcomeCompleted) != availabilityAvailable
+}
+
+func availabilityForFold(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, kind string) (string, error) {
+	// A kind that clears the outage folds whatever the column holds, so the read decides nothing.
+	if !vantageID.Valid || !outageSurvives(kind) {
 		return "", nil
 	}
 	v, err := qtx.GetVantage(ctx, vantageID.Int64)
@@ -63,9 +69,7 @@ func vantageAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.
 }
 
 func outageStands(availability, kind string) bool {
-	// Only a batch that could clear the outage holds a reading fit to retire its Gap (ADR-0108).
-	return availability == availabilityUnavailableValue &&
-		availabilityAfterOutcome(true, kind, outcomeCompleted) != availabilityAvailable
+	return availability == availabilityUnavailableValue && outageSurvives(kind)
 }
 
 func applyAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, kind, outcome string) error {

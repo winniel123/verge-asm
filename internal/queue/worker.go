@@ -479,7 +479,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err != nil {
 			return err
 		}
-		availability, err := vantageAvailability(ctx, qtx, job.VantageID)
+		availability, err := availabilityForFold(ctx, qtx, job.VantageID, job.Kind)
 		if err != nil {
 			return err
 		}

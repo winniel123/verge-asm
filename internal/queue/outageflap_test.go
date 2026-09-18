@@ -2,7 +2,11 @@ package queue
 
 import (
 	"context"
+	"go/ast"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,7 +24,11 @@ var flapVantage = pgInt8(9)
 
 var flapTarget = netip.AddrPortFrom(netip.MustParseAddr("203.0.113.77"), 443)
 
-var outageGapValue = `{"outcome":"` + connectoutcome.GapOutcome + `","cause":"` + outageGapCause + `"}`
+// The reachability branch of MarkVantageUnavailable's CASE, byte for byte: that facet alone
+// decodes a lowercase outcome, and it carries a reason the other branches do not (#2183).
+
+var outageGapValue = `{"outcome":"` + connectoutcome.GapOutcome + `","cause":"` + outageGapCause +
+	`","reason":"we could not look from this position"}`
 
 func flapReached() []wire.Observation {
 	return []wire.Observation{
@@ -162,15 +170,58 @@ func TestOnlyABatchThatCouldClearTheOutageMayRetireItsGap(t *testing.T) {
 	}
 }
 
+func foldCall(t *testing.T, fn *ast.FuncDecl) *ast.CallExpr {
+	t.Helper()
+	var found *ast.CallExpr
+	ast.Inspect(fn, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if id, ok := call.Fun.(*ast.Ident); ok && id.Name == "foldObservationsIntoSpans" && found == nil {
+			found = call
+		}
+		return true
+	})
+	if found == nil {
+		t.Fatal("Worker.complete folds no observations; the gate lost the tree, not the rule")
+	}
+	return found
+}
+
 func TestTheFoldIsToldWhetherTheOutageStands(t *testing.T) {
-	// The guard sits in foldOne, so a caller that reads no availability re-opens the flap with
-	// every case above still passing (#2250).
+	// The guard sits in foldOne, so a caller that hands it a literal false re-opens the flap
+	// with every case above still passing (#2250).
 	fn := completeDecl(t)
-	firstCallPos(t, fn, "outageStands")
-	read := firstCallPos(t, fn, "vantageAvailability")
-	fold := firstCallPos(t, fn, "foldObservationsIntoSpans")
-	if read > fold {
+	read := firstCallPos(t, fn, "availabilityForFold")
+	call := foldCall(t, fn)
+	if read > call.Pos() {
 		t.Errorf("Worker.complete reads the vantage's availability at %d, after it folds at %d, so "+
-			"the fold is told nothing", read, fold)
+			"the fold is told nothing", read, call.Pos())
+	}
+	for _, arg := range call.Args {
+		inner, ok := arg.(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		if id, ok := inner.Fun.(*ast.Ident); ok && id.Name == "outageStands" {
+			return
+		}
+	}
+	t.Error("the fold is passed no outageStands call, so a batch that cannot clear the outage " +
+		"retires its Gap again")
+}
+
+func TestTheOutageCauseIsTheOneTheWriterSpells(t *testing.T) {
+	// The guard turns on a Go literal matching a SQL one, and nothing else holds the pair: a
+	// rename in the query would make isOutageGap read false for every span, silently.
+	body, err := os.ReadFile(filepath.Join("..", "..", "db", "queries", "vantages.sql"))
+	if err != nil {
+		t.Fatalf("read the vantage queries: %v", err)
+	}
+	want := `"cause":"` + outageGapCause + `"`
+	if !strings.Contains(string(body), want) {
+		t.Errorf("MarkVantageUnavailable opens no Gap spelling %s, so the fold guards a cause "+
+			"nothing writes (#2250)", want)
 	}
 }
