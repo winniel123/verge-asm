@@ -2,6 +2,7 @@ package dbtest_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -62,13 +63,17 @@ func TestOlderRunReadsItsOwnTransitionCount2247(t *testing.T) {
 	oldBatch := insertOutcomeBatch(t, tx, oldAt)
 	openSpansInBatch(t, tx, vantage, oldBatch, oldAt, "old.outcome.example.", 3)
 
-	// More than the feed limit, so the capped read reaches no row of the old run.
-	recentBatch := insertOutcomeBatch(t, tx, recentAt)
-	openSpansInBatch(t, tx, vantage, recentBatch, recentAt, "recent.outcome.example.", int(outcomeFeedLimit)+20)
+	// Ten folds fill the feed, because each batch is bounded, so the old run stays out (#2325).
+	for i := range 10 {
+		at := recentAt.Add(time.Duration(i) * time.Minute)
+		b := insertOutcomeBatch(t, tx, at)
+		openSpansInBatch(t, tx, vantage, b, at, fmt.Sprintf("recent%d.outcome.example.", i), int(driftBatchRead))
+	}
 
 	capped, err := q.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
-		Since:     pgtype.Timestamptz{Time: time.Time{}, Valid: true},
-		MaxEvents: outcomeFeedLimit,
+		Since:       pgtype.Timestamptz{Time: time.Time{}, Valid: true},
+		MaxEvents:   outcomeFeedLimit,
+		MaxPerBatch: driftBatchRead,
 	})
 	if err != nil {
 		t.Fatalf("ListRecentDriftEvents: %v", err)
@@ -128,8 +133,9 @@ func TestBothDriftReadsAgreeOnOneBatch2247(t *testing.T) {
 	openSpansInBatch(t, tx, vantage, second, secondAt, "fresh.outcome.example.", 1)
 
 	feed, err := q.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
-		Since:     pgtype.Timestamptz{Time: time.Time{}, Valid: true},
-		MaxEvents: outcomeFeedLimit,
+		Since:       pgtype.Timestamptz{Time: time.Time{}, Valid: true},
+		MaxEvents:   outcomeFeedLimit,
+		MaxPerBatch: driftBatchRead,
 	})
 	if err != nil {
 		t.Fatalf("ListRecentDriftEvents: %v", err)

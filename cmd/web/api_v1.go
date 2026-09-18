@@ -171,14 +171,18 @@ func (s *server) apiSubjects(w http.ResponseWriter, r *http.Request, _ db.Accoun
 type apiDriftResponse struct {
 	Period          string          `json:"period"`
 	TransitionCount int             `json:"transition_count"`
+	Truncated       bool            `json:"truncated"`
+	FeedLimit       int32           `json:"feed_limit"`
+	BatchLimit      int32           `json:"batch_limit"`
 	Movement        map[string]int  `json:"movement"`
 	Batches         []apiDriftBatch `json:"batches"`
 }
 
 type apiDriftBatch struct {
-	Label  string          `json:"label"`
-	Meta   string          `json:"meta"`
-	Events []apiDriftEvent `json:"events"`
+	Label     string          `json:"label"`
+	Meta      string          `json:"meta"`
+	Truncated bool            `json:"truncated"`
+	Events    []apiDriftEvent `json:"events"`
 }
 
 type apiDriftEvent struct {
@@ -193,7 +197,7 @@ type apiDriftEvent struct {
 func (s *server) apiDrift(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	period := resolvePeriodPreset(defaultPeriodPreset)
 	rows, err := s.apiV1Store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: s.presetSince(period), MaxEvents: driftFeedLimit,
+		Since: s.presetSince(period), MaxEvents: driftFeedLimit, MaxPerBatch: driftBatchRead,
 	})
 	if err != nil {
 		apiReadError(w, "drift: list recent drift events", err)
@@ -201,10 +205,17 @@ func (s *server) apiDrift(w http.ResponseWriter, r *http.Request, _ db.Account) 
 	}
 	groups, movement := buildDriftFeed(rows, s.now())
 
-	out := apiDriftResponse{Period: period.Token, Movement: movement, Batches: make([]apiDriftBatch, 0, len(groups))}
+	out := apiDriftResponse{
+		Period:     period.Token,
+		Truncated:  int32(len(rows)) >= driftFeedLimit, // #nosec G115 (len(rows) capped at driftFeedLimit=500 via query MaxEvents)
+		FeedLimit:  driftFeedLimit,
+		BatchLimit: driftBatchLimit,
+		Movement:   movement,
+		Batches:    make([]apiDriftBatch, 0, len(groups)),
+	}
 	for _, g := range groups {
 		out.TransitionCount += len(g.Events)
-		b := apiDriftBatch{Label: g.Label, Meta: g.Meta, Events: make([]apiDriftEvent, 0, len(g.Events))}
+		b := apiDriftBatch{Label: g.Label, Meta: g.Meta, Truncated: g.Truncated, Events: make([]apiDriftEvent, 0, len(g.Events))}
 		for _, e := range g.Events {
 			b.Events = append(b.Events, apiDriftEvent{
 				Change: e.Change, Family: e.Family, Subject: e.Subject, Detail: e.Detail, Time: e.Time, Reason: e.Reason,

@@ -928,6 +928,7 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 		"HasEvents":       devDriftHasEvents,
 		"Truncated":       devDriftTruncated,
 		"FeedLimit":       driftFeedLimit,
+		"BatchLimit":      driftBatchLimit,
 		"BatchID":         devDriftBatchID,
 		"BatchLabel":      devDriftBatchLabel,
 		"TransitionCount": devDriftTransitionCount,

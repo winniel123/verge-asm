@@ -115,6 +115,8 @@ WHERE s.subject_kind = @subject_kind AND s.subject_key = @subject_key
 ORDER BY s.facet, s.discriminator, s.vantage_id, s.source, s.opened_at, s.id;
 
 -- name: ListRecentDriftEvents :many
+-- Bounded per batch first, because one large fold otherwise took every slot in the feed (#2325).
+WITH edge AS (
 SELECT
     'opened'::text   AS role,
     b.id             AS batch_id,
@@ -193,7 +195,27 @@ WHERE b.created_at >= @since
   AND (sqlc.narg('until')::timestamptz IS NULL OR b.created_at < sqlc.narg('until')::timestamptz)
   -- A value-move close rides its successor's opened row, so counting it doubles the transition.
   AND sp.closure_reason IS NOT NULL
-
+), ranked AS (
+    SELECT e.role, e.batch_id, e.batch_kind, e.batch_at, e.recorded_scope,
+           e.subject_kind, e.subject_key, e.facet, e.discriminator,
+           e.value, e.is_gap, e.derivation,
+           e.opened_at, e.closed_at, e.closure_reason,
+           e.opened_aperture, e.prev_value, e.prev_derivation, e.prev_closed_at, e.prev_closure_reason,
+           e.witness_broke,
+           ROW_NUMBER() OVER (
+               PARTITION BY e.batch_id
+               ORDER BY e.subject_kind, e.subject_key, e.facet, e.discriminator, e.opened_at, e.role
+           ) AS batch_rank
+    FROM edge e
+)
+SELECT role, batch_id, batch_kind, batch_at, recorded_scope,
+       subject_kind, subject_key, facet, discriminator,
+       value, is_gap, derivation,
+       opened_at, closed_at, closure_reason,
+       opened_aperture, prev_value, prev_derivation, prev_closed_at, prev_closure_reason,
+       witness_broke
+FROM ranked
+WHERE batch_rank <= sqlc.arg(max_per_batch)::bigint
 ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
 LIMIT @max_events;
 

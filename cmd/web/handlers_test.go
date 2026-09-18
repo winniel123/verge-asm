@@ -1076,10 +1076,27 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 		}
 		return a.Facet < b.Facet
 	})
+	if arg.MaxPerBatch > 0 {
+		rows = fakeBoundPerBatch(rows, arg.MaxPerBatch)
+	}
 	if arg.MaxEvents > 0 && int32(len(rows)) > arg.MaxEvents {
 		rows = rows[:arg.MaxEvents]
 	}
 	return rows, nil
+}
+
+func fakeBoundPerBatch(rows []db.ListRecentDriftEventsRow, perBatch int64) []db.ListRecentDriftEventsRow {
+	// The real query ranks within batch_id before its own LIMIT, so the fake ranks too (#2325).
+	out := make([]db.ListRecentDriftEventsRow, 0, len(rows))
+	seen := map[int64]int64{}
+	for _, row := range rows {
+		seen[row.BatchID]++
+		if seen[row.BatchID] > perBatch {
+			continue
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 func (f *fakeStore) addReachability(t *testing.T, serviceKey string, at time.Time, value string) {

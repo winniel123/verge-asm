@@ -560,6 +560,7 @@ type fixtureDriftPackage struct {
 		HasEvents       bool   `json:"has_events"`
 		Truncated       bool   `json:"truncated"`
 		FeedLimit       int32  `json:"feed_limit"`
+		BatchLimit      int32  `json:"batch_limit"`
 		BatchID         string `json:"batch_id"`
 		BatchLabel      string `json:"batch_label"`
 		TransitionCount int    `json:"transition_count"`
@@ -618,6 +619,9 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 	}
 	if d.FeedLimit != driftFeedLimit {
 		t.Errorf("feed_limit drift: fixtures.json = %d, pinned = %d", d.FeedLimit, driftFeedLimit)
+	}
+	if d.BatchLimit != driftBatchLimit {
+		t.Errorf("batch_limit drift: fixtures.json = %d, pinned = %d", d.BatchLimit, driftBatchLimit)
 	}
 	if d.BatchID != devDriftBatchID {
 		t.Errorf("batch_id drift: fixtures.json = %q, pinned = %q", d.BatchID, devDriftBatchID)

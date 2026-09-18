@@ -512,6 +512,7 @@
     "has_events": true,
     "truncated": false,
     "feed_limit": 500,
+    "batch_limit": 50,
     "batch_id": "1407",
     "batch_label": "2026-08-22T14:00Z",
     "transition_count": 7,

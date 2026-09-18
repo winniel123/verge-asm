@@ -819,6 +819,7 @@ func (q *Queries) ListReachedServices(ctx context.Context) ([]ListReachedService
 }
 
 const listRecentDriftEvents = `-- name: ListRecentDriftEvents :many
+WITH edge AS (
 SELECT
     'opened'::text   AS role,
     b.id             AS batch_id,
@@ -871,8 +872,8 @@ LEFT JOIN LATERAL (
     ORDER BY p.opened_at DESC, p.id DESC
     LIMIT 1
 ) pred ON true
-WHERE b.created_at >= $2
-  AND ($3::timestamptz IS NULL OR b.created_at < $3::timestamptz)
+WHERE b.created_at >= $3
+  AND ($4::timestamptz IS NULL OR b.created_at < $4::timestamptz)
 
 UNION ALL
 
@@ -893,19 +894,40 @@ SELECT
     FALSE              AS witness_broke
 FROM span sp
 JOIN batch b ON b.id = sp.closed_batch_id
-WHERE b.created_at >= $2
-  AND ($3::timestamptz IS NULL OR b.created_at < $3::timestamptz)
+WHERE b.created_at >= $3
+  AND ($4::timestamptz IS NULL OR b.created_at < $4::timestamptz)
   -- A value-move close rides its successor's opened row, so counting it doubles the transition.
   AND sp.closure_reason IS NOT NULL
-
+), ranked AS (
+    SELECT e.role, e.batch_id, e.batch_kind, e.batch_at, e.recorded_scope,
+           e.subject_kind, e.subject_key, e.facet, e.discriminator,
+           e.value, e.is_gap, e.derivation,
+           e.opened_at, e.closed_at, e.closure_reason,
+           e.opened_aperture, e.prev_value, e.prev_derivation, e.prev_closed_at, e.prev_closure_reason,
+           e.witness_broke,
+           ROW_NUMBER() OVER (
+               PARTITION BY e.batch_id
+               ORDER BY e.subject_kind, e.subject_key, e.facet, e.discriminator, e.opened_at, e.role
+           ) AS batch_rank
+    FROM edge e
+)
+SELECT role, batch_id, batch_kind, batch_at, recorded_scope,
+       subject_kind, subject_key, facet, discriminator,
+       value, is_gap, derivation,
+       opened_at, closed_at, closure_reason,
+       opened_aperture, prev_value, prev_derivation, prev_closed_at, prev_closure_reason,
+       witness_broke
+FROM ranked
+WHERE batch_rank <= $1::bigint
 ORDER BY batch_at DESC, batch_id DESC, subject_kind, subject_key, facet, discriminator, opened_at
-LIMIT $1
+LIMIT $2
 `
 
 type ListRecentDriftEventsParams struct {
-	MaxEvents int32              `json:"max_events"`
-	Since     pgtype.Timestamptz `json:"since"`
-	Until     pgtype.Timestamptz `json:"until"`
+	MaxPerBatch int64              `json:"max_per_batch"`
+	MaxEvents   int32              `json:"max_events"`
+	Since       pgtype.Timestamptz `json:"since"`
+	Until       pgtype.Timestamptz `json:"until"`
 }
 
 type ListRecentDriftEventsRow struct {
@@ -932,8 +954,14 @@ type ListRecentDriftEventsRow struct {
 	WitnessBroke      bool               `json:"witness_broke"`
 }
 
+// Bounded per batch first, because one large fold otherwise took every slot in the feed (#2325).
 func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error) {
-	rows, err := q.db.Query(ctx, listRecentDriftEvents, arg.MaxEvents, arg.Since, arg.Until)
+	rows, err := q.db.Query(ctx, listRecentDriftEvents,
+		arg.MaxPerBatch,
+		arg.MaxEvents,
+		arg.Since,
+		arg.Until,
+	)
 	if err != nil {
 		return nil, err
 	}
