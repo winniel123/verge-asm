@@ -102,7 +102,7 @@ func TestDriftPageStatesAPerBatchTruncationApartFromTheWindow(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/drift?period=7d", http.StatusOK)
 
-	want := fmt.Sprintf("This batch moved more than %d transitions.", driftBatchLimit)
+	want := fmt.Sprintf("It reads at most %d changes a batch.", driftBatchLimit)
 	if !strings.Contains(page, want) {
 		t.Errorf("a fold past the per-batch bound stated no truncation of its own; body: %s", page)
 	}

@@ -59,7 +59,7 @@ func buildDriftFeed(rows []db.ListRecentDriftEventsRow, now time.Time) ([]driftB
 			movement[ev.Change]++
 			group.Events = append(group.Events, ev)
 		}
-		if len(group.Events) == 0 && !group.Truncated {
+		if len(group.Events) == 0 {
 			continue
 		}
 		groups = append(groups, group)
@@ -210,7 +210,7 @@ func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, 
 }
 
 func driftBatchCapNote(batchLabel string) string {
-	return "batch capped at " + strconv.Itoa(int(driftBatchLimit)) + " transitions for " + batchLabel + "; the rest of this batch is not listed"
+	return "batch capped at " + strconv.Itoa(int(driftBatchLimit)) + " events for " + batchLabel + "; the rest of this batch is not listed"
 }
 
 func csvSafe(s string) string {
