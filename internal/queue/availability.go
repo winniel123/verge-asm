@@ -44,6 +44,30 @@ func recoveredFacets(kind string) []string {
 	}
 }
 
+// db/queries/vantages.sql spells both, so a rename there must reach this file.
+
+const (
+	availabilityUnavailableValue = "unavailable"
+	outageGapCause               = "vantage-unavailable"
+)
+
+func vantageAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8) (string, error) {
+	if !vantageID.Valid {
+		return "", nil
+	}
+	v, err := qtx.GetVantage(ctx, vantageID.Int64)
+	if err != nil {
+		return "", err
+	}
+	return v.Availability.String, nil
+}
+
+func outageStands(availability, kind string) bool {
+	// Only a batch that could clear the outage holds a reading fit to retire its Gap (ADR-0108).
+	return availability == availabilityUnavailableValue &&
+		availabilityAfterOutcome(true, kind, outcomeCompleted) != availabilityAvailable
+}
+
 func applyAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, kind, outcome string) error {
 	switch availabilityAfterOutcome(vantageID.Valid, kind, outcome) {
 	case availabilityAvailable:

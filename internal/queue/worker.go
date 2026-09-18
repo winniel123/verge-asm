@@ -479,10 +479,14 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err != nil {
 			return err
 		}
+		availability, err := vantageAvailability(ctx, qtx, job.VantageID)
+		if err != nil {
+			return err
+		}
 		var changes []spanChange
 		var departures []departure
 		var narrowings []message.NarrowingReceipt
-		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership, w.changeCollector(&changes)); err != nil {
+		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership, outageStands(availability, job.Kind), w.changeCollector(&changes)); err != nil {
 			return err
 		}
 		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership, w.departureCollector(&departures)); err != nil {
