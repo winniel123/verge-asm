@@ -1,33 +1,29 @@
 package migrations
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 )
 
 func TestExclusionCarriesItsProposal(t *testing.T) {
 	// created_by is the same account on both paths, so only a proposal id separates them (#1799).
-	up := strings.ToLower(upMigrations(t))
+	col := tableColumn(t, "exclusion", "proposal_id")
 
-	col := regexp.MustCompile(`(?s)add column proposal_id\s+bigint[^;]*`).FindString(up)
-	if col == "" {
-		t.Fatal("exclusion declares no proposal_id column; an undo cannot tell a decline's row " +
-			"from a hand-declared one without it (#1799)")
+	if !strings.Contains(col, "bigint") {
+		t.Errorf("proposal_id must be a BIGINT, got: %s", col)
 	}
 	if !strings.Contains(col, "references proposal (id)") {
-		t.Errorf("proposal_id must reference proposal (id), got: %s", strings.TrimSpace(col))
+		t.Errorf("proposal_id must reference proposal (id), got: %s", col)
 	}
 	if !strings.Contains(col, "on delete set null") {
 		t.Errorf("the FK from exclusion.proposal_id to proposal(id) must be ON DELETE SET NULL, "+
-			"so a removed proposal leaves the exclusion standing, got: %s", strings.TrimSpace(col))
+			"so a removed proposal leaves the exclusion standing, got: %s", col)
 	}
 	if strings.Contains(col, "not null") {
-		t.Errorf("proposal_id must stay nullable; a hand-declared exclusion answers no proposal, got: %s",
-			strings.TrimSpace(col))
+		t.Errorf("proposal_id must stay nullable; a hand-declared exclusion answers no proposal, got: %s", col)
 	}
-	if !strings.Contains(up, "exclusion_provenance") {
-		t.Error("no exclusion_provenance constraint; only an address exclusion can answer a proposal")
+	if _, ok := tableConstraints(t, "exclusion")["exclusion_provenance"]; !ok {
+		t.Error("no exclusion_provenance constraint stands; only an address exclusion can answer a proposal")
 	}
 }
 

@@ -36,22 +36,22 @@ func TestAttributionColumnsDoNotPinTheAccount(t *testing.T) {
 	// The Act corpus captures the username as a value, so removal can no longer destroy
 	// the record of what an account did (§5.4, §9). seed_withdrawal.created_by is the
 	// fifteenth column and already shipped SET NULL, so its own test holds it.
-	up := flatUpMigrations(t)
-
 	for _, c := range attributionColumns {
-		drop := "alter table " + c.table + " alter column " + c.column + " drop not null"
-		if !strings.Contains(up, drop) {
-			t.Errorf("%s.%s must be nullable; no statement matches %q", c.table, c.column, drop)
+		if decl := tableColumn(t, c.table, c.column); strings.Contains(decl, "not null") {
+			t.Errorf("%s.%s must stay nullable; NOT NULL restores the refusal §9 withdraws, got: %s",
+				c.table, c.column, decl)
 		}
-		fk := "add constraint " + c.table + "_" + c.column + "_fkey foreign key (" + c.column +
-			") references account (id) on delete set null"
-		if !strings.Contains(up, fk) {
+		name := c.table + "_" + c.column + "_fkey"
+		fk, ok := tableConstraints(t, c.table)[name]
+		if !ok {
+			t.Errorf("no %s constraint stands; the FK from %s.%s to account(id) must survive the "+
+				"migrations, or the column stops being an attribution at all", name, c.table, c.column)
+			continue
+		}
+		if !strings.Contains(fk, "references account (id)") || !strings.Contains(fk, "on delete set null") {
 			t.Errorf("the FK from %s.%s to account(id) must be ON DELETE SET NULL; without it a live "+
-				"declaration pins its author and DeleteAccount can never remove them; no statement matches %q",
+				"declaration pins its author and DeleteAccount can never remove them, got: %s",
 				c.table, c.column, fk)
-		}
-		if strings.Contains(up, "alter table "+c.table+" alter column "+c.column+" set not null") {
-			t.Errorf("re-tightening %s.%s to NOT NULL restores the refusal §9 withdraws", c.table, c.column)
 		}
 	}
 }
@@ -59,15 +59,15 @@ func TestAttributionColumnsDoNotPinTheAccount(t *testing.T) {
 func TestRetentionInstantIsNullable(t *testing.T) {
 	// A rendered by-clause reads its meaning off the instant beside it, and the seeded
 	// singleton carried an instant nobody wrote (docs/spec/audit-act.md §9.2).
-	up := flatUpMigrations(t)
-
-	for _, want := range []string{
-		"alter table retention_settings alter column updated_at drop not null",
-		"update retention_settings set updated_at = null where updated_by is null",
-	} {
-		if !strings.Contains(up, want) {
-			t.Errorf("the never-moved retention row must carry no instant; no statement matches %q", want)
-		}
+	if decl := tableColumn(t, "retention_settings", "updated_at"); strings.Contains(decl, "not null") {
+		t.Errorf("the never-moved retention row must carry no instant, so updated_at must stay "+
+			"nullable, got: %s", decl)
+	}
+	// A backfill is a one-time write and never a schema fact, so the statement text is the proof.
+	const backfill = "update retention_settings set updated_at = null where updated_by is null"
+	if !strings.Contains(flatUpMigrations(t), backfill) {
+		t.Errorf("the seeded row must be cleared of the instant nobody wrote; no statement "+
+			"matches %q", backfill)
 	}
 }
 

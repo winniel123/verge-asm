@@ -7,52 +7,62 @@ import (
 	"testing"
 )
 
+var seedReference = regexp.MustCompile(`references\s+seed\s*\(`)
+
 func TestSeedForeignKeysCascadeOnDelete(t *testing.T) {
 	// R4-R2 (#752): a seed-referencing FK at the default NO ACTION turns a Seed delete into a 500.
-	up := upMigrations(t)
+	schema := effectiveSchema(t)
 
-	tableRe := regexp.MustCompile(`(?is)\b(?:create\s+table|alter\s+table)\s+([a-z_][a-z0-9_]*)`)
+	tables := make([]string, 0, len(schema))
+	for table := range schema {
+		tables = append(tables, table)
+	}
+	sort.Strings(tables)
 
-	// Statements arrive in migration order, so a later ALTER overrides the definition it replaces.
-	cascades := map[string]bool{}
-	for _, stmt := range strings.Split(up, ";") {
-		low := strings.ToLower(stmt)
-		idx := strings.Index(low, "references seed")
-		if idx < 0 {
-			continue
+	carriers := map[string]bool{}
+	for _, table := range tables {
+		for _, action := range schema[table].unmodelled {
+			if seedReference.MatchString(action) {
+				t.Fatalf("a migration alters %s in a form this reader does not model and the "+
+					"action names a reference to seed: %s", table, action)
+			}
 		}
-		m := tableRe.FindStringSubmatch(low)
-		if m == nil {
-			t.Fatalf("could not identify the table for a REFERENCES seed statement:\n%s", strings.TrimSpace(stmt))
+		names := make([]string, 0, len(schema[table].constraints))
+		for name := range schema[table].constraints {
+			names = append(names, name)
 		}
-		table := m[1]
-		// ON DELETE CASCADE always trails REFERENCES, so the clause ends at the first comma.
-		clause := low[idx:]
-		if c := strings.IndexByte(clause, ','); c >= 0 {
-			clause = clause[:c]
+		sort.Strings(names)
+		for _, name := range names {
+			decl := schema[table].constraints[name]
+			loc := seedReference.FindStringIndex(decl)
+			if loc == nil {
+				continue
+			}
+			carriers[table] = true
+			// A multi-action ALTER holds one clause per FK, so the clause ends at the next REFERENCES.
+			clause := decl[loc[0]+len("references"):]
+			if next := seedReference.FindStringIndex(clause); next != nil {
+				clause = clause[:next[0]]
+			}
+			if !strings.Contains(clause, "on delete cascade") {
+				t.Errorf("%s on %s must be ON DELETE CASCADE; without it, deleting a Seed that "+
+					"has a dependent %[2]s row returns a 500 (R4-R2 #752), got: %s", name, table, decl)
+			}
 		}
-		cascades[table] = strings.Contains(clause, "on delete cascade")
 	}
 
-	if len(cascades) == 0 {
-		t.Fatal("no FK to seed(id) found in the migrations — the parser matched nothing, which is itself a regression")
+	if len(carriers) == 0 {
+		t.Fatal("no FK to seed(id) survives the migrations — either the parser matched nothing " +
+			"or a later DROP CONSTRAINT removed them all, and both are regressions")
 	}
 
 	// Named explicitly, so a rename or a parser slip fails here instead of passing vacuously.
 	for _, want := range []string{"cold_scan_scope", "zone_file", "admitted_name", "proposal"} {
-		if _, ok := cascades[want]; !ok {
-			t.Errorf("expected a FK to seed(id) from %q but the migrations declare none", want)
+		if tbl := schema[want]; tbl != nil {
+			assertModelled(t, want, tbl)
 		}
-	}
-
-	tables := make([]string, 0, len(cascades))
-	for tbl := range cascades {
-		tables = append(tables, tbl)
-	}
-	sort.Strings(tables)
-	for _, tbl := range tables {
-		if !cascades[tbl] {
-			t.Errorf("FK from %q to seed(id) must be ON DELETE CASCADE; without it, deleting a Seed that has a dependent %[1]s row returns a 500 (R4-R2 #752)", tbl)
+		if !carriers[want] {
+			t.Errorf("expected an FK to seed(id) from %q to stand, but the migrations leave none", want)
 		}
 	}
 }

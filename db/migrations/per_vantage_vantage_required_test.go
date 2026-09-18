@@ -14,15 +14,25 @@ var perVantageConstraints = map[string]string{
 	"observation": "observation_per_vantage_facet_needs_vantage",
 }
 
+var checkPredicate = regexp.MustCompile(`(?s)check\s*\((.*)\)`)
+
+func perVantageConstraint(t *testing.T, table string) string {
+	t.Helper()
+	decl, ok := tableConstraints(t, table)[perVantageConstraints[table]]
+	if !ok {
+		t.Fatalf("no %s constraint stands on %s; a per-vantage row could then be stored "+
+			"with no vantage, and the asset page would read `never looked` over a measured "+
+			"service (#1985)", perVantageConstraints[table], table)
+	}
+	return decl
+}
+
 func perVantageCheck(t *testing.T, table string) string {
 	t.Helper()
-	up := strings.ToLower(upMigrations(t))
-	re := regexp.MustCompile(`(?s)add constraint ` + perVantageConstraints[table] + `\s+check\s*\((.*?)\)\s*;`)
-	m := re.FindStringSubmatch(up)
+	m := checkPredicate.FindStringSubmatch(perVantageConstraint(t, table))
 	if m == nil {
-		t.Fatalf("%s declares no %s constraint; a per-vantage row could then be stored "+
-			"with no vantage, and the asset page would read `never looked` over a measured "+
-			"service (#1985)", table, perVantageConstraints[table])
+		t.Fatalf("%s on %s is no longer a CHECK: %s", perVantageConstraints[table], table,
+			perVantageConstraint(t, table))
 	}
 	return m[1]
 }
@@ -69,15 +79,10 @@ func TestPerVantageCheckAdmitsItsTwoExceptions(t *testing.T) {
 func TestPerVantageCheckIsValidated(t *testing.T) {
 	// A NOT VALID constraint is silent about stored rows, which is the weaker
 	// guarantee and the harder one to reason about later (ADR-1985 §6).
-	up := strings.ToLower(upMigrations(t))
-	for table, name := range perVantageConstraints {
-		re := regexp.MustCompile(`(?s)add constraint ` + name + `\s+check\s*\(.*?\)\s*(not valid)?\s*;`)
-		m := re.FindStringSubmatch(up)
-		if m == nil {
-			t.Fatalf("%s declares no %s constraint", table, name)
-		}
-		if m[1] != "" {
-			t.Errorf("%s: %s is NOT VALID; it must validate the stored rows", table, name)
+	for _, table := range []string{"span", "observation"} {
+		if decl := perVantageConstraint(t, table); strings.Contains(decl, "not valid") {
+			t.Errorf("%s: %s is NOT VALID and no VALIDATE CONSTRAINT follows; it must validate "+
+				"the stored rows, got: %s", table, perVantageConstraints[table], decl)
 		}
 	}
 }

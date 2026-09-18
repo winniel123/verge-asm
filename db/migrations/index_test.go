@@ -80,6 +80,11 @@ func tableIndexes(t *testing.T, table string) map[string]sqlIndex {
 		}
 		if m := dropIndexStmt.FindStringSubmatch(s); m != nil {
 			delete(out, m[1])
+			continue
+		}
+		// Dropping the table takes its indexes with it, and no DROP INDEX names them.
+		if m := dropTableStmt.FindStringSubmatch(normSQL(s)); m != nil && m[1] == table {
+			out = map[string]sqlIndex{}
 		}
 	}
 	return out
