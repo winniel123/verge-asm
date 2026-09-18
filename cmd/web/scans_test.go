@@ -524,6 +524,20 @@ func TestCountRunOutcomeBoundsTheSignalWindowFromBatch2247(t *testing.T) {
 	if open.NewSignals != 2 {
 		t.Errorf("new signals on an unbounded window: got %d, want 2", open.NewSignals)
 	}
+
+	twin := countRunOutcome(
+		map[int64]bool{1407: true, 1408: true},
+		nil,
+		[]db.ListBatchWindowsRow{
+			batchWindow(1407, batchAt, quietAt),
+			batchWindow(1408, batchAt, quietAt),
+		},
+		signals,
+		now,
+	)
+	if twin.NewSignals != 1 {
+		t.Errorf("new signals across two batches at one instant: got %d, want 1", twin.NewSignals)
+	}
 }
 
 func TestDispatchBatchIDs(t *testing.T) {

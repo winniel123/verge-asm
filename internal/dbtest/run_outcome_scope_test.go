@@ -2,6 +2,7 @@ package dbtest_test
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -15,9 +16,9 @@ import (
 // The run-detail outcome join counted a run's transitions out of the drift
 // feed's newest 500 rows, so a run older than those rows stated Transitions: 0.
 // cmd/web is package main and cannot be imported, so the proof runs the two
-// statements the join now reads and the one it used to (#2247).
+// statements the join now reads and the one it used to. outcomeFeedLimit below
+// is cmd/web/drift.go's driftFeedLimit, the cap the old join passed (#2247).
 
-// cmd/web/drift.go's driftFeedLimit, which the old join passed as MaxEvents.
 const outcomeFeedLimit int32 = 500
 
 func insertOutcomeBatch(t *testing.T, tx pgx.Tx, at time.Time) int64 {
@@ -89,6 +90,66 @@ func TestOlderRunReadsItsOwnTransitionCount2247(t *testing.T) {
 		if row.BatchID != oldBatch {
 			t.Errorf("scoped read returned batch %d, want only %d", row.BatchID, oldBatch)
 		}
+	}
+}
+
+func closeSpanInBatch(t *testing.T, tx pgx.Tx, subjectKey string, batchID int64, at time.Time) {
+	t.Helper()
+	tag, err := tx.Exec(context.Background(),
+		`UPDATE span
+		 SET closed_at = $1, closure_reason = 'measured-absent', closed_batch_id = $2
+		 WHERE subject_key = $3 AND closed_at IS NULL`, at, batchID, subjectKey)
+	if err != nil {
+		t.Fatalf("close span for %s: %v", subjectKey, err)
+	}
+	if tag.RowsAffected() != 1 {
+		t.Fatalf("close span for %s: %d rows, want 1", subjectKey, tag.RowsAffected())
+	}
+}
+
+func TestBothDriftReadsAgreeOnOneBatch2247(t *testing.T) {
+	q, tx := dbtest.Queries(t)
+	ctx := context.Background()
+
+	vantage := insertVantage(t, tx, "run-outcome-agree")
+
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	firstAt := now.Add(-3 * time.Hour)
+	secondAt := now.Add(-time.Hour)
+
+	first := insertOutcomeBatch(t, tx, firstAt)
+	openSpansInBatch(t, tx, vantage, first, firstAt, "agree.outcome.example.", 2)
+
+	// A withdrawal, a re-open behind it and a fresh subject, so the closed arm,
+	// the predecessor LATERAL and a predecessor-free row all carry a row here.
+	second := insertOutcomeBatch(t, tx, secondAt)
+	closeSpanInBatch(t, tx, "agree.outcome.example.1", second, secondAt)
+	openSpansInBatch(t, tx, vantage, second, secondAt, "agree.outcome.example.", 1)
+	openSpansInBatch(t, tx, vantage, second, secondAt, "fresh.outcome.example.", 1)
+
+	feed, err := q.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
+		Since:     pgtype.Timestamptz{Time: time.Time{}, Valid: true},
+		MaxEvents: outcomeFeedLimit,
+	})
+	if err != nil {
+		t.Fatalf("ListRecentDriftEvents: %v", err)
+	}
+	want := []db.ListDriftEventsForBatchesRow{}
+	for _, row := range feed {
+		if row.BatchID == second {
+			want = append(want, db.ListDriftEventsForBatchesRow(row))
+		}
+	}
+	if len(want) != 3 {
+		t.Fatalf("the feed read holds %d rows of the batch, want 3", len(want))
+	}
+
+	got, err := q.ListDriftEventsForBatches(ctx, []int64{second})
+	if err != nil {
+		t.Fatalf("ListDriftEventsForBatches: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("the two drift reads part on one batch:\nscoped = %+v\nfeed   = %+v", got, want)
 	}
 }
 

@@ -921,11 +921,17 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListDriftEventsForB
 		}
 	}
 
+	counted := map[time.Time]bool{}
 	for _, wnd := range windows {
 		if !batchIDs[wnd.BatchID] || !wnd.BatchAt.Valid {
 			continue
 		}
 		start := wnd.BatchAt.Time.UTC()
+		// Two batches of one run can share an instant, and they then share a window.
+		if counted[start] {
+			continue
+		}
+		counted[start] = true
 		var end time.Time
 		if wnd.NextBatchAt.Valid {
 			end = wnd.NextBatchAt.Time.UTC()
@@ -934,7 +940,7 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListDriftEventsForB
 			if !sig.FirstSeen.Valid {
 				continue
 			}
-			// A signal's first_seen is minted at fold, so it lands in the window of the raising fold.
+			// first_seen is minted at fold, so it lands in the raising fold's window.
 			fs := sig.FirstSeen.Time.UTC()
 			if !fs.Before(start) && (end.IsZero() || fs.Before(end)) {
 				out.NewSignals++
