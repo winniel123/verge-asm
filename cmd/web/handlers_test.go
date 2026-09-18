@@ -928,6 +928,8 @@ func (f *fakeStore) fakeBatchByID(id int64) db.Batch {
 }
 
 func (f *fakeStore) fakeBatchInstants() map[int64]time.Time {
+	// A fixture batch carries no created_at, and this fake's drift rows already
+	// report the observation instant as the batch's, so the two reads agree.
 	at := map[int64]time.Time{}
 	for _, o := range f.observations {
 		if !o.ObservedAt.Valid {

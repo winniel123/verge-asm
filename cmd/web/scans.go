@@ -940,7 +940,7 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListDriftEventsForB
 			if !sig.FirstSeen.Valid {
 				continue
 			}
-			// first_seen is minted at fold, so it lands in the raising fold's window.
+			// first_seen records the /signals GET that minted the pair, not a fold (#2343).
 			fs := sig.FirstSeen.Time.UTC()
 			if !fs.Before(start) && (end.IsZero() || fs.Before(end)) {
 				out.NewSignals++
