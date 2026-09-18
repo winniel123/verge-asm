@@ -489,7 +489,7 @@ Three consequences follow.
 
 **The history arm has its own bound, and it is not the guard's.** The guard needs the citing
 document to spell the target. The history arm needs the citation to have carried a line number that
-a commit still holds. Five shapes defeat it.
+a commit still holds. Six shapes defeat it.
 
 1. **A citation no revision of its line ever wrote with a number.** The arm reports `unwitnessed`
    and judges nothing. F10 measures 75 of these.
@@ -503,6 +503,43 @@ a commit still holds. Five shapes defeat it.
 5. **A number that landed just outside the declaration the prose means.** The declaration then
    encloses no such line, and the arm calls the anchor a drift candidate. F11 measures this class,
    and it is the arm's one measured false positive.
+6. **An edit to the citing line that leaves the number standing.** The witness is the newest
+   revision that spelled a number, so a commit that rewrote the line for an unrelated reason
+   becomes the witness. The arm then reads the target as it stood at that later commit, and a drift
+   before the edit leaves no change to find. The arm reports `consistent`.
+
+**Shape 6 is measured on ADR-0212 line 62.** The citing sentence names the streamed fan-out and
+cites `` `queue.go:111` ``. `fa2c312` wrote that citation, and line 111 of
+`internal/queue/queue.go` then sat inside `Dispatcher.fanOut`. `39d00e9` rewrote the same line to
+convert a second token on it under
+[#1979](https://github.com/winniel123/verge-asm/issues/1979), and line 111 by then sat inside
+`Dispatcher.settleDue`. The arm takes `39d00e9` as the witness, so it reports `consistent`, and the
+dry run derives `internal/queue/queue.go#Dispatcher.settleDue` with no degradation and no review
+queue entry. Both instruments pass a wrong anchor. Verified 2026-09-18 against `main` at `51f4b18`.
+[A planned anchor is read against its target before the document converts](../adr/2283-a-planned-anchor-is-read-against-its-target-before-the-document-converts.md)
+§3.1 is the ruling that surfaced the shape, and §6 of it leaves this section's edit open.
+
+**The line-anchor conversion is itself such an edit, and it reaches only the tokens it leaves
+behind.** A `--write` run rewrites a citing line that carries several tokens, and it converts one of
+them. The converted token spells no number afterwards, so the run is never that token's witness, and
+the witness falls back to the revision that wrote the number. A token the run left numbered on the
+same line keeps its number, so the run **is** that token's witness, and every drift before the run
+is unreadable there. `39d00e9` above is
+[#2020](https://github.com/winniel123/verge-asm/pull/2020) doing exactly that to `queue.go:111`, and
+[#2011](https://github.com/winniel123/verge-asm/pull/2011) ran the same way. So a conversion erases
+evidence on the tokens it has not reached, and F10 and F11 record that both runs precede them.
+
+**The witness rule stands until a human rules on it, and this paragraph is the reason.** Two rival
+rules close shape 6, and each answers ADR-0212. The arm reads the oldest revision that spelled a
+number, which is the assertion the arm claims to measure change since. Or the arm reads every such
+revision, and a disagreement between them is the drift. The second reads more history, and its
+marginal cost is one more historical tree per extra revision: the arm runs one inventory per row
+over every tree it holds, so an extra revision adds a path to that batch rather than a run. Neither
+cost is measured, and either rule changes every count in §9 facts F9, F10 and F11. So this SPEC
+lists the shape and leaves the rule alone.
+[#2337](https://github.com/winniel123/verge-asm/issues/2337) carries the ruling and the
+re-measurement that follows it. `docs-site/scripts/sweep-history.test.mjs` pins the shape, so a
+change to the rule moves a test.
 
 **A drift candidate is evidence, and a human still reads it.** §6.3 rules that a suspect anchor
 degrades and is never repointed. The same holds here, and for the same reason: the declaration the
@@ -602,6 +639,15 @@ candidates.** 427 are consistent. `docs/adr` holds 484 judged and 142 candidates
 115 judged and 30 candidates. The root documents hold 2 anchors, and the arm judges neither. Read
 against F6, this is a first rate on the unproven population, and it is not small.
 
+**This count is a floor, not a rate.** `92f2db2` already held the conversions of
+[#2011](https://github.com/winniel123/verge-asm/pull/2011) and
+[#2020](https://github.com/winniel123/verge-asm/pull/2020). Each run rewrote citing lines and
+converted one token of each. §7 shape 6 then makes the run the witness for any token it left
+numbered on the same line, so a drift before the run is unreadable there and a candidate there never
+reaches this count. How many that hides is unmeasured. The runs do not blind the tokens they
+converted: those spell no number afterwards, so the witness falls back to the revision that wrote
+it. F9 carries no such note. It ran against `c196bed^`, the tree before both conversions.
+
 The same run leaves 161 more anchors unwitnessed, and 5 more unreadable. Shape 1 of §7 holds 75 of
 the unwitnessed, and shape 2 holds the other 86 of them. Four of the 5 unreadable sat on
 uncommitted lines of this document. `git log -L` reads committed history, and it never reads the
@@ -617,6 +663,16 @@ Two of the 19 spell the intended declaration in the prose, and the guard reports
 line 62 puts that name on the line above the citation. `docs/spec/audit-act.md` line 19 names
 `fillAuditSection`, and `cmd/web/settings.go` no longer declares it. The guard then reads the
 strongest drift evidence available as no evidence at all.
+
+**The sample is drawn from a population two conversion runs precede.** The 172 come from the F10
+run, which post-dates the conversions of
+[#2011](https://github.com/winniel123/verge-asm/pull/2011) and
+[#2020](https://github.com/winniel123/verge-asm/pull/2020). §7 shape 6 substitutes a later witness
+rather than dropping a row, so it changes the tree a verdict rests on and never the size of the
+sampled set. This fact's own false positive shows where the mechanism stops: ADR-0198 line 23 sits
+on a line [#2011](https://github.com/winniel123/verge-asm/pull/2011) rewrote, and the arm's witness
+there is still `fa2c312`, because that run converted the token and left it spelling no number.
+Verified 2026-09-18 against `main` at `51f4b18`.
 
 A run on 2026-09-16 produced fact F12. It ran against `ec0404e`, the branch this fact lands from.
 That branch is `main` at `ffa10a8` plus its own merges. Two commands reproduce the inputs.
