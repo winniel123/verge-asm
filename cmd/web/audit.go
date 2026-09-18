@@ -32,6 +32,8 @@ type auditRow struct {
 
 const auditFeedLimit int32 = 500
 
+const auditFeedRead = auditFeedLimit + 1
+
 // The scope is server-side because the corpus is unbounded (ADR-0158 limb 4, spec §6.2).
 
 func (s *server) resolveAuditWindow(r *http.Request) (token, label string, from, until pgtype.Timestamptz) {
@@ -52,17 +54,22 @@ func (s *server) fillAuditSection(r *http.Request, data map[string]any) error {
 	data["PeriodLabel"] = label
 
 	rows, err := s.auditStore.ListActsInRange(r.Context(), db.ListActsInRangeParams{
-		FromTime: from, UntilTime: until, MaxActs: auditFeedLimit,
+		FromTime: from, UntilTime: until, MaxActs: auditFeedRead,
 	})
 	if err != nil {
 		return err
+	}
+	// Only the extra row tells a truncation from a period holding exactly the cap (#2358).
+	truncated := len(rows) > int(auditFeedLimit)
+	if truncated {
+		rows = rows[:auditFeedLimit]
 	}
 	acts, err := s.auditRows(rows)
 	if err != nil {
 		return err
 	}
 	data["AuditRows"] = acts
-	data["AuditTruncated"] = int32(len(acts)) >= auditFeedLimit // #nosec G115 (len capped at auditFeedLimit=500 via MaxActs)
+	data["AuditTruncated"] = truncated
 	data["AuditCount"] = len(acts)
 	if len(acts) > 0 {
 		return nil
